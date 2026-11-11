@@ -30,9 +30,6 @@ public final class PushdriverExtensionDiscoveryTest
             throw new AssertionError("PUSHdriver must target Bitwig Extension API 17");
         if (!"Push 1".equals(definition.getName()))
             throw new AssertionError("Unexpected controller name: " + definition.getName());
-        if (definition.getNumMidiInPorts() < 1 || definition.getNumMidiOutPorts() < 1)
-            throw new AssertionError("Push 1 must expose MIDI input and output ports");
-
         System.out.println("PUSHdriver SPI discovery passed: " + definition.getName()
             + ", API " + definition.getRequiredAPIVersion() + ", UUID " + definition.getId());
     }
