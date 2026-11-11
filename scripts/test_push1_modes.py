@@ -88,8 +88,10 @@ for marker in (
 ):
     if marker not in draw_grid:
         raise SystemExit(f"Push 1 live sequencer follow regression: missing {marker!r}")
-if draw_grid.index("clip.doesExist ()") > draw_grid.index("clip.getNumSteps ()"):
+if draw_grid.index("clip.doesExist ()") > draw_grid.index("clip.getCurrentStep ()"):
     raise SystemExit("Push 1 playhead follow must check clip existence before reading its step state")
+if "clip.getNumSteps ()" in draw_grid:
+    raise SystemExit("Push 1 page tracking must not divide by total clip length")
 
 for relative in (
     "controller/ableton/push/view/SequencerView.java",
