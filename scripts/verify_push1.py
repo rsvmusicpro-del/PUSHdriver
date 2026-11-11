@@ -99,7 +99,7 @@ with ZipFile(jar) as archive:
     if b"Push 2" in definition_class or b"Ableton Push 2" in definition_class or b"2982" in definition_class:
         raise SystemExit("PushControllerDefinition still contains Push 2 discovery metadata")
     definition_literals = archive.read("de/mossgrabers/controller/ableton/push/PushControllerDefinition.class")
-    for expected in (b"DBED9610-C474-11E6-9598-0800200C9A66", b"Ableton Push User Port", b"MIDIIN2 (%sAbleton Push)"):
+    for expected in (b"DB830BE9-77B3-46F5-8F97-744901A94B56", b"Ableton Push User Port", b"MIDIIN2 (%sAbleton Push)"):
         if expected not in definition_literals:
             raise SystemExit(f"Push 1 MIDI discovery metadata is missing: {expected!r}")
 
