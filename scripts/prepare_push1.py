@@ -61,14 +61,18 @@ if source.count(old_display) != 1:
     raise SystemExit("PushControllerSetup: expected Push 1/Push 2 display branch was not found")
 setup.write_text(source.replace(old_display, new_display, 1))
 setup_source = setup.read_text()
-setup_source = setup_source.replace("    private final boolean isPush2;\\n", "", 1)
-setup_source = setup_source.replace("     * @param isPush2 True if Push 2\\n", "", 1)
+for obsolete in ("private final boolean isPush2;", "* @param isPush2 True if Push 2"):
+    if setup_source.count(obsolete) != 1:
+        raise SystemExit(f"PushControllerSetup: expected one obsolete declaration: {obsolete}")
+    setup_source = setup_source.replace(obsolete, "", 1)
 old_signature = "public PushControllerSetup (final IHost host, final ISetupFactory factory, final ISettingsUI globalSettings, final ISettingsUI documentSettings, final boolean isPush2)"
 new_signature = "public PushControllerSetup (final IHost host, final ISetupFactory factory, final ISettingsUI globalSettings, final ISettingsUI documentSettings)"
 if setup_source.count(old_signature) != 1:
     raise SystemExit("PushControllerSetup: expected dual-generation constructor was not found")
 setup_source = setup_source.replace(old_signature, new_signature, 1)
-setup_source = setup_source.replace("        this.isPush2 = isPush2;\\n", "", 1)
+if setup_source.count("this.isPush2 = isPush2;") != 1:
+    raise SystemExit("PushControllerSetup: expected Push 2 field assignment was not found")
+setup_source = setup_source.replace("this.isPush2 = isPush2;", "", 1)
 setup_source = setup_source.replace("new PushColorManager (isPush2)", "new PushColorManager (false)", 1)
 setup_source = setup_source.replace("new PushConfiguration (host, this.valueChanger, factory.getArpeggiatorModes (), isPush2)", "new PushConfiguration (host, this.valueChanger, factory.getArpeggiatorModes (), false)", 1)
 setup_source = setup_source.replace("this.isPush2", "false")
