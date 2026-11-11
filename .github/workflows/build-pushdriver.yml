@@ -35,6 +35,8 @@ jobs:
           rm -f src/main/java/de/mossgrabers/bitwig/controller/ableton/push/Push2ControllerExtensionDefinition.java
           mkdir -p src/main/resources/META-INF/services
           printf '%s\n' 'de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition' > src/main/resources/META-INF/services/com.bitwig.extension.ExtensionDefinition
+          mkdir -p src/assembly
+          cp upstream/src/assembly/dep.xml src/assembly/dep.xml
           cp upstream/pom.xml ./pom.xml
           python3 - <<'PY'
           from pathlib import Path
