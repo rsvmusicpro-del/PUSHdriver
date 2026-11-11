@@ -15,6 +15,8 @@ def copy_tree(source: str, destination: str) -> None:
 
 copy_tree("src/main/java/de/mossgrabers/framework", "src/main/java/de/mossgrabers/framework")
 copy_tree("src/main/java/de/mossgrabers/bitwig/framework", "src/main/java/de/mossgrabers/bitwig/framework")
+# Push 1 uses MIDI only; the Bitwig USB-HID adapter exists for other hardware.
+shutil.rmtree(root / "src/main/java/de/mossgrabers/bitwig/framework/usb", ignore_errors=True)
 copy_tree("src/main/java/de/mossgrabers/bitwig/controller/ableton/push",
           "src/main/java/de/mossgrabers/bitwig/controller/ableton/push")
 copy_tree("src/main/java/de/mossgrabers/controller/ableton/push",
@@ -59,6 +61,58 @@ if source.count(old_display) != 1:
     raise SystemExit("PushControllerSetup: expected Push 1/Push 2 display branch was not found")
 setup.write_text(source.replace(old_display, new_display, 1))
 
+# HostImpl still implements the shared IHost contract. Keep its USB methods but disable
+# USB-HID access: Push 1 is MIDI-only and this removes unrelated HID controller libraries.
+host = root / "src/main/java/de/mossgrabers/bitwig/framework/daw/HostImpl.java"
+source = host.read_text()
+for unwanted in (
+    "import de.mossgrabers.bitwig.framework.usb.UsbDeviceImpl;\\n",
+    "import com.bitwig.extension.controller.api.HardwareDevice;\\n",
+    "import com.bitwig.extension.controller.api.UsbDevice;\\n",
+):
+    if source.count(unwanted) != 1:
+        raise SystemExit(f"HostImpl: expected one import to remove: {unwanted.strip()}")
+    source = source.replace(unwanted, "", 1)
+field = "    private final List<IUsbDevice> usbDevices = new ArrayList<> ();\\n"
+if source.count(field) != 1:
+    raise SystemExit("HostImpl: USB device tracking field was not found")
+source = source.replace(field, "", 1)
+old_get = """    public IUsbDevice getUsbDevice (final int index) throws UsbException
+    {
+        try
+        {
+            final HardwareDevice hardwareDevice = this.host.hardwareDevice (index);
+            final UsbDeviceImpl usbDevice = new UsbDeviceImpl (this, (UsbDevice) hardwareDevice);
+            this.usbDevices.add (usbDevice);
+            return usbDevice;
+        }
+        catch (final RuntimeException ex)
+        {
+            throw new UsbException ("Could not lookup or open the device.", ex);
+        }
+    }"""
+new_get = """    public IUsbDevice getUsbDevice (final int index) throws UsbException
+    {
+        throw new UsbException ("PUSHdriver supports the MIDI-only Ableton Push 1; USB-HID access is disabled.");
+    }"""
+if source.count(old_get) != 1:
+    raise SystemExit("HostImpl: expected USB device implementation was not found")
+source = source.replace(old_get, new_get, 1)
+old_release = """    public void releaseUsbDevices ()
+    {
+        for (final IUsbDevice usbDevice: this.usbDevices)
+            usbDevice.release ();
+        this.usbDevices.clear ();
+    }"""
+new_release = """    public void releaseUsbDevices ()
+    {
+        // Push 1 has no USB-HID display or control endpoint.
+    }"""
+if source.count(old_release) != 1:
+    raise SystemExit("HostImpl: expected USB release implementation was not found")
+source = source.replace(old_release, new_release, 1)
+host.write_text(source)
+
 (resources / "com.bitwig.extension.ExtensionDefinition").write_text(
     "de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition\n"
 )
@@ -81,4 +135,20 @@ dependency = text[dependency_start:dependency_end]
 if "<artifactId>jamepad</artifactId>" not in dependency:
     raise SystemExit("Gamepad support section does not contain the expected Jamepad dependency")
 text = text[:start] + text[dependency_end:]
+# Remove libraries used only by non-Push-1 drivers or the USB-HID adapter.
+for group, artifact in (
+    ("net.java.dev.jna", "jna"),
+    ("net.java.dev.jna", "jna-platform"),
+    ("purejavahidapi", "purejavahidapi"),
+    ("com.fasterxml.jackson.core", "jackson-databind"),
+):
+    needle = f"<groupId>{group}</groupId>"
+    position = text.find(needle)
+    if position < 0:
+        raise SystemExit(f"Missing expected dependency group: {group}")
+    start = text.rfind("<dependency>", 0, position)
+    end = text.find("</dependency>", position)
+    if start < 0 or end < 0 or f"<artifactId>{artifact}</artifactId>" not in text[start:end]:
+        raise SystemExit(f"Could not isolate dependency {group}:{artifact}")
+    text = text[:start] + text[end + len("</dependency>"):]
 pom.write_text(text)
