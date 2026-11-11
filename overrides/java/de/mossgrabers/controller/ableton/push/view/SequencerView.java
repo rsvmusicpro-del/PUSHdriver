@@ -57,7 +57,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             // ask it to follow a playhead until Bitwig reports a real clip.
             if (clip.doesExist ())
             {
-                final int stepsPerPage = clip.getNumSteps ();
+                final int stepsPerPage = this.numDisplayCols;
                 final int currentStep = clip.getCurrentStep ();
                 if (stepsPerPage > 0 && currentStep >= 0)
                 {
