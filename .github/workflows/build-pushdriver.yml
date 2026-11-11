@@ -53,7 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          cp target/PUSHdriver-19.0.0.jar dist/PUSHdriver.bwextension
+          cp target/PUSHdriver-19.2.2.jar dist/PUSHdriver.bwextension
           test -s dist/PUSHdriver.bwextension
 
       - name: Upload PUSHdriver.bwextension
