@@ -85,7 +85,7 @@ with ZipFile(jar) as archive:
         raise SystemExit(f"Foreign controller implementation packaged: {foreign}")
 
     forbidden_names = (
-        "Push2Display", "Push2Controller", "MaschineColorManager",
+        "Push2Display", "PushUsbDisplay", "Push2Controller", "MaschineColorManager",
         "RaindropsView", "AbstractRaindropsView", "RAINDROPS",
         "NAME_RAINDROPS", "com/studiohartman/jamepad/",
         "purejavahidapi/", "com/fasterxml/jackson/",

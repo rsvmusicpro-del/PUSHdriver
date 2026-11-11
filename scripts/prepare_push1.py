@@ -571,6 +571,7 @@ for old, label in (
 # Register and compile only the Push 1 extension entry point and text display.
 (root / "src/main/java/de/mossgrabers/bitwig/controller/ableton/push/Push2ControllerExtensionDefinition.java").unlink(missing_ok=True)
 (root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push2Display.java").unlink(missing_ok=True)
+(root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushUsbDisplay.java").unlink(missing_ok=True)
 
 # Upstream AbstractDrumView had an accidental compile-time dependency on Maschine.
 # Resolve its two velocity-pad colors via the active controller's color manager.
