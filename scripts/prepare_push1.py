@@ -481,6 +481,18 @@ for relative in (
         "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
         relative + " long-press pad bounds")
 
+# The standard Loop Selector view also receives MIDI long-press callbacks;
+# validate the physical 8x8 pad index before looking up a hardware button.
+drum_view = root / "src/main/java/de/mossgrabers/controller/ableton/push/view/DrumView.java"
+replace_once(drum_view,
+    "        final int index = note - DRUM_START_KEY;\n"
+    "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
+    "        final int index = note - DRUM_START_KEY;\n"
+    "        if (index < 0 || index >= 64)\n"
+    "            return;\n"
+    "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
+    "DrumView long-press 8x8 pad bounds")
+
 drum64 = root / "src/main/java/de/mossgrabers/framework/view/AbstractDrum64View.java"
 replace_once(drum64,
     "        final int index = note - 36;\n"
@@ -539,6 +551,46 @@ replace_once(layout,
     "        else if (viewManager.isActive (Views.SEQUENCER))\n"
     "            this.activatePreferredView (Views.DRUM);",
     "LayoutCommand Raindrops cycle")
+# Push 1 Note button: enter the native Drum layout for a Drum Rack track,
+# then alternate between the Loop Selector (Drum) and full 8x8 Drum 64 grid.
+# Keep the temporary Note View Select overlay dismissible with the same button.
+select_play_view = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/trigger/SelectPlayViewCommand.java"
+replace_once(select_play_view,
+    "            final Views preferredView = viewManager.getPreferredView (cursorTrack.getPosition ());\n"
+    "            viewManager.setActive (preferredView == null ? Views.PLAY : preferredView);",
+    "            final Views preferredView = viewManager.getPreferredView (cursorTrack.getPosition ());\n"
+    "            if (this.model.canSelectedTrackHoldNotes () && this.model.getDrumDevice ().hasDrumPads ())\n"
+    "                viewManager.setActive (Views.DRUM);\n"
+    "            else\n"
+    "                viewManager.setActive (preferredView == null ? Views.PLAY : preferredView);",
+    "Push 1 Note button enters Drum Loop Selector for Drum Rack tracks")
+replace_once(select_play_view,
+    "        if (modeManager.isActive (Modes.VIEW_SELECT))\n"
+    "            modeManager.restore ();\n"
+    "        else\n"
+    "            modeManager.setTemporary (Modes.VIEW_SELECT);",
+    "        if (modeManager.isActive (Modes.VIEW_SELECT))\n"
+    "        {\n"
+    "            modeManager.restore ();\n"
+    "            return;\n"
+    "        }\n\n"
+    "        if (viewManager.isActive (Views.DRUM))\n"
+    "        {\n"
+    "            viewManager.setActive (Views.DRUM64);\n"
+    "            return;\n"
+    "        }\n"
+    "        if (viewManager.isActive (Views.DRUM64))\n"
+    "        {\n"
+    "            viewManager.setActive (Views.DRUM);\n"
+    "            return;\n"
+    "        }\n"
+    "        if (this.model.canSelectedTrackHoldNotes () && this.model.getDrumDevice ().hasDrumPads ())\n"
+    "        {\n"
+    "            viewManager.setActive (Views.DRUM);\n"
+    "            return;\n"
+    "        }\n\n"
+    "        modeManager.setTemporary (Modes.VIEW_SELECT);",
+    "Push 1 Note button Drum and Drum64 layout toggle")
 
 views = root / "src/main/java/de/mossgrabers/framework/view/Views.java"
 replace_once(views,

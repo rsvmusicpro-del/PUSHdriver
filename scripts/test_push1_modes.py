@@ -112,6 +112,64 @@ for marker in (
     if marker not in drum64:
         raise SystemExit(f"Drum 64 bounds regression: missing {marker!r}")
 
+# The Note button follows Ableton's Push 1 Drum Rack workflow: Note from a
+# Drum Rack track enters Loop Selector; subsequent presses alternate Drum/Drum64.
+note_command = read("controller/ableton/push/command/trigger/SelectPlayViewCommand.java")
+execute_note = method_body(note_command, "public void execute (final ButtonEvent event, final int velocity)")
+for marker in (
+    "this.model.canSelectedTrackHoldNotes () && this.model.getDrumDevice ().hasDrumPads ()",
+    "viewManager.setActive (Views.DRUM);",
+    "if (viewManager.isActive (Views.DRUM))",
+    "viewManager.setActive (Views.DRUM64);",
+    "if (viewManager.isActive (Views.DRUM64))",
+    "modeManager.restore ();",
+):
+    if marker not in execute_note:
+        raise SystemExit(f"Push 1 Drum layout toggle regression: missing {marker!r}")
+if execute_note.index("if (modeManager.isActive (Modes.VIEW_SELECT))") > execute_note.index("if (viewManager.isActive (Views.DRUM))"):
+    raise SystemExit("The Note button must dismiss the temporary view selector before changing Drum layouts")
+if execute_note.index("if (viewManager.isActive (Views.DRUM))") > execute_note.index("if (viewManager.isActive (Views.DRUM64))"):
+    raise SystemExit("Drum must toggle to Drum64 before the reverse Drum64-to-Drum transition")
+
+# Verify the complete Loop Selector behavior and its 16 fixed-velocity pads.
+drum_engine = read("framework/view/sequencer/AbstractDrumView.java")
+loop_handler = method_body(drum_engine, "protected void handleLoopArea (final int pad, final int velocity)")
+for marker in (
+    "this.configuration.isAccentActive ()",
+    "this.configuration.setFixedAccentValue ((selPad + 1) * 8 - 1)",
+    "clip.scrollToPage (pad)",
+    "clip.setLoopStart (newStart)",
+    "clip.setLoopLength ((end - start) * lengthOfOnePad)",
+    "clip.setPlayRange (newStart, (double) end * lengthOfOnePad)",
+):
+    if marker not in loop_handler:
+        raise SystemExit(f"Push 1 Loop Selector / velocity layout regression: missing {marker!r}")
+pages = method_body(drum_engine, "protected void drawPages (final INoteClip clip, final boolean isActive)")
+if "for (int pad = 0; pad < 16; pad++)" not in pages or "this.configuration.isAccentActive ()" not in pages:
+    raise SystemExit("The 16-pad fixed-velocity selector is missing from the Drum Loop Selector")
+velocity = method_body(drum_engine, "protected int getVelocity (final int index)")
+if "this.configuration.getFixedAccentValue ()" not in velocity:
+    raise SystemExit("Sequencer steps must use the selected fixed velocity when Accent is active")
+
+# The standard Drum view long-presses must stay within the 64 physical pads.
+drum_view = read("controller/ableton/push/view/DrumView.java")
+drum_long_press = method_body(drum_view, "public void onGridNoteLongPress (final int note)")
+if "index < 0 || index >= 64" not in drum_long_press:
+    raise SystemExit("Drum Loop Selector long-press callback lacks 8x8 pad bounds")
+
+# Drum64 remains a full-grid play view and retains its dedicated pad actions.
+drum64_view = read("controller/ableton/push/view/Drum64View.java")
+for marker in (
+    "this.model.getDrumDevice (64)",
+    "this.model.getBrowser ().replace",
+    "this.model.getNoteClip (8, 128).clearRow",
+    "drumPad.select ();",
+    "scene.select ();",
+    "scene.launch ();",
+):
+    if marker not in drum64_view:
+        raise SystemExit(f"Drum64 interaction regression: missing {marker!r}")
+
 colors = read("controller/ableton/push/controller/PushColorManager.java")
 for marker in (
     "AbstractSequencerView.COLOR_CONTENT",
