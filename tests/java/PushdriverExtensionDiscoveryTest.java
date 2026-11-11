@@ -3,8 +3,12 @@ import com.bitwig.extension.controller.ControllerExtension;
 import com.bitwig.extension.controller.ControllerExtensionDefinition;
 import com.bitwig.extension.controller.api.ControllerHost;
 import de.mossgrabers.bitwig.framework.daw.HostImpl;
+import de.mossgrabers.controller.ableton.push.PushControllerDefinition;
+import de.mossgrabers.framework.utils.OperatingSystem;
+import de.mossgrabers.framework.utils.Pair;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.UUID;
@@ -27,6 +31,24 @@ public final class PushdriverExtensionDiscoveryTest
             throw new AssertionError("Packaged devices/Instruments.txt was not loaded");
         if (host.getAudioEffectMetadata().isEmpty())
             throw new AssertionError("Packaged devices/AudioEffects.txt was not loaded");
+
+        // Validate the platform-specific MIDI auto-detection contract independently
+        // of the CI runner's actual operating system.
+        final PushControllerDefinition push = new PushControllerDefinition();
+        if (push.getNumMidiInPorts() != 1 || push.getNumMidiOutPorts() != 1)
+            throw new AssertionError("Push 1 must expose exactly one MIDI input and one MIDI output");
+        if (push.claimUSBDevice() != null)
+            throw new AssertionError("Push 1 MIDI-only discovery must not claim a USB-HID device");
+
+        if (!containsPair(push.getMidiDiscoveryPairs(OperatingSystem.WINDOWS),
+                "MIDIIN2 (Ableton Push)", "MIDIOUT2 (Ableton Push)"))
+            throw new AssertionError("Windows Push 1 MIDI port names are missing");
+        if (!containsPair(push.getMidiDiscoveryPairs(OperatingSystem.MAC),
+                "Ableton Push User Port", "Ableton Push User Port"))
+            throw new AssertionError("macOS Push 1 User Port discovery is missing");
+        if (!containsPair(push.getMidiDiscoveryPairs(OperatingSystem.LINUX),
+                "Push", "Push"))
+            throw new AssertionError("Linux Push 1 MIDI port discovery is missing");
 
         final List<ExtensionDefinition> definitions = new ArrayList<>();
         ServiceLoader.load(ExtensionDefinition.class).forEach(definitions::add);
@@ -78,5 +100,15 @@ public final class PushdriverExtensionDiscoveryTest
 
         System.out.println("PUSHdriver SPI discovery passed: " + definition.getName()
             + ", API " + definition.getRequiredAPIVersion() + ", UUID " + definition.getId());
+
+    private static boolean containsPair(final List<Pair<String[], String[]>> pairs,
+                                        final String input, final String output)
+    {
+        for (final Pair<String[], String[]> pair : pairs)
+            if (Arrays.asList(pair.getKey()).contains(input)
+                    && Arrays.asList(pair.getValue()).contains(output))
+                return true;
+        return false;
+    }
     }
 }
