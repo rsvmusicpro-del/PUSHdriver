@@ -22,6 +22,47 @@ copy_tree("src/main/java/de/mossgrabers/bitwig/controller/ableton/push",
 copy_tree("src/main/java/de/mossgrabers/controller/ableton/push",
           "src/main/java/de/mossgrabers/controller/ableton/push")
 
+# Remove the Push Raindrops mode and its framework-only implementation completely.
+for obsolete in (
+    root / "src/main/java/de/mossgrabers/controller/ableton/push/view/RaindropsView.java",
+    root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractRaindropsView.java",
+):
+    if not obsolete.is_file():
+        raise SystemExit(f"Expected Raindrops source not found: {obsolete}")
+    obsolete.unlink()
+
+def replace_once(path: Path, old: str, new: str, label: str) -> None:
+    content = path.read_text()
+    if content.count(old) != 1:
+        raise SystemExit(f"{label}: expected exactly one source match")
+    path.write_text(content.replace(old, new, 1))
+
+setup = root / "src/main/java/de/mossgrabers/controller/ableton/push/PushControllerSetup.java"
+replace_once(setup,
+    "import de.mossgrabers.controller.ableton.push.view.RaindropsView;\\n", "",
+    "PushControllerSetup Raindrops import")
+replace_once(setup,
+    "        viewManager.register (Views.RAINDROPS, new RaindropsView (surface, this.model));\\n", "",
+    "PushControllerSetup Raindrops registration")
+
+configuration = root / "src/main/java/de/mossgrabers/controller/ableton/push/PushConfiguration.java"
+replace_once(configuration, "        Views.RAINDROPS,\\n", "",
+    "PushConfiguration Raindrops preference")
+
+views = root / "src/main/java/de/mossgrabers/framework/view/Views.java"
+replace_once(views,
+    "    /** View for raindrops sequencer. */\\n    RAINDROPS,\\n",
+    "    /** Reserved to preserve the ordinal values of the remaining view IDs. */\\n    UNUSED_VIEW_SLOT,\\n",
+    "Views enum compatibility slot")
+for old, label in (
+    ("    /** The name of the raindrops view. */\\n    public static final String              NAME_RAINDROPS      = \\"Raindrop\\";\\n", "Views Raindrops name"),
+    ("        NOTE_VIEWS.add (RAINDROPS);\\n", "Views note-view registration"),
+    ("        NOTE_VIEW_NAMES.put (NAME_RAINDROPS, RAINDROPS);\\n", "Views name registration"),
+    ("        SEQUENCER_VIEWS.add (RAINDROPS);\\n", "Views sequencer registration"),
+):
+    replace_once(views, old, "", label)
+
+
 # Register and compile only the Push 1 extension entry point and text display.
 (root / "src/main/java/de/mossgrabers/bitwig/controller/ableton/push/Push2ControllerExtensionDefinition.java").unlink(missing_ok=True)
 (root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push2Display.java").unlink(missing_ok=True)
