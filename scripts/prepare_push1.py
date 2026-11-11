@@ -49,6 +49,45 @@ copy_tree("src/main/java/de/mossgrabers/bitwig/controller/ableton/push",
 copy_tree("src/main/java/de/mossgrabers/controller/ableton/push",
           "src/main/java/de/mossgrabers/controller/ableton/push")
 
+# Root notes in the piano layout must inherit the selected track color on every row.
+piano_helper = root / "src/main/java/de/mossgrabers/framework/view/PianoViewHelper.java"
+replace_once(piano_helper,
+    "                final int color;\\n"
+    "                if (row % 2 == 0)\\n"
+    "                {\\n"
+    "                    // White keys\\n"
+    "                    color = keyManager.isKeyPressed (n) ? playKeyColor : whiteKeyColor;\\n"
+    "                }\\n"
+    "                else\\n"
+    "                {\\n"
+    "                    // Black keys\\n"
+    "                    final int octaveColumn = column % 7;\\n"
+    "                    if (octaveColumn == 0 || octaveColumn == 3 || octaveColumn == 7)\\n"
+    "                        color = offKeyColor;\\n"
+    "                    else\\n"
+    "                        color = keyManager.isKeyPressed (n) ? playKeyColor : blackKeyColor;\\n"
+    "                }",
+    "                final int color;\\n"
+    "                if (keyManager.isKeyPressed (n))\\n"
+    "                    color = playKeyColor;\\n"
+    "                else if (Scales.SCALE_COLOR_OCTAVE.equals (keyManager.getColor (n)))\\n"
+    "                    color = colorManager.getColorIndex (AbstractView.replaceOctaveColorWithTrackColor (track, Scales.SCALE_COLOR_OCTAVE));\\n"
+    "                else if (row % 2 == 0)\\n"
+    "                {\\n"
+    "                    // White keys\\n"
+    "                    color = whiteKeyColor;\\n"
+    "                }\\n"
+    "                else\\n"
+    "                {\\n"
+    "                    // Black keys\\n"
+    "                    final int octaveColumn = column % 7;\\n"
+    "                    if (octaveColumn == 0 || octaveColumn == 3 || octaveColumn == 7)\\n"
+    "                        color = offKeyColor;\\n"
+    "                    else\\n"
+    "                        color = blackKeyColor;\\n"
+    "                }",
+    "PianoViewHelper root notes follow selected track color")
+
 # Apply the small, reviewed Push 1 protocol override maintained by this project.
 shutil.copytree(root / "overrides/java", root / "src/main/java", dirs_exist_ok=True)
 
