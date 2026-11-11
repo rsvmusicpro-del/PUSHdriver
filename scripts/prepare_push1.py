@@ -34,6 +34,16 @@ resources.mkdir(parents=True, exist_ok=True)
 def copy_tree(source: str, destination: str) -> None:
     shutil.copytree(upstream / source, root / destination, dirs_exist_ok=True)
 
+# Copy runtime data used by HostImpl and the controller UI. In particular,
+# HostImpl.readDeviceFiles() wraps these streams without a null check, so omitting
+# devices/*.txt makes extension construction fail before init() is reached.
+for resource_dir in ("devices", "images"):
+    copy_tree(f"src/main/resources/{resource_dir}", f"src/main/resources/{resource_dir}")
+shutil.copy2(
+    upstream / "src/main/resources/Documentation/DrivenByMoss-Manual.pdf",
+    root / "src/main/resources/DrivenByMoss-Manual.pdf",
+)
+
 def replace_once(path: Path, old: str, new: str, label: str) -> None:
     content = path.read_text()
     if content.count(old) != 1:
