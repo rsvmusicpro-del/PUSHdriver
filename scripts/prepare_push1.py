@@ -635,6 +635,94 @@ if "isPush2" in setup_source or "Push2Display" in setup_source or "Push 2" in se
     raise SystemExit("PushControllerSetup still contains Push 2 runtime references")
 setup.write_text(setup_source)
 
+# Map the physical Push 1 Page Left/Right CC controls to their Ableton In/Out
+# roles in Device and Browser modes. Preserve their established Session and
+# sequencer page behavior in all other contexts.
+replace_once(setup,
+    'this.addButton (ButtonID.PAGE_LEFT, "Page Left"',
+    'this.addButton (ButtonID.PAGE_LEFT, "Out"',
+    "Push 1 Out button label")
+replace_once(setup,
+    'this.addButton (ButtonID.PAGE_RIGHT, "Page Right"',
+    'this.addButton (ButtonID.PAGE_RIGHT, "In"',
+    "Push 1 In button label")
+replace_once(setup,
+    """PushControlSurface.PUSH_BUTTON_DEVICE_LEFT, () -> {
+
+            if (viewManager.isActive (Views.SESSION))""",
+    """PushControlSurface.PUSH_BUTTON_DEVICE_LEFT, () -> {
+
+            final IMode activeMode = modeManager.getActive ();
+            if (activeMode instanceof final DeviceBrowserMode browserMode)
+                return browserMode.canNavigateFilterColumn (false);
+            if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
+                return activeMode.hasPreviousItem ();
+            if (viewManager.isActive (Views.SESSION))""",
+    "Push 1 Out button LED state")
+replace_once(setup,
+    """PushControlSurface.PUSH_BUTTON_DEVICE_RIGHT, () -> {
+
+            if (viewManager.isActive (Views.SESSION))""",
+    """PushControlSurface.PUSH_BUTTON_DEVICE_RIGHT, () -> {
+
+            final IMode activeMode = modeManager.getActive ();
+            if (activeMode instanceof final DeviceBrowserMode browserMode)
+                return browserMode.canNavigateFilterColumn (true);
+            if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
+                return activeMode.hasNextItem ();
+            if (viewManager.isActive (Views.SESSION))""",
+    "Push 1 In button LED state")
+
+# Keep browser filter focus, LCD marker and button availability synchronized.
+browser_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceBrowserMode.java"
+replace_once(browser_mode,
+    """    public void resetFilterColumn ()
+    {
+        this.filterColumn = -1;
+    }
+""",
+    """    public void resetFilterColumn ()
+    {
+        this.filterColumn = -1;
+    }
+
+
+    /**
+     * Check if In/Out can move to another browser filter column.
+     *
+     * @param forward True for In (right), false for Out (left)
+     * @return True if another column is available
+     */
+    public boolean canNavigateFilterColumn (final boolean forward)
+    {
+        final IBrowser browser = this.model.getBrowser ();
+        if (browser.getFilterColumnCount () == 0)
+            return false;
+        final int selectedColumn = browser.getSelectedFilterColumn ().getPosition ();
+        return forward ? selectedColumn < browser.getFilterColumnCount () - 1 : selectedColumn > 0;
+    }
+
+
+    /**
+     * Move the browser focus one filter column left or right.
+     *
+     * @param forward True for In (right), false for Out (left)
+     */
+    public void navigateFilterColumn (final boolean forward)
+    {
+        final IBrowser browser = this.model.getBrowser ();
+        if (browser.getFilterColumnCount () == 0)
+            return;
+        if (forward)
+            browser.selectNextFilterColumn ();
+        else
+            browser.selectPreviousFilterColumn ();
+        this.filterColumn = browser.getSelectedFilterColumn ().getIndex ();
+        this.selectionMode = DeviceBrowserMode.SELECTION_OFF;
+    }
+""",
+    "Push 1 In/Out browser filter-column navigation")
+
 # Keep the physical Push 1 New button on its native dedicated binding, while
 # stopping the cursor track's current clip before preparing its next note clip.
 replace_once(setup,

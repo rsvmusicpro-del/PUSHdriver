@@ -119,3 +119,32 @@ The result is one isolated LCD protocol boundary, not an unnecessary stack of ov
 The build remains pinned to Bitwig Extension API 17 and Java 17. The Push 1 uses the MIDI adapter; Push 2 USB/HID display code is excluded. The source-to-class package verifier and the LCD protocol regression tests run in CI.
 
 A successful build proves compilation, packaging, and the deterministic protocol checks. It does **not** prove physical LCD appearance, USB port naming on every operating system, pad velocity/pressure calibration, or timing on a real Push 1. Those require a hardware session with Bitwig Studio 4.3.10.
+
+
+## In/Out controls: Ableton behavior adapted to Bitwig API 17
+
+The two physical controls are the Push 1 CC 62 and CC 63 buttons, represented by
+the upstream `PUSH_BUTTON_DEVICE_LEFT` and `PUSH_BUTTON_DEVICE_RIGHT` constants.
+Ableton documents them as In/Out: in Device mode they navigate additional
+devices and parameter banks; in Browser mode they shift the visible browser
+hierarchy horizontally. Ableton also documents access to additional Rack
+chains through these controls.
+
+PUSHdriver keeps the physical bindings unchanged and adapts their actions to
+the existing Bitwig 4.3 / Extension API 17 model:
+
+- **Out / CC 62:** previous device or parameter-bank item in a device mode;
+  previous filter column in Browser mode.
+- **In / CC 63:** next device or parameter-bank item in a device mode;
+  next filter column in Browser mode.
+- The browser's selected filter column and Push 1 LCD selection marker are
+  updated together. Button LEDs reflect whether another item/column exists.
+- In Session and sequencer contexts, the existing track-bank page and
+  sequencer-page behavior is retained to avoid breaking the project's current
+  Bitwig workflows. These contexts are outside Ableton's documented In/Out
+  Device/Browser behavior.
+
+Device selection and parameter-bank paging use the existing
+`DeviceParamsMode` selection methods; browser navigation uses the API-17
+`IBrowser` filter-column methods. No MIDI IDs, extra event loop, or alternate
+controller dispatcher are introduced.
