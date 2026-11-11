@@ -59,13 +59,14 @@ References:
 
 Ableton documents the four arrows as context-sensitive navigation. In Note workflow, Left/Right move between tracks; Up/Down move by one scene, with workflow-dependent clip/scene launch behavior. In Session workflow, Left/Right move one track and Up/Down one scene; Shift expands the horizontal or vertical movement to an eight-track/eight-scene block.
 
-PUSHdriver already routes each physical arrow exactly once through `PushCursorCommand`. Its existing behavior is deliberately retained for all non-Track modes: horizontal arrows move the active mode's item bank, while vertical arrows scroll the current scene bank; Shift changes the relevant page granularity. The targeted improvement is limited to `Modes.TRACK`:
+PUSHdriver routes each physical arrow exactly once through `PushCursorCommand`. Horizontal navigation follows the active mode and deliberately uses two complementary mappings so that the action always matches the arrow LEDs:
 
-- Left/Right without Shift select the previous/next track one at a time, matching Ableton's Note workflow.
-- Shift+Left/Right move by a track-bank page.
-- Up/Down continue to scroll one scene; Shift+Up/Down move by a scene-bank page.
+- In `Modes.TRACK`, Left/Right without Shift select the previous/next track one at a time, matching Ableton's Note workflow; Shift+Left/Right move by a track-bank page.
+- In every other mode, Left/Right without Shift move by an item-bank page; Shift+Left/Right select the previous/next item within the active mode.
+- Outside `Views.SCENE_PLAY`, Up/Down without Shift scroll one scene; Shift+Up/Down move by a scene-bank page.
+- In `Views.SCENE_PLAY`, Up/Down use scene-bank page navigation directly, matching that view's larger scene-bank context.
 - Up/Down do not launch clips or scenes. This is intentionally non-destructive in Bitwig and avoids turning navigation into an unexpected transport action.
-- Device, browser, parameter-bank, sequencer, and other mode-specific horizontal page navigation is not reassigned.
+- Device, browser, parameter-bank, sequencer, and other mode-specific item/page navigation remains delegated to the active mode.
 
 Arrow LED availability is calculated using the same single-item/page rules as execution, preventing a lit arrow from advertising an unavailable action. The implementation uses the existing command dispatcher and API-17-compatible DrivenByMoss mode/scene interfaces; it introduces no MIDI message IDs, new button bindings, or parallel event loop.
 
