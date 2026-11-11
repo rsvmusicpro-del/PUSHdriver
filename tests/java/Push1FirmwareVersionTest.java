@@ -53,6 +53,16 @@ public final class Push1FirmwareVersionTest
                 throw new AssertionError("Non-decimal firmware digit at response offset " + index + " was accepted");
         }
 
+        // A generic 35-byte identity response from another manufacturer must never
+        // be interpreted as Push 1 firmware merely because its version bytes are decimal.
+        for (int index = 5; index <= 7; index++)
+        {
+            final int[] foreignManufacturer = validResponse();
+            foreignManufacturer[index] = index == 5 ? 0x00 : index == 6 ? 0x20 : 0x6B;
+            if (Push1FirmwareVersion.parse(new DeviceInquiry(foreignManufacturer)) != null)
+                throw new AssertionError("A foreign manufacturer identity was accepted at offset " + index);
+        }
+
         final int[] shortResponse = new int[15];
         shortResponse[0] = 0xF0;
         shortResponse[1] = 0x7E;
@@ -84,6 +94,9 @@ public final class Push1FirmwareVersionTest
         response[2] = 0x7F;
         response[3] = 0x06;
         response[4] = 0x02;
+        response[5] = 0x00;
+        response[6] = 0x21;
+        response[7] = 0x1D;
         response[9] = 4;
         response[10] = 2;
         response[11] = 3;
