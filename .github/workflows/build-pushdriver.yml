@@ -40,6 +40,9 @@ jobs:
       - name: Verify Push 1-only package
         run: python3 scripts/verify_push1.py
 
+      - name: Smoke-test Bitwig extension discovery
+        run: python3 scripts/test_push1_extension.py
+
       - name: Prepare Bitwig extension
         run: |
           set -euo pipefail
