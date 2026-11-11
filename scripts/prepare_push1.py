@@ -67,6 +67,88 @@ replace_once(push_display,
     "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, text));",
     "Push1Display SysEx protocol delegation")
 
+# Harden Push 1 note-repeat against MIDI-input initialization and capability gaps.
+note_repeat = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteRepeatMode.java"
+replace_once(note_repeat,
+    "    private final INoteRepeat noteRepeat;\n",
+    "    private INoteRepeat       noteRepeat;\n",
+    "NoteRepeatMode mutable input binding")
+replace_once(note_repeat,
+    "        final INoteInput defaultNoteInput = surface.getMidiInput ().getDefaultNoteInput ();\n"
+    "        this.noteRepeat = defaultNoteInput == null ? null : defaultNoteInput.getNoteRepeat ();",
+    "        this.refreshNoteRepeat ();",
+    "NoteRepeatMode lazy input binding")
+replace_once(note_repeat,
+    "    /** {@inheritDoc} */\n    @Override\n    public void onActivate ()",
+    "    /** Refresh the active MIDI note-repeat service; the default input may be initialized later. */\n"
+    "    private void refreshNoteRepeat ()\n"
+    "    {\n"
+    "        final INoteInput defaultNoteInput = this.surface.getMidiInput ().getDefaultNoteInput ();\n"
+    "        this.noteRepeat = defaultNoteInput == null ? null : defaultNoteInput.getNoteRepeat ();\n"
+    "    }\n\n\n"
+    "    /** {@inheritDoc} */\n    @Override\n    public void onActivate ()",
+    "NoteRepeatMode input refresh helper")
+replace_once(note_repeat,
+    "        super.onActivate ();\n\n        this.model.getGroove ().enableObservers (true);",
+    "        super.onActivate ();\n\n        this.refreshNoteRepeat ();\n        this.model.getGroove ().enableObservers (true);",
+    "NoteRepeatMode activation refresh")
+replace_once(note_repeat,
+    "    public void onKnobValue (final int index, final int value)\n    {\n",
+    "    public void onKnobValue (final int index, final int value)\n    {\n"
+    "        this.refreshNoteRepeat ();\n"
+    "        if (this.noteRepeat == null)\n"
+    "            return;\n\n",
+    "NoteRepeatMode knob input guard")
+replace_once(note_repeat,
+    "        this.setTouchedKnob (index, isTouched);\n\n        if (isTouched && this.surface.isDeletePressed ())",
+    "        this.setTouchedKnob (index, isTouched);\n"
+    "        this.refreshNoteRepeat ();\n"
+    "        if (this.noteRepeat == null)\n"
+    "            return;\n\n"
+    "        if (isTouched && this.surface.isDeletePressed ())",
+    "NoteRepeatMode knob-touch input guard")
+replace_once(note_repeat,
+    "    public void onFirstRow (final int index, final ButtonEvent event)\n    {\n"
+    "        if (event != ButtonEvent.UP || this.noteRepeat == null)",
+    "    public void onFirstRow (final int index, final ButtonEvent event)\n    {\n"
+    "        this.refreshNoteRepeat ();\n"
+    "        if (event != ButtonEvent.UP || this.noteRepeat == null)",
+    "NoteRepeatMode first-row input refresh")
+replace_once(note_repeat,
+    "    public void onSecondRow (final int index, final ButtonEvent event)\n    {\n"
+    "        if (event != ButtonEvent.UP || this.noteRepeat == null)",
+    "    public void onSecondRow (final int index, final ButtonEvent event)\n    {\n"
+    "        this.refreshNoteRepeat ();\n"
+    "        if (event != ButtonEvent.UP || this.noteRepeat == null)",
+    "NoteRepeatMode second-row input refresh")
+replace_once(note_repeat,
+    "    public void updateDisplay1 (final ITextDisplay display)\n    {\n",
+    "    public void updateDisplay1 (final ITextDisplay display)\n    {\n"
+    "        this.refreshNoteRepeat ();\n"
+    "        if (this.noteRepeat == null)\n"
+    "        {\n"
+    "            for (int row = 0; row < 4; row++)\n"
+    "                for (int column = 0; column < 8; column++)\n"
+    "                    display.setCell (column, row, \"\");\n"
+    "            display.setCell (0, 0, \"Note Repeat\");\n"
+    "            display.setCell (0, 1, \"No MIDI input\");\n"
+    "            return;\n"
+    "        }\n\n",
+    "NoteRepeatMode LCD no-input state")
+replace_once(note_repeat,
+    "    public void updateDisplay2 (final IGraphicDisplay display)\n    {\n"
+    "        if (this.noteRepeat == null)",
+    "    public void updateDisplay2 (final IGraphicDisplay display)\n    {\n"
+    "        this.refreshNoteRepeat ();\n"
+    "        if (this.noteRepeat == null)",
+    "NoteRepeatMode graphic-display input refresh")
+replace_once(note_repeat,
+    "final int value = modeIndex * upperBound / (arpeggiatorModes.size () - 1);",
+    "final int modeDenominator = Math.max (1, arpeggiatorModes.size () - 1);\n"
+    "            final int safeModeIndex = Math.max (0, Math.min (modeDenominator, modeIndex));\n"
+    "            final int value = safeModeIndex * upperBound / modeDenominator;",
+    "NoteRepeatMode safe mode display scaling")
+
 # Remove the Push Raindrops mode and its framework-only implementation completely.
 for obsolete in (
     root / "src/main/java/de/mossgrabers/controller/ableton/push/view/RaindropsView.java",
