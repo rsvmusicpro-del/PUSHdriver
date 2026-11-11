@@ -32,6 +32,16 @@ def method_body(source: str, signature: str) -> str:
     raise SystemExit(f"Unbalanced method body: {signature}")
 
 
+# Push 1 must start with its second row in Mute state. Without this explicit
+# initialization the inherited 19.2.2 setup leaves row two in the wrong mode.
+setup = read("controller/ableton/push/PushControllerSetup.java")
+startup = method_body(setup, "public void startup ()")
+if "this.configuration.setTrackState (PushConfiguration.TrackState.MUTE);" not in startup:
+    raise SystemExit("Push 1 startup must initialize the second row to Mute mode")
+if startup.index("surface.getMidiOutput ().sendSysex (DeviceInquiry.createQuery ());") > startup.index("this.configuration.setTrackState (PushConfiguration.TrackState.MUTE);"):
+    raise SystemExit("Push 1 Mute mode must be initialized during startup, after device setup")
+
+
 note_repeat = read("controller/ableton/push/mode/NoteRepeatMode.java")
 required_repeat = (
     "private INoteRepeat       noteRepeat;",
