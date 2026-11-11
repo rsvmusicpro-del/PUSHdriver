@@ -103,7 +103,70 @@ jobs:
         run: |
           set -euo pipefail
           jar tf target/PUSHdriver-19.0.0.jar > target/package-contents.txt
-          test "$(grep -c '^de/mossgrabers/bitwig/controller/' target/package-contents.txt)" -eq "$(grep -c '^de/mossgrabers/bitwig/controller/ableton/push/Push1ControllerExtensionDefinition.class$' target/package-contents.txt)"
+          test "$(grep -Ec '^de/mossgrabers/bitwig/controller/.*\\.class
+          if grep -Eiq '^de/mossgrabers/controller/(ni|akai|novation|faderfox|livid|nativeinstruments)/' target/package-contents.txt; then
+            echo "Foreign controller implementation found in package" >&2
+            grep -Ei '^de/mossgrabers/controller/(ni|akai|novation|faderfox|livid|nativeinstruments)/' target/package-contents.txt >&2
+            exit 1
+          fi
+          if grep -Eiq 'Push2(Display|Controller)|MaschineColorManager' target/package-contents.txt; then
+            echo "Push 2 or Maschine implementation found in package" >&2
+            grep -Ei 'Push2(Display|Controller)|MaschineColorManager' target/package-contents.txt >&2
+            exit 1
+          fi
+          service="$(unzip -p target/PUSHdriver-19.0.0.jar META-INF/services/com.bitwig.extension.controller.api.ControllerExtensionDefinition 2>/dev/null || true)"
+          if [ -z "$service" ]; then
+            service="$(unzip -p target/PUSHdriver-19.0.0.jar META-INF/services/com.bitwig.extension.ExtensionDefinition)"
+          fi
+          test "$service" = "de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition"
+
+      - name: Prepare Bitwig extension
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp target/PUSHdriver-19.0.0.jar dist/PUSHdriver.bwextension
+          test -s dist/PUSHdriver.bwextension
+
+      - name: Upload PUSHdriver.bwextension
+        uses: actions/upload-artifact@v4
+        with:
+          name: PUSHdriver-bwextension
+          path: dist/PUSHdriver.bwextension
+          if-no-files-found: error
+          retention-days: 30
+ target/package-contents.txt)" -eq 1
+test "$(grep -c '^de/mossgrabers/bitwig/controller/ableton/push/Push1ControllerExtensionDefinition.class
+          if grep -Eiq '^de/mossgrabers/controller/(ni|akai|novation|faderfox|livid|nativeinstruments)/' target/package-contents.txt; then
+            echo "Foreign controller implementation found in package" >&2
+            grep -Ei '^de/mossgrabers/controller/(ni|akai|novation|faderfox|livid|nativeinstruments)/' target/package-contents.txt >&2
+            exit 1
+          fi
+          if grep -Eiq 'Push2(Display|Controller)|MaschineColorManager' target/package-contents.txt; then
+            echo "Push 2 or Maschine implementation found in package" >&2
+            grep -Ei 'Push2(Display|Controller)|MaschineColorManager' target/package-contents.txt >&2
+            exit 1
+          fi
+          service="$(unzip -p target/PUSHdriver-19.0.0.jar META-INF/services/com.bitwig.extension.controller.api.ControllerExtensionDefinition 2>/dev/null || true)"
+          if [ -z "$service" ]; then
+            service="$(unzip -p target/PUSHdriver-19.0.0.jar META-INF/services/com.bitwig.extension.ExtensionDefinition)"
+          fi
+          test "$service" = "de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition"
+
+      - name: Prepare Bitwig extension
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp target/PUSHdriver-19.0.0.jar dist/PUSHdriver.bwextension
+          test -s dist/PUSHdriver.bwextension
+
+      - name: Upload PUSHdriver.bwextension
+        uses: actions/upload-artifact@v4
+        with:
+          name: PUSHdriver-bwextension
+          path: dist/PUSHdriver.bwextension
+          if-no-files-found: error
+          retention-days: 30
+ target/package-contents.txt)" -eq 1
           if grep -Eiq '^de/mossgrabers/controller/(ni|akai|novation|faderfox|livid|nativeinstruments)/' target/package-contents.txt; then
             echo "Foreign controller implementation found in package" >&2
             grep -Ei '^de/mossgrabers/controller/(ni|akai|novation|faderfox|livid|nativeinstruments)/' target/package-contents.txt >&2
