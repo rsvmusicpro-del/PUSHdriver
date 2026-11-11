@@ -14,7 +14,12 @@ if not re.search(r"<artifactId>extension-api</artifactId>\s*<version>17</version
 
 with ZipFile(jar) as archive:
     entries = archive.namelist()
+    if len(entries) != len(set(entries)):
+        raise SystemExit("The extension archive contains duplicate ZIP entries")
     classes = [p for p in entries if p.endswith(".class")]
+    too_new = [p for p in classes if int.from_bytes(archive.read(p)[6:8], "big") > 61]
+    if too_new:
+        raise SystemExit(f"Classes require a Java version newer than Java 17: {too_new}")
     bitwig_classes = sorted(p for p in classes if p.startswith("de/mossgrabers/bitwig/controller/"))
     expected = ["de/mossgrabers/bitwig/controller/ableton/push/Push1ControllerExtensionDefinition.class"]
     if bitwig_classes != expected:
@@ -64,6 +69,7 @@ with ZipFile(jar) as archive:
         "de/mossgrabers/controller/faderfox/",
         "de/mossgrabers/controller/livid/",
         "de/mossgrabers/controller/nativeinstruments/",
+        "com/bitwig/extension/",
     )
     foreign = [p for p in classes if p.startswith(forbidden_prefixes)]
     if foreign:
@@ -92,6 +98,15 @@ with ZipFile(jar) as archive:
     definition_class = archive.read("de/mossgrabers/controller/ableton/push/PushControllerDefinition.class")
     if b"Push 2" in definition_class or b"Ableton Push 2" in definition_class or b"2982" in definition_class:
         raise SystemExit("PushControllerDefinition still contains Push 2 discovery metadata")
+    definition_literals = archive.read("de/mossgrabers/controller/ableton/push/PushControllerDefinition.class")
+    for expected in (b"DBED9610-C474-11E6-9598-0800200C9A66", b"Ableton Push User Port", b"MIDIIN2 (%sAbleton Push)"):
+        if expected not in definition_literals:
+            raise SystemExit(f"Push 1 MIDI discovery metadata is missing: {expected!r}")
+
+    display_class = archive.read("de/mossgrabers/controller/ableton/push/controller/Push1Display.class")
+    if b"F0 47 7F 15 18 00 45 00 " not in display_class:
+        raise SystemExit("Push 1 LCD SysEx header is missing from the display implementation")
+
     setup_class = archive.read("de/mossgrabers/controller/ableton/push/PushControllerSetup.class")
     if b"isPush2" in setup_class or b"Push2Display" in setup_class:
         raise SystemExit("PushControllerSetup still contains Push 2 runtime branches")
