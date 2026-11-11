@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: git-moss/DrivenByMoss
-          ref: 19.0.0
+          ref: 40057d6e7784974f523139dc0cebe62f4bde1f26
           path: upstream
 
       - name: Assemble Push 1-only source tree
