@@ -15,12 +15,6 @@ jobs:
       - name: Checkout PUSHdriver
         uses: actions/checkout@v4
 
-      - name: Checkout DrivenByMoss 19.0.0
-        uses: actions/checkout@v4
-        with:
-          repository: git-moss/DrivenByMoss
-          ref: 40057d6e7784974f523139dc0cebe62f4bde1f26
-          path: upstream
 
       - name: Assemble Push 1-only source tree
         run: python3 scripts/prepare_push1.py
