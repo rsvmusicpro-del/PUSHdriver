@@ -153,6 +153,75 @@ if mode_source.count(mode_value) != 2:
     raise SystemExit("NoteRepeatMode: expected two mode display scaling expressions")
 note_repeat.write_text(mode_source.replace(mode_value, mode_value_replacement))
 
+# Keep sequencer editing within the physical 8x8 MIDI pad matrix.
+sequencer = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractSequencerView.java"
+replace_once(sequencer,
+    "        final IStepInfo stepInfo = clip.getStep (notePosition);\n"
+    "        if (stepInfo.getState () == StepState.OFF)\n"
+    "            clip.toggleStep (notePosition, velocity);",
+    "        IStepInfo stepInfo = clip.getStep (notePosition);\n"
+    "        if (stepInfo == null)\n"
+    "            return;\n"
+    "        if (stepInfo.getState () == StepState.OFF)\n"
+    "        {\n"
+    "            clip.toggleStep (notePosition, velocity);\n"
+    "            stepInfo = clip.getStep (notePosition);\n"
+    "            if (stepInfo == null)\n"
+    "                return;\n"
+    "        }",
+    "Sequencer repeat operator refreshes step state after note creation")
+
+for relative in (
+    "src/main/java/de/mossgrabers/controller/ableton/push/view/SequencerView.java",
+    "src/main/java/de/mossgrabers/controller/ableton/push/view/PolySequencerView.java",
+):
+    source_file = root / relative
+    replace_once(source_file,
+        "        final int index = note - 36;\n"
+        "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
+        "        final int index = note - 36;\n"
+        "        if (index < 0 || index >= 64)\n"
+        "            return;\n"
+        "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
+        relative + " long-press pad bounds")
+
+for relative in (
+    "src/main/java/de/mossgrabers/controller/ableton/push/view/Drum4View.java",
+    "src/main/java/de/mossgrabers/controller/ableton/push/view/Drum8View.java",
+):
+    source_file = root / relative
+    replace_once(source_file,
+        "        final int index = note - DRUM_START_KEY;\n"
+        "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
+        "        final int index = note - DRUM_START_KEY;\n"
+        "        if (index < 0 || index >= 64)\n"
+        "            return;\n"
+        "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
+        relative + " long-press pad bounds")
+
+drum64 = root / "src/main/java/de/mossgrabers/framework/view/AbstractDrum64View.java"
+replace_once(drum64,
+    "        final int index = note - 36;\n"
+    "        final int x = index % this.columns;",
+    "        final int index = note - 36;\n"
+    "        if (index < 0 || index >= this.columns * this.rows)\n"
+    "            return;\n"
+    "        final int x = index % this.columns;",
+    "Drum64View incoming grid-note bounds")
+replace_once(drum64,
+    "        this.pressedKeys[this.offsetY + this.selectedPad] = velocity;",
+    "        final int pressedNote = this.offsetY + this.selectedPad;\n"
+    "        if (pressedNote >= 0 && pressedNote < this.pressedKeys.length)\n"
+    "            this.pressedKeys[pressedNote] = velocity;",
+    "Drum64View pressed-note array bounds")
+replace_once(drum64,
+    "        if (this.pressedKeys[this.offsetY + index] > 0)\n"
+    "            return isRecording ? AbstractDrumView.COLOR_PAD_RECORD : AbstractDrumView.COLOR_PAD_PLAY;",
+    "        final int note = this.offsetY + index;\n"
+    "        if (note >= 0 && note < this.pressedKeys.length && this.pressedKeys[note] > 0)\n"
+    "            return isRecording ? AbstractDrumView.COLOR_PAD_RECORD : AbstractDrumView.COLOR_PAD_PLAY;",
+    "Drum64View LED lookup bounds")
+
 # Remove the Push Raindrops mode and its framework-only implementation completely.
 for obsolete in (
     root / "src/main/java/de/mossgrabers/controller/ableton/push/view/RaindropsView.java",
