@@ -651,10 +651,10 @@ replace_once(setup,
 # momentary Push 2/3 state-control behavior. Backport the later upstream fix
 # using the TrackState API that exists in the Bitwig-4.3-compatible source.
 replace_once(setup,
-    "        surface.sendPressureMode (true);\\n"
+    "        surface.sendPressureMode (true);\n"
     "        surface.getMidiOutput ().sendSysex (DeviceInquiry.createQuery ());",
-    "        surface.sendPressureMode (true);\\n"
-    "        surface.getMidiOutput ().sendSysex (DeviceInquiry.createQuery ());\\n"
+    "        surface.sendPressureMode (true);\n"
+    "        surface.getMidiOutput ().sendSysex (DeviceInquiry.createQuery ());\n"
     "        this.configuration.setTrackState (PushConfiguration.TrackState.MUTE);",
     "Push 1 startup defaults second row to Mute")
 
