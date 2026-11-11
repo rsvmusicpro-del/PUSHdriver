@@ -53,7 +53,24 @@ The row selector is `18`, `19`, `1A`, or `1B`. Each complete frame is 77 bytes: 
 References:
 - [Push 1 LCD SysEx investigation](https://forum.ableton.com/viewtopic.php?t=193744)
 - [Push MIDI message reference](https://chor.ist/push/midi.html)
-- [Ableton — Push User Mode and MIDI ports](https://help.ableton.com/hc/en-us/articles/209071249-Push-User-Mode-for-custom-MIDI-mappings)
+- [Ableton — Push User Mode and MIDI ports](https://help.ableton.com/en-us/articles/209071249-Push-User-Mode-for-custom-MIDI-mappings)
+
+## Directional navigation: Push 1 / Ableton parity without command collisions
+
+Ableton documents the four arrows as context-sensitive navigation. In Note workflow, Left/Right move between tracks; Up/Down move by one scene, with workflow-dependent clip/scene launch behavior. In Session workflow, Left/Right move one track and Up/Down one scene; Shift expands the horizontal or vertical movement to an eight-track/eight-scene block.
+
+PUSHdriver already routes each physical arrow exactly once through `PushCursorCommand`. Its existing behavior is deliberately retained for all non-Track modes: horizontal arrows move the active mode's item bank, while vertical arrows scroll the current scene bank; Shift changes the relevant page granularity. The targeted improvement is limited to `Modes.TRACK`:
+
+- Left/Right without Shift select the previous/next track one at a time, matching Ableton's Note workflow.
+- Shift+Left/Right move by a track-bank page.
+- Up/Down continue to scroll one scene; Shift+Up/Down move by a scene-bank page.
+- Up/Down do not launch clips or scenes. This is intentionally non-destructive in Bitwig and avoids turning navigation into an unexpected transport action.
+- Device, browser, parameter-bank, sequencer, and other mode-specific horizontal page navigation is not reassigned.
+
+Arrow LED availability is calculated using the same single-item/page rules as execution, preventing a lit arrow from advertising an unavailable action. The implementation uses the existing command dispatcher and API-17-compatible DrivenByMoss mode/scene interfaces; it introduces no MIDI message IDs, new button bindings, or parallel event loop.
+
+Reference:
+- [Ableton — Using Push 1, Note and Session navigation](https://www.ableton.com/en/live-manual/12/using-push-1/)
 
 ## Architecture decisions in PUSHdriver
 

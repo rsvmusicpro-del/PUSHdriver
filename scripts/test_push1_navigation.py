@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""Regression checks for Push 1 directional-button routing and LED state."""
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+COMMAND = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/command/trigger/PushCursorCommand.java"
+SETUP = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/PushControllerSetup.java"
+
+
+def method_body(source: str, signature: str) -> str:
+    start = source.find(signature)
+    if start < 0:
+        raise SystemExit(f"Missing required method: {signature}")
+    opening = source.find("{", start + len(signature))
+    depth = 0
+    for index in range(opening, len(source)):
+        if source[index] == "{":
+            depth += 1
+        elif source[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return source[opening + 1:index]
+    raise SystemExit(f"Unbalanced method body: {signature}")
+
+
+if not COMMAND.is_file() or not SETUP.is_file():
+    raise SystemExit("Assembled Push 1 navigation sources are missing")
+
+command = COMMAND.read_text()
+setup = SETUP.read_text()
+
+# The hardware arrow IDs must each have exactly one command binding.
+for direction in ("UP", "DOWN", "LEFT", "RIGHT"):
+    marker = f"this.addButton (ButtonID.ARROW_{direction},"
+    if setup.count(marker) != 1:
+        raise SystemExit(f"Expected exactly one physical ARROW_{direction} binding")
+
+left = method_body(command, "protected void scrollLeft ()")
+right = method_body(command, "protected void scrollRight ()")
+for body, action, page_action in (
+    (left, "selectPreviousItem ();", "selectPreviousItemPage ();"),
+    (right, "selectNextItem ();", "selectNextItemPage ();"),
+):
+    if "isActive (Modes.TRACK)" not in body or "!this.surface.isShiftPressed ()" not in body:
+        raise SystemExit("Track mode must use single-item navigation unless Shift is held")
+    if action not in body or page_action not in body:
+        raise SystemExit("Horizontal navigation must preserve both item and page actions")
+
+states = method_body(command, "protected void updateArrowStates ()")
+if "shiftPressed ? mode.hasPreviousItemPage () : mode.hasPreviousItem ()" not in states:
+    raise SystemExit("Left arrow LED state does not match Track-mode navigation granularity")
+if "shiftPressed ? mode.hasNextItemPage () : mode.hasNextItem ()" not in states:
+    raise SystemExit("Right arrow LED state does not match Track-mode navigation granularity")
+
+up = method_body(command, "protected void scrollUp ()")
+down = method_body(command, "protected void scrollDown ()")
+for body, single, page in (
+    (up, "sceneBank.scrollBackwards ();", "sceneBank.selectPreviousPage ();"),
+    (down, "sceneBank.scrollForwards ();", "sceneBank.selectNextPage ();"),
+):
+    if "this.surface.isShiftPressed ()" not in body or single not in body or page not in body:
+        raise SystemExit("Vertical arrows must retain one-scene and Shift page navigation")
+
+print("Push 1 directional navigation and arrow LED regression checks passed.")
