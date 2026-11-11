@@ -117,8 +117,13 @@ public class PushCursorCommand extends CursorCommand<PushControlSurface, PushCon
     protected void updateArrowStates ()
     {
         final ISceneBank sceneBank = this.getSceneBank ();
-        this.canScrollUp = sceneBank.canScrollBackwards ();
-        this.canScrollDown = sceneBank.canScrollForwards ();
+        final boolean pageNavigation = this.surface.isShiftPressed () || this.isScenePlay ();
+        this.canScrollUp = pageNavigation
+            ? sceneBank.canScrollPageBackwards ()
+            : sceneBank.canScrollBackwards ();
+        this.canScrollDown = pageNavigation
+            ? sceneBank.canScrollPageForwards ()
+            : sceneBank.canScrollForwards ();
 
         final IMode mode = this.surface.getModeManager ().getActive ();
         final boolean shiftPressed = this.surface.isShiftPressed ();
