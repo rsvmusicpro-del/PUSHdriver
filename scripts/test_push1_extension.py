@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 
 root = Path(__file__).resolve().parents[1]
-extension = root / "target/PUSHdriver-19.0.0.jar"
+extension = root / "target/PUSHdriver-19.2.2.jar"
 api_candidates = (
     Path.home() / ".m2/repository/com/bitwig/extension-api/17/extension-api-17.jar",
     root / "maven-local-repository/com/bitwig/extension-api/17/extension-api-17.jar",
