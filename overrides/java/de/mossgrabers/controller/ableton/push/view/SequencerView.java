@@ -10,6 +10,7 @@ import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.clip.INoteClip;
 import de.mossgrabers.framework.daw.clip.NotePosition;
+import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractNoteSequencerView;
 
@@ -21,6 +22,14 @@ import de.mossgrabers.framework.view.sequencer.AbstractNoteSequencerView;
  */
 public class SequencerView extends AbstractNoteSequencerView<PushControlSurface, PushConfiguration>
 {
+    /**
+     * When enabled, keep the visible page synchronized with the playing page.
+     * A manual page selection disables following until the playing page is
+     * selected again. This mirrors Push 1's page-lock/auto-follow behavior.
+     */
+    private boolean followPlayhead = true;
+
+
     /**
      * Constructor.
      *
@@ -35,13 +44,13 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
 
     /**
      * Keep the visible sequencer page locked to Bitwig's live playhead while
-     * playback is running. The inherited grid renderer then paints the
-     * current step using the existing Push 1 playback/recording LED colors.
+     * auto-follow is enabled. The inherited renderer paints the moving step
+     * and the top-row page indicators using the existing Push 1 LED colors.
      */
     @Override
     public void drawGrid ()
     {
-        if (this.isActive () && this.model.getTransport ().isPlaying ())
+        if (this.followPlayhead && this.isActive () && this.model.getTransport ().isPlaying ())
         {
             final INoteClip clip = this.getClip ();
             // The note-clip adapter remains available for empty slots. Do not
@@ -59,6 +68,63 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             }
         }
         super.drawGrid ();
+    }
+
+
+    /**
+     * A single page tap selects an edit page. Selecting a page other than the
+     * playing page locks the view there; selecting the playing page restores
+     * auto-follow. A two-pad gesture changes the loop and keeps auto-follow.
+     *
+     * @param pad The page pad
+     * @param velocity The pad velocity
+     */
+    @Override
+    protected void handleLoopArea (final int pad, final int velocity)
+    {
+        final int pressedPage = this.loopPadPressed;
+        super.handleLoopArea (pad, velocity);
+
+        // The base handler stores the first pressed pad and processes gestures
+        // on release. Do not alter follow state on pad-down or stray releases.
+        if (velocity > 0 || pressedPage < 0)
+            return;
+
+        if (pad != pressedPage)
+        {
+            // A two-page loop gesture changes the loop range, not the page lock.
+            this.followPlayhead = true;
+            return;
+        }
+
+        final INoteClip clip = this.getClip ();
+        if (!clip.doesExist ())
+        {
+            this.followPlayhead = false;
+            return;
+        }
+
+        final int stepsPerPage = clip.getNumSteps ();
+        final int currentStep = clip.getCurrentStep ();
+        this.followPlayhead = stepsPerPage > 0 && currentStep >= 0 && currentStep / stepsPerPage == pad;
+    }
+
+
+    /** Manual page navigation must not be immediately undone by auto-follow. */
+    @Override
+    public void onLeft (final ButtonEvent event)
+    {
+        this.followPlayhead = false;
+        super.onLeft (event);
+    }
+
+
+    /** Manual page navigation must not be immediately undone by auto-follow. */
+    @Override
+    public void onRight (final ButtonEvent event)
+    {
+        this.followPlayhead = false;
+        super.onRight (event);
     }
 
 
