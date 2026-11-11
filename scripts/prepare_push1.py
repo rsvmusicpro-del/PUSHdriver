@@ -80,11 +80,11 @@ replace_once(device_inquiry,
     "    /**\n     * Get the start of the messages content depending on the length of the manufacturer ID.\n",
     "DeviceInquiry full response accessor")
 
- # The parsed SysEx packet must not retain a caller-owned mutable array.
- replace_once(device_inquiry,
-     "        this.data = data;\n",
-     "        this.data = data.clone ();\n",
-     "DeviceInquiry constructor defensive copy")
+# The parsed SysEx packet must not retain a caller-owned mutable array.
+replace_once(device_inquiry,
+    "        this.data = data;\n",
+    "        this.data = data.clone ();\n",
+    "DeviceInquiry constructor defensive copy")
 
 push_surface = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushControlSurface.java"
 replace_once(push_surface,
