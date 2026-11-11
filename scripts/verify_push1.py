@@ -6,7 +6,7 @@ import re
 import subprocess
 from zipfile import ZipFile
 
-jar = Path("target/PUSHdriver-19.0.0.jar")
+jar = Path("target/PUSHdriver-19.2.2.jar")
 if not jar.is_file() or jar.stat().st_size == 0:
     raise SystemExit("PUSHdriver JAR is missing or empty")
 
@@ -145,8 +145,8 @@ with ZipFile(jar) as archive:
         )
 
     manifest = archive.read("META-INF/MANIFEST.MF").decode("utf-8", errors="replace")
-    if "Implementation-Version: 19.0.0" not in manifest:
-        raise SystemExit("The extension manifest does not identify the pinned 19.0.0 runtime")
+    if "Implementation-Version: 19.2.2" not in manifest:
+        raise SystemExit("The extension manifest does not identify the pinned 19.2.2 runtime")
 
 # Resolve every class-level dependency against the JDK, the Bitwig API and the
 # shaded extension itself. A successful compile alone cannot detect missing
