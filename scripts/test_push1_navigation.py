@@ -75,5 +75,7 @@ for body, single, page in (
 
 if "this.isScenePlay ()" not in method_body(command, "protected ISceneBank getSceneBank ()"):
     raise SystemExit("Scene Play must retain its larger 64-scene navigation bank")
+if "this.sceneBank64 = model.getSceneBank (64);" not in command:
+    raise SystemExit("Scene Play's Shift page size must remain the intended 64-scene bank")
 
 print("Push 1 directional navigation and arrow LED regression checks passed.")
