@@ -63,6 +63,12 @@ public final class Push1FirmwareVersionTest
         if (Push1FirmwareVersion.parse(new DeviceInquiry(response)) != null)
             throw new AssertionError("An invalid SysEx identity response must be rejected");
 
+        final byte[] firstQuery = DeviceInquiry.createQuery();
+        firstQuery[0] = 0;
+        final byte[] secondQuery = DeviceInquiry.createQuery();
+        if (secondQuery[0] != (byte) 0xF0 || secondQuery[secondQuery.length - 1] != (byte) 0xF7)
+            throw new AssertionError("DeviceInquiry.createQuery() leaked its mutable static packet");
+
         System.out.println("Push 1 firmware inquiry regression tests passed.");
     }
 }
