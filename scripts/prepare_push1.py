@@ -50,7 +50,7 @@ shutil.copy2(
 def replace_once(path: Path, old: str, new: str, label: str) -> None:
     content = path.read_text()
     # A newer upstream may already contain the exact reviewed fix.
-    if new in content:
+    if new and new in content:
         return
     if content.count(old) != 1:
         raise SystemExit(f"{label}: expected exactly one source match")
