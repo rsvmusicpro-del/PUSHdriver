@@ -199,7 +199,7 @@ replace_once(push_display,
     "", "Push1Display protocol header ownership")
 replace_once(push_display,
     "        this.output.sendSysex (Push1Display.SYSEX_MESSAGE[row] + StringUtils.asciiToHex (text) + \"F7\");",
-    "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, text));",
+    "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68)));",
     "Push1Display SysEx protocol delegation")
 
 # Harden Push 1 note-repeat against MIDI-input initialization and capability gaps.
