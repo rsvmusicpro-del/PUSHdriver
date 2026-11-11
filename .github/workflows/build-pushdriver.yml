@@ -38,6 +38,7 @@ jobs:
           printf '%s\n' 'de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition' > src/main/resources/META-INF/services/com.bitwig.extension.ExtensionDefinition
           mkdir -p src/assembly
           cp upstream/src/assembly/dep.xml src/assembly/dep.xml
+          cp -a upstream/maven-local-repository ./maven-local-repository
           cp upstream/pom.xml ./pom.xml
           python3 - <<'PY'
           from pathlib import Path
