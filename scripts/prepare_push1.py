@@ -52,13 +52,13 @@ copy_tree("src/main/java/de/mossgrabers/controller/ableton/push",
 # Root notes in the piano layout must inherit the selected track color on every row.
 piano_helper = root / "src/main/java/de/mossgrabers/framework/view/PianoViewHelper.java"
 replace_once(piano_helper,
-    "                final int color;\\n"
+    "                final int color;\n"
     "                if (row % 2 == 0)",
-    "                final int color;\\n"
-    "                if (keyManager.isKeyPressed (n))\\n"
-    "                    color = playKeyColor;\\n"
-    "                else if (Scales.SCALE_COLOR_OCTAVE.equals (keyManager.getColor (n)))\\n"
-    "                    color = colorManager.getColorIndex (AbstractView.replaceOctaveColorWithTrackColor (track, Scales.SCALE_COLOR_OCTAVE));\\n"
+    "                final int color;\n"
+    "                if (keyManager.isKeyPressed (n))\n"
+    "                    color = playKeyColor;\n"
+    "                else if (Scales.SCALE_COLOR_OCTAVE.equals (keyManager.getColor (n)))\n"
+    "                    color = colorManager.getColorIndex (AbstractView.replaceOctaveColorWithTrackColor (track, Scales.SCALE_COLOR_OCTAVE));\n"
     "                else if (row % 2 == 0)",
     "PianoViewHelper root notes follow selected track color")
 
