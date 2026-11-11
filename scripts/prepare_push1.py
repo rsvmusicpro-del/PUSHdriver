@@ -43,6 +43,24 @@ copy_tree("src/main/java/de/mossgrabers/bitwig/controller/ableton/push",
 copy_tree("src/main/java/de/mossgrabers/controller/ableton/push",
           "src/main/java/de/mossgrabers/controller/ableton/push")
 
+# Apply the small, reviewed Push 1 protocol override maintained by this project.
+shutil.copytree(root / "overrides/java", root / "src/main/java", dirs_exist_ok=True)
+
+push_display = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push1Display.java"
+replace_once(push_display,
+    "    private static final String [] SYSEX_MESSAGE =\n"
+    "    {\n"
+    "        \"F0 47 7F 15 18 00 45 00 \",\n"
+    "        \"F0 47 7F 15 19 00 45 00 \",\n"
+    "        \"F0 47 7F 15 1A 00 45 00 \",\n"
+    "        \"F0 47 7F 15 1B 00 45 00 \"\n"
+    "    };\n",
+    "", "Push1Display protocol header ownership")
+replace_once(push_display,
+    "        this.output.sendSysex (Push1Display.SYSEX_MESSAGE[row] + StringUtils.asciiToHex (text) + \"F7\");",
+    "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, text));",
+    "Push1Display SysEx protocol delegation")
+
 # Remove the Push Raindrops mode and its framework-only implementation completely.
 for obsolete in (
     root / "src/main/java/de/mossgrabers/controller/ableton/push/view/RaindropsView.java",
