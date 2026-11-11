@@ -82,7 +82,7 @@ PUSHdriver now keeps that single native button binding and wraps the upstream co
 
 1. Resolve the cursor track and find an available slot before changing playback.
 2. If no track or free slot exists, delegate to the upstream command so its existing user notification is preserved; playback is not changed.
-3. If the selected slot is a playing Launcher clip, stop that cursor track before creating the new clip. If no selected Launcher clip is playing, leave unrelated playback (including Arranger playback) untouched.
+3. If the selected slot is a playing Launcher clip, stop that cursor track before creating the new clip. If no selected Launcher clip is playing, skip the preliminary stop; the normal new-clip launch behavior still applies.
 4. Create and start the new note clip using the upstream clip-length and overdub behavior.
 5. Preserve Shift+New's no-overdub behavior and leave Record, Duplicate, Play, and all other button bindings untouched.
 
