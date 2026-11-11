@@ -28,6 +28,19 @@ public final class Push1FirmwareVersionTest
         if (version == null || version.major() != 42 || version.minor() != 35)
             throw new AssertionError("Incorrect Push 1 firmware version: " + version);
 
+        if (new DeviceInquiry(null).isValid())
+            throw new AssertionError("A null MIDI identity response must be rejected safely");
+
+        final int[] highBitResponse = inquiry.getData();
+        highBitResponse[9] = 0x80;
+        if (new DeviceInquiry(highBitResponse).isValid())
+            throw new AssertionError("A SysEx packet containing an eight-bit payload byte must be rejected");
+
+        final int[] negativeByteResponse = inquiry.getData();
+        negativeByteResponse[9] = -1;
+        if (new DeviceInquiry(negativeByteResponse).isValid())
+            throw new AssertionError("A SysEx packet containing a negative byte must be rejected");
+
         final int[] exposed = inquiry.getData();
         exposed[10] = 99;
         final Push1FirmwareVersion unchanged = Push1FirmwareVersion.parse(inquiry);

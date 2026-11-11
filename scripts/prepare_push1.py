@@ -83,8 +83,32 @@ replace_once(device_inquiry,
 # The parsed SysEx packet must not retain a caller-owned mutable array.
 replace_once(device_inquiry,
     "        this.data = data;\n",
-    "        this.data = data.clone ();\n",
-    "DeviceInquiry constructor defensive copy")
+    "        this.data = data == null ? new int [0] : data.clone ();\n"
+    "        if (data == null)\n"
+    "        {\n"
+    "            this.responseType = ResponseType.ERROR;\n"
+    "            return;\n"
+    "        }\n",
+    "DeviceInquiry null-safe defensive copy")
+
+# Reject malformed MIDI SysEx data bytes before parsing device identity fields.
+replace_once(device_inquiry,
+    "        if (data[0] != 0xF0 || data[1] != 0x7E || data[3] != 0x06 || data[4] != 0x02 || data[data.length - 1] != 0xF7)\n"
+    "            this.responseType = ResponseType.ERROR;\n",
+    "        if (data[0] != 0xF0 || data[1] != 0x7E || data[3] != 0x06 || data[4] != 0x02 || data[data.length - 1] != 0xF7)\n"
+    "            this.responseType = ResponseType.ERROR;\n"
+    "        if (this.responseType != ResponseType.ERROR)\n"
+    "        {\n"
+    "            for (int i = 1; i < this.data.length - 1; i++)\n"
+    "            {\n"
+    "                if (this.data[i] < 0 || this.data[i] > 0x7F)\n"
+    "                {\n"
+    "                    this.responseType = ResponseType.ERROR;\n"
+    "                    break;\n"
+    "                }\n"
+    "            }\n"
+    "        }\n",
+    "DeviceInquiry seven-bit SysEx validation")
 
 push_surface = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushControlSurface.java"
 replace_once(push_surface,
