@@ -60,6 +60,13 @@ with ZipFile(jar) as archive:
         "de/mossgrabers/controller/ableton/push/mode/ScalesMode.class",
         "de/mossgrabers/controller/ableton/push/mode/NoteRepeatMode.class",
     )
+    note_repeat_source = Path("src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteRepeatMode.java").read_text()
+    button_color_start = note_repeat_source.index("public int getButtonColor")
+    button_color_end = note_repeat_source.index("public void updateDisplay1", button_color_start)
+    button_color_source = note_repeat_source[button_color_start:button_color_end]
+    if "this.refreshNoteRepeat ();" not in button_color_source or "if (this.noteRepeat == null)" not in button_color_source:
+        raise SystemExit("NoteRepeat LED rendering is not safe when the MIDI input is unavailable")
+
     missing = [path for path in required_push1_classes if path not in entries]
     if missing:
         raise SystemExit(f"Previously supported Push 1 functionality is missing: {missing}")
