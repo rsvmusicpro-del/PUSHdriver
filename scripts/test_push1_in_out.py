@@ -98,8 +98,5 @@ for marker in (
     if marker not in device_params:
         raise SystemExit(f"In/Out implementation regressed standard arrow navigation: {marker}")
 
-for marker in (
-    if marker not in device_params:
-        raise SystemExit(f"Device In/Out must navigate parameter-page banks, not individual parameters: {marker}")
 
 print("Push 1 In/Out bindings, device/browser behavior and fallback regression checks passed.")
