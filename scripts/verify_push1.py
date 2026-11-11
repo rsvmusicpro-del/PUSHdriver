@@ -15,10 +15,22 @@ if not re.search(r"<artifactId>extension-api</artifactId>\s*<version>17</version
 with ZipFile(jar) as archive:
     entries = archive.namelist()
     classes = [p for p in entries if p.endswith(".class")]
-    bitwig_classes = [p for p in classes if p.startswith("de/mossgrabers/bitwig/controller/")]
+    bitwig_classes = sorted(p for p in classes if p.startswith("de/mossgrabers/bitwig/controller/"))
     expected = ["de/mossgrabers/bitwig/controller/ableton/push/Push1ControllerExtensionDefinition.class"]
     if bitwig_classes != expected:
         raise SystemExit(f"Unexpected Bitwig controller entry points: {bitwig_classes}")
+
+    # Every Java source assembled by prepare_push1.py must produce a class in the
+    # extension. This prevents silent source omissions across shared framework,
+    # Bitwig adapters, Push views, modes, commands and controller implementations.
+    source_root = Path("src/main/java")
+    missing_sources = []
+    for source in sorted(source_root.rglob("*.java")):
+        relative = source.relative_to(source_root).with_suffix(".class").as_posix()
+        if relative not in entries:
+            missing_sources.append((source.as_posix(), relative))
+    if missing_sources:
+        raise SystemExit(f"Java sources missing from the compiled extension: {missing_sources}")
 
     required_push1_classes = (
         "de/mossgrabers/controller/ableton/push/controller/Push1Display.class",
