@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""Structural regression checks for Push 1 note-repeat and sequencer safety."""
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE = ROOT / "src/main/java/de/mossgrabers"
+
+
+def read(relative: str) -> str:
+    path = SOURCE / relative
+    if not path.is_file():
+        raise SystemExit(f"Required assembled source is missing: {path}")
+    return path.read_text()
+
+
+note_repeat = read("controller/ableton/push/mode/NoteRepeatMode.java")
+required_repeat = (
+    "private INoteRepeat       noteRepeat;",
+    "private void refreshNoteRepeat ()",
+    "this.refreshNoteRepeat ();",
+    "if (this.noteRepeat == null)",
+    '"No MIDI input"',
+    "final int modeDenominator = Math.max (1, arpeggiatorModes.size () - 1);",
+    "final int safeModeIndex = Math.max (0, Math.min (modeDenominator, modeIndex));",
+)
+for marker in required_repeat:
+    if marker not in note_repeat:
+        raise SystemExit(f"NoteRepeatMode safety regression: missing {marker!r}")
+if "modeIndex * upperBound / (arpeggiatorModes.size () - 1)" in note_repeat:
+    raise SystemExit("NoteRepeatMode still contains unsafe one-element mode scaling")
+
+sequencer = read("framework/view/sequencer/AbstractSequencerView.java")
+if "stepInfo = clip.getStep (notePosition);" not in sequencer:
+    raise SystemExit("Sequencer repeat operator does not refresh the step after creating it")
+if "if (stepInfo == null)" not in sequencer:
+    raise SystemExit("Sequencer repeat operator does not guard missing step state")
+
+for relative in (
+    "controller/ableton/push/view/SequencerView.java",
+    "controller/ableton/push/view/PolySequencerView.java",
+    "controller/ableton/push/view/Drum4View.java",
+    "controller/ableton/push/view/Drum8View.java",
+):
+    source = read(relative)
+    if "index < 0 || index >= 64" not in source:
+        raise SystemExit(f"Push 1 long-press bounds regression in {relative}")
+
+drum64 = read("framework/view/AbstractDrum64View.java")
+for marker in (
+    "index < 0 || index >= this.columns * this.rows",
+    "pressedNote < this.pressedKeys.length",
+    "note < this.pressedKeys.length",
+):
+    if marker not in drum64:
+        raise SystemExit(f"Drum 64 bounds regression: missing {marker!r}")
+
+colors = read("controller/ableton/push/controller/PushColorManager.java")
+for marker in (
+    "AbstractSequencerView.COLOR_CONTENT",
+    "AbstractSequencerView.COLOR_STEP_HILITE_CONTENT",
+    "AbstractSequencerView.COLOR_STEP_MUTED",
+    "AbstractSequencerView.COLOR_STEP_SELECTED",
+    "AbstractSequencerView.COLOR_ACTIVE_PAGE",
+    "PUSH1_COLOR2_BLUE_HI",
+    "PUSH1_COLOR2_GREEN_HI",
+    "PUSH1_COLOR2_YELLOW_HI",
+):
+    if marker not in colors:
+        raise SystemExit(f"Push 1 native color mapping regression: missing {marker!r}")
+
+print("Push 1 note-repeat, sequencer bounds, repeat-state and color regressions passed.")
