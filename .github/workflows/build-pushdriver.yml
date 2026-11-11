@@ -1,0 +1,71 @@
+name: Build PUSHdriver
+
+on:
+  push:
+    branches: [custom]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PUSHdriver
+        uses: actions/checkout@v4
+
+      - name: Checkout DrivenByMoss 19.0.0
+        uses: actions/checkout@v4
+        with:
+          repository: git-moss/DrivenByMoss
+          ref: 19.0.0
+          path: upstream
+
+      - name: Assemble Push 1-only source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p src/main/java/de/mossgrabers src/main/resources/META-INF/services
+          cp -a upstream/src/main/java/de/mossgrabers/framework src/main/java/de/mossgrabers/
+          cp -a upstream/src/main/java/de/mossgrabers/bitwig/framework src/main/java/de/mossgrabers/bitwig/
+          mkdir -p src/main/java/de/mossgrabers/bitwig/controller/ableton
+          cp -a upstream/src/main/java/de/mossgrabers/bitwig/controller/ableton/push src/main/java/de/mossgrabers/bitwig/controller/ableton/
+          cp -a upstream/src/main/java/de/mossgrabers/controller/ableton/push src/main/java/de/mossgrabers/controller/ableton/
+          rm -f src/main/java/de/mossgrabers/bitwig/controller/ableton/push/Push2ControllerExtensionDefinition.java
+          mkdir -p src/main/resources/META-INF/services
+          printf '%s\n' 'de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition' > src/main/resources/META-INF/services/com.bitwig.extension.ExtensionDefinition
+          cp upstream/pom.xml ./pom.xml
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("pom.xml")
+          s = p.read_text()
+          s = s.replace("<artifactId>DrivenByMoss</artifactId>", "<artifactId>PUSHdriver</artifactId>", 1)
+          s = s.replace("<name>DrivenByMoss</name>", "<name>PUSHdriver</name>", 1)
+          p.write_text(s)
+          PY
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Build extension
+        run: mvn --batch-mode --no-transfer-progress clean package
+
+      - name: Prepare Bitwig extension
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp target/PUSHdriver-19.0.0.jar dist/PUSHdriver.bwextension
+          test -s dist/PUSHdriver.bwextension
+
+      - name: Upload PUSHdriver.bwextension
+        uses: actions/upload-artifact@v4
+        with:
+          name: PUSHdriver-bwextension
+          path: dist/PUSHdriver.bwextension
+          if-no-files-found: error
+          retention-days: 30
