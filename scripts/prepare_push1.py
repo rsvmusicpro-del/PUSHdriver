@@ -49,8 +49,9 @@ shutil.copy2(
 
 def replace_once(path: Path, old: str, new: str, label: str) -> None:
     content = path.read_text()
-    # A newer upstream may already contain the exact reviewed fix.
-    if new and new in content:
+    # Skip only when the requested replacement is already present, without
+    # confusing generic lines (for example, an existing null slot) elsewhere.
+    if new and new in content and (old in new or old not in content):
         return
     if content.count(old) != 1:
         raise SystemExit(f"{label}: expected exactly one source match")
