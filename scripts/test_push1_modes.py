@@ -64,10 +64,21 @@ for marker in (
     "PUSH1_COLOR2_BLUE_HI",
     "PUSH1_COLOR2_GREEN_HI",
     "PUSH1_COLOR2_YELLOW_HI",
+    "COLOR_STEP_HILITE_RECORD",
+    "COLOR_PAD_SOLO",
+    "PUSH1_COLOR2_RED_HI",
+    "PUSH1_COLOR2_WHITE",
+    "PUSH1_COLOR2_YELLOW_LO",
+    "PUSH1_COLOR2_BLUE_LO",
 ):
     if marker not in colors:
         raise SystemExit(f"Push 1 native color mapping regression: missing {marker!r}")
 
+if "this.model.hasRecordingState () ? COLOR_STEP_HILITE_RECORD : COLOR_STEP_HILITE_CONTENT" not in sequencer:
+    raise SystemExit("Sequencer playhead must be green in playback and red while recording")
+drum = read("framework/view/sequencer/AbstractDrumView.java")
+if "if (drumPad.isSolo ())" not in drum or "return AbstractDrumView.COLOR_PAD_SOLO;" not in drum:
+    raise SystemExit("Drum solo pads must retain dedicated dark-blue feedback")
 piano = read("framework/view/PianoViewHelper.java")
 root_color = "else if (Scales.SCALE_COLOR_OCTAVE.equals (keyManager.getColor (n)))"
 track_color = "AbstractView.replaceOctaveColorWithTrackColor (track, Scales.SCALE_COLOR_OCTAVE)"
