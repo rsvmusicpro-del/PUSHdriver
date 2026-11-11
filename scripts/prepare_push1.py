@@ -66,14 +66,14 @@ setup.write_text(source.replace(old_display, new_display, 1))
 host = root / "src/main/java/de/mossgrabers/bitwig/framework/daw/HostImpl.java"
 source = host.read_text()
 for unwanted in (
-    "import de.mossgrabers.bitwig.framework.usb.UsbDeviceImpl;\\n",
-    "import com.bitwig.extension.controller.api.HardwareDevice;\\n",
-    "import com.bitwig.extension.controller.api.UsbDevice;\\n",
+    "import de.mossgrabers.bitwig.framework.usb.UsbDeviceImpl;\n",
+    "import com.bitwig.extension.controller.api.HardwareDevice;\n",
+    "import com.bitwig.extension.controller.api.UsbDevice;\n",
 ):
     if source.count(unwanted) != 1:
         raise SystemExit(f"HostImpl: expected one import to remove: {unwanted.strip()}")
     source = source.replace(unwanted, "", 1)
-field = "    private final List<IUsbDevice> usbDevices = new ArrayList<> ();\\n"
+field = "    private final List<IUsbDevice> usbDevices = new ArrayList<> ();\n"
 if source.count(field) != 1:
     raise SystemExit("HostImpl: USB device tracking field was not found")
 source = source.replace(field, "", 1)
