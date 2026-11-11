@@ -744,9 +744,9 @@ replace_once(device_params_mode,
 """,
     """    public boolean hasNextItem ()
     {
-        if (this.showDevices)
-            return this.model.getCursorDevice ().getDeviceBank ().canScrollForwards ();
-        return super.hasNextItem ();
+        return this.showDevices
+            ? this.model.getCursorDevice ().getDeviceBank ().canScrollForwards ()
+            : super.hasNextItem ();
     }
 
 
