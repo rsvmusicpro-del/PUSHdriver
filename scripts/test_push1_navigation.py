@@ -56,13 +56,20 @@ if "shiftPressed ? mode.hasPreviousItem () : mode.hasPreviousItemPage ()" not in
 if "shiftPressed ? mode.hasNextItem () : mode.hasNextItemPage ()" not in states:
     raise SystemExit("Right arrow LED state does not match non-Track navigation granularity")
 
+if "final boolean pageNavigation = this.surface.isShiftPressed () || this.isScenePlay ();" not in states:
+    raise SystemExit("Vertical arrow LED state does not account for Shift and Scene Play page navigation")
+if "pageNavigation ? sceneBank.canScrollPageBackwards () : sceneBank.canScrollBackwards ()" not in states:
+    raise SystemExit("Up arrow LED state does not match scene-bank navigation granularity")
+if "pageNavigation ? sceneBank.canScrollPageForwards () : sceneBank.canScrollForwards ()" not in states:
+    raise SystemExit("Down arrow LED state does not match scene-bank navigation granularity")
+
 up = method_body(command, "protected void scrollUp ()")
 down = method_body(command, "protected void scrollDown ()")
 for body, single, page in (
     (up, "sceneBank.scrollBackwards ();", "sceneBank.selectPreviousPage ();"),
     (down, "sceneBank.scrollForwards ();", "sceneBank.selectNextPage ();"),
 ):
-    if "this.surface.isShiftPressed ()" not in body or single not in body or page not in body:
-        raise SystemExit("Vertical arrows must retain one-scene and Shift page navigation")
+    if "this.surface.isShiftPressed () || this.isScenePlay ()" not in body or single not in body or page not in body:
+        raise SystemExit("Vertical arrows must retain single-scene scrolling and Shift/Scene Play page navigation")
 
 print("Push 1 directional navigation and arrow LED regression checks passed.")
