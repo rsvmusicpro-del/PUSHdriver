@@ -5,18 +5,7 @@ public final class Push1FirmwareVersionTest
 {
     public static void main(final String[] args)
     {
-        final int[] response = new int[35];
-        response[0] = 0xF0;
-        response[1] = 0x7E;
-        response[2] = 0x7F;
-        response[3] = 0x06;
-        response[4] = 0x02;
-        response[9] = 4;
-        response[10] = 2;
-        response[11] = 3;
-        response[12] = 5;
-        response[34] = 0xF7;
-
+        final int[] response = validResponse();
         final DeviceInquiry inquiry = new DeviceInquiry(response);
         if (!inquiry.isValid())
             throw new AssertionError("A valid 35-byte Push 1 identity response was rejected");
@@ -30,6 +19,11 @@ public final class Push1FirmwareVersionTest
 
         if (new DeviceInquiry(null).isValid())
             throw new AssertionError("A null MIDI identity response must be rejected safely");
+
+        // Truncated packets must never throw, even when they end before the identity header.
+        for (int length = 0; length < 15; length++)
+            if (new DeviceInquiry(new int[length]).isValid())
+                throw new AssertionError("A truncated " + length + "-byte identity response was accepted");
 
         final int[] highBitResponse = inquiry.getData();
         highBitResponse[9] = 0x80;
@@ -50,6 +44,15 @@ public final class Push1FirmwareVersionTest
         if (Push1FirmwareVersion.parse(null) != null)
             throw new AssertionError("Null inquiry must not produce a firmware version");
 
+        // All four firmware digits are decimal, not arbitrary seven-bit MIDI values.
+        for (int index = 9; index <= 12; index++)
+        {
+            final int[] malformed = validResponse();
+            malformed[index] = 10;
+            if (Push1FirmwareVersion.parse(new DeviceInquiry(malformed)) != null)
+                throw new AssertionError("Non-decimal firmware digit at response offset " + index + " was accepted");
+        }
+
         final int[] shortResponse = new int[15];
         shortResponse[0] = 0xF0;
         shortResponse[1] = 0x7E;
@@ -59,8 +62,9 @@ public final class Push1FirmwareVersionTest
         if (Push1FirmwareVersion.parse(new DeviceInquiry(shortResponse)) != null)
             throw new AssertionError("A non-Push-1 identity response must not produce a firmware version");
 
-        response[0] = 0;
-        if (Push1FirmwareVersion.parse(new DeviceInquiry(response)) != null)
+        final int[] invalidHeader = validResponse();
+        invalidHeader[0] = 0;
+        if (Push1FirmwareVersion.parse(new DeviceInquiry(invalidHeader)) != null)
             throw new AssertionError("An invalid SysEx identity response must be rejected");
 
         final byte[] firstQuery = DeviceInquiry.createQuery();
@@ -70,5 +74,21 @@ public final class Push1FirmwareVersionTest
             throw new AssertionError("DeviceInquiry.createQuery() leaked its mutable static packet");
 
         System.out.println("Push 1 firmware inquiry regression tests passed.");
+    }
+
+    private static int[] validResponse()
+    {
+        final int[] response = new int[35];
+        response[0] = 0xF0;
+        response[1] = 0x7E;
+        response[2] = 0x7F;
+        response[3] = 0x06;
+        response[4] = 0x02;
+        response[9] = 4;
+        response[10] = 2;
+        response[11] = 3;
+        response[12] = 5;
+        response[34] = 0xF7;
+        return response;
     }
 }
