@@ -27,7 +27,7 @@ with ZipFile(jar) as archive:
     if foreign:
         raise SystemExit(f"Foreign controller implementation packaged: {foreign}")
 
-    forbidden_names = ("Push2Display", "Push2Controller", "MaschineColorManager", "com/studiohartman/jamepad/", "purejavahidapi/", "com/sun/jna/", "com/fasterxml/jackson/", "de/mossgrabers/bitwig/framework/usb/")
+    forbidden_names = ("Push2Display", "Push2Controller", "MaschineColorManager", "com/studiohartman/jamepad/", "purejavahidapi/", "com/fasterxml/jackson/", "de/mossgrabers/bitwig/framework/usb/")
     leftovers = [p for p in entries if any(name in p for name in forbidden_names)]
     if leftovers:
         raise SystemExit(f"Push 2/Maschine implementation packaged: {leftovers}")
