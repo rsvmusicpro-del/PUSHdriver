@@ -2,9 +2,30 @@
 """Assemble the DrivenByMoss 19.0.0 sources required by the Push 1 extension."""
 from pathlib import Path
 import shutil
+import subprocess
 
 root = Path.cwd()
 upstream = root / "upstream"
+EXPECTED_UPSTREAM_COMMIT = "40057d6e7784974f523139dc0cebe62f4bde1f26"
+try:
+    actual_upstream_commit = subprocess.run(
+        ["git", "-C", str(upstream), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+except (OSError, subprocess.CalledProcessError) as error:
+    raise SystemExit(f"Cannot verify DrivenByMoss submodule revision: {error}") from error
+if actual_upstream_commit != EXPECTED_UPSTREAM_COMMIT:
+    raise SystemExit(
+        f"Unexpected DrivenByMoss revision: {actual_upstream_commit}; "
+        f"expected {EXPECTED_UPSTREAM_COMMIT}"
+    )
+
+# Rebuild generated inputs from a clean state so repeated local builds cannot
+# retain Java sources, service registrations or Maven artifacts from old runs.
+shutil.rmtree(root / "src/main/java/de/mossgrabers", ignore_errors=True)
+shutil.rmtree(root / "src/main/resources/META-INF/services", ignore_errors=True)
+shutil.rmtree(root / "src/assembly", ignore_errors=True)
+shutil.rmtree(root / "maven-local-repository", ignore_errors=True)
 java = root / "src/main/java/de/mossgrabers"
 resources = root / "src/main/resources/META-INF/services"
 java.mkdir(parents=True, exist_ok=True)
@@ -269,7 +290,7 @@ host.write_text(source)
 
 (root / "src/assembly").mkdir(parents=True, exist_ok=True)
 shutil.copy2(upstream / "src/assembly/dep.xml", root / "src/assembly/dep.xml")
-shutil.copytree(upstream / "maven-local-repository", root / "maven-local-repository", dirs_exist_ok=True)
+shutil.copytree(upstream / "maven-local-repository", root / "maven-local-repository")
 shutil.copy2(upstream / "pom.xml", root / "pom.xml")
 pom = root / "pom.xml"
 text = pom.read_text()
