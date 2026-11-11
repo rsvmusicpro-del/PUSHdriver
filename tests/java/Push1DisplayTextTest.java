@@ -1,3 +1,5 @@
+import de.mossgrabers.controller.ableton.push.controller.Push1DisplayText;
+
 public final class Push1DisplayTextTest
 {
     private Push1DisplayTextTest ()
