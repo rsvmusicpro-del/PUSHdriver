@@ -59,16 +59,16 @@ References:
 
 Ableton documents the four arrows as context-sensitive navigation. In Note workflow, Left/Right move between tracks; Up/Down move by one scene, with workflow-dependent clip/scene launch behavior. In Session workflow, Left/Right move one track and Up/Down one scene; Shift expands the horizontal or vertical movement to an eight-track/eight-scene block.
 
-PUSHdriver routes each physical arrow exactly once through `PushCursorCommand`. Horizontal navigation follows the active mode and deliberately uses two complementary mappings so that the action always matches the arrow LEDs:
+PUSHdriver routes each physical arrow exactly once through `PushCursorCommand`. Its modifier semantics follow Ableton's documented Push 1 navigation contract in every mode:
 
-- In `Modes.TRACK`, Left/Right without Shift select the previous/next track one at a time, matching Ableton's Note workflow; Shift+Left/Right move by a track-bank page.
-- In every other mode, Left/Right without Shift move by an item-bank page; Shift+Left/Right select the previous/next item within the active mode.
-- Outside `Views.SCENE_PLAY`, Up/Down without Shift scroll one scene; Shift+Up/Down move by a scene-bank page.
-- In `Views.SCENE_PLAY`, Up/Down use scene-bank page navigation directly, matching that view's larger scene-bank context.
+- Left/Right without Shift select the previous/next item in the active mode. In Track mode this selects the adjacent track; in Device, Browser, parameter-bank and sequencer modes it delegates single-item navigation to that mode.
+- Shift+Left/Right select the previous/next item-bank page (normally eight items/tracks).
+- Up/Down without Shift scroll one scene at a time.
+- Shift+Up/Down select the previous/next scene-bank page (normally eight scenes).
+- Scene Play retains its larger 64-scene bank, but does not silently change the Shift modifier contract: without Shift it still moves one scene, and with Shift it moves one page.
 - Up/Down do not launch clips or scenes. This is intentionally non-destructive in Bitwig and avoids turning navigation into an unexpected transport action.
-- Device, browser, parameter-bank, sequencer, and other mode-specific item/page navigation remains delegated to the active mode.
 
-Arrow LED availability is calculated using the same single-item/page rules as execution, preventing a lit arrow from advertising an unavailable action. The implementation uses the existing command dispatcher and API-17-compatible DrivenByMoss mode/scene interfaces; it introduces no MIDI message IDs, new button bindings, or parallel event loop.
+Arrow LED availability is calculated using exactly the same single-item/page rules as execution, preventing a lit arrow from advertising an unavailable action. The implementation uses the existing command dispatcher and API-17-compatible DrivenByMoss mode/scene interfaces; it introduces no MIDI message IDs, new button bindings, or parallel event loop.
 
 Reference:
 - [Ableton — Using Push 1, Note and Session navigation](https://www.ableton.com/en/live-manual/12/using-push-1/)
