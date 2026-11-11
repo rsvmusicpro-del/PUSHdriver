@@ -112,35 +112,17 @@ for marker in (
     if marker not in drum64:
         raise SystemExit(f"Drum 64 bounds regression: missing {marker!r}")
 
-# The Note button follows Ableton's Push 1 Drum Rack workflow: Note from a
-# Drum Rack track enters Loop Selector; subsequent presses alternate Drum/Drum64.
+# The Note button is intentionally left to DrivenByMoss' native
+# SelectPlayViewCommand. Drum/Drum64 must not be switched by Note, which
+# already owns view-selection and session-restore behavior.
 note_command = read("controller/ableton/push/command/trigger/SelectPlayViewCommand.java")
 execute_note = method_body(note_command, "public void execute (final ButtonEvent event, final int velocity)")
-for marker in (
-    "event == ButtonEvent.DOWN",
-    "event == ButtonEvent.LONG",
-    "event != ButtonEvent.UP",
-    "this.shiftedOnPress = this.surface.isShiftPressed ()",
-    "configuration.setAccentEnabled (true)",
-    "configuration.setAccentEnabled (false)",
-    "if (viewManager.isActive (Views.DRUM))",
-    "this.activatePreferredView (Views.DRUM64);",
-    "if (viewManager.isActive (Views.DRUM64))",
-    "this.activatePreferredView (Views.DRUM);",
-    "this.model.canSelectedTrackHoldNotes () && this.model.getDrumDevice ().hasDrumPads ()",
-    "modeManager.restore ();",
-):
-    if marker not in execute_note:
-        raise SystemExit(f"Push 1 Drum layout / velocity behavior regression: missing {marker!r}")
-up_release = execute_note.index("if (event != ButtonEvent.UP)")
-view_select = execute_note.index("if (modeManager.isActive (Modes.VIEW_SELECT))")
-short_drum = execute_note.index("if (viewManager.isActive (Views.DRUM))", view_select)
-if not up_release < view_select < short_drum:
-    raise SystemExit("The Note button must dismiss the temporary view selector before changing Drum layouts")
-if execute_note.index("if (event == ButtonEvent.LONG)") > execute_note.index("if (event != ButtonEvent.UP)"):
-    raise SystemExit("The Note long-press velocity layout must be handled before the release event")
-if "if (!this.shiftedOnPress && viewManager.isActive (Views.DRUM) && !this.accentWasActive)" not in execute_note:
-    raise SystemExit("Momentary 16-velocity mode must restore the previous Accent state on release")
+if "this.activatePreferredView (Views.DRUM64);" in execute_note or "this.activatePreferredView (Views.DRUM);" in execute_note:
+    raise SystemExit("Note command must not be repurposed to switch Drum / Drum64 layouts")
+if "modeManager.setTemporary (Modes.VIEW_SELECT);" not in execute_note or "modeManager.restore ();" not in execute_note:
+    raise SystemExit("Native Note view-selection / restore behavior must remain available")
+if "private boolean noteLongPressed;" in note_command or "this.shiftedOnPress" in execute_note:
+    raise SystemExit("Custom Note press-state interception must not be injected")
 
 # Verify the complete Loop Selector behavior and its 16 fixed-velocity pads.
 drum_engine = read("framework/view/sequencer/AbstractDrumView.java")
