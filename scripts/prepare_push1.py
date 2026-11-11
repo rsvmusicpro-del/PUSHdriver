@@ -50,16 +50,16 @@ replace_once(configuration, "        Views.RAINDROPS,\n", "",
     "PushConfiguration Raindrops preference")
 
 note_view_select = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteViewSelectMode.java"
-replace_once(note_view_select, "        Views.RAINDROPS,\\n", "        null,\\n",
+replace_once(note_view_select, "        Views.RAINDROPS,\n", "        null,\n",
     "NoteViewSelectMode Raindrops slot")
 
 layout = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/trigger/LayoutCommand.java"
 replace_once(layout,
-    "        else if (viewManager.isActive (Views.SEQUENCER))\\n"
-    "            this.activatePreferredView (Views.RAINDROPS);\\n"
-    "        else if (viewManager.isActive (Views.RAINDROPS))\\n"
+    "        else if (viewManager.isActive (Views.SEQUENCER))\n"
+    "            this.activatePreferredView (Views.RAINDROPS);\n"
+    "        else if (viewManager.isActive (Views.RAINDROPS))\n"
     "            this.activatePreferredView (Views.DRUM);",
-    "        else if (viewManager.isActive (Views.SEQUENCER))\\n"
+    "        else if (viewManager.isActive (Views.SEQUENCER))\n"
     "            this.activatePreferredView (Views.DRUM);",
     "LayoutCommand Raindrops cycle")
 
