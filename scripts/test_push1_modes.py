@@ -124,6 +124,13 @@ if "modeManager.setTemporary (Modes.VIEW_SELECT);" not in execute_note or "modeM
 if "private boolean noteLongPressed;" in note_command or "this.shiftedOnPress" in execute_note:
     raise SystemExit("Custom Note press-state interception must not be injected")
 
+if "if (event != ButtonEvent.DOWN)" not in execute_note:
+    raise SystemExit("Native Note command must react only to its original DOWN event")
+setup = read("controller/ableton/push/PushControllerSetup.java")
+note_bindings = [line for line in setup.splitlines() if "addButton (ButtonID.NOTE" in line]
+if len(note_bindings) != 1 or "new SelectPlayViewCommand" not in note_bindings[0]:
+    raise SystemExit("Push 1 Note must retain exactly one native SelectPlayViewCommand binding")
+
 # Verify the complete Loop Selector behavior and its 16 fixed-velocity pads.
 drum_engine = read("framework/view/sequencer/AbstractDrumView.java")
 loop_handler = method_body(drum_engine, "protected void handleLoopArea (final int pad, final int velocity)")
