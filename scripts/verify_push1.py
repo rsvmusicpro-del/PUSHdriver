@@ -104,8 +104,17 @@ with ZipFile(jar) as archive:
             raise SystemExit(f"Push 1 MIDI discovery metadata is missing: {expected!r}")
 
     display_class = archive.read("de/mossgrabers/controller/ableton/push/controller/Push1Display.class")
-    if b"F0 47 7F 15 18 00 45 00 " not in display_class:
-        raise SystemExit("Push 1 LCD SysEx header is missing from the display implementation")
+    if b"Push1DisplayProtocol" not in display_class:
+        raise SystemExit("Push1Display is not delegated to the dedicated protocol engine")
+    protocol_class = archive.read("de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.class")
+    for header in (
+        b"F0 47 7F 15 18 00 45 00",
+        b"F0 47 7F 15 19 00 45 00",
+        b"F0 47 7F 15 1A 00 45 00",
+        b"F0 47 7F 15 1B 00 45 00",
+    ):
+        if header not in protocol_class:
+            raise SystemExit(f"Push 1 LCD SysEx row header is missing from protocol engine: {header!r}")
 
     setup_class = archive.read("de/mossgrabers/controller/ableton/push/PushControllerSetup.class")
     if b"isPush2" in setup_class or b"Push2Display" in setup_class:
