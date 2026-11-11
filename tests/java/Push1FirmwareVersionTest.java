@@ -58,7 +58,9 @@ public final class Push1FirmwareVersionTest
         for (int index = 5; index <= 7; index++)
         {
             final int[] foreignManufacturer = validResponse();
-            foreignManufacturer[index] = index == 5 ? 0x00 : index == 6 ? 0x20 : 0x6B;
+            foreignManufacturer[5] = index == 5 ? 0x01 : 0x00;
+            foreignManufacturer[6] = index == 6 ? 0x20 : 0x21;
+            foreignManufacturer[7] = index == 7 ? 0x6B : 0x1D;
             if (Push1FirmwareVersion.parse(new DeviceInquiry(foreignManufacturer)) != null)
                 throw new AssertionError("A foreign manufacturer identity was accepted at offset " + index);
         }
