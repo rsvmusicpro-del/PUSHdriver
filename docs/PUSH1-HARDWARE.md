@@ -70,6 +70,10 @@ PUSHdriver routes each physical arrow exactly once through `PushCursorCommand`. 
 
 Arrow LED availability is calculated using exactly the same single-item/page rules as execution, preventing a lit arrow from advertising an unavailable action. The implementation uses the existing command dispatcher and API-17-compatible DrivenByMoss mode/scene interfaces; it introduces no MIDI message IDs, new button bindings, or parallel event loop.
 
+## Second-row startup state
+
+The Push 1's second row is its state-control row. PUSHdriver explicitly initializes this row to **Mute** at startup using the Bitwig-4.3-compatible `PushConfiguration.TrackState.MUTE` setting. This backports the later upstream Push 1 fix without importing newer Push 2/3 lock-state APIs. It prevents the second row from starting in the unset state and accidentally exposing the newer controller-generation behavior.
+
 Reference:
 - [Ableton — Using Push 1, Note and Session navigation](https://www.ableton.com/en/live-manual/12/using-push-1/)
 
