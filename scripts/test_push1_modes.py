@@ -81,7 +81,7 @@ for marker in (
     "this.model.getTransport ().isPlaying ()",
     "clip.doesExist ()",
     "clip.getCurrentStep ()",
-    "clip.getNumSteps ()",
+    "this.numDisplayCols",
     "clip.getEditPage ()",
     "clip.scrollToPage (playheadPage)",
     "super.drawGrid ();",
