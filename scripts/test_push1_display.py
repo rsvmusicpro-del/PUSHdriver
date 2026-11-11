@@ -17,3 +17,18 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-display-test-") as output:
         ["java", "-cp", output, "Push1DisplayProtocolTest"],
         cwd=root, check=True,
     )
+    text_test = root / "tests/java/Push1DisplayTextTest.java"
+    display_text = root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayText.java"
+    subprocess.run(
+        ["javac", "-d", output, str(display_text), str(text_test)],
+        cwd=root, check=True,
+    )
+    subprocess.run(
+        ["java", "-cp", output, "Push1DisplayTextTest"],
+        cwd=root, check=True,
+    )
+
+assembled_display = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push1Display.java"
+display_source = assembled_display.read_text()
+if "Push1DisplayText.fitBlock (value)" not in display_source or "Push1DisplayText.fit (value, 8)" not in display_source:
+    raise SystemExit("Push 1 LCD cells are not routed through the bounded text-fitting engine")
