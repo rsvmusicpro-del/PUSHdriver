@@ -638,8 +638,8 @@ setup.write_text(setup_source)
 # Keep the physical Push 1 New button on its native dedicated binding, while
 # stopping the cursor track's current clip before preparing its next note clip.
 replace_once(setup,
-    "import de.mossgrabers.framework.command.trigger.clip.NewCommand;\\n",
-    "import de.mossgrabers.controller.ableton.push.command.trigger.PushNewCommand;\\n",
+    "import de.mossgrabers.framework.command.trigger.clip.NewCommand;\n",
+    "import de.mossgrabers.controller.ableton.push.command.trigger.PushNewCommand;\n",
     "Push 1 New command import")
 replace_once(setup,
     "new NewCommand<> (this.model, surface)",
