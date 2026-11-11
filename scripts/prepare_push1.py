@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Assemble the DrivenByMoss 19.0.0 sources required by the Push 1 extension."""
 from pathlib import Path
-import re
 import shutil
 
 root = Path.cwd()
@@ -72,13 +71,14 @@ pom = root / "pom.xml"
 text = pom.read_text()
 text = text.replace("<artifactId>DrivenByMoss</artifactId>", "<artifactId>PUSHdriver</artifactId>", 1)
 text = text.replace("<name>DrivenByMoss</name>", "<name>PUSHdriver</name>", 1)
-text, removed = re.subn(
-    r"\\s*<!-- Gamepad support\\. -->\\s*<dependency>.*?<artifactId>jamepad</artifactId>.*?</dependency>",
-    "",
-    text,
-    count=1,
-    flags=re.DOTALL,
-)
-if removed != 1:
-    raise SystemExit("Expected exactly one Jamepad dependency in upstream POM")
+marker = "<!-- Gamepad support. -->"
+if text.count(marker) != 1:
+    raise SystemExit("Expected exactly one Gamepad support section in upstream POM")
+start = text.index(marker)
+dependency_start = text.index("<dependency>", start)
+dependency_end = text.index("</dependency>", dependency_start) + len("</dependency>")
+dependency = text[dependency_start:dependency_end]
+if "<artifactId>jamepad</artifactId>" not in dependency:
+    raise SystemExit("Gamepad support section does not contain the expected Jamepad dependency")
+text = text[:start] + text[dependency_end:]
 pom.write_text(text)
