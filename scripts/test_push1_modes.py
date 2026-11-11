@@ -95,6 +95,10 @@ if root_color not in piano or track_color not in piano:
 if piano.index(root_color) > piano.index("else if (row % 2 == 0)"):
     raise SystemExit("Piano root-note track color must take precedence over fixed white/black key colors")
 
+display = read("controller/ableton/push/controller/Push1Display.java")
+if "Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68))" not in display:
+    raise SystemExit("Push 1 LCD output must normalize every display row to exactly 68 characters")
+
 configuration_mode = read("controller/ableton/push/mode/ConfigurationMode.java")
 if 'StringUtils.pad ("Low threshold maycause stuck pads!", 68)' not in configuration_mode:
     raise SystemExit("Low pad-threshold warning must fill the exact 68-character Push 1 LCD row")
