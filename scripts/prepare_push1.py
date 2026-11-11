@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble the DrivenByMoss 19.0.0 sources required by the Push 1 extension."""
+"""Assemble the DrivenByMoss 19.2.2 sources required by the Push 1 extension."""
 from pathlib import Path
 import shutil
 import subprocess
@@ -66,9 +66,7 @@ copy_tree("src/main/java/de/mossgrabers/bitwig/controller/ableton/push",
 copy_tree("src/main/java/de/mossgrabers/controller/ableton/push",
           "src/main/java/de/mossgrabers/controller/ableton/push")
 
-# Apply two upstream Push 1 fixes from DrivenByMoss 19.2.2. Version 19.0.0
-# still supports Bitwig 4.3+, but 19.2.2 fixes the Push 1 firmware inquiry
-# parser and a 68-character LCD row overflow in the low-pad-threshold warning.
+# Apply the 19.2.2 Push 1 firmware inquiry parser and LCD row-width fixes.
 device_inquiry = root / "src/main/java/de/mossgrabers/framework/daw/midi/DeviceInquiry.java"
 replace_once(device_inquiry,
     "    public int [] getData ()\n"
@@ -244,7 +242,6 @@ replace_once(push_display,
 
 # Port the API-17-compatible DrivenByMoss 19.2.2 ribbon improvements:
 # Delete+touchstrip resets the active parameter, including the last-touched target.
-pitchbend_config = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/continuous/ConfigurePitchbendCommand.java"
 # DrivenByMoss 19.2.2 already implements Delete+touchstrip reset.
 touchstrip = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/pitchbend/TouchstripCommand.java"
 replace_once(touchstrip,
@@ -386,6 +383,24 @@ replace_once(note_repeat,
     "        this.refreshNoteRepeat ();\n"
     "        if (this.noteRepeat == null)",
     "NoteRepeatMode graphic-display input refresh")
+replace_once(note_repeat,
+    "    public int getButtonColor (final ButtonID buttonID)\n"
+    "    {\n"
+    "        int index = this.isButtonRow (0, buttonID);\n"
+    "        if (index >= 0)\n"
+    "        {\n"
+    "            final ColorManager colorManager = this.model.getColorManager ();",
+    "    public int getButtonColor (final ButtonID buttonID)\n"
+    "    {\n"
+    "        int index = this.isButtonRow (0, buttonID);\n"
+    "        if (index >= 0)\n"
+    "        {\n"
+    "            this.refreshNoteRepeat ();\n"
+    "            if (this.noteRepeat == null)\n"
+    "                return this.model.getColorManager ().getColorIndex (AbstractFeatureGroup.BUTTON_COLOR_OFF);\n\n"
+    "            final ColorManager colorManager = this.model.getColorManager ();",
+    "NoteRepeatMode LED no-input guard")
+
 mode_value = "final int value = modeIndex * upperBound / (arpeggiatorModes.size () - 1);"
 mode_value_replacement = (
     "final int modeDenominator = Math.max (1, arpeggiatorModes.size () - 1);\n"
