@@ -75,6 +75,7 @@ setup_source = setup_source.replace("this.isPush2", "false")
 setup_source = setup_source.replace("isPush2", "false")
 setup_source = setup_source.replace("Push 1 and Push 2 controllers", "Push 1 controller")
 setup_source = setup_source.replace("Redraw the Push 2 display.", "Redraw the Push 1 display.")
+setup_source = setup_source.replace("Push 2", "Push 1")
 if "isPush2" in setup_source or "Push2Display" in setup_source or "Push 2" in setup_source:
     raise SystemExit("PushControllerSetup still contains Push 2 runtime references")
 setup.write_text(setup_source)
