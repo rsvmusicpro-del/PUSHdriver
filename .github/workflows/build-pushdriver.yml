@@ -28,6 +28,9 @@ jobs:
           java-version: '17'
           cache: maven
 
+      - name: Test Push 1 LCD protocol engine
+        run: python3 scripts/test_push1_display.py
+
       - name: Build extension
         run: mvn --batch-mode --no-transfer-progress clean package
 
