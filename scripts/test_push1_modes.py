@@ -117,19 +117,27 @@ for marker in (
 note_command = read("controller/ableton/push/command/trigger/SelectPlayViewCommand.java")
 execute_note = method_body(note_command, "public void execute (final ButtonEvent event, final int velocity)")
 for marker in (
-    "this.model.canSelectedTrackHoldNotes () && this.model.getDrumDevice ().hasDrumPads ()",
-    "viewManager.setActive (Views.DRUM);",
+    "event == ButtonEvent.DOWN",
+    "event == ButtonEvent.LONG",
+    "event == ButtonEvent.UP",
+    "this.shiftedOnPress = this.surface.isShiftPressed ()",
+    "configuration.setAccentEnabled (true)",
+    "configuration.setAccentEnabled (false)",
     "if (viewManager.isActive (Views.DRUM))",
-    "viewManager.setActive (Views.DRUM64);",
+    "this.activatePreferredView (Views.DRUM64);",
     "if (viewManager.isActive (Views.DRUM64))",
+    "this.activatePreferredView (Views.DRUM);",
+    "this.model.canSelectedTrackHoldNotes () && this.model.getDrumDevice ().hasDrumPads ()",
     "modeManager.restore ();",
 ):
     if marker not in execute_note:
-        raise SystemExit(f"Push 1 Drum layout toggle regression: missing {marker!r}")
+        raise SystemExit(f"Push 1 Drum layout / velocity behavior regression: missing {marker!r}")
 if execute_note.index("if (modeManager.isActive (Modes.VIEW_SELECT))") > execute_note.index("if (viewManager.isActive (Views.DRUM))"):
     raise SystemExit("The Note button must dismiss the temporary view selector before changing Drum layouts")
-if execute_note.index("if (viewManager.isActive (Views.DRUM))") > execute_note.index("if (viewManager.isActive (Views.DRUM64))"):
-    raise SystemExit("Drum must toggle to Drum64 before the reverse Drum64-to-Drum transition")
+if execute_note.index("if (event == ButtonEvent.LONG)") > execute_note.index("if (event != ButtonEvent.UP)"):
+    raise SystemExit("The Note long-press velocity layout must be handled before the release event")
+if "if (!this.shiftedOnPress && viewManager.isActive (Views.DRUM) && !this.accentWasActive)" not in execute_note:
+    raise SystemExit("Momentary 16-velocity mode must restore the previous Accent state on release")
 
 # Verify the complete Loop Selector behavior and its 16 fixed-velocity pads.
 drum_engine = read("framework/view/sequencer/AbstractDrumView.java")
