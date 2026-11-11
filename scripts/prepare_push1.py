@@ -51,7 +51,6 @@ copy_tree("src/main/java/de/mossgrabers/controller/ableton/push",
 
 # Root notes in the piano layout must inherit the selected track color on every row.
 piano_helper = root / "src/main/java/de/mossgrabers/framework/view/PianoViewHelper.java"
-print(piano_helper.read_text())
 replace_once(piano_helper,
     "                final int color;\n"
     "                if (row % 2 == 0)",
