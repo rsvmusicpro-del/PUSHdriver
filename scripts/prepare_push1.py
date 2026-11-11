@@ -60,6 +60,90 @@ new_display = "        surface.addTextDisplay (new Push1Display (this.host, this
 if source.count(old_display) != 1:
     raise SystemExit("PushControllerSetup: expected Push 1/Push 2 display branch was not found")
 setup.write_text(source.replace(old_display, new_display, 1))
+setup_source = setup.read_text()
+setup_source = setup_source.replace("    private final boolean isPush2;\\n", "", 1)
+setup_source = setup_source.replace("     * @param isPush2 True if Push 2\\n", "", 1)
+old_signature = "public PushControllerSetup (final IHost host, final ISetupFactory factory, final ISettingsUI globalSettings, final ISettingsUI documentSettings, final boolean isPush2)"
+new_signature = "public PushControllerSetup (final IHost host, final ISetupFactory factory, final ISettingsUI globalSettings, final ISettingsUI documentSettings)"
+if setup_source.count(old_signature) != 1:
+    raise SystemExit("PushControllerSetup: expected dual-generation constructor was not found")
+setup_source = setup_source.replace(old_signature, new_signature, 1)
+setup_source = setup_source.replace("        this.isPush2 = isPush2;\\n", "", 1)
+setup_source = setup_source.replace("new PushColorManager (isPush2)", "new PushColorManager (false)", 1)
+setup_source = setup_source.replace("new PushConfiguration (host, this.valueChanger, factory.getArpeggiatorModes (), isPush2)", "new PushConfiguration (host, this.valueChanger, factory.getArpeggiatorModes (), false)", 1)
+setup_source = setup_source.replace("this.isPush2", "false")
+setup_source = re.sub(r"this\\.configuration\\.isPush2\\s*\\(\\s*\\)", "false", setup_source)
+if "isPush2" in setup_source or "Push2Display" in setup_source:
+    raise SystemExit("PushControllerSetup still contains Push 2 runtime references")
+setup.write_text(setup_source)
+
+# Replace the dual-generation USB/MIDI discovery definition with the Push 1 definition only.
+definition = root / "src/main/java/de/mossgrabers/controller/ableton/push/PushControllerDefinition.java"
+definition.write_text("""// Written by Jürgen Moßgraber - mossgrabers.de
+// (c) 2017-2023
+// Licensed under LGPLv3 - http://www.gnu.org/licenses/lgpl-3.0.txt
+
+package de.mossgrabers.controller.ableton.push;
+
+import de.mossgrabers.framework.controller.DefaultControllerDefinition;
+import de.mossgrabers.framework.usb.UsbMatcher;
+import de.mossgrabers.framework.utils.OperatingSystem;
+import de.mossgrabers.framework.utils.Pair;
+
+import java.util.List;
+import java.util.UUID;
+
+
+/** Push 1 MIDI discovery definition. */
+public class PushControllerDefinition extends DefaultControllerDefinition
+{
+    private static final UUID EXTENSION_ID_MK_I = UUID.fromString ("DBED9610-C474-11E6-9598-0800200C9A66");
+
+    public PushControllerDefinition ()
+    {
+        super (EXTENSION_ID_MK_I, "Push 1", "Ableton", 1, 1);
+    }
+
+    @Override
+    public List<Pair<String [], String []>> getMidiDiscoveryPairs (final OperatingSystem os)
+    {
+        final List<Pair<String [], String []>> midiDiscoveryPairs = super.getMidiDiscoveryPairs (os);
+        switch (os)
+        {
+            case WINDOWS:
+                midiDiscoveryPairs.addAll (this.createWindowsDeviceDiscoveryPairs ("MIDIIN2 (%sAbleton Push)", "MIDIOUT2 (%sAbleton Push)"));
+                break;
+
+            case LINUX, MAC:
+                midiDiscoveryPairs.add (this.addDeviceDiscoveryPair ("Ableton Push User Port"));
+                midiDiscoveryPairs.addAll (this.createLinuxDeviceDiscoveryPairs ("Push", "Push", 1));
+                break;
+
+            default:
+                break;
+        }
+        return midiDiscoveryPairs;
+    }
+
+    @Override
+    public UsbMatcher claimUSBDevice ()
+    {
+        return null;
+    }
+}
+""")
+
+push1_definition = root / "src/main/java/de/mossgrabers/bitwig/controller/ableton/push/Push1ControllerExtensionDefinition.java"
+source = push1_definition.read_text()
+if source.count("new PushControllerDefinition (false)") != 1:
+    raise SystemExit("Push1ControllerExtensionDefinition: expected Push 1 definition constructor was not found")
+source = source.replace("new PushControllerDefinition (false)", "new PushControllerDefinition ()", 1)
+old_setup = "new PushControllerSetup (new HostImpl (host), new BitwigSetupFactory (host), new SettingsUIImpl (host, host.getPreferences ()), new SettingsUIImpl (host, host.getDocumentState ()), false)"
+new_setup = "new PushControllerSetup (new HostImpl (host), new BitwigSetupFactory (host), new SettingsUIImpl (host, host.getPreferences ()), new SettingsUIImpl (host, host.getDocumentState ()))"
+if source.count(old_setup) != 1:
+    raise SystemExit("Push1ControllerExtensionDefinition: expected PushControllerSetup constructor was not found")
+push1_definition.write_text(source.replace(old_setup, new_setup, 1))
+
 
 # HostImpl still implements the shared IHost contract. Keep its USB methods but disable
 # USB-HID access: Push 1 is MIDI-only and this removes unrelated HID controller libraries.
