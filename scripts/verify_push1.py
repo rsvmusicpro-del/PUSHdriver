@@ -32,6 +32,13 @@ with ZipFile(jar) as archive:
     if leftovers:
         raise SystemExit(f"Push 2/Maschine implementation packaged: {leftovers}")
 
+    definition_class = archive.read("de/mossgrabers/controller/ableton/push/PushControllerDefinition.class")
+    if b"Push 2" in definition_class or b"Ableton Push 2" in definition_class or b"2982" in definition_class:
+        raise SystemExit("PushControllerDefinition still contains Push 2 discovery metadata")
+    setup_class = archive.read("de/mossgrabers/controller/ableton/push/PushControllerSetup.class")
+    if b"isPush2" in setup_class or b"Push2Display" in setup_class:
+        raise SystemExit("PushControllerSetup still contains Push 2 runtime branches")
+
     service_path = "META-INF/services/com.bitwig.extension.ExtensionDefinition"
     service = archive.read(service_path).decode("utf-8").strip()
     if service != "de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition":
