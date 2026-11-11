@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail the build if non-Push-1 controller implementations are packaged."""
+"""Fail the build if the package contains anything outside the Push 1 scope."""
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -27,10 +27,25 @@ with ZipFile(jar) as archive:
     if foreign:
         raise SystemExit(f"Foreign controller implementation packaged: {foreign}")
 
-    forbidden_names = ("Push2Display", "Push2Controller", "MaschineColorManager", "com/studiohartman/jamepad/", "purejavahidapi/", "com/fasterxml/jackson/", "de/mossgrabers/bitwig/framework/usb/")
+    forbidden_names = (
+        "Push2Display", "Push2Controller", "MaschineColorManager",
+        "RaindropsView", "AbstractRaindropsView", "RAINDROPS",
+        "NAME_RAINDROPS", "com/studiohartman/jamepad/",
+        "purejavahidapi/", "com/fasterxml/jackson/",
+        "de/mossgrabers/bitwig/framework/usb/",
+    )
     leftovers = [p for p in entries if any(name in p for name in forbidden_names)]
     if leftovers:
-        raise SystemExit(f"Push 2/Maschine implementation packaged: {leftovers}")
+        raise SystemExit(f"Forbidden controller code or Raindrops dependency packaged: {leftovers}")
+
+    # Scan class constant pools as well as entry names: no dormant Raindrops mode may remain.
+    raindrops_refs = []
+    for path in classes:
+        data = archive.read(path)
+        if any(token in data for token in (b"Raindrops", b"Raindrop", b"RAINDROPS", b"NAME_RAINDROPS")):
+            raindrops_refs.append(path)
+    if raindrops_refs:
+        raise SystemExit(f"Raindrops symbols remain in compiled classes: {raindrops_refs}")
 
     definition_class = archive.read("de/mossgrabers/controller/ableton/push/PushControllerDefinition.class")
     if b"Push 2" in definition_class or b"Ableton Push 2" in definition_class or b"2982" in definition_class:
@@ -44,4 +59,4 @@ with ZipFile(jar) as archive:
     if service != "de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition":
         raise SystemExit(f"Unexpected extension registrations: {service}")
 
-print(f"Verified {jar.name}: {len(classes)} classes; only Push 1 Bitwig extension entry point.")
+print(f"Verified {jar.name}: {len(classes)} classes; Push 1 only; Raindrops fully absent.")
