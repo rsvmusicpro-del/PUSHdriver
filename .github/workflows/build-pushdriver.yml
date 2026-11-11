@@ -37,6 +37,9 @@ jobs:
       - name: Test Push 1 note repeat and sequencer safety
         run: python3 scripts/test_push1_modes.py
 
+      - name: Test Push 1 empty-clip playhead guard
+        run: python3 scripts/test_push1_playhead.py
+
       - name: Test Push 1 firmware inquiry parsing
         run: python3 scripts/test_push1_firmware.py
 
