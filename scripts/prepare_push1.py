@@ -59,6 +59,61 @@ copy_tree("src/main/java/de/mossgrabers/bitwig/controller/ableton/push",
 copy_tree("src/main/java/de/mossgrabers/controller/ableton/push",
           "src/main/java/de/mossgrabers/controller/ableton/push")
 
+# Apply two upstream Push 1 fixes from DrivenByMoss 19.2.2. Version 19.0.0
+# still supports Bitwig 4.3+, but 19.2.2 fixes the Push 1 firmware inquiry
+# parser and a 68-character LCD row overflow in the low-pad-threshold warning.
+device_inquiry = root / "src/main/java/de/mossgrabers/framework/daw/midi/DeviceInquiry.java"
+replace_once(device_inquiry,
+    "    /**\n     * Get the start of the messages content depending on the length of the manufacturer ID.\n",
+    "    /**\n"
+    "     * Get a defensive copy of the complete device inquiry response.\n"
+    "     *\n"
+    "     * @return The complete MIDI SysEx response\n"
+    "     */\n"
+    "    public int [] getData ()\n"
+    "    {\n"
+    "        return this.data.clone ();\n"
+    "    }\n\n\n"
+    "    /**\n     * Get the start of the messages content depending on the length of the manufacturer ID.\n",
+    "DeviceInquiry full response accessor")
+
+push_surface = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushControlSurface.java"
+replace_once(push_surface,
+    "        else\n"
+    "        {\n"
+    "            if (revisionLevel.length != 24)\n"
+    "                return;\n\n"
+    "            this.majorVersion = revisionLevel[0];\n"
+    "            this.minorVersion = revisionLevel[2] + revisionLevel[1] * 10;\n"
+    "            this.buildNumber = 0;\n"
+    "            this.serialNumber = 0;\n"
+    "            this.boardRevision = 0;\n"
+    "        }",
+    "        else\n"
+    "        {\n"
+    "            final Push1FirmwareVersion firmwareVersion = Push1FirmwareVersion.parse (deviceInquiry);\n"
+    "            if (firmwareVersion == null)\n"
+    "                return;\n\n"
+    "            this.majorVersion = firmwareVersion.major ();\n"
+    "            this.minorVersion = firmwareVersion.minor ();\n"
+    "            this.buildNumber = 0;\n"
+    "            this.serialNumber = 0;\n"
+    "            this.boardRevision = 0;\n"
+    "        }",
+    "Push 1 firmware inquiry parser")
+
+configuration_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/ConfigurationMode.java"
+replace_once(configuration_mode,
+    "import de.mossgrabers.framework.daw.data.IItem;\n",
+    "import de.mossgrabers.framework.daw.data.IItem;\n"
+    "import de.mossgrabers.framework.utils.StringUtils;\n",
+    "ConfigurationMode StringUtils import")
+replace_once(configuration_mode,
+    '            display.setRow (3, " Warning:Low threshold maycause stuck pads ");',
+    '            display.setRow (3, StringUtils.pad ("Low threshold maycause stuck pads!", 68));',
+    "ConfigurationMode fixed-width LCD warning")
+
+
 # Match Ableton Live 10 Push 1 sequencer feedback without changing note/clip engines:
 # playhead is green in playback and red while recording; selected steps are white;
 # muted steps are pale yellow; soloed drum pads are dark blue.
