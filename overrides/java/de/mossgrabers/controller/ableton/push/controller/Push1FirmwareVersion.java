@@ -22,6 +22,12 @@ public record Push1FirmwareVersion(int major, int minor)
         if (data.length != 35)
             return null;
 
+        // Push 1 reports major and minor versions as two decimal digits each.
+        // Reject malformed seven-bit values rather than displaying impossible versions.
+        for (int index = 9; index <= 12; index++)
+            if (data[index] < 0 || data[index] > 9)
+                return null;
+
         return new Push1FirmwareVersion(data[10] + data[9] * 10,
                                        data[12] + data[11] * 10);
     }
