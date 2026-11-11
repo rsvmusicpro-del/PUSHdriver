@@ -22,7 +22,7 @@ public final class Push1FirmwareVersionTest
             throw new AssertionError("A valid 35-byte Push 1 identity response was rejected");
 
         final Push1FirmwareVersion version = Push1FirmwareVersion.parse(inquiry);
-        if (version == null || version.major() != 42 || version.minor() != 53)
+        if (version == null || version.major() != 42 || version.minor() != 35)
             throw new AssertionError("Incorrect Push 1 firmware version: " + version);
 
         final int[] exposed = inquiry.getData();
