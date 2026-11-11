@@ -13,6 +13,25 @@ def read(relative: str) -> str:
     return path.read_text()
 
 
+def method_body(source: str, signature: str) -> str:
+    """Return one Java method body using balanced braces."""
+    start = source.find(signature)
+    if start < 0:
+        raise SystemExit(f"Required method is missing: {signature}")
+    opening = source.find("{", start + len(signature))
+    if opening < 0:
+        raise SystemExit(f"Method has no body: {signature}")
+    depth = 0
+    for index in range(opening, len(source)):
+        if source[index] == "{":
+            depth += 1
+        elif source[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return source[opening + 1:index]
+    raise SystemExit(f"Unbalanced method body: {signature}")
+
+
 note_repeat = read("controller/ableton/push/mode/NoteRepeatMode.java")
 required_repeat = (
     "private INoteRepeat       noteRepeat;",
@@ -31,6 +50,22 @@ if 'display.setCell (column, row, "");' in note_repeat:
     raise SystemExit("NoteRepeatMode no-input LCD fallback swaps row and column indices")
 if "modeIndex * upperBound / (arpeggiatorModes.size () - 1)" in note_repeat:
     raise SystemExit("NoteRepeatMode still contains unsafe one-element mode scaling")
+
+# A global marker is insufficient: every callback that can dereference the
+# late-bound MIDI service must refresh it and handle the unavailable-input case.
+for signature in (
+    "public void onKnobValue (final int index, final int value)",
+    "public void onKnobTouch (final int index, final boolean isTouched)",
+    "public void onFirstRow (final int index, final ButtonEvent event)",
+    "public void onSecondRow (final int index, final ButtonEvent event)",
+    "public void updateDisplay1 (final ITextDisplay display)",
+    "public void updateDisplay2 (final IGraphicDisplay display)",
+    "public int getButtonColor (final ButtonID buttonID)",
+):
+    body = method_body(note_repeat, signature)
+    if "this.refreshNoteRepeat ();" not in body or "this.noteRepeat == null" not in body:
+        raise SystemExit(f"NoteRepeatMode callback lacks its own refreshed null guard: {signature}")
+
 
 sequencer = read("framework/view/sequencer/AbstractSequencerView.java")
 if "stepInfo = clip.getStep (notePosition);" not in sequencer:
@@ -99,6 +134,16 @@ if piano.index(root_color) > piano.index("else if (row % 2 == 0)"):
     raise SystemExit("Piano root-note track color must take precedence over fixed white/black key colors")
 
 touchstrip = read("controller/ableton/push/command/pitchbend/TouchstripCommand.java")
+for signature in (
+    "public void onPitchbend (final int data1, final int data2)",
+    "public void updateValue ()",
+):
+    body = method_body(touchstrip, signature)
+    if "defaultNoteInput == null ? null : defaultNoteInput.getNoteRepeat ();" not in body:
+        raise SystemExit(f"Touchstrip MIDI-input null guard is missing from {signature}")
+    if "if (noteRepeat == null)" not in body:
+        raise SystemExit(f"Touchstrip does not handle missing Note Repeat service in {signature}")
+
 for marker in (
     "final boolean isReset = this.surface.isDeletePressed ();",
     "this.surface.setTriggerConsumed (ButtonID.DELETE);",
