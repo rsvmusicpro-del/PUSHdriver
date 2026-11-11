@@ -18,6 +18,7 @@ surface = read("controller/ableton/push/controller/PushControlSurface.java")
 left = read("controller/ableton/push/command/trigger/PageLeftCommand.java")
 right = read("controller/ableton/push/command/trigger/PageRightCommand.java")
 browser = read("controller/ableton/push/mode/device/DeviceBrowserMode.java")
+device_params = read("controller/ableton/push/mode/device/DeviceParamsMode.java")
 
 for marker in (
     'this.addButton (ButtonID.PAGE_LEFT, "Out", new PageLeftCommand',
@@ -72,5 +73,14 @@ if "browserMode.canNavigateFilterColumn (false)" not in setup or "browserMode.ca
     raise SystemExit("In/Out LED states must reflect browser column availability")
 if "activeMode.hasPreviousItem ()" not in setup or "activeMode.hasNextItem ()" not in setup:
     raise SystemExit("In/Out LED states must reflect device/parameter availability")
+
+for marker in (
+    "cursorDevice.getParameterPageBank ().selectPreviousPage ();",
+    "cursorDevice.getParameterPageBank ().selectNextPage ();",
+    "getParameterPageBank ().canScrollPageBackwards ()",
+    "getParameterPageBank ().canScrollPageForwards ()",
+):
+    if marker not in device_params:
+        raise SystemExit(f"Device In/Out must navigate parameter-page banks, not individual parameters: {marker}")
 
 print("Push 1 In/Out bindings, device/browser behavior and fallback regression checks passed.")

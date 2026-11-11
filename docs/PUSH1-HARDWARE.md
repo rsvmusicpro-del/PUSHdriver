@@ -133,10 +133,11 @@ chains through these controls.
 PUSHdriver keeps the physical bindings unchanged and adapts their actions to
 the existing Bitwig 4.3 / Extension API 17 model:
 
-- **Out / CC 62:** previous device or parameter-bank item in a device mode;
-  previous filter column in Browser mode.
-- **In / CC 63:** next device or parameter-bank item in a device mode;
-  next filter column in Browser mode.
+- **Out / CC 62:** previous device in Device mode, or previous parameter-page
+  bank when the parameter-page selector is active; previous filter column in
+  Browser mode.
+- **In / CC 63:** next device in Device mode, or next parameter-page bank when
+  the parameter-page selector is active; next filter column in Browser mode.
 - The browser's selected filter column and Push 1 LCD selection marker are
   updated together. Button LEDs reflect whether another item/column exists.
 - In Session and sequencer contexts, the existing track-bank page and
