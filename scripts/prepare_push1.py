@@ -244,14 +244,7 @@ replace_once(push_display,
 # Port the API-17-compatible DrivenByMoss 19.2.2 ribbon improvements:
 # Delete+touchstrip resets the active parameter, including the last-touched target.
 pitchbend_config = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/continuous/ConfigurePitchbendCommand.java"
-# DrivenByMoss 19.2.2 already implements Delete+touchstrip reset. Keep its
-# upstream command and strengthen it against a stale/nonexistent parameter.
-replace_once(pitchbend_config,
-    "        if (parameter != null)\\n"
-    "            parameter.resetValue ();",
-    "        if (parameter != null && parameter.doesExist ())\\n"
-    "            parameter.resetValue ();",
-    "ConfigurePitchbendCommand parameter existence guard")
+# DrivenByMoss 19.2.2 already implements Delete+touchstrip reset.
 touchstrip = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/pitchbend/TouchstripCommand.java"
 replace_once(touchstrip,
     "import de.mossgrabers.framework.command.core.AbstractPitchbendCommand;\n",
