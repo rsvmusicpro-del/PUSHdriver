@@ -81,9 +81,10 @@ The inherited DrivenByMoss 19.2.2 `NewCommand` already owns the dedicated `Butto
 PUSHdriver now keeps that single native button binding and wraps the upstream command with `PushNewCommand`:
 
 1. Resolve the cursor track and find an available slot before changing playback.
-2. If no track or free slot exists, delegate to the upstream command so its existing user notification is preserved; the current clip is not stopped.
-3. If a slot is available, stop playback on the cursor track, then create and start the new note clip using the upstream clip-length and overdub behavior.
-4. Preserve Shift+New's no-overdub behavior and leave Record, Duplicate, Play, and all other button bindings untouched.
+2. If no track or free slot exists, delegate to the upstream command so its existing user notification is preserved; playback is not changed.
+3. If the selected slot is a playing Launcher clip, stop that cursor track before creating the new clip. If no selected Launcher clip is playing, leave unrelated playback (including Arranger playback) untouched.
+4. Create and start the new note clip using the upstream clip-length and overdub behavior.
+5. Preserve Shift+New's no-overdub behavior and leave Record, Duplicate, Play, and all other button bindings untouched.
 
 This deliberately scopes New to the cursor track. PUSHdriver does not automatically duplicate clips from other tracks into a new scene: that cross-track operation is not required to prepare a new Bitwig clip and could alter a playing arrangement unexpectedly. The Ableton-specific Record+New Capture MIDI chord is also not introduced, so the existing Record and Shift command paths remain collision-free.
 

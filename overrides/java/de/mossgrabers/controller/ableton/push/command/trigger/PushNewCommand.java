@@ -53,6 +53,7 @@ public class PushNewCommand extends NewCommand<PushControlSurface, PushConfigura
         final ISlotBank slotBank = cursorTrack.getSlotBank ();
         final Optional<ISlot> selectedSlot = slotBank.getSelectedItem ();
         final int slotIndex = selectedSlot.isEmpty () ? 0 : selectedSlot.get ().getIndex ();
+        final boolean selectedClipIsPlaying = selectedSlot.isPresent () && selectedSlot.get ().isPlaying ();
         final Optional<ISlot> slot = slotBank.getEmptySlot (slotIndex);
         if (slot.isEmpty ())
         {
@@ -60,8 +61,9 @@ public class PushNewCommand extends NewCommand<PushControlSurface, PushConfigura
             return;
         }
 
-        // Do not stop the currently playing clip if New cannot create its replacement.
-        cursorTrack.stop ();
+        // Only stop a selected Launcher clip; do not interrupt unrelated Arranger playback.
+        if (selectedClipIsPlaying)
+            cursorTrack.stop ();
         this.model.createNoteClip (cursorTrack, slot.get (), this.getClipLength (), enableOverdub);
     }
 }
