@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """Fail the build if the package contains anything outside the Push 1 scope."""
 from pathlib import Path
+import re
 from zipfile import ZipFile
 
 jar = Path("target/PUSHdriver-19.0.0.jar")
 if not jar.is_file() or jar.stat().st_size == 0:
     raise SystemExit("PUSHdriver JAR is missing or empty")
+
+pom = Path("pom.xml").read_text()
+if not re.search(r"<artifactId>extension-api</artifactId>\\s*<version>17</version>", pom):
+    raise SystemExit("Build is not pinned to Bitwig Extension API 17")
 
 with ZipFile(jar) as archive:
     entries = archive.namelist()
@@ -14,6 +19,31 @@ with ZipFile(jar) as archive:
     expected = ["de/mossgrabers/bitwig/controller/ableton/push/Push1ControllerExtensionDefinition.class"]
     if bitwig_classes != expected:
         raise SystemExit(f"Unexpected Bitwig controller entry points: {bitwig_classes}")
+
+    required_push1_classes = (
+        "de/mossgrabers/controller/ableton/push/controller/Push1Display.class",
+        "de/mossgrabers/controller/ableton/push/controller/PushColorManager.class",
+        "de/mossgrabers/controller/ableton/push/controller/PushControlSurface.class",
+        "de/mossgrabers/controller/ableton/push/PushControllerSetup.class",
+        "de/mossgrabers/controller/ableton/push/PushConfiguration.class",
+        "de/mossgrabers/controller/ableton/push/view/SessionView.class",
+        "de/mossgrabers/controller/ableton/push/view/ClipView.class",
+        "de/mossgrabers/controller/ableton/push/view/PlayView.class",
+        "de/mossgrabers/controller/ableton/push/view/PianoView.class",
+        "de/mossgrabers/controller/ableton/push/view/ChordsView.class",
+        "de/mossgrabers/controller/ableton/push/view/Drum4View.class",
+        "de/mossgrabers/controller/ableton/push/view/Drum8View.class",
+        "de/mossgrabers/controller/ableton/push/view/Drum64View.class",
+        "de/mossgrabers/controller/ableton/push/view/SequencerView.class",
+        "de/mossgrabers/controller/ableton/push/view/PolySequencerView.class",
+        "de/mossgrabers/controller/ableton/push/mode/device/DeviceBrowserMode.class",
+        "de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.class",
+        "de/mossgrabers/controller/ableton/push/mode/ScalesMode.class",
+        "de/mossgrabers/controller/ableton/push/mode/NoteRepeatMode.class",
+    )
+    missing = [path for path in required_push1_classes if path not in entries]
+    if missing:
+        raise SystemExit(f"Previously supported Push 1 functionality is missing: {missing}")
 
     forbidden_prefixes = (
         "de/mossgrabers/controller/ni/",
