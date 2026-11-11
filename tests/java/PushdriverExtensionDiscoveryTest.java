@@ -57,7 +57,7 @@ public final class PushdriverExtensionDiscoveryTest
                 if (type == long.class) return 0L;
                 if (type == float.class) return 0.0f;
                 if (type == double.class) return 0.0d;
-                if (type == char.class) return '\\0';
+                if (type == char.class) return (char) 0;
                 if (type == String.class) return "";
                 if (type.isInterface())
                     return Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[] { type },
