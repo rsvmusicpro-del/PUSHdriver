@@ -20,12 +20,15 @@ required_repeat = (
     "this.refreshNoteRepeat ();",
     "if (this.noteRepeat == null)",
     '"No MIDI input"',
+    'display.setCell (row, column, "");',
     "final int modeDenominator = Math.max (1, arpeggiatorModes.size () - 1);",
     "final int safeModeIndex = Math.max (0, Math.min (modeDenominator, modeIndex));",
 )
 for marker in required_repeat:
     if marker not in note_repeat:
         raise SystemExit(f"NoteRepeatMode safety regression: missing {marker!r}")
+if 'display.setCell (column, row, "");' in note_repeat:
+    raise SystemExit("NoteRepeatMode no-input LCD fallback swaps row and column indices")
 if "modeIndex * upperBound / (arpeggiatorModes.size () - 1)" in note_repeat:
     raise SystemExit("NoteRepeatMode still contains unsafe one-element mode scaling")
 
