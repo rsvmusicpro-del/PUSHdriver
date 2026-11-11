@@ -40,15 +40,20 @@ public final class PushdriverExtensionDiscoveryTest
         if (push.claimUSBDevice() != null)
             throw new AssertionError("Push 1 MIDI-only discovery must not claim a USB-HID device");
 
-        if (!containsPair(push.getMidiDiscoveryPairs(OperatingSystem.WINDOWS),
+        final List<Pair<String[], String[]>> windowsPairs = push.getMidiDiscoveryPairs(OperatingSystem.WINDOWS);
+        final List<Pair<String[], String[]>> macPairs = push.getMidiDiscoveryPairs(OperatingSystem.MAC);
+        final List<Pair<String[], String[]>> linuxPairs = push.getMidiDiscoveryPairs(OperatingSystem.LINUX);
+
+        if (windowsPairs.size() != 20 || !containsPair(windowsPairs,
                 "MIDIIN2 (Ableton Push)", "MIDIOUT2 (Ableton Push)"))
-            throw new AssertionError("Windows Push 1 MIDI port names are missing");
-        if (!containsPair(push.getMidiDiscoveryPairs(OperatingSystem.MAC),
-                "Ableton Push User Port", "Ableton Push User Port"))
-            throw new AssertionError("macOS Push 1 User Port discovery is missing");
-        if (!containsPair(push.getMidiDiscoveryPairs(OperatingSystem.LINUX),
-                "Push", "Push"))
-            throw new AssertionError("Linux Push 1 MIDI port discovery is missing");
+            throw new AssertionError("Windows Push 1 MIDI port discovery is incomplete or contaminated");
+        if (macPairs.size() != 1 || !containsPair(macPairs,
+                "Ableton Push User Port", "Ableton Push User Port")
+                || containsPair(macPairs, "Push", "Push"))
+            throw new AssertionError("macOS Push 1 discovery must contain only its User Port");
+        if (linuxPairs.size() != 20 || !containsPair(linuxPairs, "Push", "Push")
+                || containsPair(linuxPairs, "Ableton Push User Port", "Ableton Push User Port"))
+            throw new AssertionError("Linux Push 1 discovery must contain only ALSA Push port variants");
 
         final List<ExtensionDefinition> definitions = new ArrayList<>();
         ServiceLoader.load(ExtensionDefinition.class).forEach(definitions::add);
