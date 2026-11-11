@@ -31,6 +31,7 @@ jobs:
           cp -a upstream/src/main/java/de/mossgrabers/bitwig/framework src/main/java/de/mossgrabers/bitwig/
           mkdir -p src/main/java/de/mossgrabers/bitwig/controller/ableton
           cp -a upstream/src/main/java/de/mossgrabers/bitwig/controller/ableton/push src/main/java/de/mossgrabers/bitwig/controller/ableton/
+          mkdir -p src/main/java/de/mossgrabers/controller/ableton
           cp -a upstream/src/main/java/de/mossgrabers/controller/ableton/push src/main/java/de/mossgrabers/controller/ableton/
           rm -f src/main/java/de/mossgrabers/bitwig/controller/ableton/push/Push2ControllerExtensionDefinition.java
           mkdir -p src/main/resources/META-INF/services
