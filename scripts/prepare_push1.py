@@ -6,7 +6,7 @@ import subprocess
 
 root = Path.cwd()
 upstream = root / "upstream"
-EXPECTED_UPSTREAM_COMMIT = "40057d6e7784974f523139dc0cebe62f4bde1f26"
+EXPECTED_UPSTREAM_COMMIT = "013620c1330cdcf896e96ef8fdc8a2123e4fce6a"
 try:
     actual_upstream_commit = subprocess.run(
         ["git", "-C", str(upstream), "rev-parse", "HEAD"],
@@ -49,6 +49,9 @@ shutil.copy2(
 
 def replace_once(path: Path, old: str, new: str, label: str) -> None:
     content = path.read_text()
+    # A newer upstream may already contain the exact reviewed fix.
+    if new in content:
+        return
     if content.count(old) != 1:
         raise SystemExit(f"{label}: expected exactly one source match")
     path.write_text(content.replace(old, new, 1))
@@ -67,18 +70,15 @@ copy_tree("src/main/java/de/mossgrabers/controller/ableton/push",
 # parser and a 68-character LCD row overflow in the low-pad-threshold warning.
 device_inquiry = root / "src/main/java/de/mossgrabers/framework/daw/midi/DeviceInquiry.java"
 replace_once(device_inquiry,
-    "    /**\n     * Get the start of the messages content depending on the length of the manufacturer ID.\n",
-    "    /**\n"
-    "     * Get a defensive copy of the complete device inquiry response.\n"
-    "     *\n"
-    "     * @return The complete MIDI SysEx response\n"
-    "     */\n"
+    "    public int [] getData ()\n"
+    "    {\n"
+    "        return this.data;\n"
+    "    }",
     "    public int [] getData ()\n"
     "    {\n"
     "        return this.data.clone ();\n"
-    "    }\n\n\n"
-    "    /**\n     * Get the start of the messages content depending on the length of the manufacturer ID.\n",
-    "DeviceInquiry full response accessor")
+    "    }",
+    "DeviceInquiry defensive response accessor")
 
 # The parsed SysEx packet must not retain a caller-owned mutable array.
 replace_once(device_inquiry,
@@ -119,10 +119,11 @@ push_surface = root / "src/main/java/de/mossgrabers/controller/ableton/push/cont
 replace_once(push_surface,
     "        else\n"
     "        {\n"
-    "            if (revisionLevel.length != 24)\n"
+    "            final Push1FirmwareVersion firmwareVersion = Push1FirmwareVersion.parse (deviceInquiry);\n"
+    "            if (firmwareVersion == null)\n"
     "                return;\n\n"
-    "            this.majorVersion = revisionLevel[0];\n"
-    "            this.minorVersion = revisionLevel[2] + revisionLevel[1] * 10;\n"
+    "            this.majorVersion = firmwareVersion.major ();\n"
+    "            this.minorVersion = firmwareVersion.minor ();\n"
     "            this.buildNumber = 0;\n"
     "            this.serialNumber = 0;\n"
     "            this.boardRevision = 0;\n"
@@ -243,60 +244,14 @@ replace_once(push_display,
 # Port the API-17-compatible DrivenByMoss 19.2.2 ribbon improvements:
 # Delete+touchstrip resets the active parameter, including the last-touched target.
 pitchbend_config = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/continuous/ConfigurePitchbendCommand.java"
+# DrivenByMoss 19.2.2 already implements Delete+touchstrip reset. Keep its
+# upstream command and strengthen it against a stale/nonexistent parameter.
 replace_once(pitchbend_config,
-    "import de.mossgrabers.framework.command.core.AbstractTriggerCommand;\n",
-    "import de.mossgrabers.framework.command.core.AbstractTriggerCommand;\n"
-    "import de.mossgrabers.framework.controller.ButtonID;\n",
-    "ConfigurePitchbendCommand Delete binding")
-replace_once(pitchbend_config,
-    "import de.mossgrabers.framework.daw.IModel;\n",
-    "import de.mossgrabers.framework.daw.IModel;\n"
-    "import de.mossgrabers.framework.featuregroup.IMode;\n",
-    "ConfigurePitchbendCommand active mode")
-replace_once(pitchbend_config,
-    "import de.mossgrabers.framework.mode.Modes;\n",
-    "import de.mossgrabers.framework.mode.Modes;\n"
-    "import de.mossgrabers.framework.parameter.IParameter;\n"
-    "import de.mossgrabers.framework.parameterprovider.IParameterProvider;\n",
-    "ConfigurePitchbendCommand parameter access")
-replace_once(pitchbend_config,
-    "    /** {@inheritDoc} */\n    @Override\n    public void executeShifted (final ButtonEvent event)\n",
-    "    /** {@inheritDoc} */\n"
-    "    @Override\n"
-    "    public void executeNormal (final ButtonEvent event)\n"
-    "    {\n"
-    "        if (event != ButtonEvent.DOWN || !this.surface.isDeletePressed ())\n"
-    "            return;\n\n"
-    "        this.surface.setTriggerConsumed (ButtonID.DELETE);\n"
-    "        IParameter parameter = null;\n"
-    "        switch (this.surface.getConfiguration ().getRibbonMode ())\n"
-    "        {\n"
-    "            case PushConfiguration.RIBBON_MODE_FADER:\n"
-    "                parameter = this.model.getCursorTrack ().getVolumeParameter ();\n"
-    "                break;\n"
-    "            case PushConfiguration.RIBBON_MODE_LAST_TOUCHED:\n"
-    "                final IMode activeMode = this.surface.getModeManager ().getActive ();\n"
-    "                if (activeMode != null)\n"
-    "                {\n"
-    "                    final int touchedKnob = activeMode.getLastTouchedKnob ();\n"
-    "                    if (touchedKnob >= 0)\n"
-    "                    {\n"
-    "                        final IParameterProvider provider = activeMode.getParameterProvider ();\n"
-    "                        if (provider != null)\n"
-    "                            parameter = provider.get (touchedKnob);\n"
-    "                    }\n"
-    "                }\n"
-    "                break;\n"
-    "            default:\n"
-    "                break;\n"
-    "        }\n"
-    "        if (parameter != null && parameter.doesExist ())\n"
-    "            parameter.resetValue ();\n"
-    "    }\n\n\n"
-    "    /** {@inheritDoc} */\n"
-    "    @Override\n"
-    "    public void executeShifted (final ButtonEvent event)\n",
-    "ConfigurePitchbendCommand Delete reset")
+    "        if (parameter != null)\\n"
+    "            parameter.resetValue ();",
+    "        if (parameter != null && parameter.doesExist ())\\n"
+    "            parameter.resetValue ();",
+    "ConfigurePitchbendCommand parameter existence guard")
 touchstrip = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/pitchbend/TouchstripCommand.java"
 replace_once(touchstrip,
     "import de.mossgrabers.framework.command.core.AbstractPitchbendCommand;\n",
@@ -348,52 +303,7 @@ replace_once(touchstrip,
     "                    volumeParameter.setValue (this.model.getValueChanger ().toDAWValue (data2));\n"
     "                return;",
     "TouchstripCommand fader reset")
-replace_once(touchstrip,
-    "            case PushConfiguration.RIBBON_MODE_LAST_TOUCHED:\n"
-    "                final IMode activeMode = this.surface.getModeManager ().getActive ();\n"
-    "                if (activeMode != null)\n"
-    "                {\n"
-    "                    final int touchedKnob = activeMode.getLastTouchedKnob ();\n"
-    "                    if (touchedKnob < 0)\n"
-    "                    {\n"
-    "                        this.surface.getMidiOutput ().sendPitchbend (0, 0);\n"
-    "                        return;\n"
-    "                    }\n"
-    "                    final IParameterProvider parameterProvider = activeMode.getParameterProvider ();\n"
-    "                    if (parameterProvider == null)\n"
-    "                    {\n"
-    "                        this.surface.getMidiOutput ().sendPitchbend (0, 0);\n"
-    "                        return;\n"
-    "                    }\n"
-    "                    final IParameter parameter = parameterProvider.get (touchedKnob);\n"
-    "                    if (parameter != null && parameter.doesExist ())\n"
-    "                        parameter.setValue (this.model.getValueChanger ().toDAWValue (data2));\n"
-    "                }\n"
-    "                return;",
-    "            case PushConfiguration.RIBBON_MODE_LAST_TOUCHED:\n"
-    "                final IMode activeMode = this.surface.getModeManager ().getActive ();\n"
-    "                if (activeMode != null)\n"
-    "                {\n"
-    "                    IParameter parameter = null;\n"
-    "                    final int touchedKnob = activeMode.getLastTouchedKnob ();\n"
-    "                    if (touchedKnob >= 0)\n"
-    "                    {\n"
-    "                        final IParameterProvider provider = activeMode.getParameterProvider ();\n"
-    "                        if (provider != null)\n"
-    "                            parameter = provider.get (touchedKnob);\n"
-    "                    }\n"
-    "                    if (parameter != null && parameter.doesExist ())\n"
-    "                    {\n"
-    "                        if (isReset)\n"
-    "                            parameter.resetValue ();\n"
-    "                        else\n"
-    "                            parameter.setValue (this.model.getValueChanger ().toDAWValue (data2));\n"
-    "                    }\n"
-    "                    else\n"
-    "                        this.surface.getMidiOutput ().sendPitchbend (0, 0);\n"
-    "                }\n"
-    "                return;",
-    "TouchstripCommand last-touched reset")
+# Upstream 19.2.2 already handles Delete reset for last-touched parameters.
 replace_once(touchstrip,
     "            final INoteRepeat noteRepeat = this.surface.getMidiInput ().getDefaultNoteInput ().getNoteRepeat ();\n"
     "            final double value = ribbonNoteRepeat == PushConfiguration.NOTE_REPEAT_PERIOD ? noteRepeat.getPeriod () : noteRepeat.getNoteLength ();",
