@@ -646,6 +646,18 @@ replace_once(setup,
     "new PushNewCommand (this.model, surface)",
     "Push 1 New command binding")
 
+# The pinned 19.2.2 Push implementation leaves the second-row state mode
+# unset at startup. On Push 1 that row must default to Mute, not to the
+# momentary Push 2/3 state-control behavior. Backport the later upstream fix
+# using the TrackState API that exists in the Bitwig-4.3-compatible source.
+replace_once(setup,
+    "        surface.sendPressureMode (true);\\n"
+    "        surface.getMidiOutput ().sendSysex (DeviceInquiry.createQuery ());",
+    "        surface.sendPressureMode (true);\\n"
+    "        surface.getMidiOutput ().sendSysex (DeviceInquiry.createQuery ());\\n"
+    "        this.configuration.setTrackState (PushConfiguration.TrackState.MUTE);",
+    "Push 1 startup defaults second row to Mute")
+
 # Replace the dual-generation USB/MIDI discovery definition with the Push 1 definition only.
 definition = root / "src/main/java/de/mossgrabers/controller/ableton/push/PushControllerDefinition.java"
 definition.write_text("""// Written by Jürgen Moßgraber - mossgrabers.de
