@@ -509,7 +509,7 @@ replace_once(views,
 for old, label in (
     ("    /** The name of the raindrops view. */\n    public static final String              NAME_RAINDROPS      = \"Raindrop\";\n", "Views Raindrops name"),
     ("        NOTE_VIEWS.add (RAINDROPS);\n", "Views note-view registration"),
-    ("        NOTE_VIEW_NAMES.put (NAME_RAINDROPS, RAINDROPS);\n", "Views name registration"),
+    ("        VIEW_NAMES.put (NAME_RAINDROPS, RAINDROPS);\n", "Views name registration"),
     ("        SEQUENCER_VIEWS.add (RAINDROPS);\n", "Views sequencer registration"),
 ):
     replace_once(views, old, "", label)
