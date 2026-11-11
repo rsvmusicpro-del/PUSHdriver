@@ -655,6 +655,10 @@ replace_once(setup,
             final IMode activeMode = modeManager.getActive ();
             if (activeMode instanceof final DeviceBrowserMode browserMode)
                 return browserMode.canNavigateFilterColumn (false);
+            if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
+                return deviceParamsMode.hasPreviousInOutItem ();
+            if (modeManager.isActive (Modes.DEVICE_CHAINS))
+                return false;
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
                 return activeMode.hasPreviousItem ();
             if (viewManager.isActive (Views.SESSION))""",
@@ -668,6 +672,10 @@ replace_once(setup,
             final IMode activeMode = modeManager.getActive ();
             if (activeMode instanceof final DeviceBrowserMode browserMode)
                 return browserMode.canNavigateFilterColumn (true);
+            if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
+                return deviceParamsMode.hasNextInOutItem ();
+            if (modeManager.isActive (Modes.DEVICE_CHAINS))
+                return false;
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
                 return activeMode.hasNextItem ();
             if (viewManager.isActive (Views.SESSION))""",
@@ -723,73 +731,9 @@ replace_once(browser_mode,
 """,
     "Push 1 In/Out browser filter-column navigation")
 
-# In Device mode, In/Out changes the visible parameter-page bank set rather
-# than moving the selected parameter inside the current page.
+# Keep ordinary horizontal-arrow item navigation unchanged. In/Out has a
+# dedicated path so its parameter-page behavior cannot leak into PushCursorCommand.
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
-replace_once(device_params_mode,
-    """    public void selectPreviousItem ()
-    {
-        if (this.showDevices)
-        {
-            final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-            cursorDevice.getDeviceBank ().selectPreviousItem ();
-            return;
-        }
-        super.selectPreviousItem ();
-    }
-""",
-    """    public void selectPreviousItem ()
-    {
-        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-        if (this.showDevices)
-        {
-            cursorDevice.getDeviceBank ().selectPreviousItem ();
-            return;
-        }
-        cursorDevice.getParameterPageBank ().selectPreviousPage ();
-    }
-""",
-    "Push 1 Out selects previous device or parameter-page bank")
-replace_once(device_params_mode,
-    """    public void selectNextItem ()
-    {
-        if (this.showDevices)
-        {
-            final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-            cursorDevice.getDeviceBank ().selectNextItem ();
-            return;
-        }
-        super.selectNextItem ();
-    }
-""",
-    """    public void selectNextItem ()
-    {
-        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-        if (this.showDevices)
-        {
-            cursorDevice.getDeviceBank ().selectNextItem ();
-            return;
-        }
-        cursorDevice.getParameterPageBank ().selectNextPage ();
-    }
-""",
-    "Push 1 In selects next device or parameter-page bank")
-replace_once(device_params_mode,
-    """    public boolean hasPreviousItem ()
-    {
-        if (this.showDevices)
-            return this.model.getCursorDevice ().getDeviceBank ().canScrollBackwards ();
-        return super.hasPreviousItem ();
-    }
-""",
-    """    public boolean hasPreviousItem ()
-    {
-        if (this.showDevices)
-            return this.model.getCursorDevice ().getDeviceBank ().canScrollBackwards ();
-        return this.model.getCursorDevice ().getParameterPageBank ().canScrollPageBackwards ();
-    }
-""",
-    "Push 1 Out availability follows parameter-page banks")
 replace_once(device_params_mode,
     """    public boolean hasNextItem ()
     {
@@ -802,10 +746,54 @@ replace_once(device_params_mode,
     {
         if (this.showDevices)
             return this.model.getCursorDevice ().getDeviceBank ().canScrollForwards ();
+        return super.hasNextItem ();
+    }
+
+
+    /**
+     * Navigate one step using the Push 1 In/Out controls.
+     * Device selection and parameter-page selection are intentionally separate
+     * from the standard arrow-button selectPreviousItem/selectNextItem paths.
+     */
+    public void selectPreviousInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (this.showDevices)
+            cursorDevice.getDeviceBank ().selectPreviousItem ();
+        else
+            cursorDevice.getParameterPageBank ().selectPreviousPage ();
+    }
+
+
+    /** {@inheritDoc} */
+    public void selectNextInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (this.showDevices)
+            cursorDevice.getDeviceBank ().selectNextItem ();
+        else
+            cursorDevice.getParameterPageBank ().selectNextPage ();
+    }
+
+
+    /** Check whether Out has a previous device or parameter-page bank. */
+    public boolean hasPreviousInOutItem ()
+    {
+        if (this.showDevices)
+            return this.model.getCursorDevice ().getDeviceBank ().canScrollBackwards ();
+        return this.model.getCursorDevice ().getParameterPageBank ().canScrollPageBackwards ();
+    }
+
+
+    /** Check whether In has a next device or parameter-page bank. */
+    public boolean hasNextInOutItem ()
+    {
+        if (this.showDevices)
+            return this.model.getCursorDevice ().getDeviceBank ().canScrollForwards ();
         return this.model.getCursorDevice ().getParameterPageBank ().canScrollPageForwards ();
     }
 """,
-    "Push 1 In availability follows parameter-page banks")
+    "Push 1 In/Out-only device and parameter-page navigation")
 
 # Keep the physical Push 1 New button on its native dedicated binding, while
 # stopping the cursor track's current clip before preparing its next note clip.
