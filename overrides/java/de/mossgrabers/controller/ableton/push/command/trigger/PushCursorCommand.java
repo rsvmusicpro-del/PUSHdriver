@@ -20,8 +20,8 @@ import de.mossgrabers.framework.view.Views;
  *
  * In Track mode, horizontal arrows select adjacent tracks like Ableton Live's
  * Note workflow. Holding Shift changes that movement to a track-bank page.
- * Other modes retain DrivenByMoss item-page navigation. Vertical arrows keep
- * their non-destructive scene-bank scrolling behavior.
+ * In other modes, the default action changes pages and Shift selects individual
+ * items. Vertical arrows keep their non-destructive scene-bank scrolling behavior.
  *
  * @author J&uuml;rgen Mo&szlig;graber
  */
@@ -76,7 +76,9 @@ public class PushCursorCommand extends CursorCommand<PushControlSurface, PushCon
         if (activeMode == null)
             return;
 
-        if (this.surface.getModeManager ().isActive (Modes.TRACK) && !this.surface.isShiftPressed ())
+        final boolean trackMode = this.surface.getModeManager ().isActive (Modes.TRACK);
+        final boolean shiftPressed = this.surface.isShiftPressed ();
+        if (trackMode && !shiftPressed || !trackMode && shiftPressed)
             activeMode.selectPreviousItem ();
         else
             activeMode.selectPreviousItemPage ();
@@ -91,7 +93,9 @@ public class PushCursorCommand extends CursorCommand<PushControlSurface, PushCon
         if (activeMode == null)
             return;
 
-        if (this.surface.getModeManager ().isActive (Modes.TRACK) && !this.surface.isShiftPressed ())
+        final boolean trackMode = this.surface.getModeManager ().isActive (Modes.TRACK);
+        final boolean shiftPressed = this.surface.isShiftPressed ();
+        if (trackMode && !shiftPressed || !trackMode && shiftPressed)
             activeMode.selectNextItem ();
         else
             activeMode.selectNextItemPage ();
