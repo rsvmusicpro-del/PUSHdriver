@@ -240,6 +240,29 @@ replace_once(push_display,
     "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68)));",
     "Push1Display SysEx protocol delegation")
 
+# Keep all logical cells within their physical 8/9-character LCD boundaries.
+replace_once(push_display,
+    "        final int cell = 2 * block;\n"
+    "        if (value.length () > 9)\n"
+    "        {\n"
+    "            this.cells[row * 8 + cell] = value.substring (0, 9);\n"
+    "            this.cells[row * 8 + cell + 1] = StringUtils.pad (value.substring (9), 8, ' ');\n"
+    "        }\n"
+    "        else\n"
+    "        {\n"
+    "            this.cells[row * 8 + cell] = StringUtils.pad (value, 9, ' ');\n"
+    "            this.clearCell (row, cell + 1);\n"
+    "        }",
+    "        final int cell = 2 * block;\n"
+    "        final String fitted = Push1DisplayText.fitBlock (value);\n"
+    "        this.cells[row * 8 + cell] = fitted.substring (0, 9);\n"
+    "        this.cells[row * 8 + cell + 1] = fitted.substring (9, 17);",
+    "Push1Display dynamic 17-character block fitting")
+replace_once(push_display,
+    "        this.cells[row * 8 + cell] = StringUtils.pad (value, 8, ' ') + (cell % 2 == 0 ? \" \" : \"\");",
+    "        this.cells[row * 8 + cell] = Push1DisplayText.fit (value, 8) + (cell % 2 == 0 ? \" \" : \"\");",
+    "Push1Display dynamic cell fitting")
+
 # Port the API-17-compatible DrivenByMoss 19.2.2 ribbon improvements:
 # Delete+touchstrip resets the active parameter, including the last-touched target.
 # DrivenByMoss 19.2.2 already implements Delete+touchstrip reset.
