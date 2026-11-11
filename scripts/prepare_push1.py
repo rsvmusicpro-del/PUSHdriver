@@ -49,6 +49,63 @@ copy_tree("src/main/java/de/mossgrabers/bitwig/controller/ableton/push",
 copy_tree("src/main/java/de/mossgrabers/controller/ableton/push",
           "src/main/java/de/mossgrabers/controller/ableton/push")
 
+# Match Ableton Live 10 Push 1 sequencer feedback without changing note/clip engines:
+# playhead is green in playback and red while recording; selected steps are white;
+# muted steps are pale yellow; soloed drum pads are dark blue.
+sequencer_colors = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractSequencerView.java"
+source = sequencer_colors.read_text()
+replace_once(sequencer_colors,
+    '    public static final String    COLOR_STEP_HILITE_CONTENT    = "COLOR_STEP_HILITE_CONTENT";\\n',
+    '    public static final String    COLOR_STEP_HILITE_CONTENT    = "COLOR_STEP_HILITE_CONTENT";\\n'
+    '    /** The color for the playhead while recording. */\\n'
+    '    public static final String    COLOR_STEP_HILITE_RECORD     = "COLOR_STEP_HILITE_RECORD";\\n',
+    "Sequencer recording playhead color")
+source = sequencer_colors.read_text()
+highlight = "                if (highlight)\\n                    return COLOR_STEP_HILITE_CONTENT;"
+if source.count(highlight) != 2:
+    raise SystemExit("AbstractSequencerView: expected two content playhead branches")
+sequencer_colors.write_text(source.replace(highlight,
+    "                if (highlight)\\n"
+    "                    return this.model.hasRecordingState () ? COLOR_STEP_HILITE_RECORD : COLOR_STEP_HILITE_CONTENT;", 2))
+
+drum_view = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractDrumView.java"
+replace_once(drum_view,
+    '    public static final String COLOR_PAD_SELECTED    = "COLOR_PAD_SELECTED";\\n',
+    '    public static final String COLOR_PAD_SELECTED    = "COLOR_PAD_SELECTED";\\n'
+    '    /** The color ID for a soloed drum pad. */\\n'
+    '    public static final String COLOR_PAD_SOLO        = "COLOR_PAD_SOLO";\\n',
+    "Drum solo pad color")
+replace_once(drum_view,
+    "        if (drumPad.isMute () || drumPadBank.hasSoloedPads () && !drumPad.isSolo ())\\n"
+    "            return AbstractDrumView.COLOR_PAD_MUTED;\\n"
+    "        return this.getPadContentColor (drumPad);",
+    "        if (drumPad.isMute () || drumPadBank.hasSoloedPads () && !drumPad.isSolo ())\\n"
+    "            return AbstractDrumView.COLOR_PAD_MUTED;\\n"
+    "        if (drumPad.isSolo ())\\n"
+    "            return AbstractDrumView.COLOR_PAD_SOLO;\\n"
+    "        return this.getPadContentColor (drumPad);",
+    "Drum solo state has dedicated Push 1 feedback")
+
+push_colors = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushColorManager.java"
+source = push_colors.read_text()
+replace_once(push_colors,
+    "        this.registerColorIndex (AbstractSequencerView.COLOR_STEP_HILITE_CONTENT, isPush2 ? PUSH2_COLOR2_GREEN_HI : PUSH1_COLOR2_GREEN_HI);\\n",
+    "        this.registerColorIndex (AbstractSequencerView.COLOR_STEP_HILITE_CONTENT, isPush2 ? PUSH2_COLOR2_GREEN_HI : PUSH1_COLOR2_GREEN_HI);\\n"
+    "        this.registerColorIndex (AbstractSequencerView.COLOR_STEP_HILITE_RECORD, isPush2 ? PUSH2_COLOR2_RED_HI : PUSH1_COLOR2_RED_HI);\\n",
+    "Push 1 recording playhead LED mapping")
+for old, new, label in (
+    ("this.registerColorIndex (AbstractSequencerView.COLOR_STEP_MUTED, isPush2 ? PUSH2_COLOR2_GREY_MD : PUSH1_COLOR2_GREY_MD);",
+     "this.registerColorIndex (AbstractSequencerView.COLOR_STEP_MUTED, isPush2 ? PUSH2_COLOR2_GREY_MD : PUSH1_COLOR2_YELLOW_LO);", "Push 1 muted step color"),
+    ("this.registerColorIndex (AbstractSequencerView.COLOR_STEP_MUTED_CONT, isPush2 ? PUSH2_COLOR2_GREY_LO : PUSH1_COLOR2_GREY_LO);",
+     "this.registerColorIndex (AbstractSequencerView.COLOR_STEP_MUTED_CONT, isPush2 ? PUSH2_COLOR2_GREY_LO : PUSH1_COLOR2_YELLOW_LO);", "Push 1 muted continuation color"),
+    ("this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : PUSH1_COLOR2_YELLOW_HI);",
+     "this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : PUSH1_COLOR2_WHITE);", "Push 1 selected step color"),
+    ("this.registerColorIndex (AbstractDrumView.COLOR_PAD_SELECTED, isPush2 ? PUSH2_COLOR2_BLUE_HI : PUSH1_COLOR2_BLUE_HI);",
+     "this.registerColorIndex (AbstractDrumView.COLOR_PAD_SELECTED, isPush2 ? PUSH2_COLOR2_BLUE_HI : PUSH1_COLOR2_BLUE_HI);\\n        this.registerColorIndex (AbstractDrumView.COLOR_PAD_SOLO, isPush2 ? PUSH2_COLOR2_BLUE_LO : PUSH1_COLOR2_BLUE_LO);", "Push 1 solo pad color"),
+):
+    replace_once(push_colors, old + "\\n", new + "\\n", label)
+
+
 # Root notes in the piano layout must inherit the selected track color on every row.
 piano_helper = root / "src/main/java/de/mossgrabers/framework/view/PianoViewHelper.java"
 replace_once(piano_helper,
