@@ -133,7 +133,9 @@ for marker in (
     if marker not in execute_note:
         raise SystemExit(f"Push 1 Drum layout / velocity behavior regression: missing {marker!r}")
 up_release = execute_note.index("if (event != ButtonEvent.UP)")
-if execute_note.index("if (modeManager.isActive (Modes.VIEW_SELECT))") > execute_note.index("if (viewManager.isActive (Views.DRUM))", up_release):
+view_select = execute_note.index("if (modeManager.isActive (Modes.VIEW_SELECT))")
+short_drum = execute_note.index("if (viewManager.isActive (Views.DRUM))", view_select)
+if not up_release < view_select < short_drum:
     raise SystemExit("The Note button must dismiss the temporary view selector before changing Drum layouts")
 if execute_note.index("if (event == ButtonEvent.LONG)") > execute_note.index("if (event != ButtonEvent.UP)"):
     raise SystemExit("The Note long-press velocity layout must be handled before the release event")
