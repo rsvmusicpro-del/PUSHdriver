@@ -46,7 +46,7 @@ with ZipFile(jar) as archive:
         "de/mossgrabers/controller/ableton/push/PushControllerSetup.class",
         "de/mossgrabers/controller/ableton/push/PushConfiguration.class",
         "de/mossgrabers/controller/ableton/push/view/SessionView.class",
-        "de/mossgrabers/controller/ableton/push/view/ClipView.class",
+        "de/mossgrabers/framework/view/sequencer/ClipLengthView.class",
         "de/mossgrabers/controller/ableton/push/view/PlayView.class",
         "de/mossgrabers/controller/ableton/push/view/PianoView.class",
         "de/mossgrabers/controller/ableton/push/view/ChordsView.class",
