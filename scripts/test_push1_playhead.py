@@ -78,15 +78,19 @@ for marker in (
     "clip.doesExist ()",
     "clip.getNumSteps ()",
     "clip.getCurrentStep ()",
-    "currentStep / stepsPerPage == pad",
+    "currentStep / this.numDisplayCols == pad",
 ):
     if marker not in page_handler:
         raise SystemExit(f"Push 1 page-lock regression: missing {marker!r}")
 
 if page_handler.index("super.handleLoopArea (pad, velocity);") > page_handler.index("if (velocity > 0 || pressedPage < 0)"):
     raise SystemExit("Page gestures must be processed by the shared loop handler first")
-if page_handler.index("clip.doesExist ()") > page_handler.index("clip.getNumSteps ()"):
-    raise SystemExit("Page-lock logic must check clip existence before reading its step size")
+if "currentStep / this.numDisplayCols == pad" not in page_handler:
+    raise SystemExit("Page lock must use the visible sequencer width, not the clip length")
+if "currentStep / stepsPerPage == pad" in page_handler:
+    raise SystemExit("Page lock must not divide by the total clip step count")
+if page_handler.index("clip.doesExist ()") > page_handler.index("clip.getCurrentStep ()"):
+    raise SystemExit("Page-lock logic must check clip existence before reading playhead state")
 
 for signature in (
     "public void onLeft (final ButtonEvent event)",
