@@ -34,6 +34,12 @@ resources.mkdir(parents=True, exist_ok=True)
 def copy_tree(source: str, destination: str) -> None:
     shutil.copytree(upstream / source, root / destination, dirs_exist_ok=True)
 
+def replace_once(path: Path, old: str, new: str, label: str) -> None:
+    content = path.read_text()
+    if content.count(old) != 1:
+        raise SystemExit(f"{label}: expected exactly one source match")
+    path.write_text(content.replace(old, new, 1))
+
 copy_tree("src/main/java/de/mossgrabers/framework", "src/main/java/de/mossgrabers/framework")
 copy_tree("src/main/java/de/mossgrabers/bitwig/framework", "src/main/java/de/mossgrabers/bitwig/framework")
 # Push 1 uses MIDI only; the Bitwig USB-HID adapter exists for other hardware.
@@ -70,11 +76,6 @@ for obsolete in (
         raise SystemExit(f"Expected Raindrops source not found: {obsolete}")
     obsolete.unlink()
 
-def replace_once(path: Path, old: str, new: str, label: str) -> None:
-    content = path.read_text()
-    if content.count(old) != 1:
-        raise SystemExit(f"{label}: expected exactly one source match")
-    path.write_text(content.replace(old, new, 1))
 
 setup = root / "src/main/java/de/mossgrabers/controller/ableton/push/PushControllerSetup.java"
 replace_once(setup,
