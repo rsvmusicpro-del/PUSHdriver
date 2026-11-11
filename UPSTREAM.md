@@ -22,3 +22,10 @@ applies the Push 1-only adaptations and removes Push 2 and Raindrops
 implementations. The package verifier checks that every assembled Java source
 has a corresponding compiled class in `PUSHdriver.bwextension`, and that only
 the Push 1 Bitwig extension entry point is registered.
+
+Project-maintained Java overrides live under `overrides/java/` and are copied
+into the generated source tree after the upstream selection. The Push 1 LCD
+SysEx framing is isolated in `Push1DisplayProtocol`; its standalone Java
+regression tests run before the Maven build. See [the Push 1 hardware and
+protocol profile](docs/PUSH1-HARDWARE.md) for the evidence and architecture
+boundaries used by this implementation.
