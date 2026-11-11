@@ -39,26 +39,26 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
 
 setup = root / "src/main/java/de/mossgrabers/controller/ableton/push/PushControllerSetup.java"
 replace_once(setup,
-    "import de.mossgrabers.controller.ableton.push.view.RaindropsView;\\n", "",
+    "import de.mossgrabers.controller.ableton.push.view.RaindropsView;\n", "",
     "PushControllerSetup Raindrops import")
 replace_once(setup,
-    "        viewManager.register (Views.RAINDROPS, new RaindropsView (surface, this.model));\\n", "",
+    "        viewManager.register (Views.RAINDROPS, new RaindropsView (surface, this.model));\n", "",
     "PushControllerSetup Raindrops registration")
 
 configuration = root / "src/main/java/de/mossgrabers/controller/ableton/push/PushConfiguration.java"
-replace_once(configuration, "        Views.RAINDROPS,\\n", "",
+replace_once(configuration, "        Views.RAINDROPS,\n", "",
     "PushConfiguration Raindrops preference")
 
 views = root / "src/main/java/de/mossgrabers/framework/view/Views.java"
 replace_once(views,
-    "    /** View for raindrops sequencer. */\\n    RAINDROPS,\\n",
-    "    /** Reserved to preserve the ordinal values of the remaining view IDs. */\\n    UNUSED_VIEW_SLOT,\\n",
+    "    /** View for raindrops sequencer. */\n    RAINDROPS,\n",
+    "    /** Reserved to preserve the ordinal values of the remaining view IDs. */\n    UNUSED_VIEW_SLOT,\n",
     "Views enum compatibility slot")
 for old, label in (
-    ("    /** The name of the raindrops view. */\\n    public static final String              NAME_RAINDROPS      = \\"Raindrop\\";\\n", "Views Raindrops name"),
-    ("        NOTE_VIEWS.add (RAINDROPS);\\n", "Views note-view registration"),
-    ("        NOTE_VIEW_NAMES.put (NAME_RAINDROPS, RAINDROPS);\\n", "Views name registration"),
-    ("        SEQUENCER_VIEWS.add (RAINDROPS);\\n", "Views sequencer registration"),
+    ("    /** The name of the raindrops view. */\n    public static final String              NAME_RAINDROPS      = \"Raindrop\";\n", "Views Raindrops name"),
+    ("        NOTE_VIEWS.add (RAINDROPS);\n", "Views note-view registration"),
+    ("        NOTE_VIEW_NAMES.put (NAME_RAINDROPS, RAINDROPS);\n", "Views name registration"),
+    ("        SEQUENCER_VIEWS.add (RAINDROPS);\n", "Views sequencer registration"),
 ):
     replace_once(views, old, "", label)
 
