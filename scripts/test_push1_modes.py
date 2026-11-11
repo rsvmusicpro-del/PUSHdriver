@@ -68,4 +68,12 @@ for marker in (
     if marker not in colors:
         raise SystemExit(f"Push 1 native color mapping regression: missing {marker!r}")
 
+piano = read("framework/view/PianoViewHelper.java")
+root_color = "else if (Scales.SCALE_COLOR_OCTAVE.equals (keyManager.getColor (n)))"
+track_color = "AbstractView.replaceOctaveColorWithTrackColor (track, Scales.SCALE_COLOR_OCTAVE)"
+if root_color not in piano or track_color not in piano:
+    raise SystemExit("Piano root-note color regression: fundamentals must use the selected track color")
+if piano.index(root_color) > piano.index("else if (row % 2 == 0)"):
+    raise SystemExit("Piano root-note track color must take precedence over fixed white/black key colors")
+
 print("Push 1 note-repeat, sequencer bounds, repeat-state and color regressions passed.")
