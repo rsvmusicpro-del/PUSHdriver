@@ -1,11 +1,11 @@
 # Upstream source provenance
 
 PUSHdriver assembles its Java source tree during the build from the upstream
-DrivenByMoss 19.0.0 source revision:
+DrivenByMoss 19.2.2 source revision:
 
 - Repository: https://github.com/git-moss/DrivenByMoss
-- Release: 19.0.0
-- Immutable commit: `40057d6e7784974f523139dc0cebe62f4bde1f26`
+- Release: 19.2.2
+- Immutable commit: `013620c1330cdcf896e96ef8fdc8a2123e4fce6a`
 - License: LGPL-3.0 (see upstream source headers and repository license)
 
 The complete upstream repository is now attached to this project as the `upstream/`
