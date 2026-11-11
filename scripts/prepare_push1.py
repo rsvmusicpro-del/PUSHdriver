@@ -240,6 +240,173 @@ replace_once(push_display,
     "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68)));",
     "Push1Display SysEx protocol delegation")
 
+# Port the API-17-compatible DrivenByMoss 19.2.2 ribbon improvements:
+# Delete+touchstrip resets the active parameter, including the last-touched target.
+pitchbend_config = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/continuous/ConfigurePitchbendCommand.java"
+replace_once(pitchbend_config,
+    "import de.mossgrabers.framework.command.core.AbstractTriggerCommand;\n",
+    "import de.mossgrabers.framework.command.core.AbstractTriggerCommand;\n"
+    "import de.mossgrabers.framework.controller.ButtonID;\n",
+    "ConfigurePitchbendCommand Delete binding")
+replace_once(pitchbend_config,
+    "import de.mossgrabers.framework.daw.IModel;\n",
+    "import de.mossgrabers.framework.daw.IModel;\n"
+    "import de.mossgrabers.framework.featuregroup.IMode;\n",
+    "ConfigurePitchbendCommand active mode")
+replace_once(pitchbend_config,
+    "import de.mossgrabers.framework.mode.Modes;\n",
+    "import de.mossgrabers.framework.mode.Modes;\n"
+    "import de.mossgrabers.framework.parameter.IParameter;\n"
+    "import de.mossgrabers.framework.parameterprovider.IParameterProvider;\n",
+    "ConfigurePitchbendCommand parameter access")
+replace_once(pitchbend_config,
+    "    /** {@inheritDoc} */\n    @Override\n    public void executeShifted (final ButtonEvent event)\n",
+    "    /** {@inheritDoc} */\n"
+    "    @Override\n"
+    "    public void executeNormal (final ButtonEvent event)\n"
+    "    {\n"
+    "        if (event != ButtonEvent.DOWN || !this.surface.isDeletePressed ())\n"
+    "            return;\n\n"
+    "        this.surface.setTriggerConsumed (ButtonID.DELETE);\n"
+    "        IParameter parameter = null;\n"
+    "        switch (this.surface.getConfiguration ().getRibbonMode ())\n"
+    "        {\n"
+    "            case PushConfiguration.RIBBON_MODE_FADER:\n"
+    "                parameter = this.model.getCursorTrack ().getVolumeParameter ();\n"
+    "                break;\n"
+    "            case PushConfiguration.RIBBON_MODE_LAST_TOUCHED:\n"
+    "                final IMode activeMode = this.surface.getModeManager ().getActive ();\n"
+    "                if (activeMode != null)\n"
+    "                {\n"
+    "                    final int touchedKnob = activeMode.getLastTouchedKnob ();\n"
+    "                    if (touchedKnob >= 0)\n"
+    "                    {\n"
+    "                        final IParameterProvider provider = activeMode.getParameterProvider ();\n"
+    "                        if (provider != null)\n"
+    "                            parameter = provider.get (touchedKnob);\n"
+    "                    }\n"
+    "                }\n"
+    "                break;\n"
+    "            default:\n"
+    "                break;\n"
+    "        }\n"
+    "        if (parameter != null && parameter.doesExist ())\n"
+    "            parameter.resetValue ();\n"
+    "    }\n\n\n"
+    "    /** {@inheritDoc} */\n"
+    "    @Override\n"
+    "    public void executeShifted (final ButtonEvent event)\n",
+    "ConfigurePitchbendCommand Delete reset")
+touchstrip = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/pitchbend/TouchstripCommand.java"
+replace_once(touchstrip,
+    "import de.mossgrabers.framework.command.core.AbstractPitchbendCommand;\n",
+    "import de.mossgrabers.framework.command.core.AbstractPitchbendCommand;\n"
+    "import de.mossgrabers.framework.controller.ButtonID;\n",
+    "TouchstripCommand Delete binding")
+replace_once(touchstrip,
+    "import de.mossgrabers.framework.daw.midi.INoteRepeat;\n",
+    "import de.mossgrabers.framework.daw.midi.INoteInput;\n"
+    "import de.mossgrabers.framework.daw.midi.INoteRepeat;\n",
+    "TouchstripCommand MIDI input guard")
+replace_once(touchstrip,
+    "            final INoteRepeat noteRepeat = this.surface.getMidiInput ().getDefaultNoteInput ().getNoteRepeat ();\n"
+    "            if (ribbonNoteRepeat == PushConfiguration.NOTE_REPEAT_PERIOD)\n"
+    "                noteRepeat.setPeriod (value);\n"
+    "            else\n"
+    "                noteRepeat.setNoteLength (value);\n"
+    "            return;",
+    "            final INoteInput defaultNoteInput = this.surface.getMidiInput ().getDefaultNoteInput ();\n"
+    "            final INoteRepeat noteRepeat = defaultNoteInput == null ? null : defaultNoteInput.getNoteRepeat ();\n"
+    "            if (noteRepeat == null)\n"
+    "                return;\n"
+    "            if (ribbonNoteRepeat == PushConfiguration.NOTE_REPEAT_PERIOD)\n"
+    "                noteRepeat.setPeriod (value);\n"
+    "            else\n"
+    "                noteRepeat.setNoteLength (value);\n"
+    "            return;",
+    "TouchstripCommand null-safe note-repeat input")
+replace_once(touchstrip,
+    "    protected void handleRibbonMode (final int data1, final int data2, final PushConfiguration config)\n"
+    "    {\n"
+    "        switch (config.getRibbonMode ())",
+    "    protected void handleRibbonMode (final int data1, final int data2, final PushConfiguration config)\n"
+    "    {\n"
+    "        final boolean isReset = this.surface.isDeletePressed ();\n"
+    "        if (isReset)\n"
+    "            this.surface.setTriggerConsumed (ButtonID.DELETE);\n\n"
+    "        switch (config.getRibbonMode ())",
+    "TouchstripCommand reset modifier")
+replace_once(touchstrip,
+    "            case PushConfiguration.RIBBON_MODE_FADER:\n"
+    "                this.model.getCursorTrack ().setVolume (this.model.getValueChanger ().toDAWValue (data2));\n"
+    "                return;",
+    "            case PushConfiguration.RIBBON_MODE_FADER:\n"
+    "                final IParameter volumeParameter = this.model.getCursorTrack ().getVolumeParameter ();\n"
+    "                if (isReset)\n"
+    "                    volumeParameter.resetValue ();\n"
+    "                else\n"
+    "                    volumeParameter.setValue (this.model.getValueChanger ().toDAWValue (data2));\n"
+    "                return;",
+    "TouchstripCommand fader reset")
+replace_once(touchstrip,
+    "            case PushConfiguration.RIBBON_MODE_LAST_TOUCHED:\n"
+    "                final IMode activeMode = this.surface.getModeManager ().getActive ();\n"
+    "                if (activeMode != null)\n"
+    "                {\n"
+    "                    final int touchedKnob = activeMode.getLastTouchedKnob ();\n"
+    "                    if (touchedKnob < 0)\n"
+    "                    {\n"
+    "                        this.surface.getMidiOutput ().sendPitchbend (0, 0);\n"
+    "                        return;\n"
+    "                    }\n"
+    "                    final IParameterProvider parameterProvider = activeMode.getParameterProvider ();\n"
+    "                    if (parameterProvider == null)\n"
+    "                    {\n"
+    "                        this.surface.getMidiOutput ().sendPitchbend (0, 0);\n"
+    "                        return;\n"
+    "                    }\n"
+    "                    final IParameter parameter = parameterProvider.get (touchedKnob);\n"
+    "                    if (parameter != null && parameter.doesExist ())\n"
+    "                        parameter.setValue (this.model.getValueChanger ().toDAWValue (data2));\n"
+    "                }\n"
+    "                return;",
+    "            case PushConfiguration.RIBBON_MODE_LAST_TOUCHED:\n"
+    "                final IMode activeMode = this.surface.getModeManager ().getActive ();\n"
+    "                if (activeMode != null)\n"
+    "                {\n"
+    "                    IParameter parameter = null;\n"
+    "                    final int touchedKnob = activeMode.getLastTouchedKnob ();\n"
+    "                    if (touchedKnob >= 0)\n"
+    "                    {\n"
+    "                        final IParameterProvider provider = activeMode.getParameterProvider ();\n"
+    "                        if (provider != null)\n"
+    "                            parameter = provider.get (touchedKnob);\n"
+    "                    }\n"
+    "                    if (parameter != null && parameter.doesExist ())\n"
+    "                    {\n"
+    "                        if (isReset)\n"
+    "                            parameter.resetValue ();\n"
+    "                        else\n"
+    "                            parameter.setValue (this.model.getValueChanger ().toDAWValue (data2));\n"
+    "                    }\n"
+    "                    else\n"
+    "                        this.surface.getMidiOutput ().sendPitchbend (0, 0);\n"
+    "                }\n"
+    "                return;",
+    "TouchstripCommand last-touched reset")
+replace_once(touchstrip,
+    "            final INoteRepeat noteRepeat = this.surface.getMidiInput ().getDefaultNoteInput ().getNoteRepeat ();\n"
+    "            final double value = ribbonNoteRepeat == PushConfiguration.NOTE_REPEAT_PERIOD ? noteRepeat.getPeriod () : noteRepeat.getNoteLength ();",
+    "            final INoteInput defaultNoteInput = this.surface.getMidiInput ().getDefaultNoteInput ();\n"
+    "            final INoteRepeat noteRepeat = defaultNoteInput == null ? null : defaultNoteInput.getNoteRepeat ();\n"
+    "            if (noteRepeat == null)\n"
+    "            {\n"
+    "                this.surface.setRibbonValue (0);\n"
+    "                return;\n"
+    "            }\n"
+    "            final double value = ribbonNoteRepeat == PushConfiguration.NOTE_REPEAT_PERIOD ? noteRepeat.getPeriod () : noteRepeat.getNoteLength ();",
+    "TouchstripCommand null-safe note-repeat feedback")
+
 # Harden Push 1 note-repeat against MIDI-input initialization and capability gaps.
 note_repeat = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteRepeatMode.java"
 replace_once(note_repeat,
