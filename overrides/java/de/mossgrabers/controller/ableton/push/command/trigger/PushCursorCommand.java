@@ -11,17 +11,16 @@ import de.mossgrabers.framework.command.trigger.mode.CursorCommand;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.data.bank.ISceneBank;
 import de.mossgrabers.framework.featuregroup.IMode;
-import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.framework.view.Views;
 
 
 /**
  * Context-aware navigation for the four Push 1 arrow buttons.
  *
- * In Track mode, horizontal arrows select adjacent tracks like Ableton Live's
- * Note workflow. Holding Shift changes that movement to a track-bank page.
- * In other modes, the default action changes pages and Shift selects individual
- * items. Vertical arrows keep their non-destructive scene-bank scrolling behavior.
+ * Horizontal arrows move by one item normally and by one bank page with Shift.
+ * Vertical arrows move by one scene normally and by one scene-bank page with
+ * Shift. The larger Scene Play bank is retained without changing this modifier
+ * contract. Navigation is deliberately non-destructive: it never launches clips.
  *
  * @author J&uuml;rgen Mo&szlig;graber
  */
@@ -49,7 +48,7 @@ public class PushCursorCommand extends CursorCommand<PushControlSurface, PushCon
     protected void scrollUp ()
     {
         final ISceneBank sceneBank = this.getSceneBank ();
-        if (this.surface.isShiftPressed () || this.isScenePlay ())
+        if (this.surface.isShiftPressed ())
             sceneBank.selectPreviousPage ();
         else
             sceneBank.scrollBackwards ();
@@ -61,14 +60,14 @@ public class PushCursorCommand extends CursorCommand<PushControlSurface, PushCon
     protected void scrollDown ()
     {
         final ISceneBank sceneBank = this.getSceneBank ();
-        if (this.surface.isShiftPressed () || this.isScenePlay ())
+        if (this.surface.isShiftPressed ())
             sceneBank.selectNextPage ();
         else
             sceneBank.scrollForwards ();
     }
 
 
-    /** Navigate horizontally without stealing another mode's controls. */
+    /** Navigate horizontally using the standard Push single-item/page modifier. */
     @Override
     protected void scrollLeft ()
     {
@@ -76,16 +75,14 @@ public class PushCursorCommand extends CursorCommand<PushControlSurface, PushCon
         if (activeMode == null)
             return;
 
-        final boolean trackMode = this.surface.getModeManager ().isActive (Modes.TRACK);
-        final boolean shiftPressed = this.surface.isShiftPressed ();
-        if (trackMode && !shiftPressed || !trackMode && shiftPressed)
-            activeMode.selectPreviousItem ();
-        else
+        if (this.surface.isShiftPressed ())
             activeMode.selectPreviousItemPage ();
+        else
+            activeMode.selectPreviousItem ();
     }
 
 
-    /** Navigate horizontally without stealing another mode's controls. */
+    /** Navigate horizontally using the standard Push single-item/page modifier. */
     @Override
     protected void scrollRight ()
     {
@@ -93,12 +90,10 @@ public class PushCursorCommand extends CursorCommand<PushControlSurface, PushCon
         if (activeMode == null)
             return;
 
-        final boolean trackMode = this.surface.getModeManager ().isActive (Modes.TRACK);
-        final boolean shiftPressed = this.surface.isShiftPressed ();
-        if (trackMode && !shiftPressed || !trackMode && shiftPressed)
-            activeMode.selectNextItem ();
-        else
+        if (this.surface.isShiftPressed ())
             activeMode.selectNextItemPage ();
+        else
+            activeMode.selectNextItem ();
     }
 
 
@@ -117,7 +112,7 @@ public class PushCursorCommand extends CursorCommand<PushControlSurface, PushCon
     protected void updateArrowStates ()
     {
         final ISceneBank sceneBank = this.getSceneBank ();
-        final boolean pageNavigation = this.surface.isShiftPressed () || this.isScenePlay ();
+        final boolean pageNavigation = this.surface.isShiftPressed ();
         this.canScrollUp = pageNavigation
             ? sceneBank.canScrollPageBackwards ()
             : sceneBank.canScrollBackwards ();
@@ -127,20 +122,10 @@ public class PushCursorCommand extends CursorCommand<PushControlSurface, PushCon
 
         final IMode mode = this.surface.getModeManager ().getActive ();
         final boolean shiftPressed = this.surface.isShiftPressed ();
-        if (this.surface.getModeManager ().isActive (Modes.TRACK))
-        {
-            this.canScrollLeft = mode != null
-                && (shiftPressed ? mode.hasPreviousItemPage () : mode.hasPreviousItem ());
-            this.canScrollRight = mode != null
-                && (shiftPressed ? mode.hasNextItemPage () : mode.hasNextItem ());
-        }
-        else
-        {
-            this.canScrollLeft = mode != null
-                && (shiftPressed ? mode.hasPreviousItem () : mode.hasPreviousItemPage ());
-            this.canScrollRight = mode != null
-                && (shiftPressed ? mode.hasNextItem () : mode.hasNextItemPage ());
-        }
+        this.canScrollLeft = mode != null
+            && (shiftPressed ? mode.hasPreviousItemPage () : mode.hasPreviousItem ());
+        this.canScrollRight = mode != null
+            && (shiftPressed ? mode.hasNextItemPage () : mode.hasNextItem ());
     }
 
 
