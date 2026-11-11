@@ -145,7 +145,10 @@ the existing Bitwig 4.3 / Extension API 17 model:
   Bitwig workflows. These contexts are outside Ableton's documented In/Out
   Device/Browser behavior.
 
-Device selection and parameter-bank paging use the existing
-`DeviceParamsMode` selection methods; browser navigation uses the API-17
-`IBrowser` filter-column methods. No MIDI IDs, extra event loop, or alternate
-controller dispatcher are introduced.
+Device selection and parameter-page paging use dedicated In/Out methods in
+`DeviceParamsMode`. The ordinary Left/Right arrow methods and their LED
+availability remain unchanged, so the parameter-page action cannot leak into
+arrow navigation. Browser navigation uses the API-17 `IBrowser` filter-column
+methods. In Rack-chain mode the buttons remain inactive: Extension API 17 does
+not expose a reliable selected-chain cursor for safe previous/next navigation.
+No MIDI IDs, extra event loop, or alternate controller dispatcher are introduced.
