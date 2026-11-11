@@ -55,8 +55,8 @@ guard_open = draw_grid.find("{", guard_start)
 guard_close = block_end(draw_grid, guard_open)
 guard = draw_grid[guard_open + 1:guard_close]
 for operation in (
-    "clip.getNumSteps ()",
     "clip.getCurrentStep ()",
+    "this.numDisplayCols",
     "clip.getEditPage ()",
     "clip.scrollToPage (playheadPage)",
 ):
