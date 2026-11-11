@@ -36,8 +36,6 @@ jobs:
           rm -f src/main/java/de/mossgrabers/bitwig/controller/ableton/push/Push2ControllerExtensionDefinition.java
           rm -f src/main/java/de/mossgrabers/controller/ableton/push/controller/Push2Display.java
 
-          # The upstream shared drum view accidentally imports Maschine's color manager.
-          # Resolve these two colors through the active controller's color manager instead.
           python3 - <<'PY'
           from pathlib import Path
 
@@ -103,85 +101,28 @@ jobs:
         run: |
           set -euo pipefail
           jar tf target/PUSHdriver-19.0.0.jar > target/package-contents.txt
-          test "$(grep -Ec '^de/mossgrabers/bitwig/controller/.*\\.class
-          if grep -Eiq '^de/mossgrabers/controller/(ni|akai|novation|faderfox|livid|nativeinstruments)/' target/package-contents.txt; then
-            echo "Foreign controller implementation found in package" >&2
-            grep -Ei '^de/mossgrabers/controller/(ni|akai|novation|faderfox|livid|nativeinstruments)/' target/package-contents.txt >&2
-            exit 1
-          fi
-          if grep -Eiq 'Push2(Display|Controller)|MaschineColorManager' target/package-contents.txt; then
-            echo "Push 2 or Maschine implementation found in package" >&2
-            grep -Ei 'Push2(Display|Controller)|MaschineColorManager' target/package-contents.txt >&2
-            exit 1
-          fi
-          service="$(unzip -p target/PUSHdriver-19.0.0.jar META-INF/services/com.bitwig.extension.controller.api.ControllerExtensionDefinition 2>/dev/null || true)"
-          if [ -z "$service" ]; then
-            service="$(unzip -p target/PUSHdriver-19.0.0.jar META-INF/services/com.bitwig.extension.ExtensionDefinition)"
-          fi
-          test "$service" = "de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition"
-
-      - name: Prepare Bitwig extension
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          cp target/PUSHdriver-19.0.0.jar dist/PUSHdriver.bwextension
-          test -s dist/PUSHdriver.bwextension
-
-      - name: Upload PUSHdriver.bwextension
-        uses: actions/upload-artifact@v4
-        with:
-          name: PUSHdriver-bwextension
-          path: dist/PUSHdriver.bwextension
-          if-no-files-found: error
-          retention-days: 30
- target/package-contents.txt)" -eq 1
-test "$(grep -c '^de/mossgrabers/bitwig/controller/ableton/push/Push1ControllerExtensionDefinition.class
-          if grep -Eiq '^de/mossgrabers/controller/(ni|akai|novation|faderfox|livid|nativeinstruments)/' target/package-contents.txt; then
-            echo "Foreign controller implementation found in package" >&2
-            grep -Ei '^de/mossgrabers/controller/(ni|akai|novation|faderfox|livid|nativeinstruments)/' target/package-contents.txt >&2
-            exit 1
-          fi
-          if grep -Eiq 'Push2(Display|Controller)|MaschineColorManager' target/package-contents.txt; then
-            echo "Push 2 or Maschine implementation found in package" >&2
-            grep -Ei 'Push2(Display|Controller)|MaschineColorManager' target/package-contents.txt >&2
-            exit 1
-          fi
-          service="$(unzip -p target/PUSHdriver-19.0.0.jar META-INF/services/com.bitwig.extension.controller.api.ControllerExtensionDefinition 2>/dev/null || true)"
-          if [ -z "$service" ]; then
-            service="$(unzip -p target/PUSHdriver-19.0.0.jar META-INF/services/com.bitwig.extension.ExtensionDefinition)"
-          fi
-          test "$service" = "de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition"
-
-      - name: Prepare Bitwig extension
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          cp target/PUSHdriver-19.0.0.jar dist/PUSHdriver.bwextension
-          test -s dist/PUSHdriver.bwextension
-
-      - name: Upload PUSHdriver.bwextension
-        uses: actions/upload-artifact@v4
-        with:
-          name: PUSHdriver-bwextension
-          path: dist/PUSHdriver.bwextension
-          if-no-files-found: error
-          retention-days: 30
- target/package-contents.txt)" -eq 1
-          if grep -Eiq '^de/mossgrabers/controller/(ni|akai|novation|faderfox|livid|nativeinstruments)/' target/package-contents.txt; then
-            echo "Foreign controller implementation found in package" >&2
-            grep -Ei '^de/mossgrabers/controller/(ni|akai|novation|faderfox|livid|nativeinstruments)/' target/package-contents.txt >&2
-            exit 1
-          fi
-          if grep -Eiq 'Push2(Display|Controller)|MaschineColorManager' target/package-contents.txt; then
-            echo "Push 2 or Maschine implementation found in package" >&2
-            grep -Ei 'Push2(Display|Controller)|MaschineColorManager' target/package-contents.txt >&2
-            exit 1
-          fi
-          service="$(unzip -p target/PUSHdriver-19.0.0.jar META-INF/services/com.bitwig.extension.controller.api.ControllerExtensionDefinition 2>/dev/null || true)"
-          if [ -z "$service" ]; then
-            service="$(unzip -p target/PUSHdriver-19.0.0.jar META-INF/services/com.bitwig.extension.ExtensionDefinition)"
-          fi
-          test "$service" = "de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition"
+          python3 - <<'PY'
+          from pathlib import Path
+          entries = Path("target/package-contents.txt").read_text().splitlines()
+          classes = [p for p in entries if p.endswith(".class")]
+          bitwig_controller_classes = [p for p in classes if p.startswith("de/mossgrabers/bitwig/controller/")]
+          expected = ["de/mossgrabers/bitwig/controller/ableton/push/Push1ControllerExtensionDefinition.class"]
+          if bitwig_controller_classes != expected:
+              raise SystemExit(f"Unexpected Bitwig controller classes: {bitwig_controller_classes}")
+          forbidden = ("de/mossgrabers/controller/ni/", "de/mossgrabers/controller/akai/",
+                       "de/mossgrabers/controller/novation/", "de/mossgrabers/controller/faderfox/",
+                       "de/mossgrabers/controller/livid/", "de/mossgrabers/controller/nativeinstruments/")
+          foreign = [p for p in classes if p.startswith(forbidden)]
+          if foreign:
+              raise SystemExit(f"Foreign controller implementation found: {foreign}")
+          forbidden_names = ("Push2Display", "Push2Controller", "MaschineColorManager")
+          leftovers = [p for p in entries if any(name in p for name in forbidden_names)]
+          if leftovers:
+              raise SystemExit(f"Push 2/Maschine implementation found: {leftovers}")
+          service = Path("target/classes/META-INF/services/com.bitwig.extension.ExtensionDefinition").read_text().strip()
+          if service != "de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition":
+              raise SystemExit(f"Unexpected extension registrations: {service}")
+          PY
 
       - name: Prepare Bitwig extension
         run: |
