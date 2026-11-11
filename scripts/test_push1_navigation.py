@@ -29,40 +29,38 @@ if not COMMAND.is_file() or not SETUP.is_file():
 command = COMMAND.read_text()
 setup = SETUP.read_text()
 
-# The hardware arrow IDs must each have exactly one command binding.
+# Every physical arrow is routed exactly once.
 for direction in ("UP", "DOWN", "LEFT", "RIGHT"):
     marker = f"this.addButton (ButtonID.ARROW_{direction},"
     if setup.count(marker) != 1:
         raise SystemExit(f"Expected exactly one physical ARROW_{direction} binding")
 
+# Push 1 contract: no modifier = one item/scene; Shift = one eight-item page.
+# This must not vary with Track, Device, Browser, Session or Scene Play mode.
 left = method_body(command, "protected void scrollLeft ()")
 right = method_body(command, "protected void scrollRight ()")
-for body, action, page_action in (
-    (left, "selectPreviousItem ();", "selectPreviousItemPage ();"),
-    (right, "selectNextItem ();", "selectNextItemPage ();"),
+for body, single, page in (
+    (left, "activeMode.selectPreviousItem ();", "activeMode.selectPreviousItemPage ();"),
+    (right, "activeMode.selectNextItem ();", "activeMode.selectNextItemPage ();"),
 ):
-    if "trackMode && !shiftPressed || !trackMode && shiftPressed" not in body:
-        raise SystemExit("Horizontal item navigation must use the same Track/Shift rule in every mode")
-    if action not in body or page_action not in body:
-        raise SystemExit("Horizontal navigation must preserve both item and page actions")
+    if "this.surface.isShiftPressed ()" not in body or single not in body or page not in body:
+        raise SystemExit("Horizontal arrows must use one-item normally and one-page with Shift")
+    if body.index("if (this.surface.isShiftPressed ())") > body.index(page):
+        raise SystemExit("Shift must select page navigation before the single-item fallback")
+    if "Modes.TRACK" in body:
+        raise SystemExit("Horizontal Shift semantics must not invert outside Track mode")
 
 states = method_body(command, "protected void updateArrowStates ()")
-if "shiftPressed ? mode.hasPreviousItemPage () : mode.hasPreviousItem ()" not in states:
-    raise SystemExit("Left arrow LED state does not match Track-mode navigation granularity")
-if "shiftPressed ? mode.hasNextItemPage () : mode.hasNextItem ()" not in states:
-    raise SystemExit("Right arrow LED state does not match Track-mode navigation granularity")
-if "shiftPressed ? mode.hasPreviousItem () : mode.hasPreviousItemPage ()" not in states:
-    raise SystemExit("Left arrow LED state does not match non-Track navigation granularity")
-if "shiftPressed ? mode.hasNextItem () : mode.hasNextItemPage ()" not in states:
-    raise SystemExit("Right arrow LED state does not match non-Track navigation granularity")
-
 normalized_states = " ".join(states.split())
-if "final boolean pageNavigation = this.surface.isShiftPressed () || this.isScenePlay ();" not in normalized_states:
-    raise SystemExit("Vertical arrow LED state does not account for Shift and Scene Play page navigation")
-if "pageNavigation ? sceneBank.canScrollPageBackwards () : sceneBank.canScrollBackwards ()" not in normalized_states:
-    raise SystemExit("Up arrow LED state does not match scene-bank navigation granularity")
-if "pageNavigation ? sceneBank.canScrollPageForwards () : sceneBank.canScrollForwards ()" not in normalized_states:
-    raise SystemExit("Down arrow LED state does not match scene-bank navigation granularity")
+for marker in (
+    "shiftPressed ? mode.hasPreviousItemPage () : mode.hasPreviousItem ()",
+    "shiftPressed ? mode.hasNextItemPage () : mode.hasNextItem ()",
+    "final boolean pageNavigation = this.surface.isShiftPressed ();",
+    "pageNavigation ? sceneBank.canScrollPageBackwards () : sceneBank.canScrollBackwards ()",
+    "pageNavigation ? sceneBank.canScrollPageForwards () : sceneBank.canScrollForwards ()",
+):
+    if marker not in normalized_states:
+        raise SystemExit(f"Arrow LED state does not match Push navigation contract: {marker}")
 
 up = method_body(command, "protected void scrollUp ()")
 down = method_body(command, "protected void scrollDown ()")
@@ -70,7 +68,12 @@ for body, single, page in (
     (up, "sceneBank.scrollBackwards ();", "sceneBank.selectPreviousPage ();"),
     (down, "sceneBank.scrollForwards ();", "sceneBank.selectNextPage ();"),
 ):
-    if "this.surface.isShiftPressed () || this.isScenePlay ()" not in body or single not in body or page not in body:
-        raise SystemExit("Vertical arrows must retain single-scene scrolling and Shift/Scene Play page navigation")
+    if "this.surface.isShiftPressed ()" not in body or single not in body or page not in body:
+        raise SystemExit("Vertical arrows must move one scene normally and one page with Shift")
+    if "this.isScenePlay ()" in body:
+        raise SystemExit("Scene Play must not silently force page navigation without Shift")
+
+if "this.isScenePlay ()" not in method_body(command, "protected ISceneBank getSceneBank ()"):
+    raise SystemExit("Scene Play must retain its larger 64-scene navigation bank")
 
 print("Push 1 directional navigation and arrow LED regression checks passed.")
