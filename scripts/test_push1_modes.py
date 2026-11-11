@@ -74,6 +74,14 @@ for marker in (
     if marker not in colors:
         raise SystemExit(f"Push 1 native color mapping regression: missing {marker!r}")
 
+for mapping in (
+    "AbstractSequencerView.COLOR_STEP_HILITE_RECORD, isPush2 ? PUSH2_COLOR2_RED_HI : PUSH1_COLOR2_RED_HI",
+    "AbstractSequencerView.COLOR_STEP_MUTED, isPush2 ? PUSH2_COLOR2_GREY_MD : PUSH1_COLOR2_YELLOW_LO",
+    "AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : PUSH1_COLOR2_WHITE",
+    "AbstractDrumView.COLOR_PAD_SOLO, isPush2 ? PUSH2_COLOR2_BLUE_LO : PUSH1_COLOR2_BLUE_LO",
+):
+    if mapping not in colors:
+        raise SystemExit(f"Live 10 Push 1 LED mapping regression: missing {mapping!r}")
 if "this.model.hasRecordingState () ? COLOR_STEP_HILITE_RECORD : COLOR_STEP_HILITE_CONTENT" not in sequencer:
     raise SystemExit("Sequencer playhead must be green in playback and red while recording")
 drum = read("framework/view/sequencer/AbstractDrumView.java")
