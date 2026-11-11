@@ -1,4 +1,5 @@
 import com.bitwig.extension.ExtensionDefinition;
+import de.mossgrabers.bitwig.framework.daw.HostImpl;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +16,14 @@ public final class PushdriverExtensionDiscoveryTest
 
     public static void main(final String[] args)
     {
+        // Reproduce HostImpl construction without a Bitwig process. Its constructor
+        // eagerly loads device metadata; missing packaged resources caused an NPE here.
+        final HostImpl host = new HostImpl(null);
+        if (host.getInstrumentMetadata().isEmpty())
+            throw new AssertionError("Packaged devices/Instruments.txt was not loaded");
+        if (host.getAudioEffectMetadata().isEmpty())
+            throw new AssertionError("Packaged devices/AudioEffects.txt was not loaded");
+
         final List<ExtensionDefinition> definitions = new ArrayList<>();
         ServiceLoader.load(ExtensionDefinition.class).forEach(definitions::add);
 
