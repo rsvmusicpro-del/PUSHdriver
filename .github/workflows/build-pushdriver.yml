@@ -55,6 +55,9 @@ jobs:
       - name: Test Push 1 directional navigation
         run: python3 scripts/test_push1_navigation.py
 
+      - name: Test Push 1 New clip workflow
+        run: python3 scripts/test_push1_new.py
+
       - name: Test Push 1 firmware inquiry parsing
         run: python3 scripts/test_push1_firmware.py
 

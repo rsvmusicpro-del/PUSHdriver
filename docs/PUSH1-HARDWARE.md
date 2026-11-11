@@ -72,6 +72,21 @@ Arrow LED availability is calculated using the same single-item/page rules as ex
 Reference:
 - [Ableton — Using Push 1, Note and Session navigation](https://www.ableton.com/en/live-manual/12/using-push-1/)
 
+## New button: Ableton workflow adapted safely to Bitwig
+
+Ableton's Push 1 New button stops the selected clip and prepares a new recording. In Scene Workflow, Live can also copy the other playing clips into a new scene; holding Record while pressing New on an armed MIDI track invokes Capture MIDI.
+
+The inherited DrivenByMoss 19.2.2 `NewCommand` already owns the dedicated `ButtonID.NEW` / `PUSH_BUTTON_NEW` binding. It creates and starts a note clip in the first available slot at or after the selected slot. A normal press enables overdub; Shift+New creates the clip without enabling overdub. Before this PUSHdriver change, it did not stop the cursor track's currently playing clip.
+
+PUSHdriver now keeps that single native button binding and wraps the upstream command with `PushNewCommand`:
+
+1. Resolve the cursor track and find an available slot before changing playback.
+2. If no track or free slot exists, delegate to the upstream command so its existing user notification is preserved; the current clip is not stopped.
+3. If a slot is available, stop playback on the cursor track, then create and start the new note clip using the upstream clip-length and overdub behavior.
+4. Preserve Shift+New's no-overdub behavior and leave Record, Duplicate, Play, and all other button bindings untouched.
+
+This deliberately scopes New to the cursor track. PUSHdriver does not automatically duplicate clips from other tracks into a new scene: that cross-track operation is not required to prepare a new Bitwig clip and could alter a playing arrangement unexpectedly. The Ableton-specific Record+New Capture MIDI chord is also not introduced, so the existing Record and Shift command paths remain collision-free.
+
 ## Architecture decisions in PUSHdriver
 
 ### Dedicated engine: justified

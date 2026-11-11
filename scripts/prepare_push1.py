@@ -635,6 +635,17 @@ if "isPush2" in setup_source or "Push2Display" in setup_source or "Push 2" in se
     raise SystemExit("PushControllerSetup still contains Push 2 runtime references")
 setup.write_text(setup_source)
 
+# Keep the physical Push 1 New button on its native dedicated binding, while
+# stopping the cursor track's current clip before preparing its next note clip.
+replace_once(setup,
+    "import de.mossgrabers.framework.command.trigger.clip.NewCommand;\\n",
+    "import de.mossgrabers.controller.ableton.push.command.trigger.PushNewCommand;\\n",
+    "Push 1 New command import")
+replace_once(setup,
+    "new NewCommand<> (this.model, surface)",
+    "new PushNewCommand<> (this.model, surface)",
+    "Push 1 New command binding")
+
 # Replace the dual-generation USB/MIDI discovery definition with the Push 1 definition only.
 definition = root / "src/main/java/de/mossgrabers/controller/ableton/push/PushControllerDefinition.java"
 definition.write_text("""// Written by Jürgen Moßgraber - mossgrabers.de
