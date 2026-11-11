@@ -643,7 +643,7 @@ replace_once(setup,
     "Push 1 New command import")
 replace_once(setup,
     "new NewCommand<> (this.model, surface)",
-    "new PushNewCommand<> (this.model, surface)",
+    "new PushNewCommand (this.model, surface)",
     "Push 1 New command binding")
 
 # Replace the dual-generation USB/MIDI discovery definition with the Push 1 definition only.

@@ -35,7 +35,7 @@ upstream = UPSTREAM_COMMAND.read_text()
 # New owns one dedicated physical button binding; it must not alias Record,
 # Duplicate, Play, or any other Push control.
 new_binding = (
-    'this.addButton (ButtonID.NEW, "New", new PushNewCommand<> (this.model, surface), '
+    'this.addButton (ButtonID.NEW, "New", new PushNewCommand (this.model, surface), '
     'PushControlSurface.PUSH_BUTTON_NEW);'
 )
 if setup.count(new_binding) != 1 or setup.count("this.addButton (ButtonID.NEW") != 1:
@@ -65,9 +65,11 @@ if "this.handleExecute (true);" not in normal or "this.handleExecute (false);" n
 execute = method_body(command, "public void handleExecute (final boolean enableOverdub)")
 slot_lookup = execute.find("slotBank.getEmptySlot (slotIndex)")
 empty_guard = execute.find("if (slot.isEmpty ())")
+selected_playing = execute.find("selectedSlot.isPresent () && selectedSlot.get ().isPlaying ()")
+stop_guard = execute.find("if (selectedClipIsPlaying)")
 stop = execute.find("cursorTrack.stop ();")
 create = execute.find("this.model.createNoteClip (cursorTrack, slot.get (), this.getClipLength (), enableOverdub);")
-if min(slot_lookup, empty_guard, stop, create) < 0 or not slot_lookup < empty_guard < stop < create:
+if min(slot_lookup, selected_playing, empty_guard, stop_guard, stop, create) < 0 or not slot_lookup < selected_playing < empty_guard < stop_guard < stop < create:
     raise SystemExit("New must verify a free slot and a playing selected clip before stopping playback")
 if execute.count("cursorTrack.stop ();") != 1 or execute.count("createNoteClip") != 1:
     raise SystemExit("New must stop only a selected playing Launcher clip and create exactly one replacement clip")
