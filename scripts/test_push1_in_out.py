@@ -49,6 +49,9 @@ for source, direction, item, page, seq in (
         "DeviceBrowserMode",
         f"navigateFilterColumn ({direction})",
         "Modes.isDeviceMode (modeManager.getActiveID ())",
+        "modeManager.isActive (Modes.DEVICE_PARAMS)",
+        f"deviceParamsMode.select{'Previous' if direction == 'false' else 'Next'}InOutItem ()",
+        "modeManager.isActive (Modes.DEVICE_CHAINS)",
         f"activeMode.{item} ()",
         f"this.model.getCurrentTrackBank ().{page} ()",
         f"sequencerView.{seq} (event)",
@@ -71,8 +74,10 @@ for marker in (
 
 if "browserMode.canNavigateFilterColumn (false)" not in setup or "browserMode.canNavigateFilterColumn (true)" not in setup:
     raise SystemExit("In/Out LED states must reflect browser column availability")
-if "activeMode.hasPreviousItem ()" not in setup or "activeMode.hasNextItem ()" not in setup:
-    raise SystemExit("In/Out LED states must reflect device/parameter availability")
+if "deviceParamsMode.hasPreviousInOutItem ()" not in setup or "deviceParamsMode.hasNextInOutItem ()" not in setup:
+    raise SystemExit("In/Out LED states must reflect device/parameter-page availability")
+if setup.count("if (modeManager.isActive (Modes.DEVICE_CHAINS))") != 2:
+    raise SystemExit("Rack-chain mode must not advertise inactive In/Out commands")
 
 for marker in (
     "cursorDevice.getParameterPageBank ().selectPreviousPage ();",
@@ -80,6 +85,20 @@ for marker in (
     "getParameterPageBank ().canScrollPageBackwards ()",
     "getParameterPageBank ().canScrollPageForwards ()",
 ):
+    if marker not in device_params:
+        raise SystemExit(f"Device In/Out must navigate parameter-page banks: {marker}")
+
+# The standard arrows retain the original per-item navigation and LED checks.
+for marker in (
+    "super.selectPreviousItem ();",
+    "super.selectNextItem ();",
+    "super.hasPreviousItem ();",
+    "super.hasNextItem ();",
+):
+    if marker not in device_params:
+        raise SystemExit(f"In/Out implementation regressed standard arrow navigation: {marker}")
+
+for marker in (
     if marker not in device_params:
         raise SystemExit(f"Device In/Out must navigate parameter-page banks, not individual parameters: {marker}")
 
