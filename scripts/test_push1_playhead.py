@@ -39,8 +39,8 @@ draw_grid = method_body(source, "public void drawGrid ()")
 for marker in (
     "this.followPlayhead && this.isActive () && this.model.getTransport ().isPlaying ()",
     "clip.doesExist ()",
-    "clip.getNumSteps ()",
     "clip.getCurrentStep ()",
+    "this.numDisplayCols",
     "clip.getEditPage ()",
     "clip.scrollToPage (playheadPage)",
     "super.drawGrid ();",
@@ -76,8 +76,8 @@ for marker in (
     "if (pad != pressedPage)",
     "this.followPlayhead = true;",
     "clip.doesExist ()",
-    "clip.getNumSteps ()",
     "clip.getCurrentStep ()",
+    "this.numDisplayCols",
     "currentStep / this.numDisplayCols == pad",
 ):
     if marker not in page_handler:
