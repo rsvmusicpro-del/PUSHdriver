@@ -428,7 +428,7 @@ import java.util.UUID;
 /** Push 1 MIDI discovery definition. */
 public class PushControllerDefinition extends DefaultControllerDefinition
 {
-    private static final UUID EXTENSION_ID_MK_I = UUID.fromString ("DBED9610-C474-11E6-9598-0800200C9A66");
+    private static final UUID EXTENSION_ID_MK_I = UUID.fromString ("DB830BE9-77B3-46F5-8F97-744901A94B56");
 
     public PushControllerDefinition ()
     {
