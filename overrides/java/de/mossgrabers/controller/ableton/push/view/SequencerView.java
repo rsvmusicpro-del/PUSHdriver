@@ -44,13 +44,18 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
         if (this.isActive () && this.model.getTransport ().isPlaying ())
         {
             final INoteClip clip = this.getClip ();
-            final int stepsPerPage = clip.getNumSteps ();
-            final int currentStep = clip.getCurrentStep ();
-            if (stepsPerPage > 0 && currentStep >= 0)
+            // The note-clip adapter remains available for empty slots. Do not
+            // ask it to follow a playhead until Bitwig reports a real clip.
+            if (clip.doesExist ())
             {
-                final int playheadPage = currentStep / stepsPerPage;
-                if (playheadPage != clip.getEditPage ())
-                    clip.scrollToPage (playheadPage);
+                final int stepsPerPage = clip.getNumSteps ();
+                final int currentStep = clip.getCurrentStep ();
+                if (stepsPerPage > 0 && currentStep >= 0)
+                {
+                    final int playheadPage = currentStep / stepsPerPage;
+                    if (playheadPage != clip.getEditPage ())
+                        clip.scrollToPage (playheadPage);
+                }
             }
         }
         super.drawGrid ();
