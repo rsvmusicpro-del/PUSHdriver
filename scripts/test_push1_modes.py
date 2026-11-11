@@ -73,6 +73,21 @@ if "stepInfo = clip.getStep (notePosition);" not in sequencer:
 if "if (stepInfo == null)" not in sequencer:
     raise SystemExit("Sequencer repeat operator does not guard missing step state")
 
+# The Push 1 sequencer follows the playing page, then uses the shared live
+# current-step renderer. This is isolated to the Push 1 Sequencer view.
+push_sequencer = read("controller/ableton/push/view/SequencerView.java")
+draw_grid = method_body(push_sequencer, "public void drawGrid ()")
+for marker in (
+    "this.model.getTransport ().isPlaying ()",
+    "clip.getCurrentStep ()",
+    "clip.getNumSteps ()",
+    "clip.getEditPage ()",
+    "clip.scrollToPage (playheadPage)",
+    "super.drawGrid ();",
+):
+    if marker not in draw_grid:
+        raise SystemExit(f"Push 1 live sequencer follow regression: missing {marker!r}")
+
 for relative in (
     "controller/ableton/push/view/SequencerView.java",
     "controller/ableton/push/view/PolySequencerView.java",
