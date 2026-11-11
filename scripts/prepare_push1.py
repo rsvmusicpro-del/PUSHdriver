@@ -72,11 +72,10 @@ setup_source = setup_source.replace("        this.isPush2 = isPush2;\\n", "", 1)
 setup_source = setup_source.replace("new PushColorManager (isPush2)", "new PushColorManager (false)", 1)
 setup_source = setup_source.replace("new PushConfiguration (host, this.valueChanger, factory.getArpeggiatorModes (), isPush2)", "new PushConfiguration (host, this.valueChanger, factory.getArpeggiatorModes (), false)", 1)
 setup_source = setup_source.replace("this.isPush2", "false")
-old_config_check = "this.configuration.isPush2 ()"
-if setup_source.count(old_config_check) != 1:
-    raise SystemExit("PushControllerSetup: expected configuration Push 2 check was not found")
-setup_source = setup_source.replace(old_config_check, "false", 1)
-if "isPush2" in setup_source or "Push2Display" in setup_source:
+setup_source = setup_source.replace("isPush2", "false")
+setup_source = setup_source.replace("Push 1 and Push 2 controllers", "Push 1 controller")
+setup_source = setup_source.replace("Redraw the Push 2 display.", "Redraw the Push 1 display.")
+if "isPush2" in setup_source or "Push2Display" in setup_source or "Push 2" in setup_source:
     raise SystemExit("PushControllerSetup still contains Push 2 runtime references")
 setup.write_text(setup_source)
 
