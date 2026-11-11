@@ -142,12 +142,16 @@ replace_once(note_repeat,
     "        this.refreshNoteRepeat ();\n"
     "        if (this.noteRepeat == null)",
     "NoteRepeatMode graphic-display input refresh")
-replace_once(note_repeat,
-    "final int value = modeIndex * upperBound / (arpeggiatorModes.size () - 1);",
+mode_value = "final int value = modeIndex * upperBound / (arpeggiatorModes.size () - 1);"
+mode_value_replacement = (
     "final int modeDenominator = Math.max (1, arpeggiatorModes.size () - 1);\n"
     "            final int safeModeIndex = Math.max (0, Math.min (modeDenominator, modeIndex));\n"
-    "            final int value = safeModeIndex * upperBound / modeDenominator;",
-    "NoteRepeatMode safe mode display scaling")
+    "            final int value = safeModeIndex * upperBound / modeDenominator;"
+)
+mode_source = note_repeat.read_text()
+if mode_source.count(mode_value) != 2:
+    raise SystemExit("NoteRepeatMode: expected two mode display scaling expressions")
+note_repeat.write_text(mode_source.replace(mode_value, mode_value_replacement))
 
 # Remove the Push Raindrops mode and its framework-only implementation completely.
 for obsolete in (
