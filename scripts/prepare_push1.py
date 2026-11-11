@@ -696,35 +696,60 @@ replace_once(browser_mode,
 
 
     /**
-     * Check if In/Out can move to another browser filter column.
+     * Find the next existing browser filter column in the requested direction.
+     * Bitwig exposes a fixed column bank; individual columns may not exist for
+     * the current browser content type, so numeric bounds alone are insufficient.
      *
      * @param forward True for In (right), false for Out (left)
-     * @return True if another column is available
+     * @return The position of the next existing column, or -1 if none is available
      */
-    public boolean canNavigateFilterColumn (final boolean forward)
+    private int findNavigableFilterColumn (final boolean forward)
     {
         final IBrowser browser = this.model.getBrowser ();
-        if (browser.getFilterColumnCount () == 0)
-            return false;
-        final int selectedColumn = browser.getSelectedFilterColumn ().getPosition ();
-        return forward ? selectedColumn < browser.getFilterColumnCount () - 1 : selectedColumn > 0;
+        final int count = browser.getFilterColumnCount ();
+        final int selectedPosition = browser.getSelectedFilterColumn ().getPosition ();
+        final int step = forward ? 1 : -1;
+
+        for (int position = selectedPosition + step; position >= 0 && position < count; position += step)
+        {
+            if (browser.getFilterColumn (position).doesExist ())
+                return position;
+        }
+        return -1;
     }
 
 
     /**
-     * Move the browser focus one filter column left or right.
+     * Check if In/Out can move to another existing browser filter column.
+     *
+     * @param forward True for In (right), false for Out (left)
+     * @return True if another existing column is available
+     */
+    public boolean canNavigateFilterColumn (final boolean forward)
+    {
+        return this.findNavigableFilterColumn (forward) >= 0;
+    }
+
+
+    /**
+     * Move the browser focus to the next existing filter column.
      *
      * @param forward True for In (right), false for Out (left)
      */
     public void navigateFilterColumn (final boolean forward)
     {
         final IBrowser browser = this.model.getBrowser ();
-        if (browser.getFilterColumnCount () == 0)
+        final int targetPosition = this.findNavigableFilterColumn (forward);
+        if (targetPosition < 0)
             return;
-        if (forward)
-            browser.selectNextFilterColumn ();
-        else
-            browser.selectPreviousFilterColumn ();
+
+        while (browser.getSelectedFilterColumn ().getPosition () != targetPosition)
+        {
+            if (forward)
+                browser.selectNextFilterColumn ();
+            else
+                browser.selectPreviousFilterColumn ();
+        }
         this.filterColumn = browser.getSelectedFilterColumn ().getIndex ();
         this.selectionMode = DeviceBrowserMode.SELECTION_OFF;
     }
