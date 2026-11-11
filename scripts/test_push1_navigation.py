@@ -41,8 +41,8 @@ for body, action, page_action in (
     (left, "selectPreviousItem ();", "selectPreviousItemPage ();"),
     (right, "selectNextItem ();", "selectNextItemPage ();"),
 ):
-    if "isActive (Modes.TRACK)" not in body or "!this.surface.isShiftPressed ()" not in body:
-        raise SystemExit("Track mode must use single-item navigation unless Shift is held")
+    if "trackMode && !shiftPressed || !trackMode && shiftPressed" not in body:
+        raise SystemExit("Horizontal item navigation must use the same Track/Shift rule in every mode")
     if action not in body or page_action not in body:
         raise SystemExit("Horizontal navigation must preserve both item and page actions")
 
@@ -51,6 +51,10 @@ if "shiftPressed ? mode.hasPreviousItemPage () : mode.hasPreviousItem ()" not in
     raise SystemExit("Left arrow LED state does not match Track-mode navigation granularity")
 if "shiftPressed ? mode.hasNextItemPage () : mode.hasNextItem ()" not in states:
     raise SystemExit("Right arrow LED state does not match Track-mode navigation granularity")
+if "shiftPressed ? mode.hasPreviousItem () : mode.hasPreviousItemPage ()" not in states:
+    raise SystemExit("Left arrow LED state does not match non-Track navigation granularity")
+if "shiftPressed ? mode.hasNextItem () : mode.hasNextItemPage ()" not in states:
+    raise SystemExit("Right arrow LED state does not match non-Track navigation granularity")
 
 up = method_body(command, "protected void scrollUp ()")
 down = method_body(command, "protected void scrollDown ()")
