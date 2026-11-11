@@ -17,12 +17,24 @@ jobs:
         with:
           submodules: recursive
 
-
       - name: Assemble Push 1-only source tree
         run: python3 scripts/prepare_push1.py
 
+      - name: Snapshot assembled sources
+        run: |
+          set -euo pipefail
+          find src/main/java src/main/resources src/assembly maven-local-repository -type f -print0 \
+            | sort -z | xargs -0 sha256sum > /tmp/pushdriver-assembly-before.sha256
+          sha256sum pom.xml >> /tmp/pushdriver-assembly-before.sha256
+
       - name: Verify source assembly is reproducible
-        run: python3 scripts/prepare_push1.py
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_push1.py
+          find src/main/java src/main/resources src/assembly maven-local-repository -type f -print0 \
+            | sort -z | xargs -0 sha256sum > /tmp/pushdriver-assembly-after.sha256
+          sha256sum pom.xml >> /tmp/pushdriver-assembly-after.sha256
+          diff -u /tmp/pushdriver-assembly-before.sha256 /tmp/pushdriver-assembly-after.sha256
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
