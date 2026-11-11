@@ -98,6 +98,27 @@ if root_color not in piano or track_color not in piano:
 if piano.index(root_color) > piano.index("else if (row % 2 == 0)"):
     raise SystemExit("Piano root-note track color must take precedence over fixed white/black key colors")
 
+touchstrip = read("controller/ableton/push/command/pitchbend/TouchstripCommand.java")
+for marker in (
+    "final boolean isReset = this.surface.isDeletePressed ();",
+    "this.surface.setTriggerConsumed (ButtonID.DELETE);",
+    "volumeParameter.resetValue ();",
+    "parameter.resetValue ();",
+    "defaultNoteInput == null ? null : defaultNoteInput.getNoteRepeat ();",
+):
+    if marker not in touchstrip:
+        raise SystemExit(f"Touchstrip reset/input-safety regression: missing {marker!r}")
+
+pitchbend_config = read("controller/ableton/push/command/continuous/ConfigurePitchbendCommand.java")
+for marker in (
+    "public void executeNormal (final ButtonEvent event)",
+    "this.surface.setTriggerConsumed (ButtonID.DELETE);",
+    "parameter.resetValue ();",
+    "PushConfiguration.RIBBON_MODE_LAST_TOUCHED",
+):
+    if marker not in pitchbend_config:
+        raise SystemExit(f"Touchstrip configuration reset regression: missing {marker!r}")
+
 display = read("controller/ableton/push/controller/Push1Display.java")
 if "Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68))" not in display:
     raise SystemExit("Push 1 LCD output must normalize every display row to exactly 68 characters")
