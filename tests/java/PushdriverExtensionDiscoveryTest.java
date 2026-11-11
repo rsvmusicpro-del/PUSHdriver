@@ -1,5 +1,6 @@
 import com.bitwig.extension.ExtensionDefinition;
 import com.bitwig.extension.controller.ControllerExtension;
+import com.bitwig.extension.controller.ControllerExtensionDefinition;
 import com.bitwig.extension.controller.api.ControllerHost;
 import de.mossgrabers.bitwig.framework.daw.HostImpl;
 
@@ -45,7 +46,7 @@ public final class PushdriverExtensionDiscoveryTest
         // Exercise the real ExtensionDefinition.createInstance() construction path.
         // Bitwig owns the live ControllerHost; a dynamic proxy is sufficient here because
         // constructors only retain the host and create the setup/settings adapters.
-        final ControllerHost host = (ControllerHost) Proxy.newProxyInstance(
+        final ControllerHost controllerHost = (ControllerHost) Proxy.newProxyInstance(
             ControllerHost.class.getClassLoader(),
             new Class<?>[] { ControllerHost.class },
             (proxy, method, arguments) -> {
@@ -71,7 +72,7 @@ public final class PushdriverExtensionDiscoveryTest
                         });
                 return null;
             });
-        final ControllerExtension instance = definition.createInstance(host);
+        final ControllerExtension instance = ((ControllerExtensionDefinition) definition).createInstance(controllerHost);
         if (instance == null || !"de.mossgrabers.bitwig.framework.extension.GenericControllerExtension".equals(instance.getClass().getName()))
             throw new AssertionError("Bitwig extension instance construction failed");
 
