@@ -9,7 +9,7 @@ if not jar.is_file() or jar.stat().st_size == 0:
     raise SystemExit("PUSHdriver JAR is missing or empty")
 
 pom = Path("pom.xml").read_text()
-if not re.search(r"<artifactId>extension-api</artifactId>\\s*<version>17</version>", pom):
+if not re.search(r"<artifactId>extension-api</artifactId>\s*<version>17</version>", pom):
     raise SystemExit("Build is not pinned to Bitwig Extension API 17")
 
 with ZipFile(jar) as archive:
