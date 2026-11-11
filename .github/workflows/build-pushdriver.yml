@@ -23,68 +23,7 @@ jobs:
           path: upstream
 
       - name: Assemble Push 1-only source tree
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p src/main/java/de/mossgrabers src/main/resources/META-INF/services
-          cp -a upstream/src/main/java/de/mossgrabers/framework src/main/java/de/mossgrabers/
-          cp -a upstream/src/main/java/de/mossgrabers/bitwig/framework src/main/java/de/mossgrabers/bitwig/
-          mkdir -p src/main/java/de/mossgrabers/bitwig/controller/ableton
-          cp -a upstream/src/main/java/de/mossgrabers/bitwig/controller/ableton/push src/main/java/de/mossgrabers/bitwig/controller/ableton/
-          mkdir -p src/main/java/de/mossgrabers/controller/ableton
-          cp -a upstream/src/main/java/de/mossgrabers/controller/ableton/push src/main/java/de/mossgrabers/controller/ableton/
-          rm -f src/main/java/de/mossgrabers/bitwig/controller/ableton/push/Push2ControllerExtensionDefinition.java
-          rm -f src/main/java/de/mossgrabers/controller/ableton/push/controller/Push2Display.java
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          drum_view = Path("src/main/java/de/mossgrabers/framework/view/sequencer/AbstractDrumView.java")
-          text = drum_view.read_text()
-          old_import = "import de.mossgrabers.controller.ni.maschine.core.MaschineColorManager;\n"
-          if old_import not in text:
-              raise SystemExit("Expected MaschineColorManager import was not found")
-          text = text.replace(old_import, "", 1)
-          replacements = {
-              "MaschineColorManager.COLOR_GREEN": "this.colorManager.getColorIndex (DAWColor.DAW_COLOR_GREEN)",
-              "MaschineColorManager.COLOR_LIME_LO": "this.colorManager.getColorIndex (DAWColor.DAW_COLOR_MOSS_GREEN)",
-          }
-          for old, new in replacements.items():
-              if text.count(old) != 1:
-                  raise SystemExit(f"Expected exactly one occurrence of {old}")
-              text = text.replace(old, new, 1)
-          drum_view.write_text(text)
-
-          setup = Path("src/main/java/de/mossgrabers/controller/ableton/push/PushControllerSetup.java")
-          text = setup.read_text()
-          old_import = "import de.mossgrabers.controller.ableton.push.controller.Push2Display;\n"
-          if old_import not in text:
-              raise SystemExit("Expected Push2Display import was not found")
-          text = text.replace(old_import, "", 1)
-          old_display = """        if (this.isPush2)
-            surface.addGraphicsDisplay (new Push2Display (this.host, this.valueChanger.getUpperBound (), this.configuration));
-        else
-            surface.addTextDisplay (new Push1Display (this.host, this.valueChanger.getUpperBound (), output, this.configuration));"""
-          new_display = """        surface.addTextDisplay (new Push1Display (this.host, this.valueChanger.getUpperBound (), output, this.configuration));"""
-          if text.count(old_display) != 1:
-              raise SystemExit("Expected Push 1/Push 2 display selection was not found exactly once")
-          text = text.replace(old_display, new_display, 1)
-          setup.write_text(text)
-          PY
-
-          printf '%s\n' 'de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition' > src/main/resources/META-INF/services/com.bitwig.extension.ExtensionDefinition
-          mkdir -p src/assembly
-          cp upstream/src/assembly/dep.xml src/assembly/dep.xml
-          cp -a upstream/maven-local-repository ./maven-local-repository
-          cp upstream/pom.xml ./pom.xml
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("pom.xml")
-          s = p.read_text()
-          s = s.replace("<artifactId>DrivenByMoss</artifactId>", "<artifactId>PUSHdriver</artifactId>", 1)
-          s = s.replace("<name>DrivenByMoss</name>", "<name>PUSHdriver</name>", 1)
-          p.write_text(s)
-          PY
+        run: python3 scripts/prepare_push1.py
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -97,32 +36,7 @@ jobs:
         run: mvn --batch-mode --no-transfer-progress clean package
 
       - name: Verify Push 1-only package
-        shell: bash
-        run: |
-          set -euo pipefail
-          jar tf target/PUSHdriver-19.0.0.jar > target/package-contents.txt
-          python3 - <<'PY'
-          from pathlib import Path
-          entries = Path("target/package-contents.txt").read_text().splitlines()
-          classes = [p for p in entries if p.endswith(".class")]
-          bitwig_controller_classes = [p for p in classes if p.startswith("de/mossgrabers/bitwig/controller/")]
-          expected = ["de/mossgrabers/bitwig/controller/ableton/push/Push1ControllerExtensionDefinition.class"]
-          if bitwig_controller_classes != expected:
-              raise SystemExit(f"Unexpected Bitwig controller classes: {bitwig_controller_classes}")
-          forbidden = ("de/mossgrabers/controller/ni/", "de/mossgrabers/controller/akai/",
-                       "de/mossgrabers/controller/novation/", "de/mossgrabers/controller/faderfox/",
-                       "de/mossgrabers/controller/livid/", "de/mossgrabers/controller/nativeinstruments/")
-          foreign = [p for p in classes if p.startswith(forbidden)]
-          if foreign:
-              raise SystemExit(f"Foreign controller implementation found: {foreign}")
-          forbidden_names = ("Push2Display", "Push2Controller", "MaschineColorManager")
-          leftovers = [p for p in entries if any(name in p for name in forbidden_names)]
-          if leftovers:
-              raise SystemExit(f"Push 2/Maschine implementation found: {leftovers}")
-          service = Path("target/classes/META-INF/services/com.bitwig.extension.ExtensionDefinition").read_text().strip()
-          if service != "de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition":
-              raise SystemExit(f"Unexpected extension registrations: {service}")
-          PY
+        run: python3 scripts/verify_push1.py
 
       - name: Prepare Bitwig extension
         run: |
