@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Behavior-boundary regression check for the Push 1 empty-clip playhead guard."""
+"""Regression checks for Push 1 sequencer auto-follow and empty-clip safety."""
 from pathlib import Path
 
 SOURCE = Path(
@@ -21,25 +21,39 @@ def block_end(source: str, opening: int) -> int:
     raise SystemExit("Unbalanced Java block")
 
 
+def method_body(source: str, signature: str) -> str:
+    start = source.find(signature)
+    if start < 0:
+        raise SystemExit(f"Required method is missing: {signature}")
+    opening = source.find("{", start + len(signature))
+    closing = block_end(source, opening)
+    return source[opening + 1:closing]
+
+
 if not SOURCE.is_file():
     raise SystemExit(f"Required assembled source is missing: {SOURCE}")
 
 source = SOURCE.read_text()
-signature = "public void drawGrid ()"
-method_start = source.find(signature)
-if method_start < 0:
-    raise SystemExit("Push 1 drawGrid override is missing")
-method_open = source.find("{", method_start + len(signature))
-method_close = block_end(source, method_open)
-method = source[method_open + 1:method_close]
+draw_grid = method_body(source, "public void drawGrid ()")
 
-guard_start = method.find("if (clip.doesExist ())")
+for marker in (
+    "this.followPlayhead && this.isActive () && this.model.getTransport ().isPlaying ()",
+    "clip.doesExist ()",
+    "clip.getNumSteps ()",
+    "clip.getCurrentStep ()",
+    "clip.getEditPage ()",
+    "clip.scrollToPage (playheadPage)",
+    "super.drawGrid ();",
+):
+    if marker not in draw_grid:
+        raise SystemExit(f"Push 1 live sequencer follow regression: missing {marker!r}")
+
+guard_start = draw_grid.find("if (clip.doesExist ())")
 if guard_start < 0:
     raise SystemExit("Empty-clip existence guard is missing")
-guard_open = method.find("{", guard_start)
-guard_close = block_end(method, guard_open)
-guard = method[guard_open + 1:guard_close]
-
+guard_open = draw_grid.find("{", guard_start)
+guard_close = block_end(draw_grid, guard_open)
+guard = draw_grid[guard_open + 1:guard_close]
 for operation in (
     "clip.getNumSteps ()",
     "clip.getCurrentStep ()",
@@ -51,10 +65,39 @@ for operation in (
             f"Playhead operation must remain inside the real-clip guard: {operation}"
         )
 
-super_draw = method.find("super.drawGrid ();")
-if super_draw < 0:
-    raise SystemExit("Shared sequencer renderer call is missing")
-if super_draw < guard_close:
+if draw_grid.find("super.drawGrid ();") < guard_close:
     raise SystemExit("Shared grid rendering must remain outside the playhead guard")
 
-print("Push 1 empty-clip playhead guard regression check passed.")
+page_handler = method_body(source, "protected void handleLoopArea (final int pad, final int velocity)")
+for marker in (
+    "final int pressedPage = this.loopPadPressed;",
+    "super.handleLoopArea (pad, velocity);",
+    "if (velocity > 0 || pressedPage < 0)",
+    "if (pad != pressedPage)",
+    "this.followPlayhead = true;",
+    "clip.doesExist ()",
+    "clip.getNumSteps ()",
+    "clip.getCurrentStep ()",
+    "currentStep / stepsPerPage == pad",
+):
+    if marker not in page_handler:
+        raise SystemExit(f"Push 1 page-lock regression: missing {marker!r}")
+
+if page_handler.index("super.handleLoopArea (pad, velocity);") > page_handler.index("if (velocity > 0 || pressedPage < 0)"):
+    raise SystemExit("Page gestures must be processed by the shared loop handler first")
+if page_handler.index("clip.doesExist ()") > page_handler.index("clip.getNumSteps ()"):
+    raise SystemExit("Page-lock logic must check clip existence before reading its step size")
+
+for signature in (
+    "public void onLeft (final ButtonEvent event)",
+    "public void onRight (final ButtonEvent event)",
+):
+    body = method_body(source, signature)
+    if "this.followPlayhead = false;" not in body or "super." not in body:
+        raise SystemExit(f"Manual page navigation must pause auto-follow: {signature}")
+
+# The step/page animation remains delegated to the common DrivenByMoss renderer.
+if "this.getStepColor (stepInfo, x == hiStep" not in source and "super.drawGrid ();" not in draw_grid:
+    raise SystemExit("Shared moving step-head renderer is missing")
+
+print("Push 1 sequencer auto-follow, manual page lock, and empty-clip guard checks passed.")
