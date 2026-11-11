@@ -34,6 +34,9 @@ jobs:
       - name: Test Push 1 note repeat and sequencer safety
         run: python3 scripts/test_push1_modes.py
 
+      - name: Test Push 1 firmware inquiry parsing
+        run: python3 scripts/test_push1_firmware.py
+
       - name: Build extension
         run: mvn --batch-mode --no-transfer-progress clean package
 
