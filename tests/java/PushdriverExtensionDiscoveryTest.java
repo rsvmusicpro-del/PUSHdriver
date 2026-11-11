@@ -101,6 +101,8 @@ public final class PushdriverExtensionDiscoveryTest
         System.out.println("PUSHdriver SPI discovery passed: " + definition.getName()
             + ", API " + definition.getRequiredAPIVersion() + ", UUID " + definition.getId());
 
+    }
+
     private static boolean containsPair(final List<Pair<String[], String[]>> pairs,
                                         final String input, final String output)
     {
@@ -109,6 +111,5 @@ public final class PushdriverExtensionDiscoveryTest
                     && Arrays.asList(pair.getValue()).contains(output))
                 return true;
         return false;
-    }
     }
 }
