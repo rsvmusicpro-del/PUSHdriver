@@ -119,7 +119,7 @@ execute_note = method_body(note_command, "public void execute (final ButtonEvent
 for marker in (
     "event == ButtonEvent.DOWN",
     "event == ButtonEvent.LONG",
-    "event == ButtonEvent.UP",
+    "event != ButtonEvent.UP",
     "this.shiftedOnPress = this.surface.isShiftPressed ()",
     "configuration.setAccentEnabled (true)",
     "configuration.setAccentEnabled (false)",
