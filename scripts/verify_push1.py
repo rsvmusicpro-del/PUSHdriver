@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Fail the build if the package contains anything outside the Push 1 scope."""
 from pathlib import Path
+import os
 import re
+import subprocess
 from zipfile import ZipFile
 
 jar = Path("target/PUSHdriver-19.0.0.jar")
@@ -125,4 +127,44 @@ with ZipFile(jar) as archive:
     if service != "de.mossgrabers.bitwig.controller.ableton.push.Push1ControllerExtensionDefinition":
         raise SystemExit(f"Unexpected extension registrations: {service}")
 
-print(f"Verified {jar.name}: {len(classes)} classes; Push 1 only; Raindrops fully absent.")
+    # Verify every copied runtime resource is present byte-for-byte. This covers
+    # device metadata, all SVG UI assets, and the extension help PDF.
+    resource_root = Path("src/main/resources")
+    missing_resources = []
+    changed_resources = []
+    for resource in sorted(path for path in resource_root.rglob("*") if path.is_file()):
+        relative = resource.relative_to(resource_root).as_posix()
+        if relative not in entries:
+            missing_resources.append(relative)
+        elif archive.read(relative) != resource.read_bytes():
+            changed_resources.append(relative)
+    if missing_resources or changed_resources:
+        raise SystemExit(
+            f"Runtime resource packaging mismatch; missing={missing_resources}, "
+            f"changed={changed_resources}"
+        )
+
+    manifest = archive.read("META-INF/MANIFEST.MF").decode("utf-8", errors="replace")
+    if "Implementation-Version: 19.0.0" not in manifest:
+        raise SystemExit("The extension manifest does not identify the pinned 19.0.0 runtime")
+
+# Resolve every class-level dependency against the JDK, the Bitwig API and the
+# shaded extension itself. A successful compile alone cannot detect missing
+# runtime classes hidden behind reflective or rarely used controller paths.
+api_candidates = (
+    Path.home() / ".m2/repository/com/bitwig/extension-api/17/extension-api-17.jar",
+    Path("maven-local-repository/com/bitwig/extension-api/17/extension-api-17.jar"),
+)
+api = next((candidate for candidate in api_candidates if candidate.is_file()), None)
+if api is None:
+    raise SystemExit("Bitwig Extension API 17 JAR is unavailable for dependency analysis")
+dependency_check = subprocess.run(
+    ["jdeps", "--multi-release", "17", "--missing-deps", "--class-path", str(api), str(jar)],
+    capture_output=True, text=True,
+)
+if dependency_check.returncode != 0:
+    raise SystemExit(f"jdeps failed: {dependency_check.stderr}")
+if dependency_check.stdout.strip():
+    raise SystemExit("Unresolved runtime class dependencies detected:\n" + dependency_check.stdout)
+
+print(f"Verified {jar.name}: {len(classes)} classes; Push 1 only; resources complete; no unresolved class dependencies.")
