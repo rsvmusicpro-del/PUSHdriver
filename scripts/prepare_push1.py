@@ -110,6 +110,11 @@ replace_once(device_inquiry,
     "        }\n",
     "DeviceInquiry seven-bit SysEx validation")
 
+replace_once(device_inquiry,
+    "        return INQUIRY;\n",
+    "        return INQUIRY.clone ();\n",
+    "DeviceInquiry query defensive copy")
+
 push_surface = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushControlSurface.java"
 replace_once(push_surface,
     "        else\n"
@@ -297,7 +302,7 @@ replace_once(note_repeat,
     "        {\n"
     "            for (int row = 0; row < 4; row++)\n"
     "                for (int column = 0; column < 8; column++)\n"
-    "                    display.setCell (column, row, \"\");\n"
+    "                    display.setCell (row, column, \"\");\n"
     "            display.setCell (0, 0, \"Note Repeat\");\n"
     "            display.setCell (0, 1, \"No MIDI input\");\n"
     "            return;\n"
