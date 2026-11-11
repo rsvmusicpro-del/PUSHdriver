@@ -6,6 +6,7 @@ package de.mossgrabers.controller.ableton.push.command.trigger;
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceBrowserMode;
+import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.framework.command.core.AbstractTriggerCommand;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.featuregroup.IMode;
@@ -39,6 +40,18 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
                 browserMode.navigateFilterColumn (true);
             return;
         }
+
+        if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
+        {
+            if (event == ButtonEvent.DOWN)
+                deviceParamsMode.selectNextInOutItem ();
+            return;
+        }
+
+        // Rack-chain selection has no selected-chain cursor in Extension API 17.
+        // Keep these buttons inactive there rather than navigating unrelated items.
+        if (modeManager.isActive (Modes.DEVICE_CHAINS))
+            return;
 
         if (Modes.isDeviceMode (modeManager.getActiveID ()))
         {
