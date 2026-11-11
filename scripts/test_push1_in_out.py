@@ -62,8 +62,11 @@ for source, direction, item, page, seq in (
         raise SystemExit("Browser navigation must be dispatched before generic device navigation")
 
 for marker in (
-    "canNavigateFilterColumn (final boolean forward)",
-    "navigateFilterColumn (final boolean forward)",
+    "private int findNavigableFilterColumn (final boolean forward)",
+    "browser.getSelectedFilterColumn ().getPosition ()",
+    "browser.getFilterColumn (position).doesExist ()",
+    "return this.findNavigableFilterColumn (forward) >= 0;",
+    "while (browser.getSelectedFilterColumn ().getPosition () != targetPosition)",
     "browser.selectPreviousFilterColumn ();",
     "browser.selectNextFilterColumn ();",
     "browser.getSelectedFilterColumn ().getIndex ()",
