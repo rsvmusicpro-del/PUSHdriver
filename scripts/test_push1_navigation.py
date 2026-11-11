@@ -56,11 +56,12 @@ if "shiftPressed ? mode.hasPreviousItem () : mode.hasPreviousItemPage ()" not in
 if "shiftPressed ? mode.hasNextItem () : mode.hasNextItemPage ()" not in states:
     raise SystemExit("Right arrow LED state does not match non-Track navigation granularity")
 
-if "final boolean pageNavigation = this.surface.isShiftPressed () || this.isScenePlay ();" not in states:
+normalized_states = " ".join(states.split())
+if "final boolean pageNavigation = this.surface.isShiftPressed () || this.isScenePlay ();" not in normalized_states:
     raise SystemExit("Vertical arrow LED state does not account for Shift and Scene Play page navigation")
-if "pageNavigation ? sceneBank.canScrollPageBackwards () : sceneBank.canScrollBackwards ()" not in states:
+if "pageNavigation ? sceneBank.canScrollPageBackwards () : sceneBank.canScrollBackwards ()" not in normalized_states:
     raise SystemExit("Up arrow LED state does not match scene-bank navigation granularity")
-if "pageNavigation ? sceneBank.canScrollPageForwards () : sceneBank.canScrollForwards ()" not in states:
+if "pageNavigation ? sceneBank.canScrollPageForwards () : sceneBank.canScrollForwards ()" not in normalized_states:
     raise SystemExit("Down arrow LED state does not match scene-bank navigation granularity")
 
 up = method_body(command, "protected void scrollUp ()")
