@@ -65,7 +65,7 @@ PUSHdriver routes each physical arrow exactly once through `PushCursorCommand`. 
 - Shift+Left/Right select the previous/next item-bank page (normally eight items/tracks).
 - Up/Down without Shift scroll one scene at a time.
 - Shift+Up/Down select the previous/next scene-bank page (normally eight scenes).
-- Scene Play retains its larger 64-scene bank, but does not silently change the Shift modifier contract: without Shift it still moves one scene, and with Shift it moves one page.
+- Scene Play retains its larger 64-scene bank: without Shift it moves one scene, and with Shift it advances one 64-scene bank page. The normal Session bank retains its eight-scene page.
 - Up/Down do not launch clips or scenes. This is intentionally non-destructive in Bitwig and avoids turning navigation into an unexpected transport action.
 
 Arrow LED availability is calculated using exactly the same single-item/page rules as execution, preventing a lit arrow from advertising an unavailable action. The implementation uses the existing command dispatcher and API-17-compatible DrivenByMoss mode/scene interfaces; it introduces no MIDI message IDs, new button bindings, or parallel event loop.
