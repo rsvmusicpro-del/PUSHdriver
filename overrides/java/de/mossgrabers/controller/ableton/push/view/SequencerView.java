@@ -104,7 +104,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             return;
         }
 
-        final int stepsPerPage = clip.getNumSteps ();
+        final int stepsPerPage = this.numDisplayCols;
         final int currentStep = clip.getCurrentStep ();
         this.followPlayhead = stepsPerPage > 0 && currentStep >= 0 && currentStep / stepsPerPage == pad;
     }
