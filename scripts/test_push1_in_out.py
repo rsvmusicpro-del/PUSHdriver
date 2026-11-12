@@ -109,3 +109,21 @@ if "while (browser.getSelectedFilterColumn ().getPosition () != targetPosition)"
     raise SystemExit("Browser navigation must not contain an unbounded wait loop")
 
 print("Push 1 In/Out bindings, device/browser behavior and fallback regression checks passed.")
+
+# Note Repeat configuration knobs do not depend on a live MIDI note-input object.
+# A missing input must disable only hardware-backed note-repeat actions, not
+# configuration controls that are stored independently by the extension.
+note_repeat = read("controller/ableton/push/mode/NoteRepeatMode.java")
+knob_value_start = note_repeat.index("public void onKnobValue (final int index, final int value)")
+knob_touch_start = note_repeat.index("public void onKnobTouch", knob_value_start)
+knob_value = note_repeat[knob_value_start:knob_touch_start]
+if "this.noteRepeat == null" in knob_value or "this.refreshNoteRepeat" in knob_value:
+    raise SystemExit("Note Repeat configuration knobs must remain available without a MIDI input")
+for marker in (
+    "configuration.setNoteRepeatPeriod",
+    "configuration.setNoteRepeatLength",
+    "configuration.setPrevNextNoteRepeatMode",
+    "configuration.setNoteRepeatOctave",
+):
+    if marker not in knob_value:
+        raise SystemExit(f"Note Repeat configuration control is missing: {marker}")
