@@ -25,14 +25,25 @@ public final class VirtualPush1DeviceTest
                 device.pressPad (row, col, 100);
                 if (!device.isPadPressed (row, col) || input.get (input.size () - 1)[1] != note)
                     throw new AssertionError ("Pad press mapping failed at " + row + "," + col);
+                device.pressPadPressure (row, col, 72);
+                if (input.get (input.size () - 1)[0] != VirtualPush1Device.POLY_AFTERTOUCH
+                        || input.get (input.size () - 1)[1] != note || device.getPadPressure (row, col) != 72)
+                    throw new AssertionError ("Pad polyphonic aftertouch mapping failed");
                 device.releasePad (row, col);
                 if (device.isPadPressed (row, col) || input.get (input.size () - 1)[0] != VirtualPush1Device.NOTE_OFF)
                     throw new AssertionError ("Pad release mapping failed at " + row + "," + col);
             }
-        if (input.size () != 128)
-            throw new AssertionError ("Expected 128 pad down/up messages");
+        if (input.size () != 192)
+            throw new AssertionError ("Expected 192 pad note/aftertouch messages");
 
         // Button matrix, Shift chord and transport button are actual CC events.
+        if (VirtualPush1Device.IN != 62 || VirtualPush1Device.OUT != 63)
+            throw new AssertionError ("Push 1 In/Out CC mapping regression");
+        if (VirtualPush1Device.encodeRelativeSteps (1) != 1
+                || VirtualPush1Device.encodeRelativeSteps (-1) != 127
+                || VirtualPush1Device.encodeRelativeSteps (-63) != 65)
+            throw new AssertionError ("Relative encoder two's-complement encoding regression");
+        expectInvalid (() -> VirtualPush1Device.encodeRelativeSteps (64));
         device.pressButton (VirtualPush1Device.SHIFT);
         device.pressButton (VirtualPush1Device.LEFT);
         if (!device.isButtonPressed (VirtualPush1Device.SHIFT) || !device.isButtonPressed (VirtualPush1Device.LEFT))
@@ -44,17 +55,25 @@ public final class VirtualPush1DeviceTest
         // Nine main encoders, two small encoders, touch and ribbon controls.
         for (int i = 0; i < 9; i++)
         {
-            device.turnEncoder (i, 64 + i);
+            device.turnEncoderBy (i, i + 1);
             device.touchEncoder (i, true);
             device.touchEncoder (i, false);
+            if (input.get (input.size () - 1)[0] != VirtualPush1Device.NOTE_ON
+                    || input.get (input.size () - 1)[1] != i || input.get (input.size () - 1)[2] != 0)
+                throw new AssertionError ("Encoder touch release must be Note On velocity zero");
         }
         device.turnSmallEncoder (0, 17);
         device.turnSmallEncoder (1, 18);
         device.touchSmallEncoder (0, true);
         device.touchSmallEncoder (1, true);
+        device.touchSmallEncoder (0, false);
+        device.touchSmallEncoder (1, false);
         device.touchRibbon (true);
         device.moveRibbon (8192);
         device.touchRibbon (false);
+        if (input.get (input.size () - 1)[0] != VirtualPush1Device.NOTE_ON
+                || input.get (input.size () - 1)[1] != 12 || input.get (input.size () - 1)[2] != 0)
+            throw new AssertionError ("Ribbon touch release must be Note On velocity zero");
 
         // Use the extension's actual Push 1 LCD encoder, then decode the output.
         for (int row = 0; row < 4; row++)
