@@ -116,7 +116,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getValueChanger" -> valueChanger;
                                 case "getColorManager" -> colorManager;
                                 case "getScales" -> scales;
-                                case "getCurrentTrackBank": case "getTrackBank": case "getEffectTrackBank" -> trackBank;
+                                case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
                                 default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                             });
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
