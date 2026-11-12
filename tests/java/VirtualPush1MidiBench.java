@@ -280,11 +280,15 @@ public final class VirtualPush1MidiBench
         bench.device ().releaseButton (VirtualPush1Device.IN);
         bench.device ().pressPad (0, 0, 100);
         bench.device ().releasePad (0, 0);
-        if (received.size () != 4 || received.get (0)[1] != VirtualPush1Device.IN
-                || received.get (0)[2] != 127 || received.get (1)[2] != 0
-                || received.get (2)[1] != 36 || received.get (2)[2] != 100
-                || received.get (3)[0] != 0x80)
-            throw new AssertionError ("Short MIDI input delivery/order regression");
+        final List<int[]> rawInput = bench.capturedDeviceInput ();
+        if (rawInput.size () != 4 || rawInput.get (0)[0] != 0xB0
+                || rawInput.get (0)[1] != VirtualPush1Device.IN || rawInput.get (0)[2] != 127
+                || rawInput.get (1)[2] != 0 || rawInput.get (2)[1] != 36
+                || rawInput.get (2)[2] != 100 || rawInput.get (3)[0] != 0x80)
+            throw new AssertionError ("Raw Push 1 MIDI input delivery/order regression");
+        if (received.size () != 2 || received.get (0)[1] != 36 || received.get (0)[2] != 100
+                || received.get (1)[0] != 0x80)
+            throw new AssertionError ("Note callback delivery regression");
         if (!buttonEvents.equals (List.of (ButtonEvent.DOWN, ButtonEvent.UP)))
             throw new AssertionError ("MIDI input did not trigger the bound hardware button");
 
