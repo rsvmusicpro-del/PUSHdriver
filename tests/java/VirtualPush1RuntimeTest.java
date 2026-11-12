@@ -153,10 +153,10 @@ public final class VirtualPush1RuntimeTest
         require (!state.playing, "Second Play CC did not stop the Bitwig transport");
         midi.device ().tapButton (VirtualPush1Device.RECORD);
         require (state.recording, "Record CC did not start recording in the Bitwig model");
-        midi.device ().tapButton (VirtualPush1Device.SHIFT);
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
         midi.device ().tapButton (VirtualPush1Device.RECORD);
         require (state.launcherOverdub, "Shift+Record CC did not toggle launcher overdub");
-        midi.device ().tapButton (VirtualPush1Device.SHIFT);
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
 
         // Shift chord is delivered while both physical buttons remain down.
         midi.device ().pressButton (VirtualPush1Device.SHIFT);
