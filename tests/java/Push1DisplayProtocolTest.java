@@ -37,6 +37,12 @@ public final class Push1DisplayProtocolTest
         if (!Push1DisplayProtocol.encodeLine(0, unicode).contains(" 3F "))
             throw new AssertionError("non-ASCII input was not safely replaced");
 
+        // A supplementary Unicode code point still occupies one LCD cell.
+        final String supplementary = "😀" + text.substring(1);
+        final String supplementaryFrame = Push1DisplayProtocol.encodeLine(0, supplementary);
+        if (supplementaryFrame.split(" ").length != 77 || !supplementaryFrame.contains(" 3F "))
+            throw new AssertionError("supplementary Unicode must be replaced by one seven-bit LCD cell");
+
         expectInvalid(-1, text);
         expectInvalid(4, text);
         expectInvalid(0, text.substring(1));
