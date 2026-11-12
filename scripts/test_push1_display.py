@@ -52,13 +52,13 @@ if "Push1DisplayValueFormatter.formatValue" not in display_source or "Push1Displ
 import re
 
 push_sources = root / "src/main/java/de/mossgrabers/controller/ableton/push"
-row_pattern = re.compile(r'\\.setRow\\s*\\(\\s*\\d+\\s*,\\s*"([^"\\\\]*)"')
+row_pattern = re.compile(r'\.setRow\s*\(\s*\d+\s*,\s*"([^"\\]*)"')
 for source_path in sorted(push_sources.rglob("*.java")):
     source_text = source_path.read_text()
     for match in row_pattern.finditer(source_text):
         row_text = match.group(1)
         if len(row_text) != 68:
-            line_number = source_text.count("\\n", 0, match.start()) + 1
+            line_number = source_text.count("\n", 0, match.start()) + 1
             raise SystemExit(
                 f"Push 1 LCD setRow must be exactly 68 characters: "
                 f"{source_path}:{line_number} has {len(row_text)}"
