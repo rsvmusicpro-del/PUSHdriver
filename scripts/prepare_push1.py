@@ -487,8 +487,8 @@ replace_once(note_repeat,
     "        if (event != ButtonEvent.UP || this.noteRepeat == null)",
     "    public void onFirstRow (final int index, final ButtonEvent event)\n    {\n"
     "        this.refreshNoteRepeat ();\n"
-    "        if (event != ButtonEvent.UP || this.noteRepeat == null)",
-    "NoteRepeatMode first-row input refresh")
+    "        if (event != ButtonEvent.UP)",
+    "NoteRepeatMode first-row service refresh")
 replace_once(note_repeat,
     "    public void onSecondRow (final int index, final ButtonEvent event)\n    {\n"
     "        if (event != ButtonEvent.UP || this.noteRepeat == null)",
@@ -498,17 +498,8 @@ replace_once(note_repeat,
 replace_once(note_repeat,
     "    public void updateDisplay1 (final ITextDisplay display)\n    {\n",
     "    public void updateDisplay1 (final ITextDisplay display)\n    {\n"
-    "        this.refreshNoteRepeat ();\n"
-    "        if (this.noteRepeat == null)\n"
-    "        {\n"
-    "            for (int row = 0; row < 4; row++)\n"
-    "                for (int column = 0; column < 8; column++)\n"
-    "                    display.setCell (row, column, \"\");\n"
-    "            display.setCell (0, 0, \"Note Repeat\");\n"
-    "            display.setCell (0, 1, \"No MIDI input\");\n"
-    "            return;\n"
-    "        }\n\n",
-    "NoteRepeatMode LCD no-input state")
+    "        this.refreshNoteRepeat ();\n",
+    "NoteRepeatMode LCD configuration without MIDI input")
 replace_once(note_repeat,
     "    public void updateDisplay2 (final IGraphicDisplay display)\n    {\n"
     "        if (this.noteRepeat == null)",
@@ -528,11 +519,9 @@ replace_once(note_repeat,
     "        int index = this.isButtonRow (0, buttonID);\n"
     "        if (index >= 0)\n"
     "        {\n"
-    "            this.refreshNoteRepeat ();\n"
-    "            if (this.noteRepeat == null)\n"
-    "                return this.model.getColorManager ().getColorIndex (AbstractFeatureGroup.BUTTON_COLOR_OFF);\n\n"
+    "            this.refreshNoteRepeat ();\n\n"
     "            final ColorManager colorManager = this.model.getColorManager ();",
-    "NoteRepeatMode LED no-input guard")
+    "NoteRepeatMode per-action LED input guards")
 
 mode_value = "final int value = modeIndex * upperBound / (arpeggiatorModes.size () - 1);"
 mode_value_replacement = (
@@ -544,6 +533,89 @@ mode_source = note_repeat.read_text()
 if mode_source.count(mode_value) != 2:
     raise SystemExit("NoteRepeatMode: expected two mode display scaling expressions")
 note_repeat.write_text(mode_source.replace(mode_value, mode_value_replacement))
+
+# Note Repeat period/length controls are stored in PushConfiguration and
+# remain usable without a live MIDI note-input service.
+replace_once(note_repeat,
+    "Resolution.getMatch (this.noteRepeat.getPeriod ())",
+    "Resolution.getMatch (configuration.getNoteRepeatPeriod ().getValue ())",
+    "NoteRepeatMode period selection independent of MIDI input")
+replace_once(note_repeat,
+    "Resolution.getMatch (this.noteRepeat.getNoteLength ())",
+    "Resolution.getMatch (configuration.getNoteRepeatLength ().getValue ())",
+    "NoteRepeatMode length selection independent of MIDI input")
+replace_once(note_repeat,
+    "                    if (this.host.supports (Capability.NOTE_REPEAT_LATCH))\n"
+    "                        this.noteRepeat.toggleLatchActive ();",
+    "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_LATCH))\n"
+    "                        this.noteRepeat.toggleLatchActive ();",
+    "NoteRepeatMode latch toggle requires active input")
+replace_once(note_repeat,
+    "                    if (this.host.supports (Capability.NOTE_REPEAT_USE_PRESSURE_TO_VELOCITY))\n"
+    "                        this.noteRepeat.toggleUsePressure ();",
+    "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_USE_PRESSURE_TO_VELOCITY))\n"
+    "                        this.noteRepeat.toggleUsePressure ();",
+    "NoteRepeatMode pressure toggle requires active input")
+replace_once(note_repeat,
+    "                    if (this.host.supports (Capability.NOTE_REPEAT_IS_FREE_RUNNING))\n"
+    "                        this.noteRepeat.toggleIsFreeRunning ();",
+    "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_IS_FREE_RUNNING))\n"
+    "                        this.noteRepeat.toggleIsFreeRunning ();",
+    "NoteRepeatMode sync toggle requires active input")
+replace_once(note_repeat,
+    "                    if (this.host.supports (Capability.NOTE_REPEAT_SWING))\n"
+    "                        this.noteRepeat.toggleShuffle ();",
+    "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_SWING))\n"
+    "                        this.noteRepeat.toggleShuffle ();",
+    "NoteRepeatMode repeat shuffle toggle requires active input")
+replace_once(note_repeat,
+    "        final int upperBound = this.model.getValueChanger ().getUpperBound ();\n"
+    "        if (this.host.supports (Capability.NOTE_REPEAT_MODE))",
+    "        final int upperBound = this.model.getValueChanger ().getUpperBound ();\n"
+    "        if (this.host.supports (Capability.NOTE_REPEAT_MODE) && this.noteRepeat != null)",
+    "NoteRepeatMode mode display requires active input")
+replace_once(note_repeat,
+    "        if (this.host.supports (Capability.NOTE_REPEAT_OCTAVES))\n"
+    "        {\n"
+    "            final String bottomMenu = this.host.supports (Capability.NOTE_REPEAT_IS_FREE_RUNNING) ? \"  Sync\" : \"\";",
+    "        if (this.noteRepeat == null)\n"
+    "            display.setCell (0, 5, \"No MIDI\");\n\n"
+    "        if (this.host.supports (Capability.NOTE_REPEAT_OCTAVES) && this.noteRepeat != null)\n"
+    "        {\n"
+    "            final String bottomMenu = this.host.supports (Capability.NOTE_REPEAT_IS_FREE_RUNNING) ? \"  Sync\" : \"\";",
+    "NoteRepeatMode octave display requires active input")
+replace_once(note_repeat,
+    "                case 4:\n"
+    "                    if (this.host.supports (Capability.NOTE_REPEAT_LATCH))\n"
+    "                        return this.noteRepeat.isLatchActive () ? hiColor : onColor;",
+    "                case 4:\n"
+    "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_LATCH))\n"
+    "                        return this.noteRepeat.isLatchActive () ? hiColor : onColor;",
+    "NoteRepeatMode latch LED requires active input")
+replace_once(note_repeat,
+    "                case 5:\n"
+    "                    if (this.host.supports (Capability.NOTE_REPEAT_USE_PRESSURE_TO_VELOCITY))\n"
+    "                        return this.noteRepeat.usePressure () ? hiColor : onColor;",
+    "                case 5:\n"
+    "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_USE_PRESSURE_TO_VELOCITY))\n"
+    "                        return this.noteRepeat.usePressure () ? hiColor : onColor;",
+    "NoteRepeatMode pressure LED requires active input")
+replace_once(note_repeat,
+    "                case 6:\n"
+    "                    if (this.host.supports (Capability.NOTE_REPEAT_IS_FREE_RUNNING))\n"
+    "                        return !this.noteRepeat.isFreeRunning () ? hiColor : onColor;",
+    "                case 6:\n"
+    "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_IS_FREE_RUNNING))\n"
+    "                        return !this.noteRepeat.isFreeRunning () ? hiColor : onColor;",
+    "NoteRepeatMode sync LED requires active input")
+replace_once(note_repeat,
+    "                case 7:\n"
+    "                    if (this.host.supports (Capability.NOTE_REPEAT_SWING))\n"
+    "                        return this.noteRepeat.isShuffle () ? hiColor : onColor;",
+    "                case 7:\n"
+    "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_SWING))\n"
+    "                        return this.noteRepeat.isShuffle () ? hiColor : onColor;",
+    "NoteRepeatMode repeat shuffle LED requires active input")
 
 # Keep sequencer editing within the physical 8x8 MIDI pad matrix.
 sequencer = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractSequencerView.java"
