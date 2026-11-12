@@ -99,7 +99,7 @@ public final class VirtualPush1MidiBench
 
     private static byte [] hexToBytes (final String frame)
     {
-        final String [] tokens = frame.trim ().split ("\\\\s+");
+        final String [] tokens = frame.trim ().split ("\\s+");
         final byte [] bytes = new byte [tokens.length];
         for (int i = 0; i < tokens.length; i++)
             bytes[i] = (byte) Integer.parseInt (tokens[i], 16);
