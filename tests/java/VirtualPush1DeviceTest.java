@@ -59,6 +59,11 @@ public final class VirtualPush1DeviceTest
                 || VirtualPush1Device.encodeRelativeSteps (-63) != 65)
             throw new AssertionError ("Relative encoder two's-complement encoding regression");
         expectInvalid (() -> VirtualPush1Device.encodeRelativeSteps (64));
+        final int beforeZeroDelta = input.size ();
+        device.turnEncoderBy (0, 0);
+        device.turnSmallEncoderBy (0, 0);
+        if (input.size () != beforeZeroDelta)
+            throw new AssertionError ("Zero relative movement must not emit MIDI");
         device.pressButton (VirtualPush1Device.SHIFT);
         device.pressButton (VirtualPush1Device.LEFT);
         if (!device.isButtonPressed (VirtualPush1Device.SHIFT) || !device.isButtonPressed (VirtualPush1Device.LEFT))
