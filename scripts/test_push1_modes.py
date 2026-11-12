@@ -46,8 +46,7 @@ required_repeat = (
     "private void refreshNoteRepeat ()",
     "this.refreshNoteRepeat ();",
     "if (this.noteRepeat == null)",
-    '"No MIDI input"',
-    'display.setCell (row, column, "");',
+    'display.setCell (0, 5, "No MIDI");',
     "final int modeDenominator = Math.max (1, arpeggiatorModes.size () - 1);",
     "final int safeModeIndex = Math.max (0, Math.min (modeDenominator, modeIndex));",
 )
@@ -64,12 +63,46 @@ if "modeIndex * upperBound / (arpeggiatorModes.size () - 1)" in note_repeat:
 for signature in (
     "public void onFirstRow (final int index, final ButtonEvent event)",
     "public void updateDisplay1 (final ITextDisplay display)",
-    "public void updateDisplay2 (final IGraphicDisplay display)",
     "public int getButtonColor (final ButtonID buttonID)",
 ):
     body = method_body(note_repeat, signature)
-    if "this.refreshNoteRepeat ();" not in body or "this.noteRepeat == null" not in body:
-        raise SystemExit(f"NoteRepeatMode callback lacks its own refreshed null guard: {signature}")
+    if "this.refreshNoteRepeat ();" not in body:
+        raise SystemExit(f"NoteRepeatMode callback does not refresh its late-bound input: {signature}")
+
+graphic_display = method_body(note_repeat, "public void updateDisplay2 (final IGraphicDisplay display)")
+if "this.refreshNoteRepeat ();" not in graphic_display or "if (this.noteRepeat == null)" not in graphic_display:
+    raise SystemExit("NoteRepeatMode graphic display must safely handle a missing MIDI input")
+
+first_row = method_body(note_repeat, "public void onFirstRow (final int index, final ButtonEvent event)")
+if "if (event != ButtonEvent.UP)" not in first_row or "event != ButtonEvent.UP || this.noteRepeat == null" in first_row:
+    raise SystemExit("Note Repeat period/length buttons must remain active without MIDI input")
+for marker in (
+    "configuration.getNoteRepeatPeriod ().getValue ()",
+    "configuration.getNoteRepeatLength ().getValue ()",
+    "this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_LATCH)",
+    "this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_USE_PRESSURE_TO_VELOCITY)",
+    "this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_IS_FREE_RUNNING)",
+    "this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_SWING)",
+):
+    if marker not in first_row:
+        raise SystemExit(f"NoteRepeatMode first-row action regression: missing {marker!r}")
+
+display1 = method_body(note_repeat, "public void updateDisplay1 (final ITextDisplay display)")
+if "display.setCell (0, 5, \"No MIDI\");" not in display1 or "GrooveParameterID.SHUFFLE_AMOUNT" not in display1:
+    raise SystemExit("NoteRepeatMode LCD must retain the Groove display when MIDI input is absent")
+
+button_colors = method_body(note_repeat, "public int getButtonColor (final ButtonID buttonID)")
+for marker in (
+    "case 0, 1:",
+    "case 2:",
+    "case 3:",
+    "this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_LATCH)",
+    "this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_USE_PRESSURE_TO_VELOCITY)",
+    "this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_IS_FREE_RUNNING)",
+    "this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_SWING)",
+):
+    if marker not in button_colors:
+        raise SystemExit(f"NoteRepeatMode LED state regression: missing {marker!r}")
 
 # Knob 5/6 reset the optional MIDI note-repeat service, but knob 7 resets the
 # independent Groove Shuffle parameter and must still work when no input exists.
@@ -94,6 +127,14 @@ if "GrooveParameterID.ENABLED" not in second_row:
 # Knob 0-7 edit persistent configuration and Groove state; they do not
 # dereference the optional MIDI note-repeat service and must remain usable
 # when Bitwig has no default note input.
+for signature, marker in (
+    ("private int getSelectedPeriodIndex ()", "getNoteRepeatPeriod ().getValue ()"),
+    ("private int getSelectedNoteLengthIndex ()", "getNoteRepeatLength ().getValue ()"),
+):
+    if marker not in method_body(note_repeat, signature):
+        raise SystemExit(f"NoteRepeatMode display selection must use stored config without MIDI input: {signature}")
+
+
 knob_value = method_body(note_repeat, "public void onKnobValue (final int index, final int value)")
 if "this.refreshNoteRepeat ();" in knob_value or "this.noteRepeat == null" in knob_value:
     raise SystemExit("NoteRepeatMode configuration knobs must not be disabled by a missing MIDI input")
