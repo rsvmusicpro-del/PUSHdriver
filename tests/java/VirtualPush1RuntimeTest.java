@@ -17,6 +17,9 @@ import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.ITransport;
 import de.mossgrabers.framework.daw.data.bank.ITrackBank;
 import de.mossgrabers.framework.daw.data.IDeviceMetadata;
+import de.mossgrabers.framework.daw.data.ICursorDevice;
+import de.mossgrabers.framework.daw.data.bank.IParameterBank;
+import de.mossgrabers.framework.parameter.IParameter;
 import de.mossgrabers.framework.daw.midi.ArpeggiatorMode;
 import de.mossgrabers.framework.daw.midi.IMidiAccess;
 import de.mossgrabers.framework.daw.midi.IMidiInput;
@@ -112,6 +115,8 @@ public final class VirtualPush1RuntimeTest
                         final Object colorManager = callArgs[1];
                         final Object scales = callArgs[3];
                         final ITrackBank trackBank = trackBankProxy ();
+                        final IParameterBank parameterBank = parameterBankProxy ();
+                        final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank);
                         return Proxy.newProxyInstance (IModel.class.getClassLoader (),
                             new Class<?> [] { IModel.class }, (p, m, a) -> switch (m.getName ())
                             {
@@ -121,6 +126,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getColorManager" -> colorManager;
                                 case "getScales" -> scales;
                                 case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
+                                case "getCursorDevice" -> cursorDevice;
                                 default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                             });
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -169,6 +175,30 @@ public final class VirtualPush1RuntimeTest
             throw new AssertionError ("Virtual Bitwig host reported errors: " + state.errors);
         System.out.println ("Virtual Push 1 runtime passed: real PushControllerSetup initialized; "
             + "production Device/Track/Play/Record commands were driven through MIDI CC; Shift+Record overdub and Shift chord delivered.");
+    }
+
+    private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters)
+    {
+        return (ICursorDevice) Proxy.newProxyInstance (ICursorDevice.class.getClassLoader (),
+            new Class<?> [] { ICursorDevice.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getParameterBank"))
+                    return parameters;
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+    private static IParameterBank parameterBankProxy ()
+    {
+        return (IParameterBank) Proxy.newProxyInstance (IParameterBank.class.getClassLoader (),
+            new Class<?> [] { IParameterBank.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getPageSize"))
+                    return 8;
+                if (method.getName ().equals ("getItem"))
+                    return Proxy.newProxyInstance (IParameter.class.getClassLoader (),
+                        new Class<?> [] { IParameter.class },
+                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
     }
 
     private static ITrackBank trackBankProxy ()
