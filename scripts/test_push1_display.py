@@ -47,6 +47,8 @@ if "Push1DisplayValueFormatter.formatValue" not in display_source or "Push1Displ
     raise SystemExit("Push 1 LCD value bars are not routed through the bounded value formatter")
 if "Push1DisplayValueFormatter.formatPan" not in display_source:
     raise SystemExit("Push 1 LCD pan bars are not routed through the bounded pan formatter")
+if "Push1DisplayText.overlayRightBlock" not in display_source or "trimmed.codePointCount" not in display_source:
+    raise SystemExit("Short Push 1 notifications must use the bounded right-side LCD overlay")
 
 # AbstractTextDisplay.setRow requires a complete 68-character row. Scan every
 # literal row assignment in the assembled Push controller package so a future
