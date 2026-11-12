@@ -929,6 +929,9 @@ public class PushControllerDefinition extends DefaultControllerDefinition
                 break;
 
             case LINUX:
+                // Bitwig may expose the named ALSA/JACK user port instead of
+                // the raw ALSA hardware-port spelling; support both forms.
+                midiDiscoveryPairs.add (this.addDeviceDiscoveryPair ("Ableton Push User Port"));
                 midiDiscoveryPairs.addAll (this.createLinuxDeviceDiscoveryPairs ("Push", "Push", 1));
                 break;
 
