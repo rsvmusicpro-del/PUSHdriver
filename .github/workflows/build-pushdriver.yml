@@ -3,6 +3,8 @@ name: Build PUSHdriver
 on:
   push:
     branches: [custom]
+  pull_request:
+    branches: [custom]
   workflow_dispatch:
 
 permissions:
