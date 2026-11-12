@@ -34,18 +34,13 @@ public record Push1FirmwareVersion(int major, int minor)
             if (manufacturer[index] != ABLETON_MANUFACTURER_ID[index])
                 return null;
 
-        // Universal Identity Reply layout: manufacturer (3 bytes), family (2),
-        // member (2), then the four-byte software revision. The framework exposes
-        // that field directly so family/member bytes can never be mistaken for firmware.
-        final int[] revision = inquiry.getRevisionLevel();
-        if (revision.length != 4)
-            return null;
-        // Push 1 encodes its major/minor revision as two decimal digit pairs.
-        for (final int digit : revision)
-            if (digit < 0 || digit > 9)
+        // Push 1 reports major and minor versions as two decimal digits each.
+        // Reject malformed seven-bit values rather than displaying impossible versions.
+        for (int index = 9; index <= 12; index++)
+            if (data[index] < 0 || data[index] > 9)
                 return null;
 
-        return new Push1FirmwareVersion(revision[1] + revision[0] * 10,
-                                       revision[3] + revision[2] * 10);
+        return new Push1FirmwareVersion(data[10] + data[9] * 10,
+                                       data[12] + data[11] * 10);
     }
 }
