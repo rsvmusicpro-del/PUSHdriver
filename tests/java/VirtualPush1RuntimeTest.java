@@ -339,7 +339,13 @@ public final class VirtualPush1RuntimeTest
         }
         if (type.isInterface ())
             return Proxy.newProxyInstance (type.getClassLoader (), new Class<?> [] { type },
-                (proxy, method, args) -> defaultValue (method.getReturnType (), method.getGenericReturnType ()));
+                (proxy, method, args) -> {
+                    if (method.getName ().equals ("getPageSize") || method.getName ().equals ("size"))
+                        return 8;
+                    if (method.getName ().equals ("getSelectedItem"))
+                        return Optional.empty ();
+                    return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                });
         return null;
     }
 
