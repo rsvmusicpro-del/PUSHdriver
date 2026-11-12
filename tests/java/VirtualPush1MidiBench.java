@@ -211,7 +211,9 @@ public final class VirtualPush1MidiBench
             && tokens[1].equalsIgnoreCase ("47") && tokens[2].equalsIgnoreCase ("7F")
             && tokens[3].equalsIgnoreCase ("15")
             && (tokens[4].equalsIgnoreCase ("18") || tokens[4].equalsIgnoreCase ("19")
-                || tokens[4].equalsIgnoreCase ("1A") || tokens[4].equalsIgnoreCase ("1B"));
+                || tokens[4].equalsIgnoreCase ("1A") || tokens[4].equalsIgnoreCase ("1B"))
+            && tokens[5].equalsIgnoreCase ("00") && tokens[6].equalsIgnoreCase ("45")
+            && tokens[7].equalsIgnoreCase ("00") && tokens[76].equalsIgnoreCase ("F7");
     }
 
     private static byte [] hexToBytes (final String frame)
