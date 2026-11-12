@@ -36,7 +36,7 @@ def method_body(source: str, signature: str) -> str:
 # The pinned PushConfiguration already defaults the second row to Mute.
 # Verify the actual state default instead of adding a redundant startup write.
 configuration = read("controller/ableton/push/PushConfiguration.java")
-if not re.search(r"private\\s+TrackState\\s+trackState\\s*=\\s*TrackState\\.MUTE\\s*;", configuration):
+if not re.search(r"private\s+TrackState\s+trackState\s*=\s*TrackState\.MUTE\s*;", configuration):
     raise SystemExit("Push 1 second-row state must default to Mute")
 
 
