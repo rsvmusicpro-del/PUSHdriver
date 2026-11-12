@@ -65,14 +65,14 @@ if "this.handleExecute (true);" not in normal or "this.handleExecute (false);" n
 execute = method_body(command, "public void handleExecute (final boolean enableOverdub)")
 slot_lookup = execute.find("slotBank.getEmptySlot (slotIndex)")
 empty_guard = execute.find("if (slot.isEmpty ())")
-selected_playing = execute.find("selectedSlot.isPresent () && selectedSlot.get ().isPlaying ()")
-stop_guard = execute.find("if (selectedClipIsPlaying)")
+track_playing = execute.find("cursorTrack.isPlaying ()")
+stop_guard = execute.find("if (clipIsPlaying)")
 stop = execute.find("cursorTrack.stop ();")
 create = execute.find("this.model.createNoteClip (cursorTrack, slot.get (), this.getClipLength (), enableOverdub);")
-if min(slot_lookup, selected_playing, empty_guard, stop_guard, stop, create) < 0 or not selected_playing < slot_lookup < empty_guard < stop_guard < stop < create:
-    raise SystemExit("New must verify a free slot and a playing selected clip before stopping playback")
+if min(slot_lookup, track_playing, empty_guard, stop_guard, stop, create) < 0 or not track_playing < slot_lookup < empty_guard < stop_guard < stop < create:
+    raise SystemExit("New must verify a free slot and the track's Launcher playback state before stopping playback")
 if execute.count("cursorTrack.stop ();") != 1 or execute.count("createNoteClip") != 1:
-    raise SystemExit("New must stop only a selected playing Launcher clip and create exactly one replacement clip")
+    raise SystemExit("New must stop any playing Launcher clip on the cursor track and create exactly one replacement clip")
 if "super.handleExecute (enableOverdub);" not in execute:
     raise SystemExit("Missing-track and no-free-slot notifications must remain delegated upstream")
 
