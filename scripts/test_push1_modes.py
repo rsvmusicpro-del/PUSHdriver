@@ -361,11 +361,10 @@ for marker in (
     'setCell (1, 6, "Project:")',
     'display.setBlock (2, 3, this.model.getProject ().getName ())',
 ):
-if "Push1Display.formatValue (master.getVolume (), master.getVu (), upperBound)" not in master_display:
-    raise SystemExit("Master mode must overlay the VU peak on the master volume bar")
-
     if marker not in master_display:
         raise SystemExit(f"Master mode project I/O display regression: missing {marker!r}")
+if "Push1Display.formatValue (master.getVolume (), master.getVu (), upperBound)" not in master_display:
+    raise SystemExit("Master mode must overlay the VU peak on the master volume bar")
 master_second_row = method_body(master_mode, "public void onSecondRow (final int index, final ButtonEvent event)")
 for marker in (
     "case 6:",
