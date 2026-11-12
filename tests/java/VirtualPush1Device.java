@@ -162,7 +162,8 @@ public final class VirtualPush1Device
     /** Send a signed relative step count using Push 1's two's-complement encoding. */
     public void turnEncoderBy (final int encoder, final int signedSteps)
     {
-        this.turnEncoder (encoder, encodeRelativeSteps (signedSteps));
+        if (signedSteps != 0)
+            this.turnEncoder (encoder, encodeRelativeSteps (signedSteps));
     }
 
     /** Small encoders use CC 14 and 15 on Push 1. */
@@ -177,7 +178,8 @@ public final class VirtualPush1Device
 
     public void turnSmallEncoderBy (final int encoder, final int signedSteps)
     {
-        this.turnSmallEncoder (encoder, encodeRelativeSteps (signedSteps));
+        if (signedSteps != 0)
+            this.turnSmallEncoder (encoder, encodeRelativeSteps (signedSteps));
     }
 
     public void touchEncoder (final int encoder, final boolean touched)
