@@ -58,6 +58,32 @@ public final class Push1DisplayText
         return result.toString ();
     }
 
+    /**
+     * Preserve the left side of an LCD row and place a short notification in
+     * its rightmost 17-character block.
+     *
+     * @param line the current 68-character row
+     * @param value the notification (or empty text to clear the block)
+     * @return one exact 68-character, seven-bit-safe row
+     */
+    public static String overlayRightBlock (final String line, final String value)
+    {
+        final StringBuilder prefix = new StringBuilder (51);
+        if (line != null)
+        {
+            line.codePoints ().limit (51).forEach (codePoint -> {
+                if (codePoint == '\n' || codePoint == '\r' || codePoint == '\t')
+                    prefix.append (' ');
+                else
+                    prefix.append (codePoint <= 0x7F ? (char) codePoint : '?');
+            });
+        }
+        while (prefix.length () < 51)
+            prefix.append (' ');
+        return prefix + fit (value, 17);
+    }
+
+
     /** @return one exact 17-character physical display block */
     public static String fitBlock (final String value)
     {
