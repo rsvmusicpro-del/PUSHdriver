@@ -22,6 +22,13 @@ public final class Push1DisplayTextTest
         check (Push1DisplayText.fit ("😀A", 8).equals ("?A      "), "a supplementary Unicode character must occupy one LCD cell");
         check (Push1DisplayText.fit (Character.toString ((char) 6), 8).charAt (0) == 6, "Push hardware glyph codes must be preserved");
         check (Push1DisplayText.fit (null, 8).equals ("        "), "null labels must produce a blank cell");
+        final String currentLine = "0123456789".repeat (6) + "12345678";
+        final String overlay = Push1DisplayText.overlayRightBlock (currentLine, "Saved");
+        check (overlay.length () == 68, "notification overlay must preserve the exact LCD row width");
+        check (overlay.substring (0, 51).equals (currentLine.substring (0, 51)), "notification overlay must preserve the left 51 cells");
+        check (overlay.substring (51).equals ("Saved            "), "notification must occupy the rightmost 17-cell block");
+        check (Push1DisplayText.overlayRightBlock (currentLine, "").substring (51).equals ("                 "), "notification clearing must blank only the rightmost block");
+        check (Push1DisplayText.overlayRightBlock (currentLine, "😀").substring (51).equals ("?                "), "notification overlay must normalize supplementary Unicode");
         check (Push1DisplayText.fit ("anything", 0).isEmpty (), "zero-width cells must be safe");
         System.out.println ("Push 1 display text fitting tests passed.");
     }
