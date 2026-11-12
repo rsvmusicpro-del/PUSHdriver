@@ -100,6 +100,47 @@ public final class Push1DisplayValueFormatter
     }
 
 
+    /**
+     * Format a pan value as a fixed eight-cell, center-out bar.
+     *
+     * @param pan The pan value
+     * @param maxParam The maximum pan value
+     * @param barsNon The empty-cell glyph
+     * @param barsOne The right half-cell glyph
+     * @param barsTwo The full-cell glyph
+     * @param barsOneLeft The left half-cell glyph
+     * @return Exactly eight display cells
+     */
+    public static String formatPan (final int pan, final int maxParam, final String barsNon, final String barsOne, final String barsTwo, final String barsOneLeft)
+    {
+        if (maxParam <= 0)
+            return barsNon.repeat (BAR_CELLS);
+
+        final int boundedPan = clamp (pan, 0, maxParam);
+        final int middle = maxParam / 2;
+        if (boundedPan == middle)
+            return barsNon.repeat (BAR_CELLS);
+
+        final boolean isLeft = boundedPan < middle;
+        final int distance = Math.abs (boundedPan - middle);
+        final int halfSteps = (int) Math.min (HALF_STEPS, 16L * distance / maxParam);
+        final StringBuilder side = new StringBuilder (BAR_CELLS / 2);
+        for (int i = 0; i < halfSteps / 2 && side.length () < BAR_CELLS / 2; i++)
+            side.append (barsTwo);
+
+        if (boundedPan >= maxParam - 1 && side.length () < BAR_CELLS / 2)
+            side.append (barsTwo);
+        else if (halfSteps % 2 == 1 && side.length () < BAR_CELLS / 2)
+            side.append (isLeft ? barsOneLeft : barsOne);
+
+        while (side.length () < BAR_CELLS / 2)
+            side.append (barsNon);
+
+        final String result = barsNon.repeat (BAR_CELLS / 2) + side;
+        return isLeft ? new StringBuilder (result).reverse ().toString () : result;
+    }
+
+
     private static int toHalfSteps (final int value, final int maxParam)
     {
         if (maxParam <= 0)
