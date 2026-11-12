@@ -59,6 +59,9 @@ import java.util.function.Consumer;
  */
 public final class VirtualPush1RuntimeTest
 {
+    private static int lightsCreated;
+    private static int lightsUpdated;
+
     private static final class State
     {
         boolean playing;
@@ -72,6 +75,8 @@ public final class VirtualPush1RuntimeTest
 
     public static void main (final String [] args)
     {
+        lightsCreated = 0;
+        lightsUpdated = 0;
         final State state = new State ();
         final VirtualPush1MidiBench midi = new VirtualPush1MidiBench ();
         final IHwSurfaceFactory hardware = surfaceFactory (midi);
@@ -168,7 +173,8 @@ public final class VirtualPush1RuntimeTest
         setup.flush ();
         drainScheduled (state);
         require (midi.device ().getCCLed (VirtualPush1Device.PLAY) > 0,
-            "Play state was not reflected in the Push LED feedback");
+            "Play LED feedback missing: lightsCreated=" + lightsCreated + ", lightsUpdated=" + lightsUpdated
+                + ", captured=" + midi.capturedOutput ().stream ().filter (m -> m.contains ("85") || m.contains ("sendCCEx")).toList ());
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (!state.playing, "Second Play CC did not stop the Bitwig transport");
         setup.flush ();
@@ -353,6 +359,7 @@ public final class VirtualPush1RuntimeTest
                 case "createAbsoluteKnob" -> continuousProxy (de.mossgrabers.framework.controller.hardware.IHwAbsoluteKnob.class, midi);
                 case "createLight" -> {
                     final IHwLight light = lightProxy (args);
+                    lightsCreated++;
                     lights.add (light);
                     yield light;
                 }
@@ -374,6 +381,7 @@ public final class VirtualPush1RuntimeTest
                     switch (method.getName ())
                     {
                         case "update":
+                            lightsUpdated++;
                             final int value = supplier.getAsInt ();
                             if (value != last[0])
                             {
