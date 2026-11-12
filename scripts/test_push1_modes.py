@@ -382,4 +382,50 @@ for marker in (
     if marker not in master_leds:
         raise SystemExit(f"Master mode project I/O LED feedback regression: missing {marker!r}")
 
+# Preserve the complete Push 1 feature surface: the source assembler must
+# register every supported mode and view, while excluding Push 2/unused views.
+setup = read("controller/ableton/push/PushControllerSetup.java")
+expected_modes = (
+    "TRACK", "TRACK_DETAILS", "VOLUME", "PAN", "CROSSFADER", "MASTER", "MASTER_TEMP",
+    "DEVICE_PARAMS", "DEVICE_CHAINS", "DEVICE_LAYER", "DEVICE_LAYER_VOLUME",
+    "DEVICE_LAYER_PAN", "DEVICE_LAYER_DETAILS", "BROWSER", "CLIP", "NOTE", "FRAME",
+    "GROOVE", "REC_ARM", "ACCENT", "SCALES", "SCALE_LAYOUT", "FIXED", "RIBBON",
+    "VIEW_SELECT", "AUTOMATION", "TRANSPORT", "MARKERS", "USER", "SETUP", "INFO",
+    "CONFIGURATION", "SESSION", "SESSION_VIEW_SELECT", "REPEAT_NOTE", "ADD_TRACK",
+)
+for mode in expected_modes:
+    if f"modeManager.register (Modes.{mode}," not in setup:
+        raise SystemExit(f"Push 1 feature inventory lost mode registration: {mode}")
+for marker in (
+    "Modes.get (Modes.SEND1, i)",
+    "Modes.get (Modes.DEVICE_LAYER_SEND1, i)",
+):
+    if marker not in setup:
+        raise SystemExit(f"Push 1 feature inventory lost send-bank registration: {marker}")
+
+expected_views = (
+    "PLAY", "CHORDS", "PIANO", "PRG_CHANGE", "CLIP_LENGTH", "COLOR", "SESSION",
+    "SEQUENCER", "POLY_SEQUENCER", "DRUM", "DRUM4", "DRUM8", "SCENE_PLAY", "DRUM64",
+)
+for view in expected_views:
+    if f"viewManager.register (Views.{view}," not in setup:
+        raise SystemExit(f"Push 1 feature inventory lost view registration: {view}")
+if "Views.RAINDROPS" in setup or "new RaindropsView" in setup:
+    raise SystemExit("Push 1 package must not register the unused Raindrops view")
+
+for button in (
+    "PLAY", "RECORD", "NEW", "FIXED_LENGTH", "DUPLICATE", "QUANTIZE", "DELETE",
+    "DOUBLE", "UNDO", "AUTOMATION", "TRACK", "DEVICE", "BROWSE", "CLIP", "SHIFT",
+    "SELECT", "TAP_TEMPO", "METRONOME", "MASTERTRACK", "OUT", "IN", "MUTE", "SOLO",
+    "SCALES", "ACCENT", "ADD_TRACK", "NOTE", "ARROW_UP", "ARROW_DOWN", "ARROW_LEFT",
+    "ARROW_RIGHT", "OCTAVE_UP", "OCTAVE_DOWN", "VOLUME", "PAN_SEND", "SETUP",
+    "SESSION", "REPEAT", "STOP_CLIP", "FOOTSWITCH",
+):
+    if f"ButtonID.{button}" not in setup:
+        raise SystemExit(f"Push 1 feature inventory lost hardware control mapping: {button}")
+if "PUSH_KNOB1 + i" not in setup or "PUSH_KNOB9" not in setup or "PUSH_SMALL_KNOB1" not in setup:
+    raise SystemExit("Push 1 feature inventory lost its encoder/transport knob bindings")
+if "registerAftertouchCommand" not in setup or "TOUCHSTRIP" not in setup:
+    raise SystemExit("Push 1 feature inventory lost aftertouch or touchstrip bindings")
+
 print("Push 1 note-repeat, sequencer bounds, repeat-state and color regressions passed.")
