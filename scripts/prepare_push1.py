@@ -343,6 +343,11 @@ replace_once(push_display,
     "",
     "Remove unbounded Push 1 bar helper")
 
+replace_once(push_display,
+    "import java.util.Arrays;\\n",
+    "",
+    "Remove obsolete Push1Display Arrays import")
+
 # Keep all logical cells within their physical 8/9-character LCD boundaries.
 replace_once(push_display,
     "        final int cell = 2 * block;\n"
