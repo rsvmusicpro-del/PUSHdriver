@@ -5,7 +5,7 @@ import com.bitwig.extension.controller.api.ControllerHost;
 import de.mossgrabers.bitwig.framework.daw.HostImpl;
 import de.mossgrabers.controller.ableton.push.PushControllerDefinition;
 import de.mossgrabers.controller.ableton.push.controller.Push1Display;
-import de.mossgrabers.framework.controller.display.IHwTextDisplay;
+import de.mossgrabers.framework.controller.hardware.IHwTextDisplay;
 import de.mossgrabers.framework.daw.IHost;
 import de.mossgrabers.framework.daw.midi.IMidiOutput;
 import de.mossgrabers.framework.utils.OperatingSystem;
