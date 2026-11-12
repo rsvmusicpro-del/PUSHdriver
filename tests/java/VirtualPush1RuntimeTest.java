@@ -343,6 +343,7 @@ public final class VirtualPush1RuntimeTest
 
     private static IHwSurfaceFactory surfaceFactory (final VirtualPush1MidiBench midi)
     {
+        final List<IHwLight> lights = new java.util.ArrayList<> ();
         return (IHwSurfaceFactory) Proxy.newProxyInstance (IHwSurfaceFactory.class.getClassLoader (),
             new Class<?> [] { IHwSurfaceFactory.class }, (proxy, method, args) -> switch (method.getName ())
             {
@@ -350,7 +351,15 @@ public final class VirtualPush1RuntimeTest
                 case "createRelativeKnob" -> continuousProxy (IHwRelativeKnob.class, midi);
                 case "createFader" -> continuousProxy (IHwFader.class, midi);
                 case "createAbsoluteKnob" -> continuousProxy (de.mossgrabers.framework.controller.hardware.IHwAbsoluteKnob.class, midi);
-                case "createLight" -> lightProxy (args);
+                case "createLight" -> {
+                    final IHwLight light = lightProxy (args);
+                    lights.add (light);
+                    yield light;
+                }
+                case "flush" -> {
+                    lights.forEach (IHwLight::update);
+                    yield null;
+                }
                 default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
