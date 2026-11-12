@@ -30,7 +30,8 @@ public final class VirtualPush1DeviceTest
                         || input.get (input.size () - 1)[1] != note || device.getPadPressure (row, col) != 72)
                     throw new AssertionError ("Pad polyphonic aftertouch mapping failed");
                 device.releasePad (row, col);
-                if (device.isPadPressed (row, col) || input.get (input.size () - 1)[0] != VirtualPush1Device.NOTE_OFF)
+                if (device.isPadPressed (row, col) || device.getPadPressure (row, col) != 0
+                        || input.get (input.size () - 1)[0] != VirtualPush1Device.NOTE_OFF)
                     throw new AssertionError ("Pad release mapping failed at " + row + "," + col);
             }
         if (input.size () != 192)
