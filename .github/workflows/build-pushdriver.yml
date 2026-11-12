@@ -87,3 +87,53 @@ jobs:
           path: dist/PUSHdriver.bwextension
           if-no-files-found: error
           retention-days: 30
+
+  # The primary artifact is built on Linux, but the same source and runtime
+  # checks must also pass on an Intel macOS host. This exercises the macOS
+  # discovery branch and Java packaging on the architecture used by Catalina.
+  macos-intel-validation:
+    runs-on: macos-15-intel
+    steps:
+      - name: Checkout PUSHdriver and external sources
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Assemble Push 1-only source tree
+        run: python3 scripts/prepare_push1.py
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Test Push 1 LCD protocol engine
+        run: python3 scripts/test_push1_display.py
+
+      - name: Test Push 1 note repeat and sequencer safety
+        run: python3 scripts/test_push1_modes.py
+
+      - name: Test Push 1 empty-clip playhead guard
+        run: python3 scripts/test_push1_playhead.py
+
+      - name: Test Push 1 directional navigation
+        run: python3 scripts/test_push1_navigation.py
+
+      - name: Test Push 1 In/Out controls
+        run: python3 scripts/test_push1_in_out.py
+
+      - name: Test Push 1 New clip workflow
+        run: python3 scripts/test_push1_new.py
+
+      - name: Test Push 1 firmware inquiry parsing
+        run: python3 scripts/test_push1_firmware.py
+
+      - name: Build extension on Intel macOS
+        run: mvn --batch-mode --no-transfer-progress clean package
+
+      - name: Verify Push 1-only package
+        run: python3 scripts/verify_push1.py
+
+      - name: Smoke-test Bitwig extension discovery on macOS
+        run: python3 scripts/test_push1_extension.py
