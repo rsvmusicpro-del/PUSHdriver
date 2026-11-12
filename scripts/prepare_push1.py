@@ -280,6 +280,69 @@ replace_once(push_display,
     "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68)));",
     "Push1Display SysEx protocol delegation")
 
+# Clamp parameter values before formatting the eight LCD bar cells. The
+# upstream overlay calculation indexes one cell beyond the array when both
+# the base and modulated values reach their maximum.
+replace_once(push_display,
+    "    public static String formatValue (final int value, final int maxParam)\n"
+    "    {\n"
+    "        final StringBuilder n = new StringBuilder ();\n"
+    "        Arrays.asList (fillFields (value, maxParam)).forEach (n::append);\n"
+    "        return n.toString ();\n"
+    "    }",
+    "    public static String formatValue (final int value, final int maxParam)\n"
+    "    {\n"
+    "        return Push1DisplayValueFormatter.formatValue (value, maxParam, BARS_NON, BARS_ONE, BARS_TWO);\n"
+    "    }",
+    "Push 1 bounded value bar formatting")
+replace_once(push_display,
+    "    public static String formatValue (final int modulated, final int value, final int maxParam)\n"
+    "    {\n"
+    "        final String [] fields = fillFields (value, maxParam);\n\n"
+    "        final int noOfBarsModulated = (int) Math.round (16.0 * modulated / maxParam);\n"
+    "        final int pos = noOfBarsModulated / 2;\n"
+    "        if (noOfBarsModulated % 2 == 0)\n"
+    "        {\n"
+    "            if (pos > 0)\n"
+    "            {\n"
+    "                if (fields[pos - 1].charAt (0) == BARS_NON.charAt (0))\n"
+    "                    fields[pos - 1] = BARS_ONE_L;\n"
+    "                else if (fields[pos].charAt (0) == BARS_ONE.charAt (0))\n"
+    "                    fields[pos - 1] = BARS_TWO;\n"
+    "            }\n"
+    "        }\n"
+    "        else\n"
+    "        {\n"
+    "            if (fields[pos].charAt (0) == BARS_NON.charAt (0))\n"
+    "                fields[pos] = BARS_ONE;\n"
+    "            else\n"
+    "                fields[pos] = BARS_TWO;\n"
+    "        }\n\n"
+    "        final StringBuilder n = new StringBuilder ();\n"
+    "        Arrays.asList (fields).forEach (n::append);\n"
+    "        return n.toString ();\n"
+    "    }",
+    "    public static String formatValue (final int modulated, final int value, final int maxParam)\n"
+    "    {\n"
+    "        return Push1DisplayValueFormatter.formatModulatedValue (modulated, value, maxParam, BARS_NON, BARS_ONE, BARS_TWO, BARS_ONE_L);\n"
+    "    }",
+    "Push 1 bounded modulated value bar formatting")
+replace_once(push_display,
+    "    private static String [] fillFields (final int value, final int maxParam)\n"
+    "    {\n"
+    "        final String [] fields = new String [8];\n"
+    "        Arrays.fill (fields, Push1Display.BARS_NON);\n\n"
+    "        final int noOfBars = (int) Math.round (16.0 * value / maxParam);\n"
+    "        int count;\n"
+    "        for (count = 0; count < noOfBars / 2; count++)\n"
+    "            fields[count] = Push1Display.BARS_TWO;\n"
+    "        if (noOfBars % 2 == 1)\n"
+    "            fields[count] = Push1Display.BARS_ONE;\n\n"
+    "        return fields;\n"
+    "    }\n\n\n",
+    "",
+    "Remove unbounded Push 1 bar helper")
+
 # Keep all logical cells within their physical 8/9-character LCD boundaries.
 replace_once(push_display,
     "        final int cell = 2 * block;\n"
