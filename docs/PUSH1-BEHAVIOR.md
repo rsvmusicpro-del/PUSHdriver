@@ -30,7 +30,7 @@ The full physical ID declarations live in the pinned upstream `PushControlSurfac
   `F0 47 7F 15 [18..1B] 00 45 00 [68 data bytes] F7`.
 - Short notifications overlay the rightmost 17-character LCD block while preserving the first 51 cells; longer notifications use the normal four-row display path.
 - Pad/button LED feedback remains owned by the existing Push colour manager, views, modes and hardware-control bindings. No parallel LED state engine is introduced.
-- MIDI output is emitted through Bitwig's API-17 `IMidiOutput` methods (CC, notes, aftertouch, pitch bend and SysEx). DrivenByMoss `AbstractMidiOutput` uses zero-based channel arguments: status = command + channel. Both String and byte-array SysEx output are supported by the virtual endpoint.
+- MIDI output is emitted through Bitwig's API-17 `IMidiOutput` methods (CC, notes, aftertouch, pitch bend and SysEx). DrivenByMoss `AbstractMidiOutput` uses zero-based channel arguments: status = command + channel. Both String and byte-array SysEx output are supported by the virtual endpoint. LED feedback includes note/CC palette values and Push 1 RGB SysEx for the 64 pads plus the lower button row; the screen is decoded separately as four 68-character rows.
 
 ## Characterized mode-specific adaptations
 
@@ -72,3 +72,9 @@ python3 scripts/prepare_push1.py
 mvn --batch-mode --no-transfer-progress clean package
 python3 scripts/test_push1_extension.py
 ```
+
+## External protocol references
+
+- [Push 1 MIDI programming reference](https://chor.ist/push/midi.html): pad note/aftertouch map, relative encoder values, touch notes, button CC press/release, RGB pad SysEx and 4 × 68 LCD SysEx.
+- [Ableton Push 1 user manual](https://www.ableton.com/en/manual/using-push-1/): Note/Session behavior, Shift, navigation, pads and aftertouch settings.
+- [DrivenByMoss 19.2.2 compatibility notes](https://github.com/git-moss/DrivenByMoss-Documentation/blob/master/Bitwig/Changes.md): Bitwig 4.3+ requirement and Push 1-specific fixes in the pinned upstream release.
