@@ -10,6 +10,7 @@ import de.mossgrabers.framework.controller.hardware.IHwButton;
 import de.mossgrabers.framework.controller.hardware.IHwContinuousControl;
 import de.mossgrabers.framework.controller.hardware.IHwFader;
 import de.mossgrabers.framework.controller.hardware.IHwRelativeKnob;
+import de.mossgrabers.framework.controller.valuechanger.RelativeEncoding;
 import de.mossgrabers.framework.controller.hardware.IHwSurfaceFactory;
 import de.mossgrabers.framework.daw.IHost;
 import de.mossgrabers.framework.daw.IModel;
@@ -264,9 +265,23 @@ public final class VirtualPush1RuntimeTest
                     case "bind":
                         if (args[0] instanceof ContinuousCommand continuous) command[0] = continuous;
                         else if (args[0] instanceof PitchbendCommand bend) pitchbend[0] = bend;
+                        else if (args[0] instanceof IMidiInput input)
+                        {
+                            if (proxy instanceof IHwRelativeKnob knob)
+                                input.bind (knob, (BindType) args[1], (int) args[2], (int) args[3], RelativeEncoding.TWOS_COMPLEMENT);
+                            else if (proxy instanceof IHwFader fader)
+                                input.bind (fader, (BindType) args[1], (int) args[2], (int) args[3]);
+                        }
                         return null;
                     case "bindTouch":
                         touch[0] = (TriggerCommand) args[0];
+                        if (args[1] instanceof IMidiInput input)
+                        {
+                            if (proxy instanceof IHwRelativeKnob knob)
+                                input.bindTouch (knob, (BindType) args[2], (int) args[3], (int) args[4]);
+                            else if (proxy instanceof IHwFader fader)
+                                input.bindTouch (fader, (BindType) args[2], (int) args[3], (int) args[4]);
+                        }
                         return null;
                     case "getCommand": return command[0];
                     case "getTouchCommand": return touch[0];
