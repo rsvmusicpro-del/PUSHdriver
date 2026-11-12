@@ -32,6 +32,7 @@ import de.mossgrabers.framework.command.core.ContinuousCommand;
 import de.mossgrabers.framework.command.core.PitchbendCommand;
 import de.mossgrabers.framework.command.core.TriggerCommand;
 import de.mossgrabers.framework.mode.Modes;
+import de.mossgrabers.framework.mode.Views;
 import de.mossgrabers.framework.utils.ButtonEvent;
 
 import java.lang.reflect.Array;
@@ -163,8 +164,12 @@ public final class VirtualPush1RuntimeTest
         require (modes.isActive (Modes.TRACK), "Track CC did not restore TRACK");
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (state.playing, "Play CC did not update the Bitwig transport model");
+        setup.flush ();
+        require (midi.device ().getCCLed (VirtualPush1Device.PLAY) > 0,
+            "Play state was not reflected in the Push LED feedback");
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (!state.playing, "Second Play CC did not stop the Bitwig transport");
+        setup.flush ();
         midi.device ().tapButton (VirtualPush1Device.RECORD);
         require (state.recording, "Record CC did not start recording in the Bitwig model");
         midi.device ().pressButton (VirtualPush1Device.SHIFT);
@@ -177,12 +182,51 @@ public final class VirtualPush1RuntimeTest
         midi.device ().pressButton (VirtualPush1Device.LEFT);
         midi.device ().releaseButton (VirtualPush1Device.LEFT);
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        require (!surface.isShiftPressed (), "Shift state did not clear after physical release");
+
+        midi.device ().tapButton (VirtualPush1Device.VOLUME);
+        require (modes.isActive (Modes.VOLUME), "Volume CC did not activate VOLUME mode");
+        midi.device ().tapButton (VirtualPush1Device.CLIP);
+        require (modes.isActive (Modes.CLIP), "Clip CC did not activate CLIP mode");
+        midi.device ().tapButton (VirtualPush1Device.TRACK);
+        require (modes.isActive (Modes.TRACK), "Track CC did not restore TRACK after CLIP");
+
+        midi.device ().tapButton (VirtualPush1Device.NOTE);
+        require (surface.getViewManager ().getActiveID () == Views.PLAY, "Note CC did not select the Play view");
+        midi.device ().tapButton (VirtualPush1Device.SESSION);
+        require (surface.getViewManager ().getActiveID () == Views.SESSION, "Session CC did not select the Session view");
+        midi.device ().tapButton (VirtualPush1Device.NOTE);
+
+        // Exercise real pad callbacks, poly-aftertouch, relative encoder,
+        // touch-note, ribbon and pitchbend bindings against the active view/modes.
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().pressPadPressure (0, 0, 80);
+        midi.device ().releasePad (0, 0);
+        midi.device ().turnEncoderBy (0, 1);
+        midi.device ().touchEncoder (0, true);
+        midi.device ().touchEncoder (0, false);
+        midi.device ().turnSmallEncoderBy (0, -1);
+        midi.device ().touchSmallEncoder (1, true);
+        midi.device ().touchSmallEncoder (1, false);
+        midi.device ().touchRibbon (true);
+        midi.device ().moveRibbon (8192);
+        midi.device ().touchRibbon (false);
+        require (midi.getDispatchedButtonEvents () > 10, "Virtual MIDI did not reach the production pad/button handlers");
+        require (midi.getDispatchedEncoderEvents () >= 2, "Relative encoder MIDI did not reach production commands");
+        require (midi.getDispatchedTouchEvents () >= 6, "Encoder/ribbon touch MIDI did not reach production commands");
+        require (midi.getDispatchedPitchbendEvents () >= 1, "Ribbon pitchbend MIDI did not reach its production command");
+        require (midi.capturedDeviceInput ().stream ().anyMatch (event -> event[0] == VirtualPush1Device.POLY_AFTERTOUCH),
+            "Pad polyphonic aftertouch was not emitted");
+        require (midi.device ().getLcdRow (0).length () == 68,
+            "Push 1 LCD feedback was not decoded into the virtual screen");
+        require (midi.capturedOutput ().stream ().anyMatch (message -> message.startsWith ("sendSysex ")),
+            "Production setup did not emit any Push 1 SysEx feedback");
 
         setup.exit ();
         if (!state.errors.isEmpty ())
             throw new AssertionError ("Virtual Bitwig host reported errors: " + state.errors);
         System.out.println ("Virtual Push 1 runtime passed: real PushControllerSetup initialized; "
-            + "production Device/Track/Play/Record commands were driven through MIDI CC; Shift+Record overdub and Shift chord delivered.");
+            + "real mode/view/transport commands, Shift chords, pad aftertouch, encoder/touch/ribbon input and LED/LCD feedback passed.");
     }
 
     private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters)
