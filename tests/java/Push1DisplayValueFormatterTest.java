@@ -37,7 +37,10 @@ public final class Push1DisplayValueFormatterTest
         check (Push1DisplayValueFormatter.formatModulatedValue (Integer.MAX_VALUE, 0, 1, EMPTY, HALF, FULL, LEFT_HALF), "-------<", "extreme positive modulation must clamp to the final cell without integer overflow");
         check (Push1DisplayValueFormatter.formatModulatedValue (127, 127, 0, EMPTY, HALF, FULL, LEFT_HALF), "--------", "zero maximum must be safe");
 
-        check (Push1DisplayValueFormatter.formatPan (63, 127, EMPTY, HALF, FULL, LEFT_HALF), "--------", "center pan must remain empty");
+        check (Push1DisplayValueFormatter.formatPan (63, 127, EMPTY, HALF, FULL, LEFT_HALF), "--------", "lower center pan value must remain empty");
+        check (Push1DisplayValueFormatter.formatPan (64, 127, EMPTY, HALF, FULL, LEFT_HALF), "--------", "upper center pan value must remain empty for an odd range");
+        check (Push1DisplayValueFormatter.formatPan (0, 1, EMPTY, HALF, FULL, LEFT_HALF), "####----", "minimum pan must remain visible for a two-value range");
+        check (Push1DisplayValueFormatter.formatPan (1, 1, EMPTY, HALF, FULL, LEFT_HALF), "----####", "maximum pan must remain visible for a two-value range");
         check (Push1DisplayValueFormatter.formatPan (0, 127, EMPTY, HALF, FULL, LEFT_HALF), "####----", "minimum pan must fill the left edge symmetrically");
         check (Push1DisplayValueFormatter.formatPan (1, 127, EMPTY, HALF, FULL, LEFT_HALF), "####----", "near-minimum pan must match the near-maximum endpoint");
         check (Push1DisplayValueFormatter.formatPan (126, 127, EMPTY, HALF, FULL, LEFT_HALF), "----####", "penultimate pan value must reach the right edge");
@@ -53,6 +56,31 @@ public final class Push1DisplayValueFormatterTest
                 final String rendered = Push1DisplayValueFormatter.formatPan (pan, maximum, EMPTY, HALF, FULL, LEFT_HALF);
                 if (rendered.length () != 8)
                     throw new AssertionError ("Pan bar width changed for pan=" + pan + ", maximum=" + maximum + ": " + rendered);
+
+                final String mirrored = Push1DisplayValueFormatter.formatPan (maximum - pan, maximum, EMPTY, HALF, FULL, LEFT_HALF);
+                final String normalized = rendered.replace (LEFT_HALF, HALF);
+                final String normalizedMirror = mirrored.replace (LEFT_HALF, HALF);
+                if (!normalized.equals (new StringBuilder (normalizedMirror).reverse ().toString ()))
+                    throw new AssertionError ("Pan bar is asymmetric for pan=" + pan + ", maximum=" + maximum
+                        + ": " + rendered + " vs mirrored " + mirrored);
+            }
+
+        // Exhaustively exercise every base/modulated pair over representative
+        // small and full MIDI parameter ranges. Every output must stay eight cells.
+        for (int maximum = 1; maximum <= 127; maximum++)
+            for (int value = -1; value <= maximum + 1; value++)
+            {
+                final String base = Push1DisplayValueFormatter.formatValue (value, maximum, EMPTY, HALF, FULL);
+                if (base.length () != 8)
+                    throw new AssertionError ("Base value bar width changed for value=" + value + ", maximum=" + maximum);
+                for (int modulated = -1; modulated <= maximum + 1; modulated++)
+                {
+                    final String rendered = Push1DisplayValueFormatter.formatModulatedValue (
+                        modulated, value, maximum, EMPTY, HALF, FULL, LEFT_HALF);
+                    if (rendered.length () != 8)
+                        throw new AssertionError ("Modulated value bar width changed for value=" + value
+                            + ", modulation=" + modulated + ", maximum=" + maximum);
+                }
             }
 
         System.out.println ("Push 1 display value-bar boundary tests passed.");
