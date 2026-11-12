@@ -416,10 +416,10 @@ if "Views.RAINDROPS" in setup or "new RaindropsView" in setup:
 for button in (
     "PLAY", "RECORD", "NEW", "FIXED_LENGTH", "DUPLICATE", "QUANTIZE", "DELETE",
     "DOUBLE", "UNDO", "AUTOMATION", "TRACK", "DEVICE", "BROWSE", "CLIP", "SHIFT",
-    "SELECT", "TAP_TEMPO", "METRONOME", "MASTERTRACK", "MUTE", "SOLO",
+    "SELECT", "TAP_TEMPO", "METRONOME", "MASTERTRACK", "PAGE_LEFT", "PAGE_RIGHT", "MUTE", "SOLO",
     "SCALES", "ACCENT", "ADD_TRACK", "NOTE", "ARROW_UP", "ARROW_DOWN", "ARROW_LEFT",
     "ARROW_RIGHT", "OCTAVE_UP", "OCTAVE_DOWN", "VOLUME", "PAN_SEND", "SETUP",
-    "SESSION", "REPEAT", "STOP_CLIP", "FOOTSWITCH",
+    "SESSION", "REPEAT", "STOP_CLIP", "FOOTSWITCH2",
 ):
     if f"ButtonID.{button}" not in setup:
         raise SystemExit(f"Push 1 feature inventory lost hardware control mapping: {button}")
