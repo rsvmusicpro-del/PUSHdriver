@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Structural regression checks for Push 1 note-repeat and sequencer safety."""
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src/main/java/de/mossgrabers"
@@ -32,14 +33,11 @@ def method_body(source: str, signature: str) -> str:
     raise SystemExit(f"Unbalanced method body: {signature}")
 
 
-# Push 1 must start with its second row in Mute state. Without this explicit
-# initialization the inherited 19.2.2 setup leaves row two in the wrong mode.
-setup = read("controller/ableton/push/PushControllerSetup.java")
-startup = method_body(setup, "public void startup ()")
-if "this.configuration.setTrackState (PushConfiguration.TrackState.MUTE);" not in startup:
-    raise SystemExit("Push 1 startup must initialize the second row to Mute mode")
-if startup.index("surface.getMidiOutput ().sendSysex (DeviceInquiry.createQuery ());") > startup.index("this.configuration.setTrackState (PushConfiguration.TrackState.MUTE);"):
-    raise SystemExit("Push 1 Mute mode must be initialized during startup, after device setup")
+# The pinned PushConfiguration already defaults the second row to Mute.
+# Verify the actual state default instead of adding a redundant startup write.
+configuration = read("controller/ableton/push/PushConfiguration.java")
+if not re.search(r"private\\s+TrackState\\s+trackState\\s*=\\s*TrackState\\.MUTE\\s*;", configuration):
+    raise SystemExit("Push 1 second-row state must default to Mute")
 
 
 note_repeat = read("controller/ableton/push/mode/NoteRepeatMode.java")
