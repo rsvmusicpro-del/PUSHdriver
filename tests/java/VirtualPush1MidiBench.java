@@ -124,11 +124,21 @@ public final class VirtualPush1MidiBench
                 final String frame = args[0] instanceof String text
                     ? text
                     : args[0] instanceof byte [] bytes ? toHex (bytes) : null;
-                if (frame != null && frame.startsWith ("F0 47 7F 15"))
+                if (frame != null && isPush1LcdFrame (frame))
                     this.device.receiveSysex (frame);
             }
             default -> { /* Other output types remain visible in capturedOutput(). */ }
         }
+    }
+
+    private static boolean isPush1LcdFrame (final String frame)
+    {
+        final String [] tokens = frame.trim ().split ("\\\\s+");
+        return tokens.length == 77 && tokens[0].equalsIgnoreCase ("F0")
+            && tokens[1].equalsIgnoreCase ("47") && tokens[2].equalsIgnoreCase ("7F")
+            && tokens[3].equalsIgnoreCase ("15")
+            && (tokens[4].equalsIgnoreCase ("18") || tokens[4].equalsIgnoreCase ("19")
+                || tokens[4].equalsIgnoreCase ("1A") || tokens[4].equalsIgnoreCase ("1B"));
     }
 
     private static byte [] hexToBytes (final String frame)
@@ -238,12 +248,16 @@ public final class VirtualPush1MidiBench
         bench.output ().sendPitchbend (15, 1, 65);
         bench.output ().sendSysex (lcd);
         bench.output ().sendSysex (hexToBytes (lcd));
+        // Startup/pressure-mode SysEx shares the manufacturer prefix but is
+        // not an LCD row and must not be decoded as one.
+        bench.output ().sendSysex ("F0 47 7F 15 5C 00 01 00 F7");
         if (bench.device ().getCCLed (49) != 4 || bench.device ().getNoteLed (36) != 100
                 || bench.device ().getNoteLed (37) != 101 || bench.device ().getLcdRow (0).length () != 68)
             throw new AssertionError ("MIDI output did not update virtual Push 1 LEDs/LCD");
         final List<String> sent = bench.capturedOutput ();
-        if (sent.size () != 8 || !sent.get (0).startsWith ("sendCC ")
-                || !sent.get (6).startsWith ("sendSysex ") || !sent.get (7).startsWith ("sendSysex "))
+        if (sent.size () != 9 || !sent.get (0).startsWith ("sendCC ")
+                || !sent.get (6).startsWith ("sendSysex ") || !sent.get (7).startsWith ("sendSysex ")
+                || !sent.get (8).startsWith ("sendSysex "))
             throw new AssertionError ("MIDI output capture regression");
 
         System.out.println ("Virtual Push 1 MIDI bench passed: "
