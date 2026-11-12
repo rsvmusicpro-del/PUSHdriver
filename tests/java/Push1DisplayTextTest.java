@@ -19,6 +19,7 @@ public final class Push1DisplayTextTest
         check (Push1DisplayText.fitBlock ("A very long instrument preset name").length () == 17, "blocks must remain exactly 17 characters");
         check (Push1DisplayText.fit ("A\nB", 8).equals ("A B     "), "line breaks must not leak into LCD rows");
         check (Push1DisplayText.fit ("é", 8).equals ("?       "), "unsupported Unicode must become seven-bit-safe");
+        check (Push1DisplayText.fit ("😀A", 8).equals ("?A      "), "a supplementary Unicode character must occupy one LCD cell");
         check (Push1DisplayText.fit (Character.toString ((char) 6), 8).charAt (0) == 6, "Push hardware glyph codes must be preserved");
         check (Push1DisplayText.fit (null, 8).equals ("        "), "null labels must produce a blank cell");
         check (Push1DisplayText.fit ("anything", 0).isEmpty (), "zero-width cells must be safe");
