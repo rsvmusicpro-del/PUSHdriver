@@ -43,6 +43,8 @@ assembled_display = root / "src/main/java/de/mossgrabers/controller/ableton/push
 display_source = assembled_display.read_text()
 if "Push1DisplayText.fitBlock (value)" not in display_source or "Push1DisplayText.fit (value, 8)" not in display_source:
     raise SystemExit("Push 1 LCD cells are not routed through the bounded text-fitting engine")
+if "Push1DisplayText.fit (text, 68)" not in display_source:
+    raise SystemExit("Push 1 LCD rows must be bounded to 68 cells before SysEx encoding")
 if "Push1DisplayValueFormatter.formatValue" not in display_source or "Push1DisplayValueFormatter.formatModulatedValue" not in display_source:
     raise SystemExit("Push 1 LCD value bars are not routed through the bounded value formatter")
 if "Push1DisplayValueFormatter.formatPan" not in display_source:
