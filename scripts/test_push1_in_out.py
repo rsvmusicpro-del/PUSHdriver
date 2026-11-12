@@ -94,6 +94,21 @@ for marker in (
     if marker not in device_params:
         raise SystemExit(f"Device In/Out must navigate parameter-page banks: {marker}")
 
+# Do not invoke optional Bitwig APIs when the host reports that the feature is
+# unavailable. Hidden controls must also be inert if a stale MIDI event arrives.
+second_row_start = device_params.index("public void onSecondRow")
+second_row_end = device_params.index("public void updateDisplay1", second_row_start)
+second_row = device_params[second_row_start:second_row_end]
+for action, capability in (
+    ("device.toggleParameterPageSectionVisible ();", "Capability.HAS_PARAMETER_PAGE_SECTION"),
+    ("device.togglePinned ();", "Capability.HAS_PINNING"),
+):
+    action_position = second_row.index(action)
+    capability_position = second_row.rfind(capability, 0, action_position)
+    case_position = second_row.rfind("case ", 0, action_position)
+    if capability_position < case_position:
+        raise SystemExit(f"Optional device action {action} is missing its {capability} guard")
+
 # The standard arrows retain the original per-item navigation and LED checks.
 for marker in (
     "super.selectPreviousItem ();",
