@@ -30,6 +30,10 @@ public final class VirtualPush1MidiBench
     private final List<ContinuousBinding> continuousBindings = new ArrayList<> ();
     private final List<TouchBinding> touchBindings = new ArrayList<> ();
     private final List<int[]> rawDeviceInput = new ArrayList<> ();
+    private int dispatchedButtonEvents;
+    private int dispatchedEncoderEvents;
+    private int dispatchedTouchEvents;
+    private int dispatchedPitchbendEvents;
     private MidiShortCallback shortCallback;
     private MidiSysExCallback sysexCallback;
     private final IMidiInput input;
@@ -129,6 +133,7 @@ public final class VirtualPush1MidiBench
                     continue;
                 final boolean pressed = data2 > 0;
                 binding.button ().trigger (pressed ? ButtonEvent.DOWN : ButtonEvent.UP, data2 / 127.0);
+                this.dispatchedButtonEvents++;
             }
             for (final ContinuousBinding binding: List.copyOf (this.continuousBindings))
             {
@@ -138,7 +143,10 @@ public final class VirtualPush1MidiBench
                     continue;
                 final int steps = data2 == 64 ? 0 : data2 > 64 ? data2 - 128 : data2;
                 if (steps != 0)
+                {
                     knob.handleValue (steps / 61.0);
+                    this.dispatchedEncoderEvents++;
+                }
             }
         }
         else if (family == 0xE0)
@@ -146,7 +154,10 @@ public final class VirtualPush1MidiBench
             for (final ContinuousBinding binding: List.copyOf (this.continuousBindings))
                 if (binding.control () instanceof IHwFader && binding.type () == BindType.PITCHBEND
                         && binding.channel () == channel && binding.control ().getPitchbendCommand () != null)
+                {
                     binding.control ().getPitchbendCommand ().onPitchbend (data1, data2);
+                    this.dispatchedPitchbendEvents++;
+                }
         }
         else if (family == 0x80 || family == 0x90)
         {
@@ -154,10 +165,16 @@ public final class VirtualPush1MidiBench
             for (final ButtonBinding binding: List.copyOf (this.buttonBindings))
                 if (binding.type () == BindType.NOTE && binding.channel () == channel && binding.control () == data1
                         && (binding.value () < 0 || binding.value () == data2))
+                {
                     binding.button ().trigger (pressed ? ButtonEvent.DOWN : ButtonEvent.UP, data2 / 127.0);
+                    this.dispatchedButtonEvents++;
+                }
             for (final TouchBinding binding: List.copyOf (this.touchBindings))
                 if (binding.type () == BindType.NOTE && binding.channel () == channel && binding.controlNumber () == data1)
+                {
                     binding.control ().triggerTouch (pressed);
+                    this.dispatchedTouchEvents++;
+                }
         }
     }
 
@@ -243,6 +260,10 @@ public final class VirtualPush1MidiBench
     public List<String> capturedOutput () { return List.copyOf (this.output); }
     public List<int[]> capturedRawInputOutput () { return List.copyOf (this.rawInputOutput); }
     public List<int[]> capturedDeviceInput () { return List.copyOf (this.rawDeviceInput); }
+    public int getDispatchedButtonEvents () { return this.dispatchedButtonEvents; }
+    public int getDispatchedEncoderEvents () { return this.dispatchedEncoderEvents; }
+    public int getDispatchedTouchEvents () { return this.dispatchedTouchEvents; }
+    public int getDispatchedPitchbendEvents () { return this.dispatchedPitchbendEvents; }
 
     private static Object defaultValue (final Class<?> type)
     {
