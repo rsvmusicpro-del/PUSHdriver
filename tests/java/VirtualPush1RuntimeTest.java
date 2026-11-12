@@ -9,6 +9,7 @@ import de.mossgrabers.framework.controller.hardware.BindType;
 import de.mossgrabers.framework.controller.hardware.IHwButton;
 import de.mossgrabers.framework.controller.hardware.IHwContinuousControl;
 import de.mossgrabers.framework.controller.hardware.IHwFader;
+import de.mossgrabers.framework.controller.hardware.IHwLight;
 import de.mossgrabers.framework.controller.hardware.IHwRelativeKnob;
 import de.mossgrabers.framework.controller.valuechanger.RelativeEncoding;
 import de.mossgrabers.framework.controller.hardware.IHwSurfaceFactory;
@@ -45,6 +46,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.IntSupplier;
+import java.util.function.IntConsumer;
+import java.util.function.Supplier;
+import java.util.function.Consumer;
 
 /**
  * Boots the real PushControllerSetup against deterministic API-17 host/model
@@ -287,8 +292,46 @@ public final class VirtualPush1RuntimeTest
                 case "createRelativeKnob" -> continuousProxy (IHwRelativeKnob.class, midi);
                 case "createFader" -> continuousProxy (IHwFader.class, midi);
                 case "createAbsoluteKnob" -> continuousProxy (de.mossgrabers.framework.controller.hardware.IHwAbsoluteKnob.class, midi);
+                case "createLight" -> lightProxy (args);
                 default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
+    }
+
+    private static IHwLight lightProxy (final Object [] args)
+    {
+        if (args[2] instanceof IntSupplier supplier && args[3] instanceof IntConsumer consumer)
+        {
+            final int [] last = { Integer.MIN_VALUE };
+            return (IHwLight) Proxy.newProxyInstance (IHwLight.class.getClassLoader (),
+                new Class<?> [] { IHwLight.class }, (proxy, method, callArgs) -> {
+                    switch (method.getName ())
+                    {
+                        case "update":
+                            final int value = supplier.getAsInt ();
+                            if (value != last[0])
+                            {
+                                last[0] = value;
+                                consumer.accept (value);
+                            }
+                            return null;
+                        case "forceFlush": last[0] = Integer.MIN_VALUE; return null;
+                        case "turnOff": last[0] = 0; consumer.accept (0); return null;
+                        default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                    }
+                });
+        }
+        if (args[2] instanceof Supplier<?> supplier && args[3] instanceof Consumer<?> consumer)
+            return (IHwLight) Proxy.newProxyInstance (IHwLight.class.getClassLoader (),
+                new Class<?> [] { IHwLight.class }, (proxy, method, callArgs) -> {
+                    if (method.getName ().equals ("update"))
+                    {
+                        @SuppressWarnings ("unchecked")
+                        final Consumer<Object> output = (Consumer<Object>) consumer;
+                        output.accept (supplier.get ());
+                    }
+                    return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                });
+        return (IHwLight) defaultValue (IHwLight.class, IHwLight.class);
     }
 
     private static IHwButton buttonProxy (final VirtualPush1MidiBench midi)
