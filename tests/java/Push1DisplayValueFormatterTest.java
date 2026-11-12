@@ -46,6 +46,14 @@ public final class Push1DisplayValueFormatterTest
         check (Push1DisplayValueFormatter.formatPan (127, 0, EMPTY, HALF, FULL, LEFT_HALF), "--------", "zero pan maximum must be safe");
         check (Push1DisplayValueFormatter.formatPan (Integer.MAX_VALUE, Integer.MAX_VALUE, EMPTY, HALF, FULL, LEFT_HALF), "----####", "extreme pan maximum must remain bounded");
 
+        for (int maximum = 1; maximum <= 256; maximum++)
+            for (int pan = -1; pan <= maximum + 1; pan++)
+            {
+                final String rendered = Push1DisplayValueFormatter.formatPan (pan, maximum, EMPTY, HALF, FULL, LEFT_HALF);
+                if (rendered.length () != 8)
+                    throw new AssertionError ("Pan bar width changed for pan=" + pan + ", maximum=" + maximum + ": " + rendered);
+            }
+
         System.out.println ("Push 1 display value-bar boundary tests passed.");
     }
 }
