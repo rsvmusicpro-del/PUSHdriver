@@ -97,6 +97,15 @@ public final class VirtualPush1MidiBench
         }
     }
 
+    private static byte [] hexToBytes (final String frame)
+    {
+        final String [] tokens = frame.trim ().split ("\\\\s+");
+        final byte [] bytes = new byte [tokens.length];
+        for (int i = 0; i < tokens.length; i++)
+            bytes[i] = (byte) Integer.parseInt (tokens[i], 16);
+        return bytes;
+    }
+
     private static String toHex (final byte [] bytes)
     {
         final StringBuilder frame = new StringBuilder (bytes.length * 3);
@@ -180,13 +189,13 @@ public final class VirtualPush1MidiBench
         bench.output ().sendPitchbend (0, 64);
         bench.output ().sendPitchbend (15, 1, 65);
         bench.output ().sendSysex (lcd);
-        bench.output ().sendSysex (new byte [] { (byte) 0xF0, 0x47, 0x7F, 0x15, 0x18, 0, 0x45, 0, 0x20, (byte) 0xF7 });
+        bench.output ().sendSysex (hexToBytes (lcd));
         if (bench.device ().getCCLed (49) != 4 || bench.device ().getNoteLed (36) != 100
                 || bench.device ().getNoteLed (37) != 101 || bench.device ().getLcdRow (0).length () != 68)
             throw new AssertionError ("MIDI output did not update virtual Push 1 LEDs/LCD");
         final List<String> sent = bench.capturedOutput ();
-        if (sent.size () != 4 || !sent.get (0).startsWith ("sendCC ")
-                || !sent.get (3).startsWith ("sendSysex "))
+        if (sent.size () != 8 || !sent.get (0).startsWith ("sendCC ")
+                || !sent.get (6).startsWith ("sendSysex ") || !sent.get (7).startsWith ("sendSysex "))
             throw new AssertionError ("MIDI output capture regression");
 
         System.out.println ("Virtual Push 1 MIDI bench passed: "
