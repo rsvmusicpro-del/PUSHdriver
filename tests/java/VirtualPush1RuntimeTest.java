@@ -48,6 +48,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.function.IntSupplier;
 import java.util.function.IntConsumer;
@@ -68,9 +69,11 @@ public final class VirtualPush1RuntimeTest
         boolean playing;
         boolean recording;
         boolean launcherOverdub;
-        final ArrayDeque<Runnable> scheduled = new ArrayDeque<> ();
+        final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
     }
+
+    private record ScheduledTask (long delay, Runnable task) { }
 
     private VirtualPush1RuntimeTest () { }
 
@@ -88,7 +91,7 @@ public final class VirtualPush1RuntimeTest
                     case "createSurfaceFactory": return hardware;
                     case "getName": return "Virtual Bitwig API 17";
                     case "supports": return Boolean.TRUE;
-                    case "scheduleTask": state.scheduled.add ((Runnable) callArgs[0]); return null;
+                    case "scheduleTask": state.scheduled.add (new ScheduledTask (((Number) callArgs[1]).longValue (), (Runnable) callArgs[0])); return null;
                     case "error": state.errors.add (String.valueOf (callArgs[0])); return null;
                     case "println": case "showNotification": case "releaseUsbDevices": return null;
                     case "getInstrumentMetadata": return List.of (deviceMetadata ("Virtual Instrument"));
@@ -172,7 +175,7 @@ public final class VirtualPush1RuntimeTest
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (state.playing, "Play CC did not update the Bitwig transport model");
         setup.flush ();
-        drainScheduled (state);
+        drainScheduled (state, 1);
         require (midi.device ().getCCLed (VirtualPush1Device.PLAY) > 0,
             "Play LED feedback missing: lightsCreated=" + lightsCreated + ", lightsUpdated=" + lightsUpdated
                 + ", captured=" + midi.capturedOutput ().stream ().filter (m -> m.contains ("85") || m.contains ("sendCCEx")).toList ());
@@ -239,7 +242,7 @@ public final class VirtualPush1RuntimeTest
             @Override public void startTesting () { }
             @Override public void endTesting () { matrixComplete[0] = true; }
         });
-        drainScheduled (state);
+        drainScheduled (state, 100);
         require (matrixComplete[0], "Production view/mode command matrix did not finish");
         require (state.errors.isEmpty (), "Production mode matrix reported runtime errors: " + state.errors);
 
@@ -559,13 +562,29 @@ public final class VirtualPush1RuntimeTest
         return null;
     }
 
-    private static void drainScheduled (final State state)
+    /** Run only tasks for the requested virtual delay (1 ms flush or 100 ms test tick). */
+    private static void drainScheduled (final State state, final long delay)
     {
         int steps = 0;
-        while (!state.scheduled.isEmpty () && steps++ < 10000)
-            state.scheduled.removeFirst ().run ();
-        if (!state.scheduled.isEmpty ())
-            throw new AssertionError ("Virtual Bitwig task queue did not quiesce");
+        while (steps++ < 100000)
+        {
+            ScheduledTask next = null;
+            final Iterator<ScheduledTask> iterator = state.scheduled.iterator ();
+            while (iterator.hasNext ())
+            {
+                final ScheduledTask candidate = iterator.next ();
+                if (candidate.delay () == delay)
+                {
+                    next = candidate;
+                    iterator.remove ();
+                    break;
+                }
+            }
+            if (next == null)
+                return;
+            next.task ().run ();
+        }
+        throw new AssertionError ("Virtual Bitwig scheduler exceeded 100000 tasks at delay " + delay);
     }
 
     private static void require (final boolean condition, final String message)
