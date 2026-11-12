@@ -301,10 +301,14 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 case 0:
                     return cd.isEnabled () ? green : grey;
                 case 1:
+                    if (!this.model.getHost ().supports (Capability.HAS_PARAMETER_PAGE_SECTION))
+                        return off;
                     return cd.isParameterPageSectionVisible () ? orange : white;
                 case 2:
                     return cd.isExpanded () ? orange : white;
                 case 3:
+                    if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+                        return off;
                     return this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS) ? orange : white;
                 case 4:
                     return this.showDevices ? white : orange;
@@ -611,11 +615,13 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             case 0:
                 return cd.isEnabled ();
             case 1:
-                return cd.isParameterPageSectionVisible ();
+                return this.model.getHost ().supports (Capability.HAS_PARAMETER_PAGE_SECTION)
+                    && cd.isParameterPageSectionVisible ();
             case 2:
                 return cd.isExpanded ();
             case 3:
-                return this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS);
+                return this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS)
+                    && this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS);
             case 4:
                 return !this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS) && !this.showDevices;
             case 5:
