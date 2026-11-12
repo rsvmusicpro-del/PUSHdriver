@@ -280,6 +280,11 @@ replace_once(push_display,
     "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68)));",
     "Push1Display SysEx protocol delegation")
 replace_once(push_display,
+    "    private final int              maxParameterValue;",
+    "    private final int              maxParameterValue;\n"
+    "    private boolean                compactNotification;",
+    "Push1Display compact notification state")
+replace_once(push_display,
     "    public void writeLine (final int row, final String text)\n"
     "    {\n"
     "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68)));\n"
@@ -290,18 +295,32 @@ replace_once(push_display,
     "    }\n\n"
     "    /** {@inheritDoc} */\n"
     "    @Override\n"
-    "    protected void updateNotification ()\n"
+    "    protected void notifyOnDisplay (final String message)\n"
     "    {\n"
-    "        final String trimmed = this.notificationMessage.trim ();\n"
-    "        if (trimmed.codePointCount (0, trimmed.length ()) > 17)\n"
+    "        this.compactNotification = message.codePointCount (0, message.length ()) <= 17;\n"
+    "        super.notifyOnDisplay (message);\n"
+    "    }\n\n"
+    "    /** {@inheritDoc} */\n"
+    "    @Override\n"
+    "    public void flush ()\n"
+    "    {\n"
+    "        if (this.compactNotification && this.isNotificationActive ())\n"
     "        {\n"
-    "            super.updateNotification ();\n"
+    "            final String trimmed = this.notificationMessage.trim ();\n"
+    "            final String row0 = this.currentMessage[0] == null ? this.emptyLine : this.currentMessage[0];\n"
+    "            final String row1 = this.currentMessage[1] == null ? this.emptyLine : this.currentMessage[1];\n"
+    "            this.updateLine (0, Push1DisplayText.overlayRightBlock (row0, trimmed));\n"
+    "            this.updateLine (1, Push1DisplayText.overlayRightBlock (row1, \"\"));\n"
     "            return;\n"
-    "        }\n\n"
-    "        final String row0 = this.currentMessage[0] == null ? this.emptyLine : this.currentMessage[0];\n"
-    "        final String row1 = this.currentMessage[1] == null ? this.emptyLine : this.currentMessage[1];\n"
-    "        this.updateLine (0, Push1DisplayText.overlayRightBlock (row0, trimmed), this.currentMessage[0]);\n"
-    "        this.updateLine (1, Push1DisplayText.overlayRightBlock (row1, \"\"), this.currentMessage[1]);\n"
+    "        }\n"
+    "        super.flush ();\n"
+    "    }\n\n"
+    "    /** {@inheritDoc} */\n"
+    "    @Override\n"
+    "    public void forceFlush ()\n"
+    "    {\n"
+    "        this.compactNotification = false;\n"
+    "        super.forceFlush ();\n"
     "    }",
     "Push1Display compact notification overlay")
 
