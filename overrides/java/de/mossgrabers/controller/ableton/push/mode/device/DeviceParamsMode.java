@@ -335,6 +335,8 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                     device.toggleEnabledState ();
                 break;
             case 1:
+                if (!this.model.getHost ().supports (Capability.HAS_PARAMETER_PAGE_SECTION))
+                    return;
                 if (device.doesExist ())
                     device.toggleParameterPageSectionVisible ();
                 break;
@@ -358,6 +360,8 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 this.setShowDevices (!this.showDevices);
                 break;
             case 5:
+                if (!this.model.getHost ().supports (Capability.HAS_PINNING))
+                    return;
                 if (device.doesExist ())
                     device.togglePinned ();
                 break;
