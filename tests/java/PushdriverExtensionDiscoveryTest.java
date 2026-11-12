@@ -151,9 +151,26 @@ public final class PushdriverExtensionDiscoveryTest
                             + rendered.length() + " cells for pan=" + pan + ", max=" + maximum);
                 }
 
-                final String center = (String) formatter.invoke(null, maximum / 2, maximum);
-                if (!center.equals(empty.repeat(8)))
-                    throw new AssertionError("Packaged pan formatter did not center max=" + maximum);
+                if (maximum == 1)
+                {
+                    final String minimum = (String) formatter.invoke(null, 0, maximum);
+                    final String maximumValue = (String) formatter.invoke(null, 1, maximum);
+                    if (!minimum.equals(full.repeat(4) + empty.repeat(4))
+                            || !maximumValue.equals(empty.repeat(4) + full.repeat(4)))
+                        throw new AssertionError("Packaged pan formatter must show both endpoints for a two-value range");
+                }
+                else
+                {
+                    final String lowerCenter = (String) formatter.invoke(null, maximum / 2, maximum);
+                    if (!lowerCenter.equals(empty.repeat(8)))
+                        throw new AssertionError("Packaged pan formatter did not center max=" + maximum);
+                    if (maximum % 2 == 1)
+                    {
+                        final String upperCenter = (String) formatter.invoke(null, maximum / 2 + 1, maximum);
+                        if (!upperCenter.equals(empty.repeat(8)))
+                            throw new AssertionError("Packaged pan formatter must treat both middle values symmetrically for max=" + maximum);
+                    }
+                }
             }
         }
         catch (final ReflectiveOperationException ex)
