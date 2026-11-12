@@ -21,6 +21,8 @@ classpath = os.pathsep.join((str(extension), str(api)))
 test_sources = (
     root / "tests/java/PushdriverExtensionDiscoveryTest.java",
     root / "tests/java/VirtualPush1MidiBench.java",
+    root / "tests/java/VirtualPush1Device.java",
+    root / "tests/java/VirtualPush1DeviceTest.java",
 )
 with tempfile.TemporaryDirectory(prefix="pushdriver-extension-test-") as output:
     subprocess.run(
@@ -34,5 +36,9 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-extension-test-") as output:
     )
     subprocess.run(
         ["java", "-cp", runtime_classpath, "VirtualPush1MidiBench"],
+        cwd=root, check=True,
+    )
+    subprocess.run(
+        ["java", "-cp", runtime_classpath, "VirtualPush1DeviceTest"],
         cwd=root, check=True,
     )
