@@ -203,9 +203,9 @@ public final class VirtualPush1MidiBench
         final List<ButtonEvent> buttonEvents = new ArrayList<> ();
         final IHwButton button = (IHwButton) Proxy.newProxyInstance (
             IHwButton.class.getClassLoader (), new Class<?> [] { IHwButton.class },
-            (proxy, method, args) -> {
+            (proxy, method, invocationArgs) -> {
                 if (method.getName ().equals ("trigger"))
-                    buttonEvents.add ((ButtonEvent) args[0]);
+                    buttonEvents.add ((ButtonEvent) invocationArgs[0]);
                 return defaultValue (method.getReturnType ());
             });
         bench.input ().bind (button, BindType.CC, 0, VirtualPush1Device.IN);
