@@ -517,11 +517,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     {
         if (this.showDevices)
         {
-            final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-            if (this.surface.isShiftPressed ())
-                cursorDevice.swapWithPrevious ();
-            else
-                cursorDevice.getDeviceBank ().selectPreviousPage ();
+            this.model.getCursorDevice ().getDeviceBank ().selectPreviousPage ();
             return;
         }
         super.selectPreviousItemPage ();
@@ -534,11 +530,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     {
         if (this.showDevices)
         {
-            final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-            if (this.surface.isShiftPressed ())
-                cursorDevice.swapWithNext ();
-            else
-                cursorDevice.getDeviceBank ().selectNextPage ();
+            this.model.getCursorDevice ().getDeviceBank ().selectNextPage ();
             return;
         }
         super.selectNextItemPage ();
@@ -570,12 +562,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     public boolean hasPreviousItemPage ()
     {
         if (this.showDevices)
-        {
-            final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-            if (this.surface.isShiftPressed ())
-                return cursorDevice.getIndex () > 0;
-            return cursorDevice.getDeviceBank ().canScrollPageBackwards ();
-        }
+            return this.model.getCursorDevice ().getDeviceBank ().canScrollPageBackwards ();
         return super.hasPreviousItemPage ();
     }
 
@@ -585,12 +572,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     public boolean hasNextItemPage ()
     {
         if (this.showDevices)
-        {
-            final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-            if (this.surface.isShiftPressed ())
-                return cursorDevice.getIndex () < 7;
-            return cursorDevice.getDeviceBank ().canScrollPageForwards ();
-        }
+            return this.model.getCursorDevice ().getDeviceBank ().canScrollPageForwards ();
         return super.hasNextItemPage ();
     }
 
