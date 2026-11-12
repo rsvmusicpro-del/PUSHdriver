@@ -511,7 +511,12 @@ public final class VirtualPush1RuntimeTest
                             touch[0].execute ((boolean) args[0] ? ButtonEvent.DOWN : ButtonEvent.UP, (boolean) args[0] ? 127 : 0);
                         return null;
                     case "handleValue":
-                        if (command[0] != null) command[0].execute ((int) Math.round ((double) args[0] * 1023));
+                        if (command[0] != null)
+                        {
+                            final double relative = (double) args[0] * 61.0;
+                            final int steps = (int) (relative > 0 ? Math.ceil (relative) : Math.floor (relative));
+                            command[0].execute (steps < 0 ? steps + 128 : steps);
+                        }
                         return null;
                     case "isTouched": case "isLongTouched": case "shouldAdaptSensitivity": return false;
                     case "toString": return "Virtual Push continuous control";
