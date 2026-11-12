@@ -371,6 +371,32 @@ replace_once(push_display,
     "        this.cells[row * 8 + cell] = Push1DisplayText.fit (value, 8) + (cell % 2 == 0 ? \" \" : \"\");",
     "Push1Display dynamic cell fitting")
 
+# Keep Push 1 pan bars bounded at both ends of the eight-cell LCD field.
+replace_once(push_display,
+    "    private static String formatPan (final int pan, final int maxParam)\\n"
+    "    {\\n"
+    "        final int middle = maxParam / 2;\\n"
+    "        if (pan == middle)\\n"
+    "            return Push1Display.NON_4 + Push1Display.NON_4;\\n"
+    "        final boolean isLeft = pan < middle;\\n"
+    "        final int pos = isLeft ? middle - pan : pan - middle;\\n"
+    "        final int noOfBars = 16 * pos / maxParam;\\n"
+    "        StringBuilder n = new StringBuilder ();\\n"
+    "        for (int i = 0; i < noOfBars / 2; i++)\\n"
+    "            n.append (BARS_TWO);\\n"
+    "        if (pan >= maxParam - 1)\\n"
+    "            n.append (BARS_TWO);\\n"
+    "        else if (noOfBars % 2 == 1)\\n"
+    "            n.append (isLeft ? Push1Display.BARS_ONE_L : Push1Display.BARS_ONE);\\n"
+    "        n = new StringBuilder (Push1Display.NON_4).append (StringUtils.pad (n.toString (), 4, Push1Display.BARS_NON.charAt (0)));\\n"
+    "        return isLeft ? n.reverse ().toString () : n.toString ();\\n"
+    "    }",
+    "    private static String formatPan (final int pan, final int maxParam)\\n"
+    "    {\\n"
+    "        return Push1DisplayValueFormatter.formatPan (pan, maxParam, BARS_NON, BARS_ONE, BARS_TWO, BARS_ONE_L);\\n"
+    "    }",
+    "Push 1 bounded pan bar formatting")
+
 # Port the API-17-compatible DrivenByMoss 19.2.2 ribbon improvements:
 # Delete+touchstrip resets the active parameter, including the last-touched target.
 # DrivenByMoss 19.2.2 already implements Delete+touchstrip reset.
