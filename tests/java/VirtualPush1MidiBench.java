@@ -23,6 +23,7 @@ public final class VirtualPush1MidiBench
     private MidiSysExCallback sysexCallback;
     private final IMidiInput input;
     private final IMidiOutput midiOutput;
+    private final VirtualPush1Device device;
 
     public VirtualPush1MidiBench ()
     {
@@ -44,13 +45,53 @@ public final class VirtualPush1MidiBench
             IMidiOutput.class.getClassLoader (), new Class<?> [] { IMidiOutput.class },
             (proxy, method, args) -> {
                 if (method.getName ().startsWith ("send"))
+                {
                     this.output.add (method.getName () + " " + Arrays.toString (args));
+                    this.routeOutputToDevice (method.getName (), args);
+                }
                 return defaultValue (method.getReturnType ());
             });
+        this.device = new VirtualPush1Device (new VirtualPush1Device.MidiLink () {
+            @Override public void shortMessage (int status, int data1, int data2)
+            {
+                if (VirtualPush1MidiBench.this.shortCallback == null)
+                    throw new IllegalStateException ("No short-message callback is registered");
+                VirtualPush1MidiBench.this.shortCallback.handleMidi (status, data1, data2);
+            }
+            @Override public void sysex (String frame)
+            {
+                if (VirtualPush1MidiBench.this.sysexCallback == null)
+                    throw new IllegalStateException ("No SysEx callback is registered");
+                VirtualPush1MidiBench.this.sysexCallback.handleMidi (frame);
+            }
+        }, null);
     }
 
     public IMidiInput input () { return this.input; }
     public IMidiOutput output () { return this.midiOutput; }
+    public VirtualPush1Device device () { return this.device; }
+
+    private void routeOutputToDevice (final String method, final Object [] args)
+    {
+        switch (method)
+        {
+            case "sendCC" -> this.device.receiveShort (0xB0, (int) args[0], (int) args[1]);
+            case "sendCCEx" -> this.device.receiveShort (0xB0 | ((int) args[0] - 1), (int) args[1], (int) args[2]);
+            case "sendNote" -> this.device.receiveShort ((int) args[1] == 0 ? 0x80 : 0x90, (int) args[0], (int) args[1]);
+            case "sendNoteEx" -> this.device.receiveShort (0x90 | ((int) args[0] - 1), (int) args[1], (int) args[2]);
+            case "sendPitchbend" -> {
+                if (args.length == 2)
+                    this.device.receiveShort (0xE0, (int) args[0], (int) args[1]);
+                else
+                    this.device.receiveShort (0xE0 | ((int) args[0] - 1), (int) args[1], (int) args[2]);
+            }
+            case "sendSysex" -> {
+                if (args[0] instanceof String frame && frame.startsWith ("F0 47 7F 15"))
+                    this.device.receiveSysex (frame);
+            }
+            default -> { /* Other output types remain visible in capturedOutput(). */ }
+        }
+    }
 
     /** Inject one MIDI 1.0 short message as the Bitwig callback would deliver it. */
     public void inject (final int status, final int data1, final int data2)
@@ -100,9 +141,9 @@ public final class VirtualPush1MidiBench
             received.add (new int [] { status, data1, data2 }));
         bench.input ().setSysexCallback (receivedSysex::add);
 
-        bench.inject (0xB0, 62, 127); // Push 1 Out button, channel 1.
-        bench.inject (0x90, 36, 100); // Pad note-on.
-        bench.inject (0x80, 36, 0);   // Pad note-off.
+        bench.device ().pressButton (62); // Push 1 Out button, channel 1.
+        bench.device ().pressPad (0, 0, 100);
+        bench.device ().releasePad (0, 0);
         if (received.size () != 3 || received.get (0)[1] != 62
                 || received.get (1)[2] != 100 || received.get (2)[0] != 0x80)
             throw new AssertionError ("Short MIDI input delivery/order regression");
@@ -116,10 +157,13 @@ public final class VirtualPush1MidiBench
         if (receivedSysex.size () != 1 || !receivedSysex.get (0).equals (lcd))
             throw new AssertionError ("SysEx input delivery regression");
 
-        bench.output ().sendCC (62, 127);
+        bench.output ().sendCC (49, 3);
         bench.output ().sendNote (36, 100);
         bench.output ().sendPitchbend (0, 64);
         bench.output ().sendSysex (lcd);
+        if (bench.device ().getCCLed (49) != 3 || bench.device ().getNoteLed (36) != 100
+                || bench.device ().getLcdRow (0).length () != 68)
+            throw new AssertionError ("MIDI output did not update virtual Push 1 LEDs/LCD");
         final List<String> sent = bench.capturedOutput ();
         if (sent.size () != 4 || !sent.get (0).startsWith ("sendCC ")
                 || !sent.get (3).startsWith ("sendSysex "))
