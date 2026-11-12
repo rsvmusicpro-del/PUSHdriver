@@ -344,7 +344,7 @@ replace_once(push_display,
     "Remove unbounded Push 1 bar helper")
 
 replace_once(push_display,
-    "import java.util.Arrays;\\n",
+    "import java.util.Arrays;\n",
     "",
     "Remove obsolete Push1Display Arrays import")
 
