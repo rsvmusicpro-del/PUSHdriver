@@ -596,6 +596,106 @@ if mode_source.count(mode_value) != 2:
     raise SystemExit("NoteRepeatMode: expected two mode display scaling expressions")
 note_repeat.write_text(mode_source.replace(mode_value, mode_value_replacement))
 
+# Backport API-17-compatible Push 1 workflow improvements from DrivenByMoss 24.1:
+# the track bank's volume parameters are exposed in Session/Marker modes,
+# and the two unused Master-mode second-row buttons load/save the project.
+session_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/SessionMode.java"
+replace_once(session_mode,
+    "import de.mossgrabers.controller.ableton.push.mode.track.AbstractTrackMode;\n",
+    "import de.mossgrabers.controller.ableton.push.mode.track.AbstractTrackMode;\n"
+    "import de.mossgrabers.framework.parameterprovider.track.VolumeParameterProvider;\n",
+    "SessionMode track-volume parameter provider")
+replace_once(session_mode,
+    "        this.rowDisplayMode = this.isPush2 ? RowDisplayMode.ALL : RowDisplayMode.UPPER;",
+    "        this.rowDisplayMode = this.isPush2 ? RowDisplayMode.ALL : RowDisplayMode.UPPER;\n"
+    "        this.setParameterProvider (new VolumeParameterProvider (model));",
+    "SessionMode track-volume encoder binding")
+
+marker_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/MarkerMode.java"
+replace_once(marker_mode,
+    "import de.mossgrabers.framework.featuregroup.AbstractMode;\n",
+    "import de.mossgrabers.framework.featuregroup.AbstractMode;\n"
+    "import de.mossgrabers.framework.parameterprovider.track.VolumeParameterProvider;\n",
+    "MarkerMode track-volume parameter provider")
+replace_once(marker_mode,
+    "        super (\"Marker\", surface, model, model.getMarkerBank ());",
+    "        super (\"Marker\", surface, model, model.getMarkerBank ());\n"
+    "        this.setParameterProvider (new VolumeParameterProvider (model));",
+    "MarkerMode track-volume encoder binding")
+
+master_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/track/MasterMode.java"
+replace_once(master_mode,
+    "        display.setCell (0, 6, \"Project:\");",
+    "        display.setCell (0, 6, \"Load\").setCell (0, 7, \"Save\").setCell (1, 6, \"Project:\");",
+    "Push 1 Master mode Load/Save labels")
+replace_once(master_mode,
+    "        display.setBlock (1, 2, \"Audio Engine\").setBlock (1, 3, this.model.getProject ().getName ());",
+    "        display.setBlock (1, 2, \"Audio Engine\").setBlock (2, 3, this.model.getProject ().getName ());",
+    "Push 1 Master mode project name placement")
+replace_once(master_mode,
+    "        display.addOptionElement (\"Project:\", \"\", false, this.model.getProject ().getName (), \"Previous\", false, false);\n"
+    "        display.addOptionElement (\"\", \"\", false, \"\", \"Next\", false, false);",
+    "        display.addOptionElement (\"Project:\", \"Load\", false, this.model.getProject ().getName (), \"Previous\", false, true);\n"
+    "        display.addOptionElement (\"\", \"Save\", false, \"\", \"Next\", false, true);",
+    "Push 1 Master mode graphical Load/Save labels")
+replace_once(master_mode,
+    "            if (this.isPush2 || index > 0)\n"
+    "                return off;\n\n"
+    "            final boolean muteState = this.surface.getConfiguration ().isMuteState ();\n"
+    "            final IMasterTrack master = this.model.getMasterTrack ();\n"
+    "            if (muteState)\n"
+    "                return master.isMute () ? off : PushColorManager.PUSH1_COLOR2_YELLOW_HI;\n"
+    "            return master.isSolo () ? PushColorManager.PUSH1_COLOR2_BLUE_HI : PushColorManager.PUSH1_COLOR2_GREY_LO;",
+    "            if (this.isPush2)\n"
+    "                return off;\n"
+    "            switch (index)\n"
+    "            {\n"
+    "                case 0:\n"
+    "                    final boolean muteState = this.surface.getConfiguration ().isMuteState ();\n"
+    "                    final IMasterTrack master = this.model.getMasterTrack ();\n"
+    "                    if (muteState)\n"
+    "                        return master.isMute () ? off : PushColorManager.PUSH1_COLOR2_YELLOW_HI;\n"
+    "                    return master.isSolo () ? PushColorManager.PUSH1_COLOR2_BLUE_HI : PushColorManager.PUSH1_COLOR2_GREY_LO;\n"
+    "                case 6:\n"
+    "                    return PushColorManager.PUSH1_COLOR_GREEN_HI;\n"
+    "                case 7:\n"
+    "                    return this.model.getProject ().isDirty () ? PushColorManager.PUSH1_COLOR_ORANGE_HI : PushColorManager.PUSH1_COLOR_GREEN_LO;\n"
+    "                default:\n"
+    "                    return off;\n"
+    "            }",
+    "Push 1 Master mode Load/Save LED feedback")
+replace_once(master_mode,
+    "        if (event != ButtonEvent.DOWN || this.isPush2 || index > 0)\n"
+    "            return;\n\n"
+    "        final IMasterTrack master = this.model.getMasterTrack ();\n"
+    "        if (this.surface.getConfiguration ().isMuteState ())\n"
+    "            master.toggleMute ();\n"
+    "        else\n"
+    "            master.toggleSolo ();",
+    "        if (event != ButtonEvent.DOWN || this.isPush2)\n"
+    "            return;\n\n"
+    "        switch (index)\n"
+    "        {\n"
+    "            case 0:\n"
+    "                final IMasterTrack master = this.model.getMasterTrack ();\n"
+    "                if (this.surface.getConfiguration ().isMuteState ())\n"
+    "                    master.toggleMute ();\n"
+    "                else\n"
+    "                    master.toggleSolo ();\n"
+    "                break;\n"
+    "            case 6:\n"
+    "                this.model.getProject ().load ();\n"
+    "                break;\n"
+    "            case 7:\n"
+    "                this.model.getProject ().save ();\n"
+    "                break;\n"
+    "            default:\n"
+    "                // Not used\n"
+    "                break;\n"
+    "        }",
+    "Push 1 Master mode project Load/Save actions")
+
+
 # Note Repeat period/length controls are stored in PushConfiguration and
 # remain usable without a live MIDI note-input service.
 replace_once(note_repeat,
