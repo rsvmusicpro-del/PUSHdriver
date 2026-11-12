@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 COMMAND = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/command/trigger/PushCursorCommand.java"
 SETUP = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/PushControllerSetup.java"
+DEVICE_PARAMS = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
 
 
 def method_body(source: str, signature: str) -> str:
@@ -23,11 +24,12 @@ def method_body(source: str, signature: str) -> str:
     raise SystemExit(f"Unbalanced method body: {signature}")
 
 
-if not COMMAND.is_file() or not SETUP.is_file():
+if not COMMAND.is_file() or not SETUP.is_file() or not DEVICE_PARAMS.is_file():
     raise SystemExit("Assembled Push 1 navigation sources are missing")
 
 command = COMMAND.read_text()
 setup = SETUP.read_text()
+device_params = DEVICE_PARAMS.read_text()
 
 # Every physical arrow is routed exactly once.
 for direction in ("UP", "DOWN", "LEFT", "RIGHT"):
@@ -77,5 +79,20 @@ if "this.isScenePlay ()" not in method_body(command, "protected ISceneBank getSc
     raise SystemExit("Scene Play must retain its larger 64-scene navigation bank")
 if "this.sceneBank64 = model.getSceneBank (64);" not in command:
     raise SystemExit("Scene Play's Shift page size must remain the intended 64-scene bank")
+
+# Device mode must obey the same documented Shift=page contract. The previous
+# implementation swapped adjacent devices on Shift while the arrow LEDs
+# advertised page availability, creating an action/feedback mismatch.
+for signature, expected in (
+    ("public void selectPreviousItemPage ()", "selectPreviousPage ();"),
+    ("public void selectNextItemPage ()", "selectNextPage ();"),
+    ("public boolean hasPreviousItemPage ()", "canScrollPageBackwards ();"),
+    ("public boolean hasNextItemPage ()", "canScrollPageForwards ();"),
+):
+    body = method_body(device_params, signature)
+    if expected not in body:
+        raise SystemExit(f"Device Shift navigation is not page-based: {signature}")
+    if "swapWithPrevious" in body or "swapWithNext" in body or "isShiftPressed" in body:
+        raise SystemExit(f"Device Shift navigation has an inconsistent alternate action: {signature}")
 
 print("Push 1 directional navigation and arrow LED regression checks passed.")
