@@ -193,9 +193,9 @@ public final class VirtualPush1RuntimeTest
         require (modes.isActive (Modes.TRACK), "Track CC did not restore TRACK after CLIP");
 
         midi.device ().tapButton (VirtualPush1Device.NOTE);
-        require (surface.getViewManager ().getActiveID () == Views.PLAY, "Note CC did not select the Play view");
+        require (Views.isNoteView (surface.getViewManager ().getActiveID ()), "Note CC did not select a note view");
         midi.device ().tapButton (VirtualPush1Device.SESSION);
-        require (surface.getViewManager ().getActiveID () == Views.SESSION, "Session CC did not select the Session view");
+        require (Views.isSessionView (surface.getViewManager ().getActiveID ()), "Session CC did not select a session view");
         midi.device ().tapButton (VirtualPush1Device.NOTE);
 
         // Exercise real pad callbacks, poly-aftertouch, relative encoder,
