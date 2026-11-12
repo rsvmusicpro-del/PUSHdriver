@@ -523,6 +523,15 @@ replace_once(note_repeat,
     "            final ColorManager colorManager = this.model.getColorManager ();",
     "NoteRepeatMode per-action LED input guards")
 
+replace_once(note_repeat,
+    "        return this.noteRepeat == null ? -1 : Resolution.getMatch (this.noteRepeat.getPeriod ());",
+    "        return Resolution.getMatch (this.noteRepeat == null ? this.surface.getConfiguration ().getNoteRepeatPeriod ().getValue () : this.noteRepeat.getPeriod ());",
+    "NoteRepeatMode period display uses stored configuration without MIDI input")
+replace_once(note_repeat,
+    "        return this.noteRepeat == null ? -1 : Resolution.getMatch (this.noteRepeat.getNoteLength ());",
+    "        return Resolution.getMatch (this.noteRepeat == null ? this.surface.getConfiguration ().getNoteRepeatLength ().getValue () : this.noteRepeat.getNoteLength ());",
+    "NoteRepeatMode length display uses stored configuration without MIDI input")
+
 mode_value = "final int value = modeIndex * upperBound / (arpeggiatorModes.size () - 1);"
 mode_value_replacement = (
     "final int modeDenominator = Math.max (1, arpeggiatorModes.size () - 1);\n"
