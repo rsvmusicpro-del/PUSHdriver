@@ -324,7 +324,7 @@ for marker in (
         raise SystemExit(f"Touchstrip configuration reset regression: missing {marker!r}")
 
 display = read("controller/ableton/push/controller/Push1Display.java")
-if "Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68))" not in display:
+if "Push1DisplayProtocol.encodeLine (row, Push1DisplayText.fit (text, 68))" not in display:
     raise SystemExit("Push 1 LCD output must normalize every display row to exactly 68 characters")
 
 configuration_mode = read("controller/ableton/push/mode/ConfigurationMode.java")
