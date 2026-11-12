@@ -45,6 +45,8 @@ if "Push1DisplayText.fitBlock (value)" not in display_source or "Push1DisplayTex
     raise SystemExit("Push 1 LCD cells are not routed through the bounded text-fitting engine")
 if "Push1DisplayValueFormatter.formatValue" not in display_source or "Push1DisplayValueFormatter.formatModulatedValue" not in display_source:
     raise SystemExit("Push 1 LCD value bars are not routed through the bounded value formatter")
+if "Push1DisplayValueFormatter.formatPan" not in display_source:
+    raise SystemExit("Push 1 LCD pan bars are not routed through the bounded pan formatter")
 
 # AbstractTextDisplay.setRow requires a complete 68-character row. Scan every
 # literal row assignment in the assembled Push controller package so a future
