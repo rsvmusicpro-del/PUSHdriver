@@ -279,6 +279,31 @@ replace_once(push_display,
     "        this.output.sendSysex (Push1Display.SYSEX_MESSAGE[row] + StringUtils.asciiToHex (text) + \"F7\");",
     "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68)));",
     "Push1Display SysEx protocol delegation")
+replace_once(push_display,
+    "    public void writeLine (final int row, final String text)\n"
+    "    {\n"
+    "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68)));\n"
+    "    }",
+    "    public void writeLine (final int row, final String text)\n"
+    "    {\n"
+    "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68)));\n"
+    "    }\n\n"
+    "    /** {@inheritDoc} */\n"
+    "    @Override\n"
+    "    protected void updateNotification ()\n"
+    "    {\n"
+    "        final String trimmed = this.notificationMessage.trim ();\n"
+    "        if (trimmed.codePointCount (0, trimmed.length ()) > 17)\n"
+    "        {\n"
+    "            super.updateNotification ();\n"
+    "            return;\n"
+    "        }\n\n"
+    "        final String row0 = this.currentMessage[0] == null ? this.emptyLine : this.currentMessage[0];\n"
+    "        final String row1 = this.currentMessage[1] == null ? this.emptyLine : this.currentMessage[1];\n"
+    "        this.updateLine (0, Push1DisplayText.overlayRightBlock (row0, trimmed), this.currentMessage[0]);\n"
+    "        this.updateLine (1, Push1DisplayText.overlayRightBlock (row1, \"\"), this.currentMessage[1]);\n"
+    "    }",
+    "Push1Display compact notification overlay")
 
 # Clamp parameter values before formatting the eight LCD bar cells. The
 # upstream overlay calculation indexes one cell beyond the array when both
