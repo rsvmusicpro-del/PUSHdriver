@@ -277,7 +277,7 @@ public final class VirtualPush1Device
     public void receiveSysex (final String hexadecimalFrame)
     {
         validateHexSysex (hexadecimalFrame);
-        final String [] tokens = hexadecimalFrame.trim ().split ("\\\\s+");
+        final String [] tokens = hexadecimalFrame.trim ().split ("\\s+");
         if (isPadRgbFrame (tokens))
         {
             final int pad = Integer.parseInt (tokens[7], 16);
