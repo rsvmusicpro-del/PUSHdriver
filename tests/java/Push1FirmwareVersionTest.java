@@ -45,13 +45,24 @@ public final class Push1FirmwareVersionTest
             throw new AssertionError("Null inquiry must not produce a firmware version");
 
         // All four firmware digits are decimal, not arbitrary seven-bit MIDI values.
-        for (int index = 9; index <= 12; index++)
+        for (int index = 12; index <= 15; index++)
         {
             final int[] malformed = validResponse();
             malformed[index] = 10;
             if (Push1FirmwareVersion.parse(new DeviceInquiry(malformed)) != null)
                 throw new AssertionError("Non-decimal firmware digit at response offset " + index + " was accepted");
         }
+
+        // Family and member fields are not firmware digits and must not affect
+        // the decoded version, even when they contain non-decimal seven-bit values.
+        final int[] unusualModel = validResponse();
+        unusualModel[8] = 0x7F;
+        unusualModel[9] = 0x7E;
+        unusualModel[10] = 0x7D;
+        unusualModel[11] = 0x7C;
+        final Push1FirmwareVersion modelIndependent = Push1FirmwareVersion.parse(new DeviceInquiry(unusualModel));
+        if (modelIndependent == null || modelIndependent.major() != 42 || modelIndependent.minor() != 35)
+            throw new AssertionError("Family/member bytes were incorrectly interpreted as firmware revision");
 
         // A generic 35-byte identity response from another manufacturer must never
         // be interpreted as Push 1 firmware merely because its version bytes are decimal.
@@ -147,10 +158,15 @@ public final class Push1FirmwareVersionTest
         response[5] = 0x00;
         response[6] = 0x21;
         response[7] = 0x1D;
-        response[9] = 4;
-        response[10] = 2;
-        response[11] = 3;
-        response[12] = 5;
+        // Family/member bytes are deliberately distinct from the firmware.
+        response[8] = 1;
+        response[9] = 7;
+        response[10] = 6;
+        response[11] = 4;
+        response[12] = 4;
+        response[13] = 2;
+        response[14] = 3;
+        response[15] = 5;
         response[34] = 0xF7;
         return response;
     }
