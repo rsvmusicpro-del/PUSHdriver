@@ -519,7 +519,9 @@ replace_once(note_repeat,
     "        int index = this.isButtonRow (0, buttonID);\n"
     "        if (index >= 0)\n"
     "        {\n"
-    "            this.refreshNoteRepeat ();\n\n"
+    "            this.refreshNoteRepeat ();\n"
+    "            if (this.noteRepeat == null)\n"
+    "                return super.getButtonColor (buttonID);\n\n"
     "            final ColorManager colorManager = this.model.getColorManager ();",
     "NoteRepeatMode per-action LED input guards")
 
