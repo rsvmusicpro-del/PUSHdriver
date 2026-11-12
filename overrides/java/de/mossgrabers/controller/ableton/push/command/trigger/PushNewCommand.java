@@ -17,9 +17,11 @@ import java.util.Optional;
 /**
  * Push 1 New behavior adapted to Bitwig's clip launcher.
  *
- * Stop the current cursor-track clip only after confirming that a free slot
- * exists. Then create and start a new note clip using the upstream New
- * command's existing length and overdub rules.
+ * Stop the current cursor-track Launcher clip only after confirming that a
+ * free slot exists. The selected slot may be empty while another slot on the
+ * track is playing, so use the track's playback state rather than the
+ * selected slot's state. Then create and start a new note clip using the
+ * upstream New command's existing length and overdub rules.
  */
 public class PushNewCommand extends NewCommand<PushControlSurface, PushConfiguration>
 {
@@ -53,7 +55,7 @@ public class PushNewCommand extends NewCommand<PushControlSurface, PushConfigura
         final ISlotBank slotBank = cursorTrack.getSlotBank ();
         final Optional<ISlot> selectedSlot = slotBank.getSelectedItem ();
         final int slotIndex = selectedSlot.isEmpty () ? 0 : selectedSlot.get ().getIndex ();
-        final boolean selectedClipIsPlaying = selectedSlot.isPresent () && selectedSlot.get ().isPlaying ();
+        final boolean clipIsPlaying = cursorTrack.isPlaying ();
         final Optional<ISlot> slot = slotBank.getEmptySlot (slotIndex);
         if (slot.isEmpty ())
         {
@@ -62,7 +64,7 @@ public class PushNewCommand extends NewCommand<PushControlSurface, PushConfigura
         }
 
         // Only stop a selected Launcher clip; do not interrupt unrelated Arranger playback.
-        if (selectedClipIsPlaying)
+        if (clipIsPlaying)
             cursorTrack.stop ();
         this.model.createNoteClip (cursorTrack, slot.get (), this.getClipLength (), enableOverdub);
     }
