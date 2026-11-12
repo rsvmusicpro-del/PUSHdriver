@@ -109,6 +109,15 @@ for action, capability in (
     if capability_position < case_position:
         raise SystemExit(f"Optional device action {action} is missing its {capability} guard")
 
+# A stale pad event must not select, disable or delete an empty device-bank slot.
+first_row_start = device_params.index("public void onFirstRow")
+first_row_end = device_params.index("protected void moveUp", first_row_start)
+first_row = device_params[first_row_start:first_row_end]
+empty_device_guard = first_row.index("if (!targetDevice.doesExist ())")
+for action in ("targetDevice.remove ();", "targetDevice.toggleEnabledState ();", "targetDevice.select ();"):
+    if first_row.index(action) < empty_device_guard:
+        raise SystemExit(f"Device-row action {action} is not protected against empty slots")
+
 # The standard arrows retain the original per-item navigation and LED checks.
 for marker in (
     "super.selectPreviousItem ();",
