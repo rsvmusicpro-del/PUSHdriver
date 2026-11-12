@@ -12,7 +12,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.UUID;
+import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import de.mossgrabers.controller.ableton.push.controller.Push1Display;
 
 /** Runtime smoke test for the exact SPI discovery path used by Bitwig Studio. */
 public final class PushdriverExtensionDiscoveryTest
@@ -31,6 +33,8 @@ public final class PushdriverExtensionDiscoveryTest
             throw new AssertionError("Packaged devices/Instruments.txt was not loaded");
         if (host.getAudioEffectMetadata().isEmpty())
             throw new AssertionError("Packaged devices/AudioEffects.txt was not loaded");
+
+        verifyPackagedPanFormatter();
 
         // Validate the platform-specific MIDI auto-detection contract independently
         // of the CI runner's actual operating system.
@@ -107,6 +111,36 @@ public final class PushdriverExtensionDiscoveryTest
             + ", API " + definition.getRequiredAPIVersion() + ", UUID " + definition.getId());
 
     }
+
+    private static void verifyPackagedPanFormatter()
+    {
+        try
+        {
+            final Method formatter = Push1Display.class.getDeclaredMethod("formatPan", int.class, int.class);
+            formatter.setAccessible(true);
+
+            final String empty = Push1Display.BARS_NON;
+            final String full = Push1Display.BARS_TWO;
+            final String leftHalf = Push1Display.BARS_ONE_L;
+            final String rightEdge = (String) formatter.invoke(null, 127, 127);
+            if (!rightEdge.equals(empty.repeat(4) + full.repeat(4)))
+                throw new AssertionError("Packaged Push 1 maximum pan bar is not exactly eight cells");
+
+            final String leftEdge = (String) formatter.invoke(null, 0, 127);
+            final String expectedLeft = new StringBuilder(empty.repeat(4) + full.repeat(3) + leftHalf).reverse().toString();
+            if (!leftEdge.equals(expectedLeft))
+                throw new AssertionError("Packaged Push 1 minimum pan bar is not aligned to the left edge");
+
+            final String invalidRange = (String) formatter.invoke(null, Integer.MAX_VALUE, 0);
+            if (!invalidRange.equals(empty.repeat(8)))
+                throw new AssertionError("Packaged Push 1 pan formatter is not safe for a zero maximum");
+        }
+        catch (final ReflectiveOperationException ex)
+        {
+            throw new AssertionError("Could not exercise the packaged Push 1 pan formatter", ex);
+        }
+    }
+
 
     private static boolean containsPair(final List<Pair<String[], String[]>> pairs,
                                         final String input, final String output)
