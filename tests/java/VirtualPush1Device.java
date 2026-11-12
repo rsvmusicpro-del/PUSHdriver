@@ -34,6 +34,8 @@ public final class VirtualPush1Device
     public static final int PAD_FIRST_NOTE = 36;
     public static final int PAD_COUNT = 64;
     public static final int PAD_VELOCITY_MAX = 127;
+    public static final int TAP_TEMPO = 3;
+    public static final int METRONOME = 9;
     public static final int LCD_ROWS = 4;
     public static final int LCD_COLUMNS = 68;
 
@@ -88,6 +90,8 @@ public final class VirtualPush1Device
     private final String [] lcd = new String [LCD_ROWS];
     private final boolean [] pressedPads = new boolean [PAD_COUNT];
     private final int [] padPressure = new int [PAD_COUNT];
+    private final int [][] padRgb = new int [PAD_COUNT][3];
+    private final int [][] bottomRowRgb = new int [8][3];
     private final boolean [] pressedButtons = new boolean [128];
     private final int [] encoderValues = new int [11];
 
@@ -228,6 +232,18 @@ public final class VirtualPush1Device
         return this.padPressure[padNote (row, column) - PAD_FIRST_NOTE];
     }
 
+    public int [] getPadRgb (final int row, final int column)
+    {
+        return this.padRgb[padNote (row, column) - PAD_FIRST_NOTE].clone ();
+    }
+
+    public int [] getBottomRowRgb (final int button)
+    {
+        if (button < 0 || button >= 8)
+            throw new IllegalArgumentException ("Bottom row button index must be in [0,7]");
+        return this.bottomRowRgb[button].clone ();
+    }
+
     /** Encode signed movement as Push 1 seven-bit two's complement. */
     public static int encodeRelativeSteps (final int signedSteps)
     {
@@ -257,17 +273,34 @@ public final class VirtualPush1Device
             this.ccLeds.put (data1, data2);
     }
 
-    /** Decode Push 1's four 68-character LCD row SysEx frames. */
+    /** Decode Push 1 pad/bottom-row RGB frames and four 68-character LCD rows. */
     public void receiveSysex (final String hexadecimalFrame)
     {
         validateHexSysex (hexadecimalFrame);
-        final String [] tokens = hexadecimalFrame.trim ().split ("\\s+");
+        final String [] tokens = hexadecimalFrame.trim ().split ("\\\\s+");
+        if (isPadRgbFrame (tokens))
+        {
+            final int pad = Integer.parseInt (tokens[7], 16);
+            if (pad > 71)
+                throw new IllegalArgumentException ("Invalid Push 1 RGB LED index");
+            final int [] rgb = {
+                (parseNibble (tokens[8]) << 4) | parseNibble (tokens[9]),
+                (parseNibble (tokens[10]) << 4) | parseNibble (tokens[11]),
+                (parseNibble (tokens[12]) << 4) | parseNibble (tokens[13])
+            };
+            if (pad < PAD_COUNT)
+                System.arraycopy (rgb, 0, this.padRgb[pad], 0, 3);
+            else
+                System.arraycopy (rgb, 0, this.bottomRowRgb[pad - PAD_COUNT], 0, 3);
+            return;
+        }
+
         if (tokens.length != 77 || !"F0".equalsIgnoreCase (tokens[0])
                 || !"47".equalsIgnoreCase (tokens[1]) || !"7F".equalsIgnoreCase (tokens[2])
                 || !"15".equalsIgnoreCase (tokens[3]) || !"00".equalsIgnoreCase (tokens[5])
                 || !"45".equalsIgnoreCase (tokens[6]) || !"00".equalsIgnoreCase (tokens[7])
                 || !"F7".equalsIgnoreCase (tokens[76]))
-            throw new IllegalArgumentException ("Not a Push 1 LCD row frame");
+            throw new IllegalArgumentException ("Not a Push 1 LCD row or RGB LED frame");
         final int row = Integer.parseInt (tokens[4], 16) - 0x18;
         if (row < 0 || row >= LCD_ROWS)
             throw new IllegalArgumentException ("Invalid Push 1 LCD row selector");
@@ -280,6 +313,23 @@ public final class VirtualPush1Device
             text.append ((char) character);
         }
         this.lcd[row] = text.toString ();
+    }
+
+    private static boolean isPadRgbFrame (final String [] tokens)
+    {
+        return tokens.length == 15 && "F0".equalsIgnoreCase (tokens[0])
+            && "47".equalsIgnoreCase (tokens[1]) && "7F".equalsIgnoreCase (tokens[2])
+            && "15".equalsIgnoreCase (tokens[3]) && "04".equalsIgnoreCase (tokens[4])
+            && "00".equalsIgnoreCase (tokens[5]) && "08".equalsIgnoreCase (tokens[6])
+            && "F7".equalsIgnoreCase (tokens[14]);
+    }
+
+    private static int parseNibble (final String token)
+    {
+        final int value = Integer.parseInt (token, 16);
+        if (value > 0x0F)
+            throw new IllegalArgumentException ("RGB SysEx color components must be 4-bit nibbles");
+        return value;
     }
 
     public boolean isButtonPressed (final int cc) { return this.pressedButtons[cc]; }
