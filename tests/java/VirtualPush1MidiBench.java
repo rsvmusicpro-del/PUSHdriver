@@ -4,6 +4,10 @@ import de.mossgrabers.framework.daw.midi.MidiShortCallback;
 import de.mossgrabers.framework.daw.midi.MidiSysExCallback;
 import de.mossgrabers.framework.controller.hardware.BindType;
 import de.mossgrabers.framework.controller.hardware.IHwButton;
+import de.mossgrabers.framework.controller.hardware.IHwContinuousControl;
+import de.mossgrabers.framework.controller.hardware.IHwRelativeKnob;
+import de.mossgrabers.framework.controller.hardware.IHwFader;
+import de.mossgrabers.framework.controller.valuechanger.RelativeEncoding;
 import de.mossgrabers.framework.utils.ButtonEvent;
 
 import java.lang.reflect.Proxy;
@@ -23,6 +27,9 @@ public final class VirtualPush1MidiBench
     private final List<String> output = new ArrayList<> ();
     private final List<int[]> rawInputOutput = new ArrayList<> ();
     private final List<ButtonBinding> buttonBindings = new ArrayList<> ();
+    private final List<ContinuousBinding> continuousBindings = new ArrayList<> ();
+    private final List<TouchBinding> touchBindings = new ArrayList<> ();
+    private final List<int[]> rawDeviceInput = new ArrayList<> ();
     private MidiShortCallback shortCallback;
     private MidiSysExCallback sysexCallback;
     private final IMidiInput input;
@@ -43,11 +50,20 @@ public final class VirtualPush1MidiBench
                     case "bind" -> {
                         if (args[0] instanceof IHwButton button)
                             this.buttonBindings.add (new ButtonBinding (button, (BindType) args[1],
-                                (int) args[2], (int) args[3], args.length > 4 ? (int) args[4] : -1));
+                                (int) args[2], (int) args[3], args.length > 4 && args[4] instanceof Integer value ? value : -1));
+                        else if (args[0] instanceof IHwContinuousControl control)
+                            this.continuousBindings.add (new ContinuousBinding (control, (BindType) args[1],
+                                (int) args[2], (int) args[3]));
+                    }
+                    case "bindTouch" -> {
+                        if (args[0] instanceof IHwContinuousControl control)
+                            this.touchBindings.add (new TouchBinding (control, (BindType) args[1],
+                                (int) args[2], (int) args[3]));
                     }
                     case "unbind" -> {
-                        if (args[0] instanceof IHwButton button)
-                            this.buttonBindings.removeIf (binding -> binding.button () == button);
+                        this.buttonBindings.removeIf (binding -> binding.button () == args[0]);
+                        this.continuousBindings.removeIf (binding -> binding.control () == args[0]);
+                        this.touchBindings.removeIf (binding -> binding.control () == args[0]);
                     }
                     case "toString" -> { return "Virtual Push 1 MIDI input"; }
                     default -> { return defaultValue (method.getReturnType ()); }
@@ -67,10 +83,16 @@ public final class VirtualPush1MidiBench
         this.device = new VirtualPush1Device (new VirtualPush1Device.MidiLink () {
             @Override public void shortMessage (int status, int data1, int data2)
             {
-                if (VirtualPush1MidiBench.this.shortCallback == null)
-                    throw new IllegalStateException ("No short-message callback is registered");
-                VirtualPush1MidiBench.this.shortCallback.handleMidi (status, data1, data2);
-                VirtualPush1MidiBench.this.dispatchButtonBindings (status, data1, data2);
+                final int family = status & 0xF0;
+                if (family == 0xB0 || family == 0xE0)
+                    VirtualPush1MidiBench.this.dispatchBindings (status, data1, data2);
+                else
+                {
+                    if (VirtualPush1MidiBench.this.shortCallback == null)
+                        throw new IllegalStateException ("No short-message callback is registered");
+                    VirtualPush1MidiBench.this.shortCallback.handleMidi (status, data1, data2);
+                    VirtualPush1MidiBench.this.dispatchBindings (status, data1, data2);
+                }
             }
             @Override public void sysex (String frame)
             {
@@ -78,7 +100,11 @@ public final class VirtualPush1MidiBench
                     throw new IllegalStateException ("No SysEx callback is registered");
                 VirtualPush1MidiBench.this.sysexCallback.handleMidi (frame);
             }
-        }, null);
+        }, new VirtualPush1Device.EventListener () {
+            @Override public void onShortMessage (int status, int data1, int data2)
+            { VirtualPush1MidiBench.this.rawDeviceInput.add (new int [] { status, data1, data2 }); }
+            @Override public void onSysex (String frame) { }
+        });
     }
 
     public IMidiInput input () { return this.input; }
@@ -86,22 +112,52 @@ public final class VirtualPush1MidiBench
     public VirtualPush1Device device () { return this.device; }
 
     private record ButtonBinding (IHwButton button, BindType type, int channel, int control, int value) { }
+    private record ContinuousBinding (IHwContinuousControl control, BindType type, int channel, int controlNumber) { }
+    private record TouchBinding (IHwContinuousControl control, BindType type, int channel, int controlNumber) { }
 
-    /** Deliver MIDI input through the same hardware-button bindings used by the extension. */
-    private void dispatchButtonBindings (final int status, final int data1, final int data2)
+    /** Deliver MIDI through the actual IMidiInput hardware bindings. */
+    private void dispatchBindings (final int status, final int data1, final int data2)
     {
         final int family = status & 0xF0;
         final int channel = status & 0x0F;
-        for (final ButtonBinding binding: List.copyOf (this.buttonBindings))
+        if (family == 0xB0)
         {
-            final boolean matches = binding.channel () == channel && binding.control () == data1
-                && (binding.value () < 0 || binding.value () == data2)
-                && (binding.type () == BindType.CC && family == 0xB0
-                    || binding.type () == BindType.NOTE && (family == 0x80 || family == 0x90));
-            if (!matches)
-                continue;
-            final boolean pressed = family == 0x80 ? false : data2 > 0;
-            binding.button ().trigger (pressed ? ButtonEvent.DOWN : ButtonEvent.UP, data2 / 127.0);
+            for (final ButtonBinding binding: List.copyOf (this.buttonBindings))
+            {
+                if (binding.type () != BindType.CC || binding.channel () != channel
+                        || binding.control () != data1 || binding.value () >= 0 && binding.value () != data2)
+                    continue;
+                final boolean pressed = data2 > 0;
+                binding.button ().trigger (pressed ? ButtonEvent.DOWN : ButtonEvent.UP, data2 / 127.0);
+            }
+            for (final ContinuousBinding binding: List.copyOf (this.continuousBindings))
+            {
+                if (!(binding.control () instanceof IHwRelativeKnob knob)
+                        || binding.type () != BindType.CC || binding.channel () != channel
+                        || binding.controlNumber () != data1)
+                    continue;
+                final int steps = data2 == 64 ? 0 : data2 > 64 ? data2 - 128 : data2;
+                if (steps != 0)
+                    knob.handleValue (steps / 61.0);
+            }
+        }
+        else if (family == 0xE0)
+        {
+            for (final ContinuousBinding binding: List.copyOf (this.continuousBindings))
+                if (binding.control () instanceof IHwFader && binding.type () == BindType.PITCHBEND
+                        && binding.channel () == channel && binding.control ().getPitchbendCommand () != null)
+                    binding.control ().getPitchbendCommand ().onPitchbend (data1, data2);
+        }
+        else if (family == 0x80 || family == 0x90)
+        {
+            final boolean pressed = family == 0x90 && data2 > 0;
+            for (final ButtonBinding binding: List.copyOf (this.buttonBindings))
+                if (binding.type () == BindType.NOTE && binding.channel () == channel && binding.control () == data1
+                        && (binding.value () < 0 || binding.value () == data2))
+                    binding.button ().trigger (pressed ? ButtonEvent.DOWN : ButtonEvent.UP, data2 / 127.0);
+            for (final TouchBinding binding: List.copyOf (this.touchBindings))
+                if (binding.type () == BindType.NOTE && binding.channel () == channel && binding.controlNumber () == data1)
+                    binding.control ().triggerTouch (pressed);
         }
     }
 
@@ -186,6 +242,7 @@ public final class VirtualPush1MidiBench
 
     public List<String> capturedOutput () { return List.copyOf (this.output); }
     public List<int[]> capturedRawInputOutput () { return List.copyOf (this.rawInputOutput); }
+    public List<int[]> capturedDeviceInput () { return List.copyOf (this.rawDeviceInput); }
 
     private static Object defaultValue (final Class<?> type)
     {
