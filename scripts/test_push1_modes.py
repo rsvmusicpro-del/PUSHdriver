@@ -64,7 +64,6 @@ if "modeIndex * upperBound / (arpeggiatorModes.size () - 1)" in note_repeat:
 # A global marker is insufficient: every callback that can dereference the
 # late-bound MIDI service must refresh it and handle the unavailable-input case.
 for signature in (
-    "public void onKnobValue (final int index, final int value)",
     "public void onKnobTouch (final int index, final boolean isTouched)",
     "public void onFirstRow (final int index, final ButtonEvent event)",
     "public void onSecondRow (final int index, final ButtonEvent event)",
@@ -75,6 +74,21 @@ for signature in (
     body = method_body(note_repeat, signature)
     if "this.refreshNoteRepeat ();" not in body or "this.noteRepeat == null" not in body:
         raise SystemExit(f"NoteRepeatMode callback lacks its own refreshed null guard: {signature}")
+
+# Knob 0-7 edit persistent configuration and Groove state; they do not
+# dereference the optional MIDI note-repeat service and must remain usable
+# when Bitwig has no default note input.
+knob_value = method_body(note_repeat, "public void onKnobValue (final int index, final int value)")
+if "this.refreshNoteRepeat ();" in knob_value or "this.noteRepeat == null" in knob_value:
+    raise SystemExit("NoteRepeatMode configuration knobs must not be disabled by a missing MIDI input")
+for marker in (
+    "configuration.setNoteRepeatPeriod",
+    "configuration.setNoteRepeatLength",
+    "configuration.setPrevNextNoteRepeatMode",
+    "configuration.setNoteRepeatOctave",
+):
+    if marker not in knob_value:
+        raise SystemExit(f"NoteRepeatMode configuration knob regression: missing {marker!r}")
 
 
 sequencer = read("framework/view/sequencer/AbstractSequencerView.java")
