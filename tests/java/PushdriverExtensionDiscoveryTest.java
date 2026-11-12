@@ -229,7 +229,7 @@ public final class PushdriverExtensionDiscoveryTest
 
     private static String decodeLcdFrame (final String frame, final int row)
     {
-        final String [] bytes = frame.trim ().split ("\\\\s+");
+        final String [] bytes = frame.trim ().split ("\\s+");
         if (bytes.length != 77 || !"F0".equals (bytes[0]) || !"47".equals (bytes[1])
                 || !"7F".equals (bytes[2]) || !"15".equals (bytes[3])
                 || !"F7".equals (bytes[76]))
