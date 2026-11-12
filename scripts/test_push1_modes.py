@@ -359,7 +359,7 @@ master_display = method_body(master_mode, "public void updateDisplay1 (final ITe
 for marker in (
     'display.setCell (0, 6, "Load").setCell (0, 7, "Save")',
     'setCell (1, 6, "Project:")',
-    'display.setBlock (2, 3, this.model.getProject ().getName ())',
+    'setBlock (2, 3, this.model.getProject ().getName ())',
 ):
     if marker not in master_display:
         raise SystemExit(f"Master mode project I/O display regression: missing {marker!r}")
