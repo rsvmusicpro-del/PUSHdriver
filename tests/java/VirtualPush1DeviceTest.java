@@ -45,8 +45,9 @@ public final class VirtualPush1DeviceTest
             device.tapButton (VirtualPush1Device.REPEAT_BUTTON_FIRST + i);
         }
         // Button matrix, Shift chord and transport button are actual CC events.
-        if (VirtualPush1Device.IN != 62 || VirtualPush1Device.OUT != 63)
-            throw new AssertionError ("Push 1 In/Out CC mapping regression");
+        if (VirtualPush1Device.TAP_TEMPO != 3 || VirtualPush1Device.METRONOME != 9
+                || VirtualPush1Device.IN != 62 || VirtualPush1Device.OUT != 63)
+            throw new AssertionError ("Push 1 Tap Tempo/Metronome/In/Out CC mapping regression");
         if (VirtualPush1Device.SHIFT != 49 || VirtualPush1Device.LEFT != 44
                 || VirtualPush1Device.RIGHT != 45 || VirtualPush1Device.UP != 46
                 || VirtualPush1Device.DOWN != 47 || VirtualPush1Device.PLAY != 85
