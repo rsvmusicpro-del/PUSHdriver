@@ -397,13 +397,6 @@ replace_once(note_repeat,
     "        super.onActivate ();\n\n        this.refreshNoteRepeat ();\n        this.model.getGroove ().enableObservers (true);",
     "NoteRepeatMode activation refresh")
 replace_once(note_repeat,
-    "    public void onKnobValue (final int index, final int value)\n    {\n",
-    "    public void onKnobValue (final int index, final int value)\n    {\n"
-    "        this.refreshNoteRepeat ();\n"
-    "        if (this.noteRepeat == null)\n"
-    "            return;\n\n",
-    "NoteRepeatMode knob input guard")
-replace_once(note_repeat,
     "        this.setTouchedKnob (index, isTouched);\n\n        if (isTouched && this.surface.isDeletePressed ())",
     "        this.setTouchedKnob (index, isTouched);\n"
     "        this.refreshNoteRepeat ();\n"
