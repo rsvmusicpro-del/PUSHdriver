@@ -28,7 +28,20 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-display-test-") as output:
         cwd=root, check=True,
     )
 
+    value_formatter = root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayValueFormatter.java"
+    value_test = root / "tests/java/Push1DisplayValueFormatterTest.java"
+    subprocess.run(
+        ["javac", "-d", output, str(value_formatter), str(value_test)],
+        cwd=root, check=True,
+    )
+    subprocess.run(
+        ["java", "-cp", output, "Push1DisplayValueFormatterTest"],
+        cwd=root, check=True,
+    )
+
 assembled_display = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push1Display.java"
 display_source = assembled_display.read_text()
 if "Push1DisplayText.fitBlock (value)" not in display_source or "Push1DisplayText.fit (value, 8)" not in display_source:
     raise SystemExit("Push 1 LCD cells are not routed through the bounded text-fitting engine")
+if "Push1DisplayValueFormatter.formatValue" not in display_source or "Push1DisplayValueFormatter.formatModulatedValue" not in display_source:
+    raise SystemExit("Push 1 LCD value bars are not routed through the bounded value formatter")
