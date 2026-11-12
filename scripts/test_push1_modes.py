@@ -58,8 +58,8 @@ if 'display.setCell (column, row, "");' in note_repeat:
 if "modeIndex * upperBound / (arpeggiatorModes.size () - 1)" in note_repeat:
     raise SystemExit("NoteRepeatMode still contains unsafe one-element mode scaling")
 
-# A global marker is insufficient: every callback that can dereference the
-# late-bound MIDI service must refresh it and handle the unavailable-input case.
+# A global marker is insufficient: each callback must refresh the late-bound
+# MIDI service and guard only the operations that actually depend on it.
 for signature in (
     "public void onFirstRow (final int index, final ButtonEvent event)",
     "public void updateDisplay1 (final ITextDisplay display)",
