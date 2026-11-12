@@ -277,7 +277,7 @@ replace_once(push_display,
     "", "Push1Display protocol header ownership")
 replace_once(push_display,
     "        this.output.sendSysex (Push1Display.SYSEX_MESSAGE[row] + StringUtils.asciiToHex (text) + \"F7\");",
-    "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68)));",
+    "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, Push1DisplayText.fit (text, 68)));",
     "Push1Display SysEx protocol delegation")
 replace_once(push_display,
     "    private final int              maxParameterValue;",
@@ -287,11 +287,11 @@ replace_once(push_display,
 replace_once(push_display,
     "    public void writeLine (final int row, final String text)\n"
     "    {\n"
-    "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68)));\n"
+    "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, Push1DisplayText.fit (text, 68)));\n"
     "    }",
     "    public void writeLine (final int row, final String text)\n"
     "    {\n"
-    "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, StringUtils.pad (text, 68)));\n"
+    "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, Push1DisplayText.fit (text, 68)));\n"
     "    }\n\n"
     "    /** {@inheritDoc} */\n"
     "    @Override\n"
