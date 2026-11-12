@@ -25,14 +25,12 @@ public final class Push1DisplayText
         final StringBuilder normalized = new StringBuilder ();
         if (value != null)
         {
-            for (int i = 0; i < value.length (); i++)
-            {
-                final char c = value.charAt (i);
-                if (c == '\n' || c == '\r' || c == '\t')
+            value.codePoints ().forEach (codePoint -> {
+                if (codePoint == '\n' || codePoint == '\r' || codePoint == '\t')
                     normalized.append (' ');
                 else
-                    normalized.append (c <= 0x7F ? c : '?');
-            }
+                    normalized.append (codePoint <= 0x7F ? (char) codePoint : '?');
+            });
         }
 
         String text = normalized.toString ();
