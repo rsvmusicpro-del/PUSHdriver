@@ -65,6 +65,54 @@ public final class Push1FirmwareVersionTest
                 throw new AssertionError("A foreign manufacturer identity was accepted at offset " + index);
         }
 
+        // Extended non-standard replies may still use a one-byte manufacturer ID.
+        // Family/member/revision offsets must follow the actual ID width, not packet length.
+        final int[] extendedShortManufacturer = new int[33];
+        extendedShortManufacturer[0] = 0xF0;
+        extendedShortManufacturer[1] = 0x7E;
+        extendedShortManufacturer[2] = 0x7F;
+        extendedShortManufacturer[3] = 0x06;
+        extendedShortManufacturer[4] = 0x02;
+        extendedShortManufacturer[5] = 0x41;
+        extendedShortManufacturer[6] = 0x11;
+        extendedShortManufacturer[7] = 0x22;
+        extendedShortManufacturer[8] = 0x33;
+        extendedShortManufacturer[9] = 0x44;
+        extendedShortManufacturer[10] = 1;
+        extendedShortManufacturer[11] = 2;
+        extendedShortManufacturer[12] = 3;
+        extendedShortManufacturer[13] = 4;
+        extendedShortManufacturer[32] = 0xF7;
+        final DeviceInquiry extendedShortInquiry = new DeviceInquiry(extendedShortManufacturer);
+        if (!extendedShortInquiry.isValid())
+            throw new AssertionError("An extended reply with a valid one-byte manufacturer ID was rejected");
+        if (!java.util.Arrays.equals(extendedShortInquiry.getManufacturer(), new int[] { 0x41 }))
+            throw new AssertionError("Extended one-byte manufacturer ID was parsed with the wrong width");
+        if (!java.util.Arrays.equals(extendedShortInquiry.getDeviceFamilyCode(), new int[] { 0x11, 0x22 })
+            || !java.util.Arrays.equals(extendedShortInquiry.getDeviceFamilyMemberCode(), new int[] { 0x33, 0x44 })
+            || !java.util.Arrays.equals(extendedShortInquiry.getRevisionLevel(), new int[] { 1, 2, 3, 4 }))
+            throw new AssertionError("Extended one-byte manufacturer shifted identity fields incorrectly");
+
+        final int[] invalidShortManufacturer = new int[15];
+        invalidShortManufacturer[0] = 0xF0;
+        invalidShortManufacturer[1] = 0x7E;
+        invalidShortManufacturer[3] = 0x06;
+        invalidShortManufacturer[4] = 0x02;
+        invalidShortManufacturer[5] = 0x00;
+        invalidShortManufacturer[14] = 0xF7;
+        if (new DeviceInquiry(invalidShortManufacturer).isValid())
+            throw new AssertionError("A truncated three-byte manufacturer identity was accepted");
+
+        final int[] invalidLongManufacturer = new int[17];
+        invalidLongManufacturer[0] = 0xF0;
+        invalidLongManufacturer[1] = 0x7E;
+        invalidLongManufacturer[3] = 0x06;
+        invalidLongManufacturer[4] = 0x02;
+        invalidLongManufacturer[5] = 0x41;
+        invalidLongManufacturer[16] = 0xF7;
+        if (new DeviceInquiry(invalidLongManufacturer).isValid())
+            throw new AssertionError("A one-byte manufacturer with a three-byte identity length was accepted");
+
         final int[] shortResponse = new int[15];
         shortResponse[0] = 0xF0;
         shortResponse[1] = 0x7E;

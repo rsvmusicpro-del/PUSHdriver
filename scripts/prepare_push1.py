@@ -106,8 +106,48 @@ replace_once(device_inquiry,
     "                    break;\n"
     "                }\n"
     "            }\n"
-    "        }\n",
+    "        }\n"
+    "        // MIDI manufacturer IDs are one byte unless the first byte is zero,\n"
+    "        // in which case two additional manufacturer bytes follow. Exact\n"
+    "        // standard packet lengths must agree with that encoding.\n"
+    "        if (this.responseType == ResponseType.SHORT && this.data[OFFSET_MANUFACTURER_ID] == 0\n"
+    "            || this.responseType == ResponseType.LONG && this.data[OFFSET_MANUFACTURER_ID] != 0)\n"
+    "            this.responseType = ResponseType.ERROR;\n",
     "DeviceInquiry seven-bit SysEx validation")
+
+
+# Manufacturer-ID width is determined by its leading byte, not by the
+# overall length of a non-standard extended identity reply.
+replace_once(device_inquiry,
+    "        // Old 1 byte ID\n"
+    "        if (this.responseType == ResponseType.SHORT)\n"
+    "        {\n"
+    "            return new int []\n"
+    "            {\n"
+    "                this.data[OFFSET_MANUFACTURER_ID]\n"
+    "            };\n"
+    "        }\n\n"
+    "        // Newer 3-byte ID if first byte is 0\n"
+    "        return new int []\n"
+    "        {\n"
+    "            this.data[OFFSET_MANUFACTURER_ID],\n"
+    "            this.data[OFFSET_MANUFACTURER_ID + 1],\n"
+    "            this.data[OFFSET_MANUFACTURER_ID + 2]\n"
+    "        };",
+    "        // MIDI reserves a leading zero for the three-byte manufacturer form.\n"
+    "        if (this.data[OFFSET_MANUFACTURER_ID] != 0)\n"
+    "            return new int [] { this.data[OFFSET_MANUFACTURER_ID] };\n"
+    "        return new int []\n"
+    "        {\n"
+    "            this.data[OFFSET_MANUFACTURER_ID],\n"
+    "            this.data[OFFSET_MANUFACTURER_ID + 1],\n"
+    "            this.data[OFFSET_MANUFACTURER_ID + 2]\n"
+    "        };",
+    "DeviceInquiry manufacturer ID width")
+replace_once(device_inquiry,
+    "        return this.responseType == ResponseType.SHORT ? OFFSET_CONTENT_SHORT : OFFSET_CONTENT_LONG;",
+    "        return this.data[OFFSET_MANUFACTURER_ID] == 0 ? OFFSET_CONTENT_LONG : OFFSET_CONTENT_SHORT;",
+    "DeviceInquiry extended identity content offset")
 
 replace_once(device_inquiry,
     "        return INQUIRY;\n",
