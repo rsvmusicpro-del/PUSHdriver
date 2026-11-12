@@ -199,7 +199,9 @@ public final class VirtualPush1RuntimeTest
 
         // Shift chord is delivered while both physical buttons remain down.
         midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        require (surface.isShiftPressed (), "Shift CC did not hold the production Shift state");
         midi.device ().pressButton (VirtualPush1Device.LEFT);
+        require (surface.isShiftPressed (), "Shift state was lost while the navigation chord was held");
         midi.device ().releaseButton (VirtualPush1Device.LEFT);
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
         require (!surface.isShiftPressed (), "Shift state did not clear after physical release");
