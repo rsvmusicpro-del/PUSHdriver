@@ -262,4 +262,15 @@ if 'StringUtils.pad ("Low threshold maycause stuck pads!", 68)' not in configura
 if 'display.setRow (3, " Warning:Low threshold maycause stuck pads ")' in configuration_mode:
     raise SystemExit("ConfigurationMode still sends a short LCD row that can throw at runtime")
 
+# Third-party plug-ins may publish remote-control parameter names after Device mode
+# activation. Those name updates must refresh the hardware encoder bindings without
+# polling or relying on an unrelated matrix-pad press.
+device_params = read("controller/ableton/push/mode/device/DeviceParamsMode.java")
+for marker in (
+    "final IParameterBank parameterBank = this.model.getCursorDevice ().getParameterBank ();",
+    "parameterBank.getItem (i).addNameObserver (name -> this.parametersAdjusted ());",
+):
+    if marker not in device_params:
+        raise SystemExit(f"Third-party device encoder binding refresh regression: missing {marker!r}")
+
 print("Push 1 note-repeat, sequencer bounds, repeat-state and color regressions passed.")
