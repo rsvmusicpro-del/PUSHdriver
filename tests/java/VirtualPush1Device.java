@@ -29,6 +29,7 @@ public final class VirtualPush1Device
     public static final int CHANNEL_STATUS = 0xB0;
     public static final int NOTE_ON = 0x90;
     public static final int NOTE_OFF = 0x80;
+    public static final int POLY_AFTERTOUCH = 0xA0;
     public static final int PITCH_BEND = 0xE0;
     public static final int PAD_FIRST_NOTE = 36;
     public static final int PAD_COUNT = 64;
@@ -41,8 +42,10 @@ public final class VirtualPush1Device
     public static final int RIGHT = 45;
     public static final int UP = 46;
     public static final int DOWN = 47;
-    public static final int DEVICE_LEFT = 62;
-    public static final int DEVICE_RIGHT = 63;
+    /** Push 1's In button (CC 62). */
+    public static final int IN = 62;
+    /** Push 1's Out button (CC 63). */
+    public static final int OUT = 63;
     public static final int PLAY = 85;
     public static final int RECORD = 86;
     public static final int NEW = 87;
@@ -54,6 +57,9 @@ public final class VirtualPush1Device
     public static final int CLIP = 113;
     public static final int VOLUME = 114;
     public static final int PAN_SEND = 115;
+    public static final int TOP_ROW_FIRST = 20;
+    public static final int BOTTOM_ROW_FIRST = 102;
+    public static final int REPEAT_BUTTON_FIRST = 36;
 
     private final MidiLink link;
     private final EventListener observer;
@@ -61,6 +67,7 @@ public final class VirtualPush1Device
     private final Map<Integer, Integer> ccLeds = new HashMap<> ();
     private final String [] lcd = new String [LCD_ROWS];
     private final boolean [] pressedPads = new boolean [PAD_COUNT];
+    private final int [] padPressure = new int [PAD_COUNT];
     private final boolean [] pressedButtons = new boolean [128];
     private final int [] encoderValues = new int [11];
 
@@ -131,6 +138,12 @@ public final class VirtualPush1Device
         this.sendShort (CHANNEL_STATUS, encoderCC (encoder), midiValue);
     }
 
+    /** Send a signed relative step count using Push 1's two's-complement encoding. */
+    public void turnEncoderBy (final int encoder, final int signedSteps)
+    {
+        this.turnEncoder (encoder, encodeRelativeSteps (signedSteps));
+    }
+
     /** Small encoders use CC 14 and 15 on Push 1. */
     public void turnSmallEncoder (final int encoder, final int midiValue)
     {
@@ -141,11 +154,16 @@ public final class VirtualPush1Device
         this.sendShort (CHANNEL_STATUS, 14 + encoder, midiValue);
     }
 
+    public void turnSmallEncoderBy (final int encoder, final int signedSteps)
+    {
+        this.turnSmallEncoder (encoder, encodeRelativeSteps (signedSteps));
+    }
+
     public void touchEncoder (final int encoder, final boolean touched)
     {
         if (encoder < 0 || encoder > 8)
             throw new IllegalArgumentException ("Main encoder index must be in [0,8]");
-        this.sendShort (touched ? NOTE_ON : NOTE_OFF, encoder, touched ? 127 : 0);
+        this.sendShort (NOTE_ON, encoder, touched ? 127 : 0);
     }
 
     public void touchSmallEncoder (final int encoder, final boolean touched)
@@ -153,12 +171,12 @@ public final class VirtualPush1Device
         if (encoder < 0 || encoder > 1)
             throw new IllegalArgumentException ("Small encoder index must be 0 or 1");
         final int note = encoder == 0 ? 10 : 9;
-        this.sendShort (touched ? NOTE_ON : NOTE_OFF, note, touched ? 127 : 0);
+        this.sendShort (NOTE_ON, note, touched ? 127 : 0);
     }
 
     public void touchRibbon (final boolean touched)
     {
-        this.sendShort (touched ? NOTE_ON : NOTE_OFF, 12, touched ? 127 : 0);
+        this.sendShort (NOTE_ON, 12, touched ? 127 : 0);
     }
 
     /** Pitch bend value is split into the standard MIDI LSB/MSB pair. */
@@ -167,6 +185,32 @@ public final class VirtualPush1Device
         if (value14Bit < 0 || value14Bit > 16383)
             throw new IllegalArgumentException ("Pitch bend must be in [0,16383]");
         this.sendShort (PITCH_BEND, value14Bit & 0x7F, (value14Bit >>> 7) & 0x7F);
+    }
+
+    /** Polyphonic aftertouch sent while a physical pad remains depressed. */
+    public void pressPadPressure (final int row, final int column, final int pressure)
+    {
+        if (pressure < 0 || pressure > PAD_VELOCITY_MAX)
+            throw new IllegalArgumentException ("Pad pressure must be in [0,127]");
+        final int note = padNote (row, column);
+        final int index = note - PAD_FIRST_NOTE;
+        if (!this.pressedPads[index])
+            throw new IllegalStateException ("Pad pressure requires a depressed pad");
+        this.padPressure[index] = pressure;
+        this.sendShort (POLY_AFTERTOUCH, note, pressure);
+    }
+
+    public int getPadPressure (final int row, final int column)
+    {
+        return this.padPressure[padNote (row, column) - PAD_FIRST_NOTE];
+    }
+
+    /** Encode signed movement as Push 1 seven-bit two's complement. */
+    public static int encodeRelativeSteps (final int signedSteps)
+    {
+        if (signedSteps < -63 || signedSteps > 63)
+            throw new IllegalArgumentException ("Relative encoder movement must be in [-63,63]");
+        return signedSteps < 0 ? 128 + signedSteps : signedSteps;
     }
 
     public void injectSysex (final String hexadecimalFrame)
@@ -182,7 +226,9 @@ public final class VirtualPush1Device
     {
         validateShort (status, data1, data2);
         final int family = status & 0xF0;
-        if (family == NOTE_ON || family == NOTE_OFF)
+        if (family == POLY_AFTERTOUCH && data1 >= PAD_FIRST_NOTE && data1 < PAD_FIRST_NOTE + PAD_COUNT)
+            this.padPressure[data1 - PAD_FIRST_NOTE] = data2;
+        else if (family == NOTE_ON || family == NOTE_OFF)
             this.noteLeds.put (data1, family == NOTE_OFF || data2 == 0 ? 0 : data2);
         else if (family == CHANNEL_STATUS)
             this.ccLeds.put (data1, data2);
