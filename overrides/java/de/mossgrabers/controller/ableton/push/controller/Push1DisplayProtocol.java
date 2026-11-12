@@ -42,14 +42,16 @@ public final class Push1DisplayProtocol
     {
         if (row < 0 || row >= LINE_COUNT)
             throw new IllegalArgumentException("Push 1 LCD row must be between 0 and 3");
-        if (text == null || text.length() != LINE_LENGTH)
-            throw new IllegalArgumentException("Push 1 LCD rows must contain exactly 68 characters");
+        if (text == null || text.codePointCount(0, text.length()) != LINE_LENGTH)
+            throw new IllegalArgumentException("Push 1 LCD rows must contain exactly 68 display characters");
 
         final StringBuilder message = new StringBuilder(230);
         message.append(LINE_HEADERS[row]);
-        for (int i = 0; i < text.length(); i++)
+        for (int offset = 0; offset < text.length();)
         {
-            final char value = text.charAt(i) <= 0x7F ? text.charAt(i) : '?';
+            final int codePoint = text.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+            final char value = codePoint <= 0x7F ? (char) codePoint : '?';
             message.append(' ');
             message.append(HEX[(value >>> 4) & 0x0F]);
             message.append(HEX[value & 0x0F]);
