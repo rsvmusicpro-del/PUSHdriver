@@ -354,7 +354,7 @@ public final class VirtualPush1MidiBench
         final List<String> sent = bench.capturedOutput ();
         if (sent.size () != 10 || !sent.get (0).startsWith ("sendCC ")
                 || !sent.get (6).startsWith ("sendSysex ") || !sent.get (7).startsWith ("sendSysex ")
-                || !sent.get (8).startsWith ("sendSysex "))
+                || !sent.get (8).startsWith ("sendSysex ") || !sent.get (9).startsWith ("sendSysex "))
             throw new AssertionError ("MIDI output capture regression");
 
         System.out.println ("Virtual Push 1 MIDI bench passed: "
