@@ -743,13 +743,24 @@ replace_once(browser_mode,
         if (targetPosition < 0)
             return;
 
-        while (browser.getSelectedFilterColumn ().getPosition () != targetPosition)
+        int selectedPosition = browser.getSelectedFilterColumn ().getPosition ();
+        for (int attempts = 0; selectedPosition != targetPosition && attempts < browser.getFilterColumnCount (); attempts++)
         {
+            final int previousPosition = selectedPosition;
             if (forward)
                 browser.selectNextFilterColumn ();
             else
                 browser.selectPreviousFilterColumn ();
+
+            selectedPosition = browser.getSelectedFilterColumn ().getPosition ();
+            // Do not trap Bitwig's controller thread if the host does not
+            // publish the selected-column change synchronously.
+            if (selectedPosition == previousPosition)
+                return;
         }
+        if (selectedPosition != targetPosition)
+            return;
+
         this.filterColumn = browser.getSelectedFilterColumn ().getIndex ();
         this.selectionMode = DeviceBrowserMode.SELECTION_OFF;
     }

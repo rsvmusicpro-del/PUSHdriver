@@ -66,7 +66,10 @@ for marker in (
     "browser.getSelectedFilterColumn ().getPosition ()",
     "browser.getFilterColumn (position).doesExist ()",
     "return this.findNavigableFilterColumn (forward) >= 0;",
-    "while (browser.getSelectedFilterColumn ().getPosition () != targetPosition)",
+    "for (int attempts = 0; selectedPosition != targetPosition && attempts < browser.getFilterColumnCount (); attempts++)",
+    "final int previousPosition = selectedPosition;",
+    "if (selectedPosition == previousPosition)",
+    "if (selectedPosition != targetPosition)",
     "browser.selectPreviousFilterColumn ();",
     "browser.selectNextFilterColumn ();",
     "browser.getSelectedFilterColumn ().getIndex ()",
@@ -101,5 +104,8 @@ for marker in (
     if marker not in device_params:
         raise SystemExit(f"In/Out implementation regressed standard arrow navigation: {marker}")
 
+
+if "while (browser.getSelectedFilterColumn ().getPosition () != targetPosition)" in browser:
+    raise SystemExit("Browser navigation must not contain an unbounded wait loop")
 
 print("Push 1 In/Out bindings, device/browser behavior and fallback regression checks passed.")
