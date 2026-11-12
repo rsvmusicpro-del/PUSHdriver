@@ -109,6 +109,24 @@ for action, capability in (
     if capability_position < case_position:
         raise SystemExit(f"Optional device action {action} is missing its {capability} guard")
 
+# Capability checks must cover feedback reads as well as button writes.
+# Some Bitwig host versions do not expose every optional device feature.
+button_colors_start = device_params.index("public int getButtonColor")
+button_colors_end = device_params.index("public void onSecondRow", button_colors_start)
+button_colors = device_params[button_colors_start:button_colors_end]
+top_menu_start = device_params.index("protected boolean getTopMenuEnablement")
+top_menu = device_params[top_menu_start:]
+for body, expression, capability in (
+    (button_colors, "cd.isParameterPageSectionVisible ()", "Capability.HAS_PARAMETER_PAGE_SECTION"),
+    (button_colors, "Modes.DEVICE_CHAINS", "Capability.HAS_SLOT_CHAINS"),
+    (top_menu, "cd.isParameterPageSectionVisible ()", "Capability.HAS_PARAMETER_PAGE_SECTION"),
+    (top_menu, "Modes.DEVICE_CHAINS", "Capability.HAS_SLOT_CHAINS"),
+):
+    action_position = body.index(expression)
+    capability_position = body.rfind(capability, 0, action_position)
+    if capability_position < 0:
+        raise SystemExit(f"Optional device feedback {expression} is missing its {capability} guard")
+
 # A stale pad event must not select, disable or delete an empty device-bank slot.
 first_row_start = device_params.index("public void onFirstRow")
 first_row_end = device_params.index("protected void moveUp", first_row_start)
