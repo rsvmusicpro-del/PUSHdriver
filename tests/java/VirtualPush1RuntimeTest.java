@@ -15,6 +15,7 @@ import de.mossgrabers.framework.controller.hardware.IHwSurfaceFactory;
 import de.mossgrabers.framework.daw.IHost;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.ITransport;
+import de.mossgrabers.framework.daw.data.bank.ITrackBank;
 import de.mossgrabers.framework.daw.data.IDeviceMetadata;
 import de.mossgrabers.framework.daw.midi.ArpeggiatorMode;
 import de.mossgrabers.framework.daw.midi.IMidiAccess;
@@ -106,6 +107,7 @@ public final class VirtualPush1RuntimeTest
                         final Object valueChanger = callArgs[2];
                         final Object colorManager = callArgs[1];
                         final Object scales = callArgs[3];
+                        final ITrackBank trackBank = trackBankProxy ();
                         return Proxy.newProxyInstance (IModel.class.getClassLoader (),
                             new Class<?> [] { IModel.class }, (p, m, a) -> switch (m.getName ())
                             {
@@ -114,6 +116,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getValueChanger" -> valueChanger;
                                 case "getColorManager" -> colorManager;
                                 case "getScales" -> scales;
+                                case "getCurrentTrackBank": case "getTrackBank": case "getEffectTrackBank" -> trackBank;
                                 default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                             });
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -156,6 +159,18 @@ public final class VirtualPush1RuntimeTest
             throw new AssertionError ("Virtual Bitwig host reported errors: " + state.errors);
         System.out.println ("Virtual Push 1 runtime passed: real PushControllerSetup initialized; "
             + "production Device/Track/Play commands were driven through MIDI CC; Shift chord delivered.");
+    }
+
+    private static ITrackBank trackBankProxy ()
+    {
+        return (ITrackBank) Proxy.newProxyInstance (ITrackBank.class.getClassLoader (),
+            new Class<?> [] { ITrackBank.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getPageSize"))
+                    return 8;
+                if (method.getName ().equals ("getSelectedItem"))
+                    return Optional.empty ();
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
     }
 
     private static IDeviceMetadata deviceMetadata (final String name)
