@@ -128,7 +128,7 @@ public final class Push1DisplayValueFormatter
         for (int i = 0; i < halfSteps / 2 && side.length () < BAR_CELLS / 2; i++)
             side.append (barsTwo);
 
-        if (boundedPan >= maxParam - 1 && side.length () < BAR_CELLS / 2)
+        if ((boundedPan <= 1 || boundedPan >= maxParam - 1) && side.length () < BAR_CELLS / 2)
             side.append (barsTwo);
         else if (halfSteps % 2 == 1 && side.length () < BAR_CELLS / 2)
             side.append (isLeft ? barsOneLeft : barsOne);

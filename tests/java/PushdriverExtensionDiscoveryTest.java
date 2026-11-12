@@ -127,9 +127,12 @@ public final class PushdriverExtensionDiscoveryTest
                 throw new AssertionError("Packaged Push 1 maximum pan bar is not exactly eight cells");
 
             final String leftEdge = (String) formatter.invoke(null, 0, 127);
-            final String expectedLeft = new StringBuilder(empty.repeat(4) + full.repeat(3) + leftHalf).reverse().toString();
+            final String expectedLeft = full.repeat(4) + empty.repeat(4);
             if (!leftEdge.equals(expectedLeft))
                 throw new AssertionError("Packaged Push 1 minimum pan bar is not aligned to the left edge");
+            final String nearLeftEdge = (String) formatter.invoke(null, 1, 127);
+            if (!nearLeftEdge.equals(expectedLeft))
+                throw new AssertionError("Packaged Push 1 pan bar is asymmetric near its endpoints");
 
             final String invalidRange = (String) formatter.invoke(null, Integer.MAX_VALUE, 0);
             if (!invalidRange.equals(empty.repeat(8)))
