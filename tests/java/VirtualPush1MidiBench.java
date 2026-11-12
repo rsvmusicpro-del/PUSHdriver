@@ -206,7 +206,7 @@ public final class VirtualPush1MidiBench
 
     private static boolean isPush1PadRgbFrame (final String frame)
     {
-        final String [] tokens = frame.trim ().split ("\\\\s+");
+        final String [] tokens = frame.trim ().split ("\\s+");
         return tokens.length == 15 && tokens[0].equalsIgnoreCase ("F0")
             && tokens[1].equalsIgnoreCase ("47") && tokens[2].equalsIgnoreCase ("7F")
             && tokens[3].equalsIgnoreCase ("15") && tokens[4].equalsIgnoreCase ("04")
