@@ -145,3 +145,19 @@ jobs:
 
       - name: Smoke-test Bitwig extension discovery on macOS
         run: python3 scripts/test_push1_extension.py
+
+  quality-gate:
+    if: always()
+    needs: [build, macos-intel-validation]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every platform validation to pass
+        env:
+          LINUX_RESULT: ${{ needs.build.result }}
+          MACOS_RESULT: ${{ needs.macos-intel-validation.result }}
+        run: |
+          set -euo pipefail
+          echo "Linux: ${LINUX_RESULT}"
+          echo "macOS Intel: ${MACOS_RESULT}"
+          test "${LINUX_RESULT}" = success
+          test "${MACOS_RESULT}" = success
