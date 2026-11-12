@@ -21,6 +21,8 @@ import de.mossgrabers.framework.daw.data.IDeviceMetadata;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.daw.data.ITrack;
 import de.mossgrabers.framework.daw.data.ISend;
+import de.mossgrabers.framework.daw.data.IScene;
+import de.mossgrabers.framework.daw.data.bank.ISceneBank;
 import de.mossgrabers.framework.daw.data.bank.ISendBank;
 import de.mossgrabers.framework.daw.data.bank.IParameterBank;
 import de.mossgrabers.framework.parameter.IParameter;
@@ -92,7 +94,11 @@ public final class VirtualPush1RuntimeTest
                     case "getName": return "Virtual Bitwig API 17";
                     case "supports": return Boolean.TRUE;
                     case "scheduleTask": state.scheduled.add (new ScheduledTask (((Number) callArgs[1]).longValue (), (Runnable) callArgs[0])); return null;
-                    case "error": state.errors.add (String.valueOf (callArgs[0])); return null;
+                    case "error":
+                        if (state.errors.size () < 30)
+                            state.errors.add (String.valueOf (callArgs[0])
+                                + (callArgs.length > 1 && callArgs[1] instanceof Throwable error ? ": " + error : ""));
+                        return null;
                     case "println": case "showNotification": case "releaseUsbDevices": return null;
                     case "getInstrumentMetadata": return List.of (deviceMetadata ("Virtual Instrument"));
                     case "getAudioEffectMetadata": return List.of (deviceMetadata ("Virtual Effect"));
@@ -134,6 +140,7 @@ public final class VirtualPush1RuntimeTest
                         final Object colorManager = callArgs[1];
                         final Object scales = callArgs[3];
                         final ITrackBank trackBank = trackBankProxy ();
+                        final ISceneBank sceneBank = sceneBankProxy ();
                         final IParameterBank parameterBank = parameterBankProxy ();
                         final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank);
                         return Proxy.newProxyInstance (IModel.class.getClassLoader (),
@@ -145,6 +152,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getColorManager" -> colorManager;
                                 case "getScales" -> scales;
                                 case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
+                                case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
                                 default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                             });
@@ -277,6 +285,22 @@ public final class VirtualPush1RuntimeTest
             });
     }
 
+    private static ISceneBank sceneBankProxy ()
+    {
+        return (ISceneBank) Proxy.newProxyInstance (ISceneBank.class.getClassLoader (),
+            new Class<?> [] { ISceneBank.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getPageSize"))
+                    return 8;
+                if (method.getName ().equals ("getSelectedItem"))
+                    return Optional.empty ();
+                if (method.getName ().equals ("getItem"))
+                    return Proxy.newProxyInstance (IScene.class.getClassLoader (),
+                        new Class<?> [] { IScene.class },
+                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
     private static ITrackBank trackBankProxy ()
     {
         return (ITrackBank) Proxy.newProxyInstance (ITrackBank.class.getClassLoader (),
@@ -285,6 +309,8 @@ public final class VirtualPush1RuntimeTest
                     return 8;
                 if (method.getName ().equals ("getSelectedItem"))
                     return Optional.empty ();
+                if (method.getName ().equals ("getSceneBank"))
+                    return sceneBankProxy ();
                 if (method.getName ().equals ("getItem"))
                     return trackProxy ();
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -307,6 +333,8 @@ public final class VirtualPush1RuntimeTest
             new Class<?> [] { ITrack.class }, (proxy, method, args) -> {
                 if (method.getName ().equals ("getSendBank"))
                     return sendBank;
+                if (method.getName ().equals ("getSceneBank"))
+                    return sceneBankProxy ();
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
