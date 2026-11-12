@@ -76,21 +76,37 @@ public final class VirtualPush1MidiBench
         switch (method)
         {
             case "sendCC" -> this.device.receiveShort (0xB0, (int) args[0], (int) args[1]);
-            case "sendCCEx" -> this.device.receiveShort (0xB0 | ((int) args[0] - 1), (int) args[1], (int) args[2]);
-            case "sendNote" -> this.device.receiveShort ((int) args[1] == 0 ? 0x80 : 0x90, (int) args[0], (int) args[1]);
-            case "sendNoteEx" -> this.device.receiveShort (0x90 | ((int) args[0] - 1), (int) args[1], (int) args[2]);
+            // DrivenByMoss channel arguments are zero-based (0..15).
+            case "sendCCEx" -> this.device.receiveShort (0xB0 | (int) args[0], (int) args[1], (int) args[2]);
+            case "sendNote" -> this.device.receiveShort (0x90, (int) args[0], (int) args[1]);
+            case "sendNoteEx" -> this.device.receiveShort (0x90 | (int) args[0], (int) args[1], (int) args[2]);
             case "sendPitchbend" -> {
                 if (args.length == 2)
                     this.device.receiveShort (0xE0, (int) args[0], (int) args[1]);
                 else
-                    this.device.receiveShort (0xE0 | ((int) args[0] - 1), (int) args[1], (int) args[2]);
+                    this.device.receiveShort (0xE0 | (int) args[0], (int) args[1], (int) args[2]);
             }
             case "sendSysex" -> {
-                if (args[0] instanceof String frame && frame.startsWith ("F0 47 7F 15"))
+                final String frame = args[0] instanceof String text
+                    ? text
+                    : args[0] instanceof byte [] bytes ? toHex (bytes) : null;
+                if (frame != null && frame.startsWith ("F0 47 7F 15"))
                     this.device.receiveSysex (frame);
             }
             default -> { /* Other output types remain visible in capturedOutput(). */ }
         }
+    }
+
+    private static String toHex (final byte [] bytes)
+    {
+        final StringBuilder frame = new StringBuilder (bytes.length * 3);
+        for (final byte value: bytes)
+        {
+            if (frame.length () > 0)
+                frame.append (' ');
+            frame.append (String.format ("%02X", value & 0xFF));
+        }
+        return frame.toString ();
     }
 
     /** Inject one MIDI 1.0 short message as the Bitwig callback would deliver it. */
@@ -141,7 +157,7 @@ public final class VirtualPush1MidiBench
             received.add (new int [] { status, data1, data2 }));
         bench.input ().setSysexCallback (receivedSysex::add);
 
-        bench.device ().pressButton (62); // Push 1 Out button, channel 1.
+        bench.device ().pressButton (VirtualPush1Device.IN); // Push 1 In button, CC 62.
         bench.device ().pressPad (0, 0, 100);
         bench.device ().releasePad (0, 0);
         if (received.size () != 3 || received.get (0)[1] != 62
@@ -158,11 +174,15 @@ public final class VirtualPush1MidiBench
             throw new AssertionError ("SysEx input delivery regression");
 
         bench.output ().sendCC (49, 3);
+        bench.output ().sendCCEx (15, 49, 4);
         bench.output ().sendNote (36, 100);
+        bench.output ().sendNoteEx (15, 37, 101);
         bench.output ().sendPitchbend (0, 64);
+        bench.output ().sendPitchbend (15, 1, 65);
         bench.output ().sendSysex (lcd);
-        if (bench.device ().getCCLed (49) != 3 || bench.device ().getNoteLed (36) != 100
-                || bench.device ().getLcdRow (0).length () != 68)
+        bench.output ().sendSysex (new byte [] { (byte) 0xF0, 0x47, 0x7F, 0x15, 0x18, 0, 0x45, 0, 0x20, (byte) 0xF7 });
+        if (bench.device ().getCCLed (49) != 4 || bench.device ().getNoteLed (36) != 100
+                || bench.device ().getNoteLed (37) != 101 || bench.device ().getLcdRow (0).length () != 68)
             throw new AssertionError ("MIDI output did not update virtual Push 1 LEDs/LCD");
         final List<String> sent = bench.capturedOutput ();
         if (sent.size () != 4 || !sent.get (0).startsWith ("sendCC ")
