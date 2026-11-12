@@ -62,9 +62,7 @@ if "modeIndex * upperBound / (arpeggiatorModes.size () - 1)" in note_repeat:
 # A global marker is insufficient: every callback that can dereference the
 # late-bound MIDI service must refresh it and handle the unavailable-input case.
 for signature in (
-    "public void onKnobTouch (final int index, final boolean isTouched)",
     "public void onFirstRow (final int index, final ButtonEvent event)",
-    "public void onSecondRow (final int index, final ButtonEvent event)",
     "public void updateDisplay1 (final ITextDisplay display)",
     "public void updateDisplay2 (final IGraphicDisplay display)",
     "public int getButtonColor (final ButtonID buttonID)",
@@ -72,6 +70,26 @@ for signature in (
     body = method_body(note_repeat, signature)
     if "this.refreshNoteRepeat ();" not in body or "this.noteRepeat == null" not in body:
         raise SystemExit(f"NoteRepeatMode callback lacks its own refreshed null guard: {signature}")
+
+# Knob 5/6 reset the optional MIDI note-repeat service, but knob 7 resets the
+# independent Groove Shuffle parameter and must still work when no input exists.
+knob_touch = method_body(note_repeat, "public void onKnobTouch (final int index, final boolean isTouched)")
+if "this.refreshNoteRepeat ();" not in knob_touch or "if (this.noteRepeat == null)" in knob_touch:
+    raise SystemExit("NoteRepeatMode knob touch must refresh input without globally blocking Groove reset")
+for marker in (
+    "this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_MODE)",
+    "this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_OCTAVES)",
+    "this.model.getGroove ().getParameter (GrooveParameterID.SHUFFLE_AMOUNT).resetValue ();",
+):
+    if marker not in knob_touch:
+        raise SystemExit(f"NoteRepeatMode Delete+knob action regression: missing {marker!r}")
+
+second_row = method_body(note_repeat, "public void onSecondRow (final int index, final ButtonEvent event)")
+if "this.noteRepeat" in second_row or "this.refreshNoteRepeat" in second_row:
+    raise SystemExit("NoteRepeatMode Groove enable button must not depend on a MIDI note-repeat service")
+if "GrooveParameterID.ENABLED" not in second_row:
+    raise SystemExit("NoteRepeatMode Groove enable button is missing")
+
 
 # Knob 0-7 edit persistent configuration and Groove state; they do not
 # dereference the optional MIDI note-repeat service and must remain usable
