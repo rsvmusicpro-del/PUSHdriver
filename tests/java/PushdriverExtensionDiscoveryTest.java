@@ -4,17 +4,17 @@ import com.bitwig.extension.controller.ControllerExtensionDefinition;
 import com.bitwig.extension.controller.api.ControllerHost;
 import de.mossgrabers.bitwig.framework.daw.HostImpl;
 import de.mossgrabers.controller.ableton.push.PushControllerDefinition;
+import de.mossgrabers.controller.ableton.push.controller.Push1Display;
 import de.mossgrabers.framework.utils.OperatingSystem;
 import de.mossgrabers.framework.utils.Pair;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.UUID;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
-import de.mossgrabers.controller.ableton.push.controller.Push1Display;
 
 /** Runtime smoke test for the exact SPI discovery path used by Bitwig Studio. */
 public final class PushdriverExtensionDiscoveryTest
