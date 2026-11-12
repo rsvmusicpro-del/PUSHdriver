@@ -117,21 +117,30 @@ public final class Push1DisplayValueFormatter
             return barsNon.repeat (BAR_CELLS);
 
         final int boundedPan = clamp (pan, 0, maxParam);
-        final int middle = maxParam / 2;
-        if (boundedPan == middle)
+        if (maxParam == 1)
+            return boundedPan == 0
+                ? barsTwo.repeat (BAR_CELLS / 2) + barsNon.repeat (BAR_CELLS / 2)
+                : barsNon.repeat (BAR_CELLS / 2) + barsTwo.repeat (BAR_CELLS / 2);
+
+        // Work in doubled coordinates so odd ranges (for example MIDI 0..127)
+        // have two equally centered integer values instead of favoring the left.
+        final long doubledDistance = Math.abs (2L * boundedPan - maxParam);
+        if (doubledDistance <= 1)
             return barsNon.repeat (BAR_CELLS);
 
-        final boolean isLeft = boundedPan < middle;
-        final int distance = Math.abs (boundedPan - middle);
-        final int halfSteps = (int) Math.min (HALF_STEPS, 16L * distance / maxParam);
+        final boolean isLeft = 2L * boundedPan < maxParam;
+        final int halfSteps = (int) Math.min (HALF_STEPS, 16L * doubledDistance / (2L * maxParam));
         final StringBuilder side = new StringBuilder (BAR_CELLS / 2);
-        for (int i = 0; i < halfSteps / 2 && side.length () < BAR_CELLS / 2; i++)
-            side.append (barsTwo);
-
-        if ((boundedPan <= 1 || boundedPan >= maxParam - 1) && side.length () < BAR_CELLS / 2)
-            side.append (barsTwo);
-        else if (halfSteps % 2 == 1 && side.length () < BAR_CELLS / 2)
-            side.append (isLeft ? barsOneLeft : barsOne);
+        final boolean nearEndpoint = boundedPan <= 1 || boundedPan >= maxParam - 1;
+        if (nearEndpoint)
+            side.append (barsTwo.repeat (BAR_CELLS / 2));
+        else
+        {
+            for (int i = 0; i < halfSteps / 2 && side.length () < BAR_CELLS / 2; i++)
+                side.append (barsTwo);
+            if (halfSteps % 2 == 1 && side.length () < BAR_CELLS / 2)
+                side.append (isLeft ? barsOneLeft : barsOne);
+        }
 
         while (side.length () < BAR_CELLS / 2)
             side.append (barsNon);
