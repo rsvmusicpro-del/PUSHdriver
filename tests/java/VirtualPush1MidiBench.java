@@ -200,12 +200,26 @@ public final class VirtualPush1MidiBench
             received.add (new int [] { status, data1, data2 }));
         bench.input ().setSysexCallback (receivedSysex::add);
 
-        bench.device ().pressButton (VirtualPush1Device.IN); // Push 1 In button, CC 62.
+        final List<ButtonEvent> buttonEvents = new ArrayList<> ();
+        final IHwButton button = (IHwButton) Proxy.newProxyInstance (
+            IHwButton.class.getClassLoader (), new Class<?> [] { IHwButton.class },
+            (proxy, method, args) -> {
+                if (method.getName ().equals ("trigger"))
+                    buttonEvents.add ((ButtonEvent) args[0]);
+                return defaultValue (method.getReturnType ());
+            });
+        bench.input ().bind (button, BindType.CC, 0, VirtualPush1Device.IN);
+        bench.device ().pressButton (VirtualPush1Device.IN);
+        bench.device ().releaseButton (VirtualPush1Device.IN);
         bench.device ().pressPad (0, 0, 100);
         bench.device ().releasePad (0, 0);
-        if (received.size () != 3 || received.get (0)[1] != 62
-                || received.get (1)[2] != 100 || received.get (2)[0] != 0x80)
+        if (received.size () != 4 || received.get (0)[1] != VirtualPush1Device.IN
+                || received.get (0)[2] != 127 || received.get (1)[2] != 0
+                || received.get (2)[1] != 36 || received.get (2)[2] != 100
+                || received.get (3)[0] != 0x80)
             throw new AssertionError ("Short MIDI input delivery/order regression");
+        if (!buttonEvents.equals (List.of (ButtonEvent.DOWN, ButtonEvent.UP)))
+            throw new AssertionError ("MIDI input did not trigger the bound hardware button");
 
         expectInvalid (() -> bench.inject (0xF0, 0, 0));
         expectInvalid (() -> bench.inject (0xB0, 128, 0));
