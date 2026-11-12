@@ -61,6 +61,9 @@ jobs:
       - name: Test Push 1 New clip workflow
         run: python3 scripts/test_push1_new.py
 
+      - name: Test Push 1 scenario wiring
+        run: python3 scripts/test_push1_scenarios.py
+
       - name: Test Push 1 firmware inquiry parsing
         run: python3 scripts/test_push1_firmware.py
 
@@ -125,6 +128,9 @@ jobs:
 
       - name: Test Push 1 New clip workflow
         run: python3 scripts/test_push1_new.py
+
+      - name: Test Push 1 scenario wiring
+        run: python3 scripts/test_push1_scenarios.py
 
       - name: Test Push 1 firmware inquiry parsing
         run: python3 scripts/test_push1_firmware.py
