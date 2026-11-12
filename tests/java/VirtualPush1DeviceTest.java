@@ -36,9 +36,23 @@ public final class VirtualPush1DeviceTest
         if (input.size () != 192)
             throw new AssertionError ("Expected 192 pad note/aftertouch messages");
 
+        // Full hardware button groups follow the independent Push 1 CC map.
+        for (int i = 0; i < 8; i++)
+        {
+            device.tapButton (VirtualPush1Device.TOP_ROW_FIRST + i);
+            device.tapButton (VirtualPush1Device.BOTTOM_ROW_FIRST + i);
+            device.tapButton (VirtualPush1Device.REPEAT_BUTTON_FIRST + i);
+        }
         // Button matrix, Shift chord and transport button are actual CC events.
         if (VirtualPush1Device.IN != 62 || VirtualPush1Device.OUT != 63)
             throw new AssertionError ("Push 1 In/Out CC mapping regression");
+        if (VirtualPush1Device.SHIFT != 49 || VirtualPush1Device.LEFT != 44
+                || VirtualPush1Device.RIGHT != 45 || VirtualPush1Device.UP != 46
+                || VirtualPush1Device.DOWN != 47 || VirtualPush1Device.PLAY != 85
+                || VirtualPush1Device.RECORD != 86 || VirtualPush1Device.NEW != 87
+                || VirtualPush1Device.DEVICE != 110 || VirtualPush1Device.BROWSE != 111
+                || VirtualPush1Device.TRACK != 112 || VirtualPush1Device.CLIP != 113)
+            throw new AssertionError ("Push 1 button CC mapping regression");
         if (VirtualPush1Device.encodeRelativeSteps (1) != 1
                 || VirtualPush1Device.encodeRelativeSteps (-1) != 127
                 || VirtualPush1Device.encodeRelativeSteps (-63) != 65)
