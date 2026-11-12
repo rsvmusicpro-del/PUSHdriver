@@ -554,26 +554,26 @@ replace_once(note_repeat,
     "final int sel2 = Resolution.change (Resolution.getMatch (configuration.getNoteRepeatLength ().getValue ()), index == 3);",
     "NoteRepeatMode length selection independent of MIDI input")
 replace_once(note_repeat,
-    "                    if (this.host.supports (Capability.NOTE_REPEAT_LATCH))\n"
-    "                        this.noteRepeat.toggleLatchActive ();",
+    "                if (this.host.supports (Capability.NOTE_REPEAT_LATCH))\n"
+    "                    this.noteRepeat.toggleLatchActive ();",
     "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_LATCH))\n"
     "                        this.noteRepeat.toggleLatchActive ();",
     "NoteRepeatMode latch toggle requires active input")
 replace_once(note_repeat,
-    "                    if (this.host.supports (Capability.NOTE_REPEAT_USE_PRESSURE_TO_VELOCITY))\n"
-    "                        this.noteRepeat.toggleUsePressure ();",
+    "                if (this.host.supports (Capability.NOTE_REPEAT_USE_PRESSURE_TO_VELOCITY))\n"
+    "                    this.noteRepeat.toggleUsePressure ();",
     "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_USE_PRESSURE_TO_VELOCITY))\n"
     "                        this.noteRepeat.toggleUsePressure ();",
     "NoteRepeatMode pressure toggle requires active input")
 replace_once(note_repeat,
-    "                    if (this.host.supports (Capability.NOTE_REPEAT_IS_FREE_RUNNING))\n"
-    "                        this.noteRepeat.toggleIsFreeRunning ();",
+    "                if (this.host.supports (Capability.NOTE_REPEAT_IS_FREE_RUNNING))\n"
+    "                    this.noteRepeat.toggleIsFreeRunning ();",
     "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_IS_FREE_RUNNING))\n"
     "                        this.noteRepeat.toggleIsFreeRunning ();",
     "NoteRepeatMode sync toggle requires active input")
 replace_once(note_repeat,
-    "                    if (this.host.supports (Capability.NOTE_REPEAT_SWING))\n"
-    "                        this.noteRepeat.toggleShuffle ();",
+    "                if (this.host.supports (Capability.NOTE_REPEAT_SWING))\n"
+    "                    this.noteRepeat.toggleShuffle ();",
     "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_SWING))\n"
     "                        this.noteRepeat.toggleShuffle ();",
     "NoteRepeatMode repeat shuffle toggle requires active input")
