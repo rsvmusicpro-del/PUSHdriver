@@ -50,6 +50,7 @@ public final class VirtualPush1RuntimeTest
     {
         boolean playing;
         boolean recording;
+        boolean launcherOverdub;
         final ArrayDeque<Runnable> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
     }
@@ -86,6 +87,9 @@ public final class VirtualPush1RuntimeTest
                     case "isPlaying": return state.playing;
                     case "startRecording": state.recording = true; return null;
                     case "isRecording": return state.recording;
+                    case "isLauncherOverdub": return state.launcherOverdub;
+                    case "toggleLauncherOverdub": state.launcherOverdub = !state.launcherOverdub; return null;
+                    case "setLauncherOverdub": state.launcherOverdub = (boolean) callArgs[0]; return null;
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 }
             });
@@ -147,6 +151,12 @@ public final class VirtualPush1RuntimeTest
         require (state.playing, "Play CC did not update the Bitwig transport model");
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (!state.playing, "Second Play CC did not stop the Bitwig transport");
+        midi.device ().tapButton (VirtualPush1Device.RECORD);
+        require (state.recording, "Record CC did not start recording in the Bitwig model");
+        midi.device ().tapButton (VirtualPush1Device.SHIFT);
+        midi.device ().tapButton (VirtualPush1Device.RECORD);
+        require (state.launcherOverdub, "Shift+Record CC did not toggle launcher overdub");
+        midi.device ().tapButton (VirtualPush1Device.SHIFT);
 
         // Shift chord is delivered while both physical buttons remain down.
         midi.device ().pressButton (VirtualPush1Device.SHIFT);
@@ -158,7 +168,7 @@ public final class VirtualPush1RuntimeTest
         if (!state.errors.isEmpty ())
             throw new AssertionError ("Virtual Bitwig host reported errors: " + state.errors);
         System.out.println ("Virtual Push 1 runtime passed: real PushControllerSetup initialized; "
-            + "production Device/Track/Play commands were driven through MIDI CC; Shift chord delivered.");
+            + "production Device/Track/Play/Record commands were driven through MIDI CC; Shift+Record overdub and Shift chord delivered.");
     }
 
     private static ITrackBank trackBankProxy ()
