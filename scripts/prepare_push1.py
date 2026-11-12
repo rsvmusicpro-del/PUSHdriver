@@ -537,12 +537,12 @@ note_repeat.write_text(mode_source.replace(mode_value, mode_value_replacement))
 # Note Repeat period/length controls are stored in PushConfiguration and
 # remain usable without a live MIDI note-input service.
 replace_once(note_repeat,
-    "Resolution.getMatch (this.noteRepeat.getPeriod ())",
-    "Resolution.getMatch (configuration.getNoteRepeatPeriod ().getValue ())",
+    "final int sel = Resolution.change (Resolution.getMatch (this.noteRepeat.getPeriod ()), index == 1);",
+    "final int sel = Resolution.change (Resolution.getMatch (configuration.getNoteRepeatPeriod ().getValue ()), index == 1);",
     "NoteRepeatMode period selection independent of MIDI input")
 replace_once(note_repeat,
-    "Resolution.getMatch (this.noteRepeat.getNoteLength ())",
-    "Resolution.getMatch (configuration.getNoteRepeatLength ().getValue ())",
+    "final int sel2 = Resolution.change (Resolution.getMatch (this.noteRepeat.getNoteLength ()), index == 3);",
+    "final int sel2 = Resolution.change (Resolution.getMatch (configuration.getNoteRepeatLength ().getValue ()), index == 3);",
     "NoteRepeatMode length selection independent of MIDI input")
 replace_once(note_repeat,
     "                    if (this.host.supports (Capability.NOTE_REPEAT_LATCH))\n"
