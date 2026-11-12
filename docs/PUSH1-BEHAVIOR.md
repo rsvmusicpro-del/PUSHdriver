@@ -13,16 +13,16 @@ This document describes the behavior implemented on branch `custom` at the time 
 
 | Hardware family | MIDI representation / known mapping | Current responsibility |
 |---|---|---|
-| 8×8 pads | Note events; velocity and pressure-sensitive | Active Push view (note, drum, sequencer, session, etc.) |
-| Main buttons | CC; exact IDs are inherited from PushControlSurface | Setup command bindings and active mode/view |
+| 8×8 pads | Notes 36–99, velocity 1–127; polyphonic aftertouch while held | Active Push view (note, drum, sequencer, session, etc.) |
+| Main buttons | Momentary CC, pressed 127 / released 0; IDs match the independent Push 1 CC map | Setup command bindings and active mode/view |
 | In/Out | CC 62 / CC 63 | Device previous/next, parameter-page bank, Browser filter column; context-specific existing Session/sequencer paging is preserved |
 | Four arrows | CC 44–47 | Previous/next item horizontally; previous/next scene vertically; Shift changes to page navigation; does not launch clips/scenes |
-| Encoders | CC 71–79; touch notes 0–8 | Active mode's continuous controls and touch handling |
-| Small encoders | CC 14–15; touch notes 9–10 | Existing Push command mappings |
-| Touch strip | Pitch bend plus touch note 12 | Ribbon / pitchbend command according to configured mode |
+| Encoders | Relative two's-complement CC 71–79; touch notes 0–8, release as Note On velocity 0 | Active mode's continuous controls and touch handling |
+| Small encoders | Relative two's-complement CC 14–15; touch notes 9–10, release as Note On velocity 0 | Existing Push command mappings |
+| Touch strip | Pitch bend plus touch note 12; touch release is Note On velocity 0 | Ribbon / pitchbend command according to configured mode |
 | LCD | SysEx output, four rows | Four independent 68-character rows |
 
-The full physical ID declarations live in the pinned upstream `PushControlSurface`; PUSHdriver-specific changes must not silently renumber these controls.
+The full physical ID declarations live in the pinned upstream `PushControlSurface`; PUSHdriver-specific changes must not silently renumber these controls. Independent CC mapping reference: `https://chor.ist/push/button-ccs.txt`. CC 62 is In and CC 63 is Out.
 
 ## Observable output contract
 
@@ -30,7 +30,7 @@ The full physical ID declarations live in the pinned upstream `PushControlSurfac
   `F0 47 7F 15 [18..1B] 00 45 00 [68 data bytes] F7`.
 - Short notifications overlay the rightmost 17-character LCD block while preserving the first 51 cells; longer notifications use the normal four-row display path.
 - Pad/button LED feedback remains owned by the existing Push colour manager, views, modes and hardware-control bindings. No parallel LED state engine is introduced.
-- MIDI output is emitted through Bitwig's API-17 `IMidiOutput` methods (CC, notes, aftertouch, pitch bend and SysEx).
+- MIDI output is emitted through Bitwig's API-17 `IMidiOutput` methods (CC, notes, aftertouch, pitch bend and SysEx). DrivenByMoss `AbstractMidiOutput` uses zero-based channel arguments: status = command + channel. Both String and byte-array SysEx output are supported by the virtual endpoint.
 
 ## Characterized mode-specific adaptations
 
@@ -44,6 +44,6 @@ The full physical ID declarations live in the pinned upstream `PushControlSurfac
 
 ## Evidence and limits
 
-Existing checks include structural Python regression checks, LCD protocol Java tests, package/SPI discovery, and a virtual-host LCD-output smoke test. Those checks do not yet constitute a full end-to-end simulation of every physical button through every mode transition into Bitwig's model. `VirtualPush1MidiBench` validates the API-17 transport boundary. `VirtualPush1Device` now emulates the hardware endpoint without USB or a native MIDI driver: 64 velocity-sensitive pads, CC buttons (including simultaneous Shift chords), nine main encoders, two small encoders, encoder-touch notes, ribbon touch/pitch bend, MIDI input delivery, LED note/CC feedback capture, and four decoded 68-character LCD rows. `VirtualPush1MidiBench` connects this virtual surface bidirectionally to API-17 `IMidiInput`/`IMidiOutput` proxies: device actions invoke the registered extension callbacks, and extension output updates the virtual LEDs/LCD. `VirtualPush1DeviceTest` checks all 64 pad locations, buttons/Shift, encoder and touch families, ribbon, LCD decoding using the production SysEx encoder, and LED feedback without a physical Push 1.
+Existing checks include structural Python regression checks, LCD protocol Java tests, package/SPI discovery, and a virtual-host LCD-output smoke test. Those checks do not yet constitute a full end-to-end simulation of every physical button through every mode transition into Bitwig's model. `VirtualPush1MidiBench` validates the API-17 transport boundary. `VirtualPush1Device` emulates the hardware endpoint without USB or a native MIDI driver: 64 velocity-sensitive pads with polyphonic aftertouch, the documented button CC groups (including simultaneous Shift chords), nine main encoders and two small encoders with signed relative movement, encoder-touch notes with Note-On-zero release, ribbon touch/pitch bend, MIDI input delivery, LED note/CC feedback capture, and four decoded 68-character LCD rows. `VirtualPush1MidiBench` connects this virtual surface bidirectionally to API-17 `IMidiInput`/`IMidiOutput` proxies: device actions invoke the registered extension callbacks, and extension output updates the virtual LEDs/LCD. `VirtualPush1DeviceTest` checks all 64 pad locations including aftertouch, button CC groups and Shift, signed relative encoder encoding, encoder/ribbon touch-release messages, ribbon pitch bend, LCD decoding using the production SysEx encoder, and LED feedback without a physical Push 1. `VirtualPush1MidiBench` also checks channel 0 and channel 15 output routing and both String and byte-array SysEx forms.
 
 Important boundary: the virtual device is a hardware emulator, not yet a complete Bitwig runtime emulator. The current automated scenarios verify event mapping, simultaneous button states, pad/encoder/ribbon transport, LCD framing and LED feedback. `scripts/test_push1_scenarios.py` also checks that the production API-17 setup still wires the physical IDs to the real mode commands, registers the expected mode families, binds encoders/touch notes, and derives Play/Record LEDs from Bitwig transport state. Existing repository regressions separately check navigation/Shift page semantics, In/Out routing, New clip workflow, Note Repeat, sequencer playhead and display. These source guards plus the virtual endpoint do not yet replay every mode and playback scenario through the actual PushControllerSetup/ModeManager with a deterministic Bitwig model. A full semantic integration harness needs an injectable controller-setup seam and API-17 model collaborators; it must not substitute a duplicate mock implementation and call that proof of production behavior.
