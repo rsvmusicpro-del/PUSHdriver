@@ -358,7 +358,7 @@ master_mode = read("controller/ableton/push/mode/track/MasterMode.java")
 master_display = method_body(master_mode, "public void updateDisplay1 (final ITextDisplay display)")
 for marker in (
     'display.setCell (0, 6, "Load").setCell (0, 7, "Save")',
-    'display.setCell (1, 6, "Project:")',
+    'setCell (1, 6, "Project:")',
     'display.setBlock (2, 3, this.model.getProject ().getName ())',
 ):
 if "Push1Display.formatValue (master.getVolume (), master.getVu (), upperBound)" not in master_display:
