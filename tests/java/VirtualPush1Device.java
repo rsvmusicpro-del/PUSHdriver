@@ -1,0 +1,255 @@
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+
+/**
+ * Hardware-independent Ableton Push 1 endpoint emulator.
+ *
+ * The class models the physical MIDI surface, not the Bitwig controller
+ * semantics. It can be connected to an IMidiInput callback on its input side;
+ * outgoing IMidiOutput messages are fed back through receiveShort/receiveSysex
+ * to observe LEDs and the 4x68 LCD. It has no native MIDI or USB dependency.
+ */
+public final class VirtualPush1Device
+{
+    public interface MidiLink
+    {
+        void shortMessage (int status, int data1, int data2);
+        void sysex (String hexadecimalFrame);
+    }
+
+    public interface EventListener
+    {
+        void onShortMessage (int status, int data1, int data2);
+        void onSysex (String hexadecimalFrame);
+    }
+
+    public static final int CHANNEL_STATUS = 0xB0;
+    public static final int NOTE_ON = 0x90;
+    public static final int NOTE_OFF = 0x80;
+    public static final int PITCH_BEND = 0xE0;
+    public static final int PAD_FIRST_NOTE = 36;
+    public static final int PAD_COUNT = 64;
+    public static final int PAD_VELOCITY_MAX = 127;
+    public static final int LCD_ROWS = 4;
+    public static final int LCD_COLUMNS = 68;
+
+    public static final int SHIFT = 49;
+    public static final int LEFT = 44;
+    public static final int RIGHT = 45;
+    public static final int UP = 46;
+    public static final int DOWN = 47;
+    public static final int DEVICE_LEFT = 62;
+    public static final int DEVICE_RIGHT = 63;
+    public static final int PLAY = 85;
+    public static final int RECORD = 86;
+    public static final int NEW = 87;
+    public static final int NOTE = 50;
+    public static final int SESSION = 51;
+    public static final int DEVICE = 110;
+    public static final int BROWSE = 111;
+    public static final int TRACK = 112;
+    public static final int CLIP = 113;
+    public static final int VOLUME = 114;
+    public static final int PAN_SEND = 115;
+
+    private final MidiLink link;
+    private final EventListener observer;
+    private final Map<Integer, Integer> noteLeds = new HashMap<> ();
+    private final Map<Integer, Integer> ccLeds = new HashMap<> ();
+    private final String [] lcd = new String [LCD_ROWS];
+    private final boolean [] pressedPads = new boolean [PAD_COUNT];
+    private final boolean [] pressedButtons = new boolean [128];
+    private final int [] encoderValues = new int [11];
+
+    public VirtualPush1Device (final MidiLink link, final EventListener observer)
+    {
+        this.link = Objects.requireNonNull (link, "link");
+        this.observer = observer;
+        Arrays.fill (this.lcd, " ".repeat (LCD_COLUMNS));
+    }
+
+    public static int padNote (final int row, final int column)
+    {
+        if (row < 0 || row >= 8 || column < 0 || column >= 8)
+            throw new IllegalArgumentException ("Pad coordinates must be in [0,7]");
+        return PAD_FIRST_NOTE + row * 8 + column;
+    }
+
+    public static int encoderCC (final int encoder)
+    {
+        if (encoder < 0 || encoder > 8)
+            throw new IllegalArgumentException ("Main encoder index must be in [0,8]");
+        return 71 + encoder;
+    }
+
+    public void pressButton (final int cc)
+    {
+        check7Bit (cc, "button CC");
+        this.pressedButtons[cc] = true;
+        this.sendShort (CHANNEL_STATUS, cc, 127);
+    }
+
+    public void releaseButton (final int cc)
+    {
+        check7Bit (cc, "button CC");
+        this.pressedButtons[cc] = false;
+        this.sendShort (CHANNEL_STATUS, cc, 0);
+    }
+
+    public void tapButton (final int cc)
+    {
+        this.pressButton (cc);
+        this.releaseButton (cc);
+    }
+
+    public void pressPad (final int row, final int column, final int velocity)
+    {
+        if (velocity < 1 || velocity > PAD_VELOCITY_MAX)
+            throw new IllegalArgumentException ("Pad velocity must be in [1,127]");
+        final int note = padNote (row, column);
+        this.pressedPads[note - PAD_FIRST_NOTE] = true;
+        this.sendShort (NOTE_ON, note, velocity);
+    }
+
+    public void releasePad (final int row, final int column)
+    {
+        final int note = padNote (row, column);
+        this.pressedPads[note - PAD_FIRST_NOTE] = false;
+        this.sendShort (NOTE_OFF, note, 0);
+    }
+
+    /** Sends a raw value for one of the nine Push endless encoders. */
+    public void turnEncoder (final int encoder, final int midiValue)
+    {
+        if (encoder < 0 || encoder > 8)
+            throw new IllegalArgumentException ("Main encoder index must be in [0,8]");
+        check7Bit (midiValue, "encoder value");
+        this.encoderValues[encoder] = midiValue;
+        this.sendShort (CHANNEL_STATUS, encoderCC (encoder), midiValue);
+    }
+
+    /** Small encoders use CC 14 and 15 on Push 1. */
+    public void turnSmallEncoder (final int encoder, final int midiValue)
+    {
+        if (encoder < 0 || encoder > 1)
+            throw new IllegalArgumentException ("Small encoder index must be 0 or 1");
+        check7Bit (midiValue, "encoder value");
+        this.encoderValues[9 + encoder] = midiValue;
+        this.sendShort (CHANNEL_STATUS, 14 + encoder, midiValue);
+    }
+
+    public void touchEncoder (final int encoder, final boolean touched)
+    {
+        if (encoder < 0 || encoder > 8)
+            throw new IllegalArgumentException ("Main encoder index must be in [0,8]");
+        this.sendShort (touched ? NOTE_ON : NOTE_OFF, encoder, touched ? 127 : 0);
+    }
+
+    public void touchSmallEncoder (final int encoder, final boolean touched)
+    {
+        if (encoder < 0 || encoder > 1)
+            throw new IllegalArgumentException ("Small encoder index must be 0 or 1");
+        final int note = encoder == 0 ? 10 : 9;
+        this.sendShort (touched ? NOTE_ON : NOTE_OFF, note, touched ? 127 : 0);
+    }
+
+    public void touchRibbon (final boolean touched)
+    {
+        this.sendShort (touched ? NOTE_ON : NOTE_OFF, 12, touched ? 127 : 0);
+    }
+
+    /** Pitch bend value is split into the standard MIDI LSB/MSB pair. */
+    public void moveRibbon (final int value14Bit)
+    {
+        if (value14Bit < 0 || value14Bit > 16383)
+            throw new IllegalArgumentException ("Pitch bend must be in [0,16383]");
+        this.sendShort (PITCH_BEND, value14Bit & 0x7F, (value14Bit >>> 7) & 0x7F);
+    }
+
+    public void injectSysex (final String hexadecimalFrame)
+    {
+        validateHexSysex (hexadecimalFrame);
+        if (this.observer != null)
+            this.observer.onSysex (hexadecimalFrame);
+        this.link.sysex (hexadecimalFrame);
+    }
+
+    /** Observe a message sent by the extension back to the virtual hardware. */
+    public void receiveShort (final int status, final int data1, final int data2)
+    {
+        validateShort (status, data1, data2);
+        final int family = status & 0xF0;
+        if (family == NOTE_ON || family == NOTE_OFF)
+            this.noteLeds.put (data1, family == NOTE_OFF || data2 == 0 ? 0 : data2);
+        else if (family == CHANNEL_STATUS)
+            this.ccLeds.put (data1, data2);
+    }
+
+    /** Decode Push 1's four 68-character LCD row SysEx frames. */
+    public void receiveSysex (final String hexadecimalFrame)
+    {
+        validateHexSysex (hexadecimalFrame);
+        final String [] tokens = hexadecimalFrame.trim ().split ("\\s+");
+        if (tokens.length != 77 || !"F0".equalsIgnoreCase (tokens[0])
+                || !"47".equalsIgnoreCase (tokens[1]) || !"7F".equalsIgnoreCase (tokens[2])
+                || !"15".equalsIgnoreCase (tokens[3]) || !"00".equalsIgnoreCase (tokens[5])
+                || !"45".equalsIgnoreCase (tokens[6]) || !"00".equalsIgnoreCase (tokens[7])
+                || !"F7".equalsIgnoreCase (tokens[76]))
+            throw new IllegalArgumentException ("Not a Push 1 LCD row frame");
+        final int row = Integer.parseInt (tokens[4], 16) - 0x18;
+        if (row < 0 || row >= LCD_ROWS)
+            throw new IllegalArgumentException ("Invalid Push 1 LCD row selector");
+        final StringBuilder text = new StringBuilder (LCD_COLUMNS);
+        for (int i = 8; i < 76; i++)
+        {
+            final int character = Integer.parseInt (tokens[i], 16);
+            if (character > 0x7F)
+                throw new IllegalArgumentException ("LCD character is not seven-bit ASCII");
+            text.append ((char) character);
+        }
+        this.lcd[row] = text.toString ();
+    }
+
+    public boolean isButtonPressed (final int cc) { return this.pressedButtons[cc]; }
+    public boolean isPadPressed (final int row, final int column) { return this.pressedPads[padNote (row, column) - PAD_FIRST_NOTE]; }
+    public int getNoteLed (final int note) { return this.noteLeds.getOrDefault (note, 0); }
+    public int getCCLed (final int cc) { return this.ccLeds.getOrDefault (cc, 0); }
+    public String getLcdRow (final int row) { return this.lcd[row]; }
+    public String [] getLcdSnapshot () { return this.lcd.clone (); }
+    public Map<Integer, Integer> getNoteLedSnapshot () { return Collections.unmodifiableMap (new HashMap<> (this.noteLeds)); }
+    public Map<Integer, Integer> getCCLedSnapshot () { return Collections.unmodifiableMap (new HashMap<> (this.ccLeds)); }
+
+    private void sendShort (final int status, final int data1, final int data2)
+    {
+        validateShort (status, data1, data2);
+        if (this.observer != null)
+            this.observer.onShortMessage (status, data1, data2);
+        this.link.shortMessage (status, data1, data2);
+    }
+
+    private static void validateShort (final int status, final int data1, final int data2)
+    {
+        if (status < 0x80 || status > 0xEF)
+            throw new IllegalArgumentException ("Invalid MIDI channel status");
+        check7Bit (data1, "MIDI data1");
+        check7Bit (data2, "MIDI data2");
+    }
+
+    private static void check7Bit (final int value, final String label)
+    {
+        if (value < 0 || value > 0x7F)
+            throw new IllegalArgumentException (label + " must be in [0,127]");
+    }
+
+    private static void validateHexSysex (final String frame)
+    {
+        if (frame == null || !frame.trim ().startsWith ("F0 ") || !frame.trim ().endsWith (" F7"))
+            throw new IllegalArgumentException ("Malformed SysEx boundaries");
+        for (final String token: frame.trim ().split ("\\s+"))
+            if (!token.matches ("(?i)[0-9a-f]{2}"))
+                throw new IllegalArgumentException ("Malformed SysEx byte: " + token);
+    }
+}
