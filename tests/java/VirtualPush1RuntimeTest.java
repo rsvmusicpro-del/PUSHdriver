@@ -34,6 +34,7 @@ import de.mossgrabers.framework.command.core.TriggerCommand;
 import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.utils.ButtonEvent;
+import de.mossgrabers.framework.utils.TestCallback;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationHandler;
@@ -222,6 +223,18 @@ public final class VirtualPush1RuntimeTest
             "Push 1 LCD feedback was not decoded into the virtual screen");
         require (midi.capturedOutput ().stream ().anyMatch (message -> message.startsWith ("sendSysex ")),
             "Production setup did not emit any Push 1 SysEx feedback");
+
+        // DrivenByMoss' own setup test traverses every registered view/mode
+        // pair, presses every real bound button (down/long/up), and executes
+        // each bound continuous and pitchbend command.
+        final boolean [] matrixComplete = { false };
+        setup.test (new TestCallback () {
+            @Override public void startTesting () { }
+            @Override public void endTesting () { matrixComplete[0] = true; }
+        });
+        drainScheduled (state);
+        require (matrixComplete[0], "Production view/mode command matrix did not finish");
+        require (state.errors.isEmpty (), "Production mode matrix reported runtime errors: " + state.errors);
 
         setup.exit ();
         if (!state.errors.isEmpty ())
