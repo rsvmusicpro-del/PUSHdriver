@@ -63,7 +63,7 @@ public class PushNewCommand extends NewCommand<PushControlSurface, PushConfigura
             return;
         }
 
-        // Only stop a selected Launcher clip; do not interrupt unrelated Arranger playback.
+        // Stop Launcher playback on this track; the track API does not stop Arranger playback.
         if (clipIsPlaying)
             cursorTrack.stop ();
         this.model.createNoteClip (cursorTrack, slot.get (), this.getClipLength (), enableOverdub);
