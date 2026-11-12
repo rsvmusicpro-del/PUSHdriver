@@ -35,6 +35,7 @@ import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.utils.TestCallback;
+import de.mossgrabers.framework.observer.IValueObserver;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationHandler;
@@ -324,7 +325,12 @@ public final class VirtualPush1RuntimeTest
             new Class<?> [] { ISettingsUI.class }, (proxy, method, args) -> {
                 if (method.getReturnType ().isInterface ())
                 {
-                    final Object initial = args == null || args.length == 0 ? null : args[args.length - 1];
+                    Object initial = args == null || args.length == 0 ? null : args[args.length - 1];
+                    // Choose STOP for the Play button's pause behavior so the
+                    // test has a deterministic start/stop transport contract.
+                    if (method.getName ().equals ("getEnumSetting") && args != null
+                            && args.length > 0 && "Behaviour on Pause".equals (args[0]))
+                        initial = "Stop";
                     return settingProxy (method.getReturnType (), initial);
                 }
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -334,13 +340,26 @@ public final class VirtualPush1RuntimeTest
     private static Object settingProxy (final Class<?> type, final Object initial)
     {
         final Object [] value = { initial };
+        final List<IValueObserver<Object>> observers = new java.util.ArrayList<> ();
         return Proxy.newProxyInstance (type.getClassLoader (), new Class<?> [] { type },
             (proxy, method, args) -> {
                 if (method.getName ().equals ("get") || method.getName ().equals ("getValue"))
                     return value[0] == null ? defaultValue (method.getReturnType (), method.getGenericReturnType ()) : value[0];
+                if (method.getName ().equals ("addValueObserver"))
+                {
+                    @SuppressWarnings ("unchecked")
+                    final IValueObserver<Object> observer = (IValueObserver<Object>) args[0];
+                    observers.add (observer);
+                    observer.update (value[0]);
+                    return null;
+                }
                 if (method.getName ().equals ("set") || method.getName ().equals ("setValue"))
                 {
-                    if (args != null && args.length > 0) value[0] = args[0];
+                    if (args != null && args.length > 0)
+                    {
+                        value[0] = args[0];
+                        observers.forEach (observer -> observer.update (value[0]));
+                    }
                     return null;
                 }
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
