@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression checks for Push 1 In/Out bindings and mode-aware behavior."""
+"""Regression checks for Push 1 controls, mode behavior and MIDI discovery."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -108,7 +108,6 @@ for marker in (
 if "while (browser.getSelectedFilterColumn ().getPosition () != targetPosition)" in browser:
     raise SystemExit("Browser navigation must not contain an unbounded wait loop")
 
-print("Push 1 In/Out bindings, device/browser behavior and fallback regression checks passed.")
 
 # Note Repeat configuration knobs do not depend on a live MIDI note-input object.
 # A missing input must disable only hardware-backed note-repeat actions, not
@@ -138,3 +137,5 @@ if 'addDeviceDiscoveryPair ("Ableton Push User Port")' not in linux_discovery:
     raise SystemExit("Linux Push 1 discovery is missing the named User Port match")
 if 'createLinuxDeviceDiscoveryPairs ("Push", "Push", 1)' not in linux_discovery:
     raise SystemExit("Linux Push 1 discovery is missing the ALSA hardware-port fallback")
+
+print("Push 1 controls, Note Repeat safety and MIDI discovery regression checks passed.")
