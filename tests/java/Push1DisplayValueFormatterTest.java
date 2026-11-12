@@ -44,7 +44,7 @@ public final class Push1DisplayValueFormatterTest
         check (Push1DisplayValueFormatter.formatPan (-100, 127, EMPTY, HALF, FULL, LEFT_HALF), "<###----", "negative pan values must clamp to the left edge");
         check (Push1DisplayValueFormatter.formatPan (Integer.MAX_VALUE, 127, EMPTY, HALF, FULL, LEFT_HALF), "----####", "pan values above maximum must clamp to the right edge");
         check (Push1DisplayValueFormatter.formatPan (127, 0, EMPTY, HALF, FULL, LEFT_HALF), "--------", "zero pan maximum must be safe");
-        check (Push1DisplayValueFormatter.formatPan (Integer.MAX_VALUE, Integer.MAX_VALUE, EMPTY, HALF, FULL, LEFT_HALF).length () == 8, "extreme pan maximum must remain bounded");
+        check (Push1DisplayValueFormatter.formatPan (Integer.MAX_VALUE, Integer.MAX_VALUE, EMPTY, HALF, FULL, LEFT_HALF), "----####", "extreme pan maximum must remain bounded");
 
         System.out.println ("Push 1 display value-bar boundary tests passed.");
     }
