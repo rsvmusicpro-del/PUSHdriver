@@ -105,6 +105,19 @@ public final class VirtualPush1DeviceTest
                 || device.getLcdRow (3).charAt (0) != ' ')
             throw new AssertionError ("LCD row decoding failed");
 
+        // Push 1 pad and lower-button RGB SysEx: 4-bit components are
+        // expanded into the full 8-bit RGB channel values.
+        device.receiveSysex ("F0 47 7F 15 04 00 08 00 0F 00 08 00 04 00 F7");
+        final int [] rgb = device.getPadRgb (0, 0);
+        if (rgb[0] != 240 || rgb[1] != 128 || rgb[2] != 64)
+            throw new AssertionError ("Pad RGB SysEx decoding failed");
+        device.receiveSysex ("F0 47 7F 15 04 00 08 40 01 02 03 04 05 06 F7");
+        final int [] lowerButtonRgb = device.getBottomRowRgb (0);
+        if (lowerButtonRgb[0] != 18 || lowerButtonRgb[1] != 52 || lowerButtonRgb[2] != 86)
+            throw new AssertionError ("Bottom-row RGB SysEx decoding failed");
+        expectInvalid (() -> device.receiveSysex ("F0 47 7F 15 04 00 08 00 10 00 08 00 04 00 F7"));
+        expectInvalid (() -> device.receiveSysex ("F0 47 7F 15 5C 00 01 00 F7"));
+
         // Output note/CC messages update observable hardware LED state.
         device.receiveShort (VirtualPush1Device.NOTE_ON, 36, 5);
         device.receiveShort (VirtualPush1Device.NOTE_OFF, 36, 0);
