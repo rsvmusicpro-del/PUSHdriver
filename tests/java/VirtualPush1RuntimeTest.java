@@ -223,7 +223,15 @@ public final class VirtualPush1RuntimeTest
                     case "bind":
                         if (args[0] instanceof TriggerCommand trigger) command[0] = trigger;
                         else if (args[0] instanceof IMidiInput input)
-                            input.bind (self[0], (BindType) args[1], (int) args[2], (int) args[3], (int) args[4]);
+                        {
+                            final BindType bindType = (BindType) args[1];
+                            final int channel = (int) args[2];
+                            final int control = (int) args[3];
+                            if (args.length > 4)
+                                input.bind (self[0], bindType, channel, control, (int) args[4]);
+                            else
+                                input.bind (self[0], bindType, channel, control);
+                        }
                         return null;
                     case "trigger":
                         final ButtonEvent event = args == null || args.length == 0 ? ButtonEvent.DOWN : (ButtonEvent) args[0];
