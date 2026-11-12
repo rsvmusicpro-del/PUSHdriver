@@ -145,6 +145,7 @@ public final class VirtualPush1Device
     {
         final int note = padNote (row, column);
         this.pressedPads[note - PAD_FIRST_NOTE] = false;
+        this.padPressure[note - PAD_FIRST_NOTE] = 0;
         this.sendShort (NOTE_OFF, note, 0);
     }
 
