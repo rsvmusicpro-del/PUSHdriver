@@ -55,6 +55,26 @@ public final class VirtualPush1DeviceTest
                 || VirtualPush1Device.DEVICE != 110 || VirtualPush1Device.BROWSE != 111
                 || VirtualPush1Device.TRACK != 112 || VirtualPush1Device.CLIP != 113)
             throw new AssertionError ("Push 1 button CC mapping regression");
+        for (int i = 0; i < 8; i++)
+        {
+            if (VirtualPush1Device.TOP_ROW_FIRST + i != 20 + i
+                    || VirtualPush1Device.REPEAT_BUTTON_FIRST + i != 36 + i
+                    || VirtualPush1Device.BOTTOM_ROW_FIRST + i != 102 + i)
+                throw new AssertionError ("Push 1 row/repeat CC mapping regression");
+        }
+        if (VirtualPush1Device.MASTER != 28 || VirtualPush1Device.STOP != 29
+                || VirtualPush1Device.SELECT != 48 || VirtualPush1Device.NOTE != 50
+                || VirtualPush1Device.SESSION != 51 || VirtualPush1Device.ADD_EFFECT != 52
+                || VirtualPush1Device.ADD_TRACK != 53 || VirtualPush1Device.OCTAVE_DOWN != 54
+                || VirtualPush1Device.OCTAVE_UP != 55 || VirtualPush1Device.REPEAT != 56
+                || VirtualPush1Device.ACCENT != 57 || VirtualPush1Device.SCALES != 58
+                || VirtualPush1Device.USER != 59 || VirtualPush1Device.MUTE != 60
+                || VirtualPush1Device.SOLO != 61 || VirtualPush1Device.DUPLICATE != 88
+                || VirtualPush1Device.AUTOMATION != 89 || VirtualPush1Device.FIXED_LENGTH != 90
+                || VirtualPush1Device.PAN_SEND != 115 || VirtualPush1Device.QUANTIZE != 116
+                || VirtualPush1Device.DOUBLE != 117 || VirtualPush1Device.DELETE != 118
+                || VirtualPush1Device.UNDO != 119)
+            throw new AssertionError ("Push 1 extended button CC mapping regression");
         if (VirtualPush1Device.encodeRelativeSteps (1) != 1
                 || VirtualPush1Device.encodeRelativeSteps (-1) != 127
                 || VirtualPush1Device.encodeRelativeSteps (-63) != 65)
