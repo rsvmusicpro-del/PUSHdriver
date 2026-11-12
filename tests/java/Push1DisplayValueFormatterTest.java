@@ -37,6 +37,15 @@ public final class Push1DisplayValueFormatterTest
         check (Push1DisplayValueFormatter.formatModulatedValue (Integer.MAX_VALUE, 0, 1, EMPTY, HALF, FULL, LEFT_HALF), "-------<", "extreme positive modulation must clamp to the final cell without integer overflow");
         check (Push1DisplayValueFormatter.formatModulatedValue (127, 127, 0, EMPTY, HALF, FULL, LEFT_HALF), "--------", "zero maximum must be safe");
 
+        check (Push1DisplayValueFormatter.formatPan (63, 127, EMPTY, HALF, FULL, LEFT_HALF), "--------", "center pan must remain empty");
+        check (Push1DisplayValueFormatter.formatPan (0, 127, EMPTY, HALF, FULL, LEFT_HALF), "<###----", "minimum pan must fill the left edge without exceeding eight cells");
+        check (Push1DisplayValueFormatter.formatPan (126, 127, EMPTY, HALF, FULL, LEFT_HALF), "----####", "penultimate pan value must reach the right edge");
+        check (Push1DisplayValueFormatter.formatPan (127, 127, EMPTY, HALF, FULL, LEFT_HALF), "----####", "maximum pan must not produce a ninth display cell");
+        check (Push1DisplayValueFormatter.formatPan (-100, 127, EMPTY, HALF, FULL, LEFT_HALF), "<###----", "negative pan values must clamp to the left edge");
+        check (Push1DisplayValueFormatter.formatPan (Integer.MAX_VALUE, 127, EMPTY, HALF, FULL, LEFT_HALF), "----####", "pan values above maximum must clamp to the right edge");
+        check (Push1DisplayValueFormatter.formatPan (127, 0, EMPTY, HALF, FULL, LEFT_HALF), "--------", "zero pan maximum must be safe");
+        check (Push1DisplayValueFormatter.formatPan (Integer.MAX_VALUE, Integer.MAX_VALUE, EMPTY, HALF, FULL, LEFT_HALF).length () == 8, "extreme pan maximum must remain bounded");
+
         System.out.println ("Push 1 display value-bar boundary tests passed.");
     }
 }
