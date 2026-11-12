@@ -467,11 +467,21 @@ replace_once(note_repeat,
 replace_once(note_repeat,
     "        this.setTouchedKnob (index, isTouched);\n\n        if (isTouched && this.surface.isDeletePressed ())",
     "        this.setTouchedKnob (index, isTouched);\n"
-    "        this.refreshNoteRepeat ();\n"
-    "        if (this.noteRepeat == null)\n"
-    "            return;\n\n"
+    "        this.refreshNoteRepeat ();\n\n"
     "        if (isTouched && this.surface.isDeletePressed ())",
-    "NoteRepeatMode knob-touch input guard")
+    "NoteRepeatMode knob-touch service refresh")
+replace_once(note_repeat,
+    "                    if (this.host.supports (Capability.NOTE_REPEAT_MODE))\n"
+    "                        this.noteRepeat.setMode (ArpeggiatorMode.UP);",
+    "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_MODE))\n"
+    "                        this.noteRepeat.setMode (ArpeggiatorMode.UP);",
+    "NoteRepeatMode mode reset requires active input")
+replace_once(note_repeat,
+    "                    if (this.host.supports (Capability.NOTE_REPEAT_OCTAVES))\n"
+    "                        this.noteRepeat.setOctaves (1);",
+    "                    if (this.noteRepeat != null && this.host.supports (Capability.NOTE_REPEAT_OCTAVES))\n"
+    "                        this.noteRepeat.setOctaves (1);",
+    "NoteRepeatMode octave reset requires active input")
 replace_once(note_repeat,
     "    public void onFirstRow (final int index, final ButtonEvent event)\n    {\n"
     "        if (event != ButtonEvent.UP || this.noteRepeat == null)",
@@ -483,9 +493,8 @@ replace_once(note_repeat,
     "    public void onSecondRow (final int index, final ButtonEvent event)\n    {\n"
     "        if (event != ButtonEvent.UP || this.noteRepeat == null)",
     "    public void onSecondRow (final int index, final ButtonEvent event)\n    {\n"
-    "        this.refreshNoteRepeat ();\n"
-    "        if (event != ButtonEvent.UP || this.noteRepeat == null)",
-    "NoteRepeatMode second-row input refresh")
+    "        if (event != ButtonEvent.UP)",
+    "NoteRepeatMode Groove control independent of MIDI input")
 replace_once(note_repeat,
     "    public void updateDisplay1 (final ITextDisplay display)\n    {\n",
     "    public void updateDisplay1 (final ITextDisplay display)\n    {\n"
