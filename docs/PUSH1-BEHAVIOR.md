@@ -42,8 +42,33 @@ The full physical ID declarations live in the pinned upstream `PushControlSurfac
 - **Sequencer:** the live playhead follows the current edit page only when an existing note clip is present; missing clip/step state is guarded.
 - **Firmware inquiry:** handled by the Push 1 firmware parser and its regression checks.
 
-## Evidence and limits
+## Virtual bench and regression contract
 
-Existing checks include structural Python regression checks, LCD protocol Java tests, package/SPI discovery, and a virtual-host LCD-output smoke test. Those checks do not yet constitute a full end-to-end simulation of every physical button through every mode transition into Bitwig's model. `VirtualPush1MidiBench` validates the API-17 transport boundary. `VirtualPush1Device` emulates the hardware endpoint without USB or a native MIDI driver: 64 velocity-sensitive pads with polyphonic aftertouch, the documented button CC groups (including simultaneous Shift chords), nine main encoders and two small encoders with signed relative movement, encoder-touch notes with Note-On-zero release, ribbon touch/pitch bend, MIDI input delivery, LED note/CC feedback capture, and four decoded 68-character LCD rows. `VirtualPush1MidiBench` connects this virtual surface bidirectionally to API-17 `IMidiInput`/`IMidiOutput` proxies: device actions invoke the registered extension callbacks, and extension output updates the virtual LEDs/LCD. `VirtualPush1DeviceTest` checks all 64 pad locations including aftertouch, button CC groups and Shift, signed relative encoder encoding, encoder/ribbon touch-release messages, ribbon pitch bend, LCD decoding using the production SysEx encoder, and LED feedback without a physical Push 1. `VirtualPush1MidiBench` also checks channel 0 and channel 15 output routing and both String and byte-array SysEx forms.
+The virtual bench is split into three layers:
 
-Important boundary: the virtual device is a hardware emulator, not yet a complete Bitwig runtime emulator. The current automated scenarios verify event mapping, simultaneous button states, pad/encoder/ribbon transport, LCD framing and LED feedback. `scripts/test_push1_scenarios.py` also checks that the production API-17 setup still wires the physical IDs to the real mode commands, registers the expected mode families, binds encoders/touch notes, and derives Play/Record LEDs from Bitwig transport state. Existing repository regressions separately check navigation/Shift page semantics, In/Out routing, New clip workflow, Note Repeat, sequencer playhead and display. These source guards plus the virtual endpoint do not yet replay every mode and playback scenario through the actual PushControllerSetup/ModeManager with a deterministic Bitwig model. A full semantic integration harness needs an injectable controller-setup seam and API-17 model collaborators; it must not substitute a duplicate mock implementation and call that proof of production behavior.
+- `VirtualPush1Device`: physical protocol model, independent of USB/native MIDI drivers.
+- `VirtualPush1MidiBench`: bidirectional API-17 `IMidiInput`/`IMidiOutput` adapter. It models Bitwig hardware binding dispatch for buttons, pads, relative encoders, touch notes and pitch bend; it routes extension LED and LCD output back to the device model.
+- `VirtualPush1RuntimeTest`: boots the **real assembled `PushControllerSetup`**, production views/modes and production button/continuous commands against deterministic API-17 host, settings and model collaborators. It drives MIDI through the actual registered bindings rather than a duplicate controller implementation.
+
+The runtime scenarios cover Device/Track/Volume/Clip modes, Note/Session view selection, Play/Record transport, Shift+Record launcher overdub, simultaneous Shift+navigation, pad note/aftertouch/release, signed relative encoder input, encoder/ribbon touch, ribbon pitch bend, and LED/LCD feedback. It also invokes DrivenByMoss' own setup test matrix for registered view/mode pairs, buttons (down/long/up), continuous controls and pitchbend commands.
+
+`VirtualPush1DeviceTest` independently checks all 64 pad positions, pressure lifecycle, the documented CC groups, two's-complement encoder boundaries, touch-release encoding, LCD framing/decoding and LED state. `VirtualPush1MidiBench` checks API output channels 0 and 15, String and byte-array SysEx, and distinguishes LCD frames from other Push 1 system SysEx. Existing Python regressions cover navigation/Shift semantics, In/Out, New clip workflow, Note Repeat, playhead safety, firmware parsing and package contents.
+
+## Compatibility and limits
+
+- Source and tests compile against Bitwig Extension API 17 with Java 17.
+- CI assembles the pinned DrivenByMoss 19.2.2 source, checks reproducibility, runs the test suite, packages the Push 1 extension, and smoke-tests extension discovery on Linux and Intel macOS.
+- The runtime test uses the real controller setup and production commands, but its Bitwig host/model collaborators are deterministic proxies. It is not a running Bitwig Studio 4.3.10 process, does not exercise the host's native MIDI driver/scheduler, and cannot certify USB timing or a physical Push 1. Those remain external integration checks; a claim of zero possible errors would be unjustified.
+- No production controller behavior has been restructured as part of this bench work. The new tests first establish an executable baseline; future behavior changes should add a failing scenario before the production fix and verify it green afterward.
+
+## Regression protection
+
+The workflow runs on pushes to `custom` and pull requests targeting `custom`. Its `quality-gate` job fails unless both Linux and Intel macOS validations succeed. For server-side enforcement, configure the `quality-gate` status check as required on the `custom` branch and disallow direct pushes/force pushes. The integration can update workflow files, but GitHub denied access to the legacy branch-protection endpoint; no repository rulesets are currently exposed, so I cannot truthfully claim that required-check enforcement has been enabled.
+
+Local test sequence after assembling the extension:
+
+```bash
+python3 scripts/prepare_push1.py
+mvn --batch-mode --no-transfer-progress clean package
+python3 scripts/test_push1_extension.py
+```
