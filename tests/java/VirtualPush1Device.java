@@ -58,8 +58,28 @@ public final class VirtualPush1Device
     public static final int VOLUME = 114;
     public static final int PAN_SEND = 115;
     public static final int TOP_ROW_FIRST = 20;
+    public static final int MASTER = 28;
+    public static final int STOP = 29;
     public static final int BOTTOM_ROW_FIRST = 102;
     public static final int REPEAT_BUTTON_FIRST = 36;
+    public static final int SELECT = 48;
+    public static final int ADD_EFFECT = 52;
+    public static final int ADD_TRACK = 53;
+    public static final int OCTAVE_DOWN = 54;
+    public static final int OCTAVE_UP = 55;
+    public static final int REPEAT = 56;
+    public static final int ACCENT = 57;
+    public static final int SCALES = 58;
+    public static final int USER = 59;
+    public static final int MUTE = 60;
+    public static final int SOLO = 61;
+    public static final int DUPLICATE = 88;
+    public static final int AUTOMATION = 89;
+    public static final int FIXED_LENGTH = 90;
+    public static final int QUANTIZE = 116;
+    public static final int DOUBLE = 117;
+    public static final int DELETE = 118;
+    public static final int UNDO = 119;
 
     private final MidiLink link;
     private final EventListener observer;
