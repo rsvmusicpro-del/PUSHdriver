@@ -134,6 +134,24 @@ public final class PushdriverExtensionDiscoveryTest
             final String invalidRange = (String) formatter.invoke(null, Integer.MAX_VALUE, 0);
             if (!invalidRange.equals(empty.repeat(8)))
                 throw new AssertionError("Packaged Push 1 pan formatter is not safe for a zero maximum");
+
+            // Exercise the actual assembled Push1Display implementation across
+            // every pan value and a range of odd/even parameter maxima, including
+            // values immediately outside the legal range.
+            for (int maximum = 1; maximum <= 256; maximum++)
+            {
+                for (int pan = -1; pan <= maximum + 1; pan++)
+                {
+                    final String rendered = (String) formatter.invoke(null, pan, maximum);
+                    if (rendered.length() != 8)
+                        throw new AssertionError("Packaged pan formatter returned "
+                            + rendered.length() + " cells for pan=" + pan + ", max=" + maximum);
+                }
+
+                final String center = (String) formatter.invoke(null, maximum / 2, maximum);
+                if (!center.equals(empty.repeat(8)))
+                    throw new AssertionError("Packaged pan formatter did not center max=" + maximum);
+            }
         }
         catch (final ReflectiveOperationException ex)
         {
