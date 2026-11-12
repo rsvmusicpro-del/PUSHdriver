@@ -18,6 +18,9 @@ import de.mossgrabers.framework.daw.ITransport;
 import de.mossgrabers.framework.daw.data.bank.ITrackBank;
 import de.mossgrabers.framework.daw.data.IDeviceMetadata;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
+import de.mossgrabers.framework.daw.data.ITrack;
+import de.mossgrabers.framework.daw.data.ISend;
+import de.mossgrabers.framework.daw.data.bank.ISendBank;
 import de.mossgrabers.framework.daw.data.bank.IParameterBank;
 import de.mossgrabers.framework.parameter.IParameter;
 import de.mossgrabers.framework.daw.midi.ArpeggiatorMode;
@@ -209,6 +212,28 @@ public final class VirtualPush1RuntimeTest
                     return 8;
                 if (method.getName ().equals ("getSelectedItem"))
                     return Optional.empty ();
+                if (method.getName ().equals ("getItem"))
+                    return trackProxy ();
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+    private static ITrack trackProxy ()
+    {
+        final ISendBank sendBank = (ISendBank) Proxy.newProxyInstance (ISendBank.class.getClassLoader (),
+            new Class<?> [] { ISendBank.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getPageSize"))
+                    return 8;
+                if (method.getName ().equals ("getItem"))
+                    return Proxy.newProxyInstance (ISend.class.getClassLoader (),
+                        new Class<?> [] { ISend.class },
+                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+        return (ITrack) Proxy.newProxyInstance (ITrack.class.getClassLoader (),
+            new Class<?> [] { ITrack.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getSendBank"))
+                    return sendBank;
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
