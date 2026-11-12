@@ -127,3 +127,14 @@ for marker in (
 ):
     if marker not in knob_value:
         raise SystemExit(f"Note Repeat configuration control is missing: {marker}")
+
+# Linux MIDI discovery must retain the named User Port match in addition to
+# ALSA hardware-port patterns, as in the upstream Push 1 definition.
+definition = read("controller/ableton/push/PushControllerDefinition.java")
+linux_case_start = definition.index("case LINUX:")
+linux_case_end = definition.index("default:", linux_case_start)
+linux_discovery = definition[linux_case_start:linux_case_end]
+if 'addDeviceDiscoveryPair ("Ableton Push User Port")' not in linux_discovery:
+    raise SystemExit("Linux Push 1 discovery is missing the named User Port match")
+if 'createLinuxDeviceDiscoveryPairs ("Push", "Push", 1)' not in linux_discovery:
+    raise SystemExit("Linux Push 1 discovery is missing the ALSA hardware-port fallback")
