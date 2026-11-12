@@ -344,4 +344,42 @@ for marker in (
     if marker not in device_params:
         raise SystemExit(f"Third-party device encoder binding refresh regression: missing {marker!r}")
 
+# API-17-compatible 24.1 backports: Session and Marker encoders control
+# the current track bank's volume, while Master mode exposes project I/O.
+for relative in (
+    "controller/ableton/push/mode/SessionMode.java",
+    "controller/ableton/push/mode/MarkerMode.java",
+):
+    source = read(relative)
+    if "this.setParameterProvider (new VolumeParameterProvider (model));" not in source:
+        raise SystemExit(f"Track-volume encoder provider is missing from {relative}")
+
+master_mode = read("controller/ableton/push/mode/track/MasterMode.java")
+master_display = method_body(master_mode, "public void updateDisplay1 (final ITextDisplay display)")
+for marker in (
+    'display.setCell (0, 6, "Load").setCell (0, 7, "Save")',
+    'display.setCell (1, 6, "Project:")',
+    'display.setBlock (2, 3, this.model.getProject ().getName ())',
+):
+    if marker not in master_display:
+        raise SystemExit(f"Master mode project I/O display regression: missing {marker!r}")
+master_second_row = method_body(master_mode, "public void onSecondRow (final int index, final ButtonEvent event)")
+for marker in (
+    "case 6:",
+    "this.model.getProject ().load ();",
+    "case 7:",
+    "this.model.getProject ().save ();",
+):
+    if marker not in master_second_row:
+        raise SystemExit(f"Master mode project I/O action regression: missing {marker!r}")
+master_leds = method_body(master_mode, "public int getButtonColor (final ButtonID buttonID)")
+for marker in (
+    "PushColorManager.PUSH1_COLOR_GREEN_HI",
+    "this.model.getProject ().isDirty ()",
+    "PushColorManager.PUSH1_COLOR_ORANGE_HI",
+    "PushColorManager.PUSH1_COLOR_GREEN_LO",
+):
+    if marker not in master_leds:
+        raise SystemExit(f"Master mode project I/O LED feedback regression: missing {marker!r}")
+
 print("Push 1 note-repeat, sequencer bounds, repeat-state and color regressions passed.")
