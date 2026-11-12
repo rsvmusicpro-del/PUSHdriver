@@ -165,6 +165,7 @@ public final class VirtualPush1RuntimeTest
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (state.playing, "Play CC did not update the Bitwig transport model");
         setup.flush ();
+        drainScheduled (state);
         require (midi.device ().getCCLed (VirtualPush1Device.PLAY) > 0,
             "Play state was not reflected in the Push LED feedback");
         midi.device ().tapButton (VirtualPush1Device.PLAY);
@@ -383,6 +384,7 @@ public final class VirtualPush1RuntimeTest
         final TriggerCommand [] command = { null };
         final boolean [] pressed = { false };
         final int [] velocity = { 0 };
+        final IHwLight [] light = { null };
         final IHwButton [] self = new IHwButton [1];
         self[0] = (IHwButton) Proxy.newProxyInstance (IHwButton.class.getClassLoader (),
             new Class<?> [] { IHwButton.class }, (proxy, method, args) -> {
@@ -412,6 +414,8 @@ public final class VirtualPush1RuntimeTest
                     case "isPressed": return pressed[0];
                     case "isLongPressed": return false;
                     case "getPressedVelocity": return velocity[0];
+                    case "addLight": light[0] = (IHwLight) args[0]; return null;
+                    case "getLight": return light[0];
                     case "isBound": return command[0] != null;
                     case "toString": return "Virtual Push hardware button";
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -499,6 +503,15 @@ public final class VirtualPush1RuntimeTest
                     return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 });
         return null;
+    }
+
+    private static void drainScheduled (final State state)
+    {
+        int steps = 0;
+        while (!state.scheduled.isEmpty () && steps++ < 10000)
+            state.scheduled.removeFirst ().run ();
+        if (!state.scheduled.isEmpty ())
+            throw new AssertionError ("Virtual Bitwig task queue did not quiesce");
     }
 
     private static void require (final boolean condition, final String message)
