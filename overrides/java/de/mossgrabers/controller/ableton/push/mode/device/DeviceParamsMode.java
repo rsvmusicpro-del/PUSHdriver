@@ -154,24 +154,28 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 return;
             }
 
+            final IDevice targetDevice = cd.getDeviceBank ().getItem (index);
+            if (!targetDevice.doesExist ())
+                return;
+
             // Delete device
             if (this.isButtonCombination (ButtonID.DELETE))
             {
-                cd.getDeviceBank ().getItem (index).remove ();
+                targetDevice.remove ();
                 return;
             }
 
             // Disable/Enable device
             if (this.isButtonCombination (ButtonID.MUTE))
             {
-                cd.getDeviceBank ().getItem (index).toggleEnabledState ();
+                targetDevice.toggleEnabledState ();
                 return;
             }
 
             // Select device
             if (cd.getIndex () != index)
             {
-                cd.getDeviceBank ().getItem (index).select ();
+                targetDevice.select ();
                 return;
             }
 
