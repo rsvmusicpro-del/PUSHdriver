@@ -18,13 +18,21 @@ if api is None:
     raise SystemExit("Bitwig Extension API 17 JAR was not found in Maven's local repositories")
 
 classpath = os.pathsep.join((str(extension), str(api)))
-test_source = root / "tests/java/PushdriverExtensionDiscoveryTest.java"
+test_sources = (
+    root / "tests/java/PushdriverExtensionDiscoveryTest.java",
+    root / "tests/java/VirtualPush1MidiBench.java",
+)
 with tempfile.TemporaryDirectory(prefix="pushdriver-extension-test-") as output:
     subprocess.run(
-        ["javac", "-cp", classpath, "-d", output, str(test_source)],
+        ["javac", "-cp", classpath, "-d", output, *(str(source) for source in test_sources)],
+        cwd=root, check=True,
+    )
+    runtime_classpath = os.pathsep.join((classpath, output))
+    subprocess.run(
+        ["java", "-cp", runtime_classpath, "PushdriverExtensionDiscoveryTest"],
         cwd=root, check=True,
     )
     subprocess.run(
-        ["java", "-cp", os.pathsep.join((classpath, output)), "PushdriverExtensionDiscoveryTest"],
+        ["java", "-cp", runtime_classpath, "VirtualPush1MidiBench"],
         cwd=root, check=True,
     )
