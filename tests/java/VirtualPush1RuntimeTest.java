@@ -14,6 +14,7 @@ import de.mossgrabers.framework.controller.hardware.IHwSurfaceFactory;
 import de.mossgrabers.framework.daw.IHost;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.ITransport;
+import de.mossgrabers.framework.daw.data.IDeviceMetadata;
 import de.mossgrabers.framework.daw.midi.ArpeggiatorMode;
 import de.mossgrabers.framework.daw.midi.IMidiAccess;
 import de.mossgrabers.framework.daw.midi.IMidiInput;
@@ -68,7 +69,8 @@ public final class VirtualPush1RuntimeTest
                     case "scheduleTask": state.scheduled.add ((Runnable) callArgs[0]); return null;
                     case "error": state.errors.add (String.valueOf (callArgs[0])); return null;
                     case "println": case "showNotification": case "releaseUsbDevices": return null;
-                    case "getInstrumentMetadata": case "getAudioEffectMetadata": return List.of ();
+                    case "getInstrumentMetadata": return List.of (deviceMetadata ("Virtual Instrument"));
+                    case "getAudioEffectMetadata": return List.of (deviceMetadata ("Virtual Effect"));
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 }
             });
@@ -153,6 +155,17 @@ public final class VirtualPush1RuntimeTest
             throw new AssertionError ("Virtual Bitwig host reported errors: " + state.errors);
         System.out.println ("Virtual Push 1 runtime passed: real PushControllerSetup initialized; "
             + "production Device/Track/Play commands were driven through MIDI CC; Shift chord delivered.");
+    }
+
+    private static IDeviceMetadata deviceMetadata (final String name)
+    {
+        return (IDeviceMetadata) Proxy.newProxyInstance (IDeviceMetadata.class.getClassLoader (),
+            new Class<?> [] { IDeviceMetadata.class }, (proxy, method, args) -> switch (method.getName ())
+            {
+                case "name" -> name;
+                case "fullName" -> name;
+                default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
     }
 
     private static ISettingsUI settingsUI ()
