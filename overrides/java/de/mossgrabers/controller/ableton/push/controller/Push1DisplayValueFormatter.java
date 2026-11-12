@@ -54,7 +54,7 @@ public final class Push1DisplayValueFormatter
         if (maxParam <= 0)
             return String.join ("", fields);
 
-        final int noOfBarsModulated = clamp ((int) Math.round (HALF_STEPS * (double) modulated / maxParam), 0, HALF_STEPS);
+        final int noOfBarsModulated = toHalfSteps (modulated, maxParam);
         final int pos = noOfBarsModulated / 2;
         if (noOfBarsModulated % 2 == 0)
         {
@@ -89,7 +89,7 @@ public final class Push1DisplayValueFormatter
             return fields;
 
         final int boundedValue = clamp (value, 0, maxParam);
-        final int noOfBars = clamp ((int) Math.round (HALF_STEPS * (double) boundedValue / maxParam), 0, HALF_STEPS);
+        final int noOfBars = toHalfSteps (boundedValue, maxParam);
         int count;
         for (count = 0; count < noOfBars / 2 && count < BAR_CELLS; count++)
             fields[count] = barsTwo;
@@ -97,6 +97,19 @@ public final class Push1DisplayValueFormatter
             fields[count] = barsOne;
 
         return fields;
+    }
+
+
+    private static int toHalfSteps (final int value, final int maxParam)
+    {
+        if (maxParam <= 0)
+            return 0;
+        final double scaled = HALF_STEPS * (double) value / maxParam;
+        if (scaled <= 0)
+            return 0;
+        if (scaled >= HALF_STEPS)
+            return HALF_STEPS;
+        return (int) Math.round (scaled);
     }
 
 
