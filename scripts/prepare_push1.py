@@ -578,8 +578,12 @@ replace_once(note_repeat,
     "                        this.noteRepeat.toggleShuffle ();",
     "NoteRepeatMode repeat shuffle toggle requires active input")
 replace_once(note_repeat,
+    "        if (this.host.supports (Capability.NOTE_REPEAT_LATCH))\n"
+    "            display.setCell (3, 4, \" Latch\");\n\n"
     "        final int upperBound = this.model.getValueChanger ().getUpperBound ();\n"
     "        if (this.host.supports (Capability.NOTE_REPEAT_MODE))",
+    "        if (this.host.supports (Capability.NOTE_REPEAT_LATCH))\n"
+    "            display.setCell (3, 4, \" Latch\");\n\n"
     "        final int upperBound = this.model.getValueChanger ().getUpperBound ();\n"
     "        if (this.host.supports (Capability.NOTE_REPEAT_MODE) && this.noteRepeat != null)",
     "NoteRepeatMode mode display requires active input")
