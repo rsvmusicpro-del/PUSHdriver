@@ -5,6 +5,9 @@ import com.bitwig.extension.controller.api.ControllerHost;
 import de.mossgrabers.bitwig.framework.daw.HostImpl;
 import de.mossgrabers.controller.ableton.push.PushControllerDefinition;
 import de.mossgrabers.controller.ableton.push.controller.Push1Display;
+import de.mossgrabers.framework.controller.display.IHwTextDisplay;
+import de.mossgrabers.framework.daw.IHost;
+import de.mossgrabers.framework.daw.midi.IMidiOutput;
 import de.mossgrabers.framework.utils.OperatingSystem;
 import de.mossgrabers.framework.utils.Pair;
 
@@ -35,6 +38,7 @@ public final class PushdriverExtensionDiscoveryTest
             throw new AssertionError("Packaged devices/AudioEffects.txt was not loaded");
 
         verifyPackagedPanFormatter();
+        verifyDisplayMidiOutput();
 
         // Validate the platform-specific MIDI auto-detection contract independently
         // of the CI runner's actual operating system.
@@ -177,6 +181,85 @@ public final class PushdriverExtensionDiscoveryTest
         {
             throw new AssertionError("Could not exercise the packaged Push 1 pan formatter", ex);
         }
+    }
+
+
+    /**
+     * Exercise the actual packaged Push 1 display against a virtual Bitwig host,
+     * hardware text display and MIDI output. This verifies LCD SysEx framing and
+     * short/long notification rendering without a physical controller.
+     */
+    private static void verifyDisplayMidiOutput()
+    {
+        final List<String> frames = new ArrayList<> ();
+        final IHost host = (IHost) Proxy.newProxyInstance (
+            IHost.class.getClassLoader (), new Class<?> [] { IHost.class },
+            (proxy, method, arguments) -> defaultValue (method.getReturnType ()));
+        final IMidiOutput output = (IMidiOutput) Proxy.newProxyInstance (
+            IMidiOutput.class.getClassLoader (), new Class<?> [] { IMidiOutput.class },
+            (proxy, method, arguments) -> {
+                if ("sendSysex".equals (method.getName ()) && arguments != null && arguments.length > 0)
+                    frames.add ((String) arguments[0]);
+                return defaultValue (method.getReturnType ());
+            });
+        final IHwTextDisplay hardware = (IHwTextDisplay) Proxy.newProxyInstance (
+            IHwTextDisplay.class.getClassLoader (), new Class<?> [] { IHwTextDisplay.class },
+            (proxy, method, arguments) -> defaultValue (method.getReturnType ()));
+
+        final Push1Display display = new Push1Display (host, 127, output, null);
+        display.setHardwareDisplay (hardware);
+        display.clear ().setBlock (0, 0, "Original Screen").allDone ().flush ();
+        if (frames.size () != 4)
+            throw new AssertionError ("A Push 1 screen refresh must emit exactly four LCD SysEx rows");
+
+        final String originalTop = decodeLcdFrame (frames.get (0), 0);
+        display.notify ("Saved");
+        if (frames.size () != 6)
+            throw new AssertionError ("A short Push 1 notification must update only the two upper LCD rows");
+        final String notifiedTop = decodeLcdFrame (frames.get (4), 0);
+        if (!notifiedTop.substring (0, 51).equals (originalTop.substring (0, 51))
+                || !notifiedTop.substring (51).equals ("Saved            "))
+            throw new AssertionError ("A short notification must preserve the screen and overlay the rightmost block");
+
+        display.notify ("This notification is deliberately longer than one Push display block");
+        if (frames.size () != 10)
+            throw new AssertionError ("A long Push 1 notification must use the normal four-row display path");
+    }
+
+
+    private static String decodeLcdFrame (final String frame, final int row)
+    {
+        final String [] bytes = frame.trim ().split ("\\\\s+");
+        if (bytes.length != 77 || !"F0".equals (bytes[0]) || !"47".equals (bytes[1])
+                || !"7F".equals (bytes[2]) || !"15".equals (bytes[3])
+                || !"F7".equals (bytes[76]))
+            throw new AssertionError ("Invalid Push 1 LCD SysEx frame: " + frame);
+        final String expectedRow = String.format ("%02X", 0x18 + row);
+        if (!expectedRow.equals (bytes[4]))
+            throw new AssertionError ("Unexpected Push 1 LCD row header: " + bytes[4]);
+        final StringBuilder text = new StringBuilder (68);
+        for (int i = 8; i < 76; i++)
+        {
+            final int value = Integer.parseInt (bytes[i], 16);
+            if (value > 0x7F)
+                throw new AssertionError ("Push 1 LCD payload contains a non-seven-bit byte");
+            text.append ((char) value);
+        }
+        return text.toString ();
+    }
+
+
+    private static Object defaultValue (final Class<?> type)
+    {
+        if (type == boolean.class) return Boolean.FALSE;
+        if (type == byte.class) return Byte.valueOf ((byte) 0);
+        if (type == short.class) return Short.valueOf ((short) 0);
+        if (type == int.class) return Integer.valueOf (0);
+        if (type == long.class) return Long.valueOf (0);
+        if (type == float.class) return Float.valueOf (0);
+        if (type == double.class) return Double.valueOf (0);
+        if (type == char.class) return Character.valueOf ((char) 0);
+        return null;
     }
 
 
