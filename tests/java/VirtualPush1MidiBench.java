@@ -2,6 +2,9 @@ import de.mossgrabers.framework.daw.midi.IMidiInput;
 import de.mossgrabers.framework.daw.midi.IMidiOutput;
 import de.mossgrabers.framework.daw.midi.MidiShortCallback;
 import de.mossgrabers.framework.daw.midi.MidiSysExCallback;
+import de.mossgrabers.framework.controller.hardware.BindType;
+import de.mossgrabers.framework.controller.hardware.IHwButton;
+import de.mossgrabers.framework.utils.ButtonEvent;
 
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
@@ -19,6 +22,7 @@ public final class VirtualPush1MidiBench
 {
     private final List<String> output = new ArrayList<> ();
     private final List<int[]> rawInputOutput = new ArrayList<> ();
+    private final List<ButtonBinding> buttonBindings = new ArrayList<> ();
     private MidiShortCallback shortCallback;
     private MidiSysExCallback sysexCallback;
     private final IMidiInput input;
@@ -36,6 +40,15 @@ public final class VirtualPush1MidiBench
                     case "setSysexCallback" -> this.sysexCallback = (MidiSysExCallback) args[0];
                     case "sendRawMidiEvent" -> this.rawInputOutput.add (new int [] {
                         (int) args[0], (int) args[1], (int) args[2] });
+                    case "bind" -> {
+                        if (args[0] instanceof IHwButton button)
+                            this.buttonBindings.add (new ButtonBinding (button, (BindType) args[1],
+                                (int) args[2], (int) args[3], args.length > 4 ? (int) args[4] : -1));
+                    }
+                    case "unbind" -> {
+                        if (args[0] instanceof IHwButton button)
+                            this.buttonBindings.removeIf (binding -> binding.button () == button);
+                    }
                     case "toString" -> { return "Virtual Push 1 MIDI input"; }
                     default -> { return defaultValue (method.getReturnType ()); }
                 }
@@ -57,6 +70,7 @@ public final class VirtualPush1MidiBench
                 if (VirtualPush1MidiBench.this.shortCallback == null)
                     throw new IllegalStateException ("No short-message callback is registered");
                 VirtualPush1MidiBench.this.shortCallback.handleMidi (status, data1, data2);
+                VirtualPush1MidiBench.this.dispatchButtonBindings (status, data1, data2);
             }
             @Override public void sysex (String frame)
             {
@@ -70,6 +84,26 @@ public final class VirtualPush1MidiBench
     public IMidiInput input () { return this.input; }
     public IMidiOutput output () { return this.midiOutput; }
     public VirtualPush1Device device () { return this.device; }
+
+    private record ButtonBinding (IHwButton button, BindType type, int channel, int control, int value) { }
+
+    /** Deliver MIDI input through the same hardware-button bindings used by the extension. */
+    private void dispatchButtonBindings (final int status, final int data1, final int data2)
+    {
+        final int family = status & 0xF0;
+        final int channel = status & 0x0F;
+        for (final ButtonBinding binding: List.copyOf (this.buttonBindings))
+        {
+            final boolean matches = binding.channel () == channel && binding.control () == data1
+                && (binding.value () < 0 || binding.value () == data2)
+                && (binding.type () == BindType.CC && family == 0xB0
+                    || binding.type () == BindType.NOTE && (family == 0x80 || family == 0x90));
+            if (!matches)
+                continue;
+            final boolean pressed = family == 0x80 ? false : data2 > 0;
+            binding.button ().trigger (pressed ? ButtonEvent.DOWN : ButtonEvent.UP, data2 / 127.0);
+        }
+    }
 
     private void routeOutputToDevice (final String method, final Object [] args)
     {
