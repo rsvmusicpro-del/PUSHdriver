@@ -54,15 +54,11 @@ public final class VirtualPush1DeviceTest
         device.moveRibbon (8192);
         device.touchRibbon (false);
 
-        // Push 1 display output consists of four independent 77-byte SysEx frames.
+        // Use the extension's actual Push 1 LCD encoder, then decode the output.
         for (int row = 0; row < 4; row++)
         {
-            final StringBuilder frame = new StringBuilder ("F0 47 7F 15 ")
-                .append (String.format ("%02X", 0x18 + row)).append (" 00 45 00 ");
-            for (int col = 0; col < 68; col++)
-                frame.append (String.format ("%02X ", (int) (row == 0 ? 'A' : ' ') ));
-            frame.append ("F7");
-            device.receiveSysex (frame.toString ());
+            final String text = (row == 0 ? "A" : " ").repeat (68);
+            device.receiveSysex (Push1DisplayProtocol.encodeLine (row, text));
         }
         if (device.getLcdRow (0).length () != 68 || device.getLcdRow (0).charAt (0) != 'A'
                 || device.getLcdRow (3).charAt (0) != ' ')
