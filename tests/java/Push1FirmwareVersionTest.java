@@ -11,9 +11,9 @@ public final class Push1FirmwareVersionTest
             throw new AssertionError("A valid 35-byte Push 1 identity response was rejected");
 
         // The constructor must take a defensive copy of the callback-owned packet.
-        response[10] = 99;
+        response[12] = 99;
         final Push1FirmwareVersion version = Push1FirmwareVersion.parse(inquiry);
-        response[10] = 2;
+        response[12] = 4;
         if (version == null || version.major() != 42 || version.minor() != 35)
             throw new AssertionError("Incorrect Push 1 firmware version: " + version);
 
@@ -36,7 +36,7 @@ public final class Push1FirmwareVersionTest
             throw new AssertionError("A SysEx packet containing a negative byte must be rejected");
 
         final int[] exposed = inquiry.getData();
-        exposed[10] = 99;
+        exposed[12] = 99;
         final Push1FirmwareVersion unchanged = Push1FirmwareVersion.parse(inquiry);
         if (unchanged.major() != 42)
             throw new AssertionError("DeviceInquiry.getData() leaked its mutable internal buffer");
