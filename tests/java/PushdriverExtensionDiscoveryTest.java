@@ -213,16 +213,21 @@ public final class PushdriverExtensionDiscoveryTest
             throw new AssertionError ("A Push 1 screen refresh must emit exactly four LCD SysEx rows");
 
         final String originalTop = decodeLcdFrame (frames.get (0), 0);
+        display.writeLine (3, "This line is intentionally much longer than the physical sixty-eight character LCD row and must be safely clipped");
+        final String boundedLine = decodeLcdFrame (frames.get (4), 3);
+        if (boundedLine.length () != 68 || !boundedLine.contains ("..."))
+            throw new AssertionError ("Overlong LCD rows must be clipped before SysEx encoding");
+
         display.notify ("Saved");
-        if (frames.size () != 6)
+        if (frames.size () != 7)
             throw new AssertionError ("A short Push 1 notification must update only the two upper LCD rows");
-        final String notifiedTop = decodeLcdFrame (frames.get (4), 0);
+        final String notifiedTop = decodeLcdFrame (frames.get (5), 0);
         if (!notifiedTop.substring (0, 51).equals (originalTop.substring (0, 51))
                 || !notifiedTop.substring (51).equals ("Saved            "))
             throw new AssertionError ("A short notification must preserve the screen and overlay the rightmost block");
 
         display.notify ("This notification is deliberately longer than one Push display block");
-        if (frames.size () != 10)
+        if (frames.size () != 11)
             throw new AssertionError ("A long Push 1 notification must use the normal four-row display path");
     }
 
