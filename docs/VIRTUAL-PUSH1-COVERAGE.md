@@ -19,6 +19,7 @@ This is the acceptance checklist for the software-only Push 1 bench. It distingu
 | Browser semantics | Stateful API-17 IBrowser/filter/result model | Production MIDI bindings for top/bottom filter navigation, encoder touch/selection, Shift+Left/Right content-type paging, result navigation, LCD marker composition and filter LED availability | Stateful integration scenarios |
 | New clip workflow | Stateful cursor-track/slot-bank model | Free-slot search, stop only the cursor track after a slot is found, preserve other-track playback, Shift+New overdub disabled, no-slot fallback without stopping playback | Stateful integration scenarios |
 | Note Repeat lifecycle | Optional API-17 INoteRepeat service model | Controller startup with no service, safe mode entry while absent, late service creation, latch/pressure/free-running/shuffle controls | Lifecycle integration scenarios |
+| Drum and sequencer views | Stateful API-17 INoteClip and IDrumDevice/IDrumPadBank model | Sequencer page navigation and resolution changes, Drum sequencer-row step insertion, Drum64 4×4-block mapping for all 64 pad notes, Drum64 grid rendering | Stateful view integration scenarios |
 | Packaged extension | Built JAR | Push 1-only entry point, API 17, Java 17 bytecode, required classes/resources, forbidden Push 2/foreign code, dependency resolution | Package gate |
 | Build reproducibility | Generated source assembly | Repeated assembly hash comparison | Deterministic assembly |
 
@@ -48,7 +49,7 @@ These are not silently treated as passed merely because the general command bind
 
 | Area | Current evidence | Remaining work for stronger coverage |
 |---|---|---|
-| Drum / Drum64 / sequencer musical semantics | Production view/mode registrations and generic binding matrix are exercised | Add note/step/clip/scene state models and assert pad-to-note mapping, selected-step behavior, playhead follow, drum layout and LED feedback in representative modes |
+| Sequencer scale/key-map and playhead behavior | Resolution, clip paging, Drum step insertion and all 64 Drum64 block coordinates are covered | Add stateful scale/root/octave mapping and assert playhead-follow/selected-step LED behavior across clip and scene transitions |
 | Browser, mixer, track, device and clip edge cases | Some Device/Session/transport scenarios are asserted directly | Add stateful model assertions for empty banks, first/last item boundaries, unavailable actions and context switching |
 | Swing desktop UI | Compiled as part of the virtual test sources; optional --gui launch path | Add a display-backed smoke test (for example under Xvfb) for window construction, event dispatch and clean release on close |
 
