@@ -271,6 +271,7 @@ public final class VirtualPush1RuntimeTest
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (!state.playing, "Second Play CC did not stop the Bitwig transport");
         setup.flush ();
+        drainScheduled (state, 1);
         midi.device ().tapButton (VirtualPush1Device.RECORD);
         require (state.recording, "Record CC did not start recording in the Bitwig model");
         midi.device ().pressButton (VirtualPush1Device.SHIFT);
@@ -423,6 +424,7 @@ public final class VirtualPush1RuntimeTest
             require (modes.get (mode) != null, "Push 1 production mode was not registered: " + mode);
             modes.setActive (mode);
             setup.flush ();
+            drainScheduled (state, 1);
             for (int encoder = 0; encoder < 8; encoder++)
             {
                 midi.device ().turnEncoderBy (encoder, 1);
@@ -442,6 +444,7 @@ public final class VirtualPush1RuntimeTest
                 midi.device ().touchSmallEncoder (encoder, false);
             }
             setup.flush ();
+            drainScheduled (state, 1);
         }
 
         // Empty device-layer banks are a valid host state: layer mode knob
@@ -574,6 +577,7 @@ public final class VirtualPush1RuntimeTest
         state.stepPageBackwardCount = 0;
         surface.getViewManager ().setActive (Views.SEQUENCER);
         setup.flush ();
+        drainScheduled (state, 1);
         midi.device ().pressPad (0, 0, 100);
         midi.device ().releasePad (0, 0);
         require (state.stepToggleCount > 0,
@@ -587,12 +591,14 @@ public final class VirtualPush1RuntimeTest
         state.noteClipExists = false;
         surface.getViewManager ().setActive (Views.PLAY);
         setup.flush ();
+        drainScheduled (state, 1);
 
         // Poly sequencer uses the same note-clip API but its own row mapping.
         state.noteClipExists = true;
         final int polyStepsBefore = state.stepToggleCount;
         surface.getViewManager ().setActive (Views.POLY_SEQUENCER);
         setup.flush ();
+        drainScheduled (state, 1);
         midi.device ().pressPad (0, 0, 100);
         midi.device ().releasePad (0, 0);
         require (state.stepToggleCount > polyStepsBefore,
@@ -600,6 +606,7 @@ public final class VirtualPush1RuntimeTest
         state.noteClipExists = false;
         surface.getViewManager ().setActive (Views.PLAY);
         setup.flush ();
+        drainScheduled (state, 1);
 
         // Drum 4/8: verify pad selection and the sequencer half of the
         // grid writes a note step on release using the selected drum-pad row.
@@ -712,6 +719,7 @@ public final class VirtualPush1RuntimeTest
                     midi.device ().releasePad (row, column);
                 }
             setup.flush ();
+            drainScheduled (state, 1);
             require (midi.device ().getLcdRow (0).length () == 68,
                 "Push 1 LCD output failed while exercising view " + view);
         }
