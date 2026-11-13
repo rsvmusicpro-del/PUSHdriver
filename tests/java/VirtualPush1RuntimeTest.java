@@ -291,6 +291,36 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.SESSION) != null, "Session mode was not registered");
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
 
+        // Mixer and device parameter modes must write through their actual
+        // parameter providers when a physical encoder moves.
+        final Modes modeBeforeParameters = modes.getActiveID ();
+        modes.setActive (Modes.VOLUME);
+        setup.flush ();
+        MODEL_ACTIONS.clear ();
+        midi.device ().turnEncoderBy (0, 1);
+        require (MODEL_ACTIONS.contains ("track.volume.setValue"),
+            "Volume encoder must write the selected track's volume parameter");
+        modes.setActive (Modes.PAN);
+        setup.flush ();
+        MODEL_ACTIONS.clear ();
+        midi.device ().turnEncoderBy (0, 1);
+        require (MODEL_ACTIONS.contains ("track.pan.setValue"),
+            "Pan encoder must write the selected track's pan parameter");
+        modes.setActive (Modes.CROSSFADE);
+        setup.flush ();
+        MODEL_ACTIONS.clear ();
+        midi.device ().turnEncoderBy (0, 1);
+        require (MODEL_ACTIONS.contains ("track.crossfade.setValue"),
+            "Crossfade encoder must write the selected track's crossfade parameter");
+        modes.setActive (Modes.DEVICE_PARAMS);
+        setup.flush ();
+        MODEL_ACTIONS.clear ();
+        midi.device ().turnEncoderBy (0, 1);
+        require (MODEL_ACTIONS.stream ().anyMatch (action -> action.startsWith ("device.parameter.") && action.endsWith (".setValue")),
+            "Device parameter encoder must write the selected device parameter");
+        modes.setActive (modeBeforeParameters);
+        setup.flush ();
+
         // Session scene buttons must launch, delete and duplicate the
         // selected scene through the production SessionView.
         final SessionView sessionView = (SessionView) surface.getViewManager ().get (Views.SESSION);
@@ -851,10 +881,25 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
-                    return Proxy.newProxyInstance (IParameter.class.getClassLoader (),
-                        new Class<?> [] { IParameter.class },
-                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                    return parameterProxy ("device.parameter." + args[0]);
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+    private static IParameter parameterProxy (final String label)
+    {
+        return (IParameter) Proxy.newProxyInstance (IParameter.class.getClassLoader (),
+            new Class<?> [] { IParameter.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "setValue": case "touchValue": case "inc": case "resetValue":
+                        MODEL_ACTIONS.add (label + "." + method.getName ());
+                        return null;
+                    case "getValue": case "getModulatedValue": case "getDisplayedValue": return 0.5;
+                    case "doesExist": case "isEnabled": return true;
+                    case "getName": return label;
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
             });
     }
 
@@ -1075,6 +1120,12 @@ public final class VirtualPush1RuntimeTest
                     return true;
                 if (method.getName ().equals ("getSendBank"))
                     return sendBank;
+                if (method.getName ().equals ("getVolumeParameter"))
+                    return parameterProxy ("track.volume");
+                if (method.getName ().equals ("getPanParameter"))
+                    return parameterProxy ("track.pan");
+                if (method.getName ().equals ("getCrossfadeParameter"))
+                    return parameterProxy ("track.crossfade");
                 if (method.getName ().equals ("getSceneBank"))
                     return sceneBank;
                 if (method.getName ().equals ("getSlotBank"))
