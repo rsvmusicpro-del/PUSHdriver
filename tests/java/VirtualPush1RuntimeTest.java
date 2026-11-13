@@ -28,6 +28,9 @@ import de.mossgrabers.framework.daw.data.IDeviceMetadata;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.daw.data.ITrack;
 import de.mossgrabers.framework.daw.data.ICursorTrack;
+import de.mossgrabers.framework.daw.data.IDrumDevice;
+import de.mossgrabers.framework.daw.data.IDrumPad;
+import de.mossgrabers.framework.daw.data.bank.IDrumPadBank;
 import de.mossgrabers.framework.daw.clip.INoteClip;
 import de.mossgrabers.framework.daw.data.ISlot;
 import de.mossgrabers.framework.daw.data.bank.ISlotBank;
@@ -50,6 +53,7 @@ import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceBrowserMode;
 import de.mossgrabers.controller.ableton.push.view.SequencerView;
+import de.mossgrabers.controller.ableton.push.view.Drum64View;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.utils.TestCallback;
@@ -108,6 +112,10 @@ public final class VirtualPush1RuntimeTest
         int clipCurrentStepQueries;
         int transportPlayingQueries;
         int lastClipPage = -1;
+        boolean canHoldNotes;
+        int drumScrollPosition;
+        int drumScrollCount;
+        int drumSelectedPad = -1;
         final List<String> browserActions = new java.util.ArrayList<> ();
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
@@ -190,7 +198,10 @@ public final class VirtualPush1RuntimeTest
                         final ITrackBank trackBank = trackBankProxy ();
                         final ISceneBank sceneBank = sceneBankProxy ();
                         final IParameterBank parameterBank = parameterBankProxy ();
-                        final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank);
+                        final IDrumPadBank primaryDrumBank = drumPadBankProxy (state);
+                        final IDrumPadBank cursorDrumBank = drumPadBankProxy (state);
+                        final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank, state, cursorDrumBank);
+                        final IDrumDevice drumDevice = drumDeviceProxy (primaryDrumBank);
                         final IBrowser browser = browserProxy (state);
                         final INoteClip noteClip = noteClipProxy (state);
                         final ISlotBank slotBank = slotBankProxy (state);
@@ -206,6 +217,8 @@ public final class VirtualPush1RuntimeTest
                                 case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
                                 case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
+                                case "getDrumDevice" -> drumDevice;
+                                case "canSelectedTrackHoldNotes" -> state.canHoldNotes;
                                 case "getBrowser" -> browser;
                                 case "getNoteClip" -> noteClip;
                                 case "getCursorTrack" -> cursorTrack;
@@ -332,6 +345,27 @@ public final class VirtualPush1RuntimeTest
                 + ", transportPlaying=" + state.playing + ")");
         state.playing = false;
         surface.getViewManager ().setActive (previousView);
+
+        // Drum64 Select+Pad must align the cursor device's 16-pad bank with
+        // the corresponding 16-pad block, then select the matching drum pad.
+        final Views viewBeforeDrum = surface.getViewManager ().getActiveID ();
+        final Modes modeBeforeDrum = modes.getActiveID ();
+        final Drum64View drum64View = (Drum64View) surface.getViewManager ().get (Views.DRUM64);
+        state.canHoldNotes = true;
+        state.drumScrollPosition = 0;
+        state.drumScrollCount = 0;
+        state.drumSelectedPad = -1;
+        surface.getViewManager ().setActive (Views.DRUM64);
+        midi.device ().pressButton (VirtualPush1Device.SELECT);
+        drum64View.onGridNote (36 + 19, 100);
+        midi.device ().releaseButton (VirtualPush1Device.SELECT);
+        require (state.drumScrollCount == 1 && state.drumScrollPosition == 16,
+            "Drum64 Select+Pad must align the cursor drum bank to the matching 16-pad page");
+        require (state.drumSelectedPad == 19,
+            "Drum64 Select+Pad must select the matching primary drum pad");
+        modes.setActive (modeBeforeDrum);
+        surface.getViewManager ().setActive (viewBeforeDrum);
+        state.canHoldNotes = false;
 
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
@@ -575,13 +609,65 @@ public final class VirtualPush1RuntimeTest
     }
 
 
-    private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters)
+    private static IDrumPad drumPadProxy (final State state, final int index)
+    {
+        return (IDrumPad) Proxy.newProxyInstance (IDrumPad.class.getClassLoader (),
+            new Class<?> [] { IDrumPad.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "isSelected": return state.drumSelectedPad == index;
+                    case "select":
+                        state.drumSelectedPad = index;
+                        return null;
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+    }
+
+    private static IDrumPadBank drumPadBankProxy (final State state)
+    {
+        return (IDrumPadBank) Proxy.newProxyInstance (IDrumPadBank.class.getClassLoader (),
+            new Class<?> [] { IDrumPadBank.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "getPageSize": return 16;
+                    case "getScrollPosition": return state.drumScrollPosition;
+                    case "getItem": return drumPadProxy (state, (int) args[0]);
+                    case "scrollTo":
+                        state.drumScrollPosition = (int) args[0];
+                        state.drumScrollCount++;
+                        return null;
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+    }
+
+    private static IDrumDevice drumDeviceProxy (final IDrumPadBank drumPadBank)
+    {
+        return (IDrumDevice) Proxy.newProxyInstance (IDrumDevice.class.getClassLoader (),
+            new Class<?> [] { IDrumDevice.class }, (proxy, method, args) -> switch (method.getName ())
+            {
+                case "hasDrumPads" -> true;
+                case "getDrumPadBank" -> drumPadBank;
+                case "getPosition" -> 1;
+                default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+    private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters,
+        final State state, final IDrumPadBank drumPadBank)
     {
         final IDeviceBank devices = (IDeviceBank) Proxy.newProxyInstance (
             IDeviceBank.class.getClassLoader (), new Class<?> [] { IDeviceBank.class },
             (proxy, method, args) -> {
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
+                if (method.getName ().equals ("getDrumPadBank"))
+                    return drumPadBank;
+                if (method.getName ().equals ("isNested"))
+                    return false;
+                if (method.getName ().equals ("getPosition"))
+                    return 1;
                 if (method.getName ().equals ("getItem"))
                     return Proxy.newProxyInstance (de.mossgrabers.framework.daw.data.IDevice.class.getClassLoader (),
                         new Class<?> [] { de.mossgrabers.framework.daw.data.IDevice.class },
