@@ -383,19 +383,19 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out");
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In");
-        requireAction ("device.selectPreviousItem", "Out must select the previous device");
-        requireAction ("device.selectNextItem", "In must select the next device");
+        requireAction ("device.selectPreviousItem", "In must select the previous device");
+        requireAction ("device.selectNextItem", "Out must select the next device");
         ((DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS)).setShowDevices (false);
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out parameter page");
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In parameter page");
-        requireAction ("parameterPage.selectPreviousPage", "Out must select the previous parameter page");
-        requireAction ("parameterPage.selectNextPage", "In must select the next parameter page");
+        requireAction ("parameterPage.selectPreviousPage", "In must select the previous parameter page");
+        requireAction ("parameterPage.selectNextPage", "Out must select the next parameter page");
         parameterPageIndex = 0;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page lower boundary");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Parameter page lower boundary");
         require (parameterPageIndex == 0, "Parameter page moved before its first page");
         parameterPageIndex = 3;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Parameter page upper boundary");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page upper boundary");
         require (parameterPageIndex == 3, "Parameter page moved beyond its last page");
 
         // Browser mode is exercised against a stateful API-17 IBrowser model:
