@@ -609,6 +609,7 @@ public final class VirtualPush1RuntimeTest
         // A moving playhead must alter the production pad-grid feedback, not
         // merely update an internal clip cursor.
         scaleModel[0].setChromatic (false);
+        musicalModel.setEditPage (0);
         sequencerView.updateNoteMapping ();
         drainScheduled (state, 6);
         // The production sequencer highlights an occupied step; create the
