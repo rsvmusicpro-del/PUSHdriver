@@ -1,5 +1,6 @@
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayProtocol;
+import de.mossgrabers.controller.ableton.push.controller.Push1DisplayGlyphs;
 
 /** Verifies the four physical LCD modules and every logical cell coordinate. */
 public final class VirtualPush1DisplayLayoutTest
@@ -98,6 +99,35 @@ public final class VirtualPush1DisplayLayoutTest
         for (int column = 0; column < Push1DisplayLayout.COLUMNS; column++)
             check (device.getLcdCharacter (0, column) == glyphs[column % glyphs.length],
                 "custom Push glyph survives LCD transport at column " + column);
+
+        check (Push1DisplayGlyphs.WIDTH == 5 && Push1DisplayGlyphs.HEIGHT == 8,
+            "firmware custom glyph pixel dimensions");
+        final int [][] expectedGlyphs = {
+            { 0x00, 0x04, 0x0E, 0x15, 0x04, 0x04, 0x00, 0x00 },
+            { 0x00, 0x04, 0x04, 0x15, 0x0E, 0x04, 0x00, 0x00 },
+            { 0x00, 0x1F, 0x00, 0x1F, 0x00, 0x1F, 0x00, 0x00 },
+            { 0x18, 0x18, 0x18, 0x1B, 0x18, 0x18, 0x18, 0x00 },
+            { 0x03, 0x03, 0x03, 0x1B, 0x03, 0x03, 0x03, 0x00 },
+            { 0x1B, 0x1B, 0x1B, 0x1B, 0x1B, 0x1B, 0x1B, 0x00 },
+            { 0x00, 0x00, 0x00, 0x1B, 0x00, 0x00, 0x00, 0x00 },
+            { 0x00, 0x18, 0x1F, 0x11, 0x11, 0x1F, 0x00, 0x00 }
+        };
+        for (int glyph = 0; glyph < expectedGlyphs.length; glyph++)
+        {
+            final int [] actualRows = Push1DisplayGlyphs.bitmapRows (glyph);
+            check (java.util.Arrays.equals (actualRows, expectedGlyphs[glyph]),
+                "extracted firmware glyph bitmap " + glyph);
+            for (int y = 0; y < Push1DisplayGlyphs.HEIGHT; y++)
+                for (int x = 0; x < Push1DisplayGlyphs.WIDTH; x++)
+                    check (Push1DisplayGlyphs.isPixelOn (glyph, x, y)
+                        == ((expectedGlyphs[glyph][y] & (1 << (4 - x))) != 0),
+                        "glyph pixel " + glyph + "/" + x + "/" + y);
+        }
+        final int [] defensiveGlyph = Push1DisplayGlyphs.bitmapRows (7);
+        defensiveGlyph[1] = 0;
+        check (Push1DisplayGlyphs.bitmapRows (7)[1] == 0x18, "glyph bitmaps are defensive copies");
+        check (device.getLcdGlyphBitmap (0, 0) != null, "virtual device exposes programmable glyph bitmap");
+        check (device.getLcdGlyphBitmap (0, 9) == null, "ROM glyphs remain firmware-owned");
 
         check (Push1DisplayLayout.fitRow ("short").length () == 68, "row fitter uses physical width");
         check (Push1DisplayLayout.fitBlock ("short").length () == 17, "module fitter uses physical width");
