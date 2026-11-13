@@ -995,9 +995,9 @@ public final class VirtualPush1RuntimeTest
         // Exercise arrows end-to-end in Device mode, where horizontal
         // navigation selects devices and vertical navigation scrolls scenes.
         final DeviceParamsMode deviceArrowMode = (DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS);
-        deviceArrowMode.setShowDevices (true);
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Device mode for arrows");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Device mode was not active for arrow navigation");
+        deviceArrowMode.setShowDevices (true);
         MODEL_ACTIONS.clear ();
         navigationContext = true;
         for (final int arrow: new int [] {
