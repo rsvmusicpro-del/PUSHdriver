@@ -889,7 +889,7 @@ public final class VirtualPush1RuntimeTest
     {
         final ISendBank sendBank = (ISendBank) Proxy.newProxyInstance (ISendBank.class.getClassLoader (),
             new Class<?> [] { ISendBank.class }, (proxy, method, args) -> {
-                if (method.getName ().equals ("getPageSize"))
+                if (method.getName ().equals ("getPageSize") || method.getName ().equals ("getItemCount"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
                     return sendProxy ("layer." + index + ".send." + args[0]);
@@ -1288,7 +1288,7 @@ public final class VirtualPush1RuntimeTest
     {
         final ISendBank sendBank = (ISendBank) Proxy.newProxyInstance (ISendBank.class.getClassLoader (),
             new Class<?> [] { ISendBank.class }, (proxy, method, args) -> {
-                if (method.getName ().equals ("getPageSize"))
+                if (method.getName ().equals ("getPageSize") || method.getName ().equals ("getItemCount"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
                     return sendProxy ("track.send." + args[0]);
