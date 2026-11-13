@@ -301,6 +301,9 @@ public final class VirtualPush1RuntimeTest
         require (Views.isNoteView (surface.getViewManager ().getActiveID ()), "Note CC did not select a note view");
         midi.device ().tapButton (VirtualPush1Device.SESSION);
         require (Views.isSessionView (surface.getViewManager ().getActiveID ()), "Session CC did not select a session view");
+        // The Note button restores the per-track preferred play view when
+        // leaving Session. Give this virtual cursor track a note-oriented view.
+        surface.getViewManager ().setPreferredView (0, Views.PIANO);
         midi.device ().tapButton (VirtualPush1Device.NOTE);
 
         // Exercise real pad callbacks, poly-aftertouch, relative encoder,
