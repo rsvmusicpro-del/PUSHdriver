@@ -175,7 +175,7 @@ public final class VirtualPush1RuntimeTest
                                 detail.append (": ").append (error);
                                 final java.io.StringWriter trace = new java.io.StringWriter ();
                                 error.printStackTrace (new java.io.PrintWriter (trace));
-                                detail.append ('\\n').append (trace);
+                                detail.append (System.lineSeparator ()).append (trace);
                             }
                             state.errors.add (detail.toString ());
                         }
