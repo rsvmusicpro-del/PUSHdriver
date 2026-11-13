@@ -184,3 +184,23 @@ arrow navigation. Browser navigation uses the API-17 `IBrowser` filter-column
 methods. In Rack-chain mode the buttons remain inactive: Extension API 17 does
 not expose a reliable selected-chain cursor for safe previous/next navigation.
 No MIDI IDs, extra event loop, or alternate controller dispatcher are introduced.
+
+
+## Interactive virtual Push 1 simulator
+
+The repository includes an optional desktop surface backed by the production
+controller runtime. Build the extension, then run:
+
+```sh
+python3 scripts/test_push1_extension.py --gui
+```
+
+The GUI simulates pads, pressure/aftertouch, momentary buttons and Shift,
+eleven encoder rotations and touch states, Ribbon contact/position, all four
+LCD modules and LED feedback. Its MIDI monitor shows the messages sent by the
+virtual hardware and the responses produced by PUSHdriver. The GUI is optional
+and is not opened by headless CI.
+
+The Bitwig host and model remain deterministic API-17 test proxies. This
+simulator is not an OS MIDI loopback driver and cannot be selected as a
+hardware MIDI port in a separate Bitwig process.
