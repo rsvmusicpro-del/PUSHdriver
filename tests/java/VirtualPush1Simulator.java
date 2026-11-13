@@ -130,12 +130,13 @@ public final class VirtualPush1Simulator
         frame.setMinimumSize (new Dimension (1180, 780));
         frame.pack ();
         frame.setLocationByPlatform (true);
+        final Timer refreshTimer = new Timer (150, event -> refreshFeedback ());
         frame.addWindowListener (new WindowAdapter () {
             @Override public void windowClosed (final WindowEvent event)
-            { releaseAll (); if (onClose != null) onClose.run (); }
+            { refreshTimer.stop (); releaseAll (); if (onClose != null) onClose.run (); }
         });
         frame.setVisible (true);
-        new Timer (150, event -> refreshFeedback ()).start ();
+        refreshTimer.start ();
     }
 
     private JPanel createDisplay ()
