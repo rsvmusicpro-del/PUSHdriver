@@ -145,8 +145,16 @@ public final class VirtualPush1RuntimeTest
                     case "scheduleTask": state.scheduled.add (new ScheduledTask (((Number) callArgs[1]).longValue (), (Runnable) callArgs[0])); return null;
                     case "error":
                         if (state.errors.size () < 30)
-                            state.errors.add (String.valueOf (callArgs[0])
-                                + (callArgs.length > 1 && callArgs[1] instanceof Throwable error ? ": " + error : ""));
+                        {
+                            String detail = "";
+                            if (callArgs.length > 1 && callArgs[1] instanceof Throwable error)
+                            {
+                                final java.io.StringWriter trace = new java.io.StringWriter ();
+                                error.printStackTrace (new java.io.PrintWriter (trace));
+                                detail = ": " + trace;
+                            }
+                            state.errors.add (String.valueOf (callArgs[0]) + detail);
+                        }
                         return null;
                     case "println": case "showNotification": case "releaseUsbDevices": return null;
                     case "getInstrumentMetadata": return List.of (deviceMetadata ("Virtual Instrument"));
