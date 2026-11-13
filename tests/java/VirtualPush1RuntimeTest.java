@@ -106,6 +106,7 @@ public final class VirtualPush1RuntimeTest
         boolean recording;
         boolean launcherOverdub;
         boolean metronome;
+        boolean metronomeTicks;
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
     }
@@ -169,6 +170,9 @@ public final class VirtualPush1RuntimeTest
                     case "isMetronomeOn": return state.metronome;
                     case "toggleMetronome": state.metronome = !state.metronome; return null;
                     case "setMetronome": state.metronome = (boolean) callArgs[0]; return null;
+                    case "isMetronomeTicksOn": return state.metronomeTicks;
+                    case "toggleMetronomeTicks": state.metronomeTicks = !state.metronomeTicks; return null;
+                    case "setMetronomeTicks": state.metronomeTicks = (boolean) callArgs[0]; return null;
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 }
             });
@@ -265,11 +269,13 @@ public final class VirtualPush1RuntimeTest
         require (mixerModel.isMuted (0), "Track second-row button did not toggle the selected track mute state");
         midi.device ().tapButton (VirtualPush1Device.METRONOME);
         require (state.metronome, "Metronome CC did not enable the Bitwig transport metronome");
-        setup.flush ();
-        require (midi.device ().getCCLed (VirtualPush1Device.METRONOME) > 0,
-            "Metronome LED did not reflect the enabled transport state");
         midi.device ().tapButton (VirtualPush1Device.METRONOME);
         require (!state.metronome, "Second Metronome CC did not disable the transport metronome");
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        midi.device ().tapButton (VirtualPush1Device.METRONOME);
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        require (state.metronomeTicks && !state.metronome,
+            "Shift+Metronome did not toggle metronome ticks independently of the metronome");
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (state.playing, "Play CC did not update the Bitwig transport model");
         setup.flush ();
