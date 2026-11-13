@@ -1,7 +1,6 @@
 import de.mossgrabers.controller.ableton.push.PushControllerSetup;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
-import de.mossgrabers.controller.ableton.push.controller.PushColorManager;
 import de.mossgrabers.controller.ableton.push.mode.NoteRepeatMode;
 import de.mossgrabers.framework.configuration.ISettingsUI;
 import de.mossgrabers.framework.controller.ButtonID;
@@ -353,21 +352,21 @@ public final class VirtualPush1RuntimeTest
             INoteInput.class.getClassLoader (), new Class<?> [] { INoteInput.class },
             (proxy, method, callArgs) -> method.getName ().equals ("getNoteRepeat")
                 ? noteRepeat : defaultValue (method.getReturnType (), method.getGenericReturnType ()));
-        final IMidiInput repeatInput = (IMidiInput) Proxy.newProxyInstance (
-            IMidiInput.class.getClassLoader (), new Class<?> [] { IMidiInput.class },
-            (proxy, method, callArgs) -> method.getName ().equals ("getDefaultNoteInput")
-                ? noteInput : defaultValue (method.getReturnType (), method.getGenericReturnType ()));
-        final PushControlSurface repeatSurface = new PushControlSurface (
-            host, new PushColorManager (false), surface.getConfiguration (), midi.output (), repeatInput);
-        final NoteRepeatMode availableNoteRepeat = new NoteRepeatMode (repeatSurface, setup.getModel ());
-        availableNoteRepeat.onFirstRow (4, ButtonEvent.UP);
-        availableNoteRepeat.onFirstRow (5, ButtonEvent.UP);
-        availableNoteRepeat.onFirstRow (6, ButtonEvent.UP);
-        availableNoteRepeat.onFirstRow (7, ButtonEvent.UP);
+        // The service appears after the controller has already been created.
+        // NoteRepeatMode must refresh the optional service instead of retaining
+        // the null reference captured during startup.
+        midi.setDefaultNoteInput (noteInput);
+        unavailableNoteRepeat.onFirstRow (4, ButtonEvent.UP);
+        unavailableNoteRepeat.onFirstRow (5, ButtonEvent.UP);
+        unavailableNoteRepeat.onFirstRow (6, ButtonEvent.UP);
+        unavailableNoteRepeat.onFirstRow (7, ButtonEvent.UP);
         for (final String action: List.of (
-            "toggleLatchActive", "toggleUsePressure", "toggleIsFreeRunning", "toggleShuffle"))
+            "setMode", "setOctaves", "toggleLatchActive", "toggleUsePressure",
+            "toggleIsFreeRunning", "toggleShuffle"))
             require (state.noteRepeatActions.contains (action),
-                "Available Note Repeat service did not receive " + action);
+                "Late-created Note Repeat service did not receive " + action);
+        midi.setDefaultNoteInput (null);
+        unavailableNoteRepeat.onFirstRow (4, ButtonEvent.UP);
 
         // The live sequencer playhead must follow only an existing note clip;
         // an empty cursor slot must never cause an edit-page scroll.
