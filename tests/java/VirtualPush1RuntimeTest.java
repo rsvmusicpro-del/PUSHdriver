@@ -1282,6 +1282,7 @@ public final class VirtualPush1RuntimeTest
                 switch (method.getName ())
                 {
                     case "doesExist": return state.cursorTrackExists;
+                    case "getColor": return de.mossgrabers.framework.controller.color.ColorEx.BLACK;
                     case "isPlaying": return state.cursorTrackPlaying;
                     case "getSlotBank": return slotBank;
                     case "stop":
