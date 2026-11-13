@@ -798,6 +798,24 @@ public final class VirtualPush1RuntimeTest
         requireAction ("track.selectNextPage", "Shift+Track Right must select the next track page");
         navigationContext = false;
 
+        // Track-bank item and page navigation must reach the model through
+        // the Push arrow commands.
+        navigationContext = true;
+        modes.setActive (Modes.TRACK);
+        MODEL_ACTIONS.clear ();
+        midi.device ().tapButton (VirtualPush1Device.LEFT);
+        midi.device ().tapButton (VirtualPush1Device.RIGHT);
+        requireAction ("track.selectPreviousItem", "Track Left must select the previous track");
+        requireAction ("track.selectNextItem", "Track Right must select the next track");
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        midi.device ().tapButton (VirtualPush1Device.LEFT);
+        midi.device ().tapButton (VirtualPush1Device.RIGHT);
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        requireAction ("track.selectPreviousPage", "Shift+Track Left must select the previous track page");
+        requireAction ("track.selectNextPage", "Shift+Track Right must select the next track page");
+        navigationContext = false;
+
         // Mixer modes must actually touch and change their production
         // parameters, not merely have registered knob bindings.
         navigationContext = true;
