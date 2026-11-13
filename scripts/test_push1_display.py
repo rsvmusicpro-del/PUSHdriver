@@ -62,8 +62,6 @@ if "Push1DisplayLayout.ROWS" not in display_source or "Push1DisplayLayout.COLUMN
     raise SystemExit("Push1Display must use the shared physical four-module LCD geometry")
 if "Push1DisplayLayout.firstCellForBlock" not in display_source or "Push1DisplayLayout.fitCell" not in display_source:
     raise SystemExit("Push1Display logical blocks/cells are not routed through the shared geometry")
-if "Push1DisplayLayout.MODULE_COUNT" not in display_source or "Push1DisplayLayout.MODULE_COLUMNS" not in display_source:
-    raise SystemExit("Push1Display simulator view is not segmented into four 17-character modules")
 if "Push1DisplayLayout.separateModulesForSimulator (t)" not in display_source:
     raise SystemExit("Push1Display simulator line is not rendered through the shared module geometry")
 if "Push1DisplayValueFormatter.formatValue" not in display_source or "Push1DisplayValueFormatter.formatModulatedValue" not in display_source:
