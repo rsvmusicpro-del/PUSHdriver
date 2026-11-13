@@ -884,7 +884,9 @@ public final class VirtualPush1RuntimeTest
         require (state.drumSelectedPad == 19,
             "Drum64 Select+Pad must select the matching primary drum pad");
         modes.setActive (modeBeforeDrum);
-        surface.getViewManager ().setActive (viewBeforeDrum);
+        // Continue from a note-oriented view so the subsequent physical NOTE
+        // button test exercises the Push 1 preferred-note-view restoration.
+        surface.getViewManager ().setActive (Views.PLAY);
         state.canHoldNotes = false;
 
         // Exercise every physical pad through the active production view,
