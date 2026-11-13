@@ -29,9 +29,11 @@ import de.mossgrabers.framework.daw.data.ITrack;
 import de.mossgrabers.framework.daw.data.ILayer;
 import de.mossgrabers.framework.daw.data.bank.ILayerBank;
 import de.mossgrabers.framework.daw.data.ISend;
+import de.mossgrabers.framework.daw.data.ISlot;
 import de.mossgrabers.framework.daw.data.IScene;
 import de.mossgrabers.framework.daw.data.bank.ISceneBank;
 import de.mossgrabers.framework.daw.data.bank.ISendBank;
+import de.mossgrabers.framework.daw.data.bank.ISlotBank;
 import de.mossgrabers.framework.daw.data.bank.IParameterBank;
 import de.mossgrabers.framework.parameter.IParameter;
 import de.mossgrabers.framework.daw.midi.ArpeggiatorMode;
@@ -82,6 +84,16 @@ public final class VirtualPush1RuntimeTest
         boolean playing;
         boolean recording;
         boolean launcherOverdub;
+        boolean cursorTrackExists = true;
+        boolean cursorTrackPlaying = true;
+        boolean emptySlotAvailable = true;
+        boolean selectedSlotExists = true;
+        int selectedSlotIndex = 2;
+        int emptySlotSearchStart = -1;
+        int cursorTrackStopCount;
+        int noteClipCreateCount;
+        int createdSlotIndex = -1;
+        boolean createdWithOverdub;
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
     }
@@ -173,7 +185,14 @@ public final class VirtualPush1RuntimeTest
                                 case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
                                 case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
+                                case "getCursorTrack" -> cursorTrackProxy (state);
                                 case "getBrowser" -> browser;
+                                case "createNoteClip":
+                                    state.noteClipCreateCount++;
+                                    state.createdSlotIndex = ((ISlot) a[1]).getIndex ();
+                                    state.createdWithOverdub = (boolean) a[3];
+                                    MODEL_ACTIONS.add ("model.createNoteClip");
+                                    yield null;
                                 default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                             });
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -383,6 +402,52 @@ public final class VirtualPush1RuntimeTest
             setup.flush ();
         }
 
+        // New clip workflow: free-slot discovery precedes stopping only the
+        // cursor track, and the inherited Shift+New overdub distinction stays intact.
+        state.cursorTrackExists = true;
+        state.cursorTrackPlaying = true;
+        state.emptySlotAvailable = true;
+        state.selectedSlotExists = true;
+        state.selectedSlotIndex = 2;
+        state.cursorTrackStopCount = 0;
+        state.noteClipCreateCount = 0;
+        midi.device ().tapButton (VirtualPush1Device.NEW);
+        require (state.emptySlotSearchStart == 2, "New must search from the selected slot");
+        require (state.cursorTrackStopCount == 1 && !state.cursorTrackPlaying,
+            "New must stop the playing cursor track after finding a free slot");
+        require (state.noteClipCreateCount == 1 && state.createdSlotIndex == 5,
+            "New must create the clip in the first available slot returned by the slot bank");
+        require (state.createdWithOverdub, "Normal New must preserve the upstream overdub behavior");
+
+        state.cursorTrackPlaying = true;
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        midi.device ().tapButton (VirtualPush1Device.NEW);
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        require (state.cursorTrackStopCount == 2 && state.noteClipCreateCount == 2,
+            "Shift+New must stop the cursor track and create a clip");
+        require (!state.createdWithOverdub, "Shift+New must create the clip without overdub");
+
+        state.cursorTrackPlaying = true;
+        state.emptySlotAvailable = false;
+        final int stopsBeforeNoSlot = state.cursorTrackStopCount;
+        final int clipsBeforeNoSlot = state.noteClipCreateCount;
+        midi.device ().tapButton (VirtualPush1Device.NEW);
+        require (state.cursorTrackStopCount == stopsBeforeNoSlot && state.cursorTrackPlaying,
+            "New with no free slot must not stop the playing cursor track");
+        require (state.noteClipCreateCount == clipsBeforeNoSlot,
+            "New with no free slot must not create a clip");
+
+        state.emptySlotAvailable = true;
+        state.cursorTrackExists = false;
+        final int stopsBeforeNoTrack = state.cursorTrackStopCount;
+        final int clipsBeforeNoTrack = state.noteClipCreateCount;
+        midi.device ().tapButton (VirtualPush1Device.NEW);
+        require (state.cursorTrackStopCount == stopsBeforeNoTrack
+            && state.noteClipCreateCount == clipsBeforeNoTrack,
+            "New without a cursor track must not stop playback or create a clip");
+        state.cursorTrackExists = true;
+        state.cursorTrackPlaying = false;
+
         // Browser: exercise both filter-column and result selection, the
         // preset selector, preview chord, and browser content-type paging.
         modes.setActive (Modes.BROWSER);
@@ -445,6 +510,54 @@ public final class VirtualPush1RuntimeTest
         System.out.println ("Virtual Push 1 runtime passed: real PushControllerSetup initialized; "
             + "real mode/view/transport commands, Shift chords, pad aftertouch, encoder/touch/ribbon input and LED/LCD feedback passed.");
     }
+
+    private static ITrack cursorTrackProxy (final State state)
+    {
+        final ISlotBank slots = (ISlotBank) Proxy.newProxyInstance (
+            ISlotBank.class.getClassLoader (), new Class<?> [] { ISlotBank.class },
+            (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "getSelectedItem":
+                        return state.selectedSlotExists ? Optional.of (slotProxy (state.selectedSlotIndex)) : Optional.empty ();
+                    case "getEmptySlot":
+                        state.emptySlotSearchStart = (int) args[0];
+                        return state.emptySlotAvailable ? Optional.of (slotProxy (state.emptySlotSearchStart + 3)) : Optional.empty ();
+                    case "getPageSize": return 8;
+                    case "getItem": return slotProxy ((int) args[0]);
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+        return (ITrack) Proxy.newProxyInstance (ITrack.class.getClassLoader (),
+            new Class<?> [] { ITrack.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "doesExist": return state.cursorTrackExists;
+                    case "getSlotBank": return slots;
+                    case "isPlaying": return state.cursorTrackPlaying;
+                    case "stop":
+                        state.cursorTrackStopCount++;
+                        state.cursorTrackPlaying = false;
+                        MODEL_ACTIONS.add ("cursorTrack.stop");
+                        return null;
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+    }
+
+
+    private static ISlot slotProxy (final int index)
+    {
+        return (ISlot) Proxy.newProxyInstance (ISlot.class.getClassLoader (),
+            new Class<?> [] { ISlot.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getIndex"))
+                    return index;
+                if (method.getName ().equals ("doesExist"))
+                    return true;
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
 
     private static IBrowser browserProxy ()
     {
