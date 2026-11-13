@@ -418,6 +418,17 @@ replace_once(push_display,
     "        return Push1DisplayLayout.separateModulesForSimulator (t);",
     "Push 1 simulator display module segmentation")
 replace_once(push_display,
+    "        return sb.toString ();\n"
+    "    }\n\n\n"
+    "    /** {@inheritDoc} */\n"
+    "    @Override\n"
+    "    public void writeLine",
+    "    }\n\n\n"
+    "    /** {@inheritDoc} */\n"
+    "    @Override\n"
+    "    public void writeLine",
+    "Push 1 simulator module renderer return")
+replace_once(push_display,
     "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, Push1DisplayText.fit (text, 68)));",
     "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, Push1DisplayLayout.fitRow (text)));",
     "Push 1 LCD row geometry")
