@@ -321,6 +321,26 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
         require (state.metronomeTicks && !state.metronome,
             "Shift+Metronome did not toggle metronome ticks independently of the metronome");
+
+        // Push 1 footswitch 2 is a configurable control; its default setting
+        // is Sustain Pedal and must emit CC64 on both press and release.
+        final int rawEventsBeforeFootswitch = midi.rawInputOutput ().size ();
+        midi.device ().pressButton (VirtualPush1Device.FOOTSWITCH2);
+        midi.device ().releaseButton (VirtualPush1Device.FOOTSWITCH2);
+        final List<int []> rawFootswitchEvents = midi.rawInputOutput ();
+        require (rawFootswitchEvents.size () == rawEventsBeforeFootswitch + 2
+                && rawFootswitchEvents.get (rawEventsBeforeFootswitch)[0] == 0xB0
+                && rawFootswitchEvents.get (rawEventsBeforeFootswitch)[1] == 64
+                && rawFootswitchEvents.get (rawEventsBeforeFootswitch)[2] == 127
+                && rawFootswitchEvents.get (rawEventsBeforeFootswitch + 1)[0] == 0xB0
+                && rawFootswitchEvents.get (rawEventsBeforeFootswitch + 1)[1] == 64
+                && rawFootswitchEvents.get (rawEventsBeforeFootswitch + 1)[2] == 0,
+            "Footswitch 2 did not emit the Sustain Pedal CC64 press/release pair");
+        final int rawEventsBeforeFootswitch1 = midi.rawInputOutput ().size ();
+        midi.device ().tapButton (VirtualPush1Device.FOOTSWITCH1);
+        require (midi.rawInputOutput ().size () == rawEventsBeforeFootswitch1,
+            "Unassigned Footswitch 1 CC64 unexpectedly triggered Footswitch 2's action");
+
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (state.playing, "Play CC did not update the Bitwig transport model");
         setup.flush ();
