@@ -553,6 +553,46 @@ public final class VirtualPush1RuntimeTest
         require (state.browserPreviewEnabled,
             "Shift+Browser preset row must toggle browser preview");
 
+        // Exercise the actual Browser MIDI bindings, content-type paging,
+        // encoder navigation and Delete+touch reset against the model.
+        modes.setActive (Modes.BROWSER);
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Browser previous filter item");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Browser next filter item");
+        requireAction ("browser.selectPreviousFilterItem:0", "Browser top row must navigate the previous filter item");
+        requireAction ("browser.selectNextFilterItem:0", "Browser bottom row must navigate the next filter item");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Browser previous result");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "Browser next result");
+        requireAction ("browser.selectPreviousResult", "Browser top-right button must select the previous result");
+        requireAction ("browser.selectNextResult", "Browser bottom-right button must select the next result");
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.LEFT, "Shift+Browser previous content type");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.RIGHT, "Shift+Browser next content type");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        requireAction ("browser.previousContentType", "Shift+Browser Left must change content type backwards");
+        requireAction ("browser.nextContentType", "Shift+Browser Right must change content type forwards");
+        MODEL_ACTIONS.clear ();
+        midi.device ().touchEncoder (0, true);
+        midi.device ().turnEncoderBy (0, 8);
+        setup.flush ();
+        drainScheduled (state, 1);
+        midi.device ().touchEncoder (0, false);
+        requireAction ("browser.selectNextFilterItem:0", "Browser filter encoder must navigate the selected column");
+        MODEL_ACTIONS.clear ();
+        midi.device ().touchEncoder (7, true);
+        midi.device ().turnEncoderBy (7, 8);
+        setup.flush ();
+        drainScheduled (state, 1);
+        midi.device ().touchEncoder (7, false);
+        requireAction ("browser.selectNextResult", "Browser master encoder must navigate preset results");
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().touchEncoder (0, true);
+        midi.device ().touchEncoder (0, false);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        requireAction ("browser.resetFilterColumn:0", "Delete+Browser encoder touch must reset the selected filter column");
+
         // Verify both optional Note Repeat service states. The production
         // setup has no default note input in this bench; it must remain safe.
         final NoteRepeatMode unavailableNoteRepeat = (NoteRepeatMode) modes.get (Modes.REPEAT_NOTE);
@@ -813,6 +853,15 @@ public final class VirtualPush1RuntimeTest
         state.canHoldNotes = false;
         state.clipExists = false;
         state.drumPadsExist = false;
+
+        // Scene Play pads must launch and select their corresponding scenes.
+        final int sceneLaunchesBeforeScenePlay = state.sceneLaunchCount;
+        surface.getViewManager ().setActive (Views.SCENE_PLAY);
+        setup.flush ();
+        drainScheduled (state, 1);
+        surface.getViewManager ().get (Views.SCENE_PLAY).onGridNote (36, 100);
+        require (state.sceneLaunchCount == sceneLaunchesBeforeScenePlay + 1,
+            "Scene Play pad must launch the matching scene");
 
         // Drum64 Select+Pad must align the cursor device's 16-pad bank with
         // the corresponding 16-pad block, then select the matching drum pad.
@@ -1558,18 +1607,32 @@ public final class VirtualPush1RuntimeTest
                     case "getFilterColumn": return browserColumnProxy ((int) args[0]);
                     case "selectPreviousFilterItem":
                         state.browserActions.add ("filter.previous:" + args[0]);
+                        MODEL_ACTIONS.add ("browser.selectPreviousFilterItem:" + args[0]);
                         return null;
                     case "selectNextFilterItem":
                         state.browserActions.add ("filter.next:" + args[0]);
+                        MODEL_ACTIONS.add ("browser.selectNextFilterItem:" + args[0]);
                         return null;
                     case "selectPreviousResult":
                         state.browserActions.add ("result.previous");
+                        MODEL_ACTIONS.add ("browser.selectPreviousResult");
                         return null;
                     case "selectNextResult":
                         state.browserActions.add ("result.next");
+                        MODEL_ACTIONS.add ("browser.selectNextResult");
                         return null;
                     case "togglePreviewEnabled":
                         state.browserPreviewEnabled = !state.browserPreviewEnabled;
+                        MODEL_ACTIONS.add ("browser.togglePreviewEnabled");
+                        return null;
+                    case "previousContentType":
+                        MODEL_ACTIONS.add ("browser.previousContentType");
+                        return null;
+                    case "nextContentType":
+                        MODEL_ACTIONS.add ("browser.nextContentType");
+                        return null;
+                    case "resetFilterColumn":
+                        MODEL_ACTIONS.add ("browser.resetFilterColumn:" + args[0]);
                         return null;
                     case "isPreviewEnabled": return state.browserPreviewEnabled;
                     case "replace": state.browserActions.add ("browser.replace"); return null;
