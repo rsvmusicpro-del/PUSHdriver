@@ -105,6 +105,7 @@ public final class VirtualPush1RuntimeTest
         boolean playing;
         boolean recording;
         boolean launcherOverdub;
+        boolean metronome;
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
     }
@@ -128,6 +129,7 @@ public final class VirtualPush1RuntimeTest
         final BrowserModel browserModel = new BrowserModel ();
         final NewClipModel newClipModel = new NewClipModel ();
         final MusicalModel musicalModel = new MusicalModel ();
+        final MixerModel mixerModel = new MixerModel ();
         final Scales [] scaleModel = new Scales [1];
         final VirtualPush1MidiBench midi = new VirtualPush1MidiBench ();
         final IHwSurfaceFactory hardware = surfaceFactory (midi);
@@ -164,6 +166,9 @@ public final class VirtualPush1RuntimeTest
                     case "isLauncherOverdub": return state.launcherOverdub;
                     case "toggleLauncherOverdub": state.launcherOverdub = !state.launcherOverdub; return null;
                     case "setLauncherOverdub": state.launcherOverdub = (boolean) callArgs[0]; return null;
+                    case "isMetronomeOn": return state.metronome;
+                    case "toggleMetronome": state.metronome = !state.metronome; return null;
+                    case "setMetronome": state.metronome = (boolean) callArgs[0]; return null;
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 }
             });
@@ -186,7 +191,7 @@ public final class VirtualPush1RuntimeTest
                         final Object colorManager = callArgs[1];
                         final Object scales = callArgs[3];
                         scaleModel[0] = (Scales) scales;
-                        final ITrackBank trackBank = trackBankProxy ();
+                        final ITrackBank trackBank = trackBankProxy (mixerModel);
                         final ISceneBank sceneBank = sceneBankProxy ();
                         final IParameterBank parameterBank = parameterBankProxy ();
                         final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank);
@@ -233,6 +238,35 @@ public final class VirtualPush1RuntimeTest
         require (modes.isActive (Modes.DEVICE_PARAMS), "Device CC did not activate DEVICE_PARAMS");
         midi.device ().tapButton (VirtualPush1Device.TRACK);
         require (modes.isActive (Modes.TRACK), "Track CC did not restore TRACK");
+
+        // Relative encoders must update real API-17 parameters when a parameter
+        // mode binds them, not only dispatch standalone ContinuousCommands.
+        modes.setActive (Modes.VOLUME);
+        final MixerModel.ParameterState volume = mixerModel.volume (0);
+        final int volumeChanges = volume.changes;
+        midi.device ().turnEncoderBy (0, 1);
+        require (volume.changes == volumeChanges + 1 && volume.lastControl == 1,
+            "Volume mode encoder did not update the bound track volume parameter");
+        midi.device ().touchEncoder (0, true);
+        require (volume.touched, "Volume encoder touch did not reach the bound parameter");
+        midi.device ().touchEncoder (0, false);
+        require (!volume.touched, "Volume parameter touch state did not release");
+        modes.setActive (Modes.PAN);
+        final MixerModel.ParameterState pan = mixerModel.pan (0);
+        final int panChanges = pan.changes;
+        midi.device ().turnEncoderBy (0, -1);
+        require (pan.changes == panChanges + 1 && pan.lastControl == 127,
+            "Pan mode encoder did not preserve the negative relative parameter delta");
+        modes.setActive (Modes.TRACK);
+        midi.device ().tapButton (VirtualPush1Device.BOTTOM_ROW_FIRST);
+        require (mixerModel.isMuted (0), "Track second-row button did not toggle the selected track mute state");
+        midi.device ().tapButton (VirtualPush1Device.METRONOME);
+        require (state.metronome, "Metronome CC did not enable the Bitwig transport metronome");
+        setup.flush ();
+        require (midi.device ().getCCLed (VirtualPush1Device.METRONOME) > 0,
+            "Metronome LED did not reflect the enabled transport state");
+        midi.device ().tapButton (VirtualPush1Device.METRONOME);
+        require (!state.metronome, "Second Metronome CC did not disable the transport metronome");
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (state.playing, "Play CC did not update the Bitwig transport model");
         setup.flush ();
@@ -1259,7 +1293,7 @@ public final class VirtualPush1RuntimeTest
             });
     }
 
-    private static ITrackBank trackBankProxy ()
+    private static ITrackBank trackBankProxy (final MixerModel mixer)
     {
         return (ITrackBank) Proxy.newProxyInstance (ITrackBank.class.getClassLoader (),
             new Class<?> [] { ITrackBank.class }, (proxy, method, args) -> {
@@ -1279,11 +1313,15 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getSelectedItem"))
-                    return navigationContext ? Optional.of (trackProxy ()) : Optional.empty ();
+                    return navigationContext ? Optional.of (mixer.track (Math.floorMod (trackIndex, 8))) : Optional.empty ();
                 if (method.getName ().equals ("getSceneBank"))
                     return sceneBankProxy ();
                 if (method.getName ().equals ("getItem"))
-                    return trackProxy ();
+                    return mixer.track (Math.max (0, Math.min (7, (int) args[0])));
+                if (method.getName ().equals ("canEditSend"))
+                    return (int) args[0] >= 0 && (int) args[0] < 4;
+                if (method.getName ().equals ("getEditSendName"))
+                    return "Send " + ((int) args[0] + 1);
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
@@ -1478,6 +1516,7 @@ public final class VirtualPush1RuntimeTest
     private static <T> T continuousProxy (final Class<T> type, final VirtualPush1MidiBench midi)
     {
         final ContinuousCommand [] command = { null };
+        final IParameter [] parameter = { null };
         final TriggerCommand [] touch = { null };
         final PitchbendCommand [] pitchbend = { null };
         return type.cast (Proxy.newProxyInstance (type.getClassLoader (), new Class<?> [] { type },
@@ -1485,8 +1524,9 @@ public final class VirtualPush1RuntimeTest
                 switch (method.getName ())
                 {
                     case "bind":
-                        if (args[0] instanceof ContinuousCommand continuous) command[0] = continuous;
+                        if (args[0] instanceof ContinuousCommand continuous) { command[0] = continuous; parameter[0] = null; }
                         else if (args[0] instanceof PitchbendCommand bend) pitchbend[0] = bend;
+                        else if (args[0] == null || args[0] instanceof IParameter) parameter[0] = (IParameter) args[0];
                         else if (args[0] instanceof IMidiInput input)
                         {
                             if (proxy instanceof IHwRelativeKnob knob)
@@ -1513,12 +1553,13 @@ public final class VirtualPush1RuntimeTest
                             touch[0].execute ((boolean) args[0] ? ButtonEvent.DOWN : ButtonEvent.UP, (boolean) args[0] ? 127 : 0);
                         return null;
                     case "handleValue":
+                        final double relative = (double) args[0] * 61.0;
+                        final int steps = (int) (relative > 0 ? Math.ceil (relative) : Math.floor (relative));
+                        final int encoded = steps < 0 ? steps + 128 : steps;
                         if (command[0] != null)
-                        {
-                            final double relative = (double) args[0] * 61.0;
-                            final int steps = (int) (relative > 0 ? Math.ceil (relative) : Math.floor (relative));
-                            command[0].execute (steps < 0 ? steps + 128 : steps);
-                        }
+                            command[0].execute (encoded);
+                        else if (parameter[0] != null)
+                            parameter[0].changeValue (encoded);
                         return null;
                     case "isTouched": case "isLongTouched": case "shouldAdaptSensitivity": return false;
                     case "toString": return "Virtual Push continuous control";
