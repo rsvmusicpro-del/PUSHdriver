@@ -120,7 +120,7 @@ public final class VirtualPush1FormattingAndFirmwareTest
         require (defensive.getData ()[9] == 0,
             "DeviceInquiry must not expose its internal mutable identity packet");
 
-        final int [] query = DeviceInquiry.createQuery ();
+        final byte [] query = DeviceInquiry.createQuery ();
         query[0] = 0;
         require ((DeviceInquiry.createQuery ()[0] & 0xFF) == 0xF0,
             "DeviceInquiry query must be returned as a defensive copy");
