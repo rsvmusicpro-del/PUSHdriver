@@ -71,7 +71,8 @@ protocol serialization and actual view handling are tested as separate layers.
 
 The acceptance inventory covers the Push 1 setup's 50 registered modes and 14
 packaged views, plus protocol-exhaustive pad, encoder, ribbon, LED and LCD
-checks. Stateful scenarios exercise Browser, New Clip, Note Repeat,
+checks, fixed-width display formatting, parameter/pan bars and firmware
+identity parsing. Stateful scenarios exercise Browser, New Clip, Note Repeat,
 Sequencer/Poly Sequencer, Drum 4/8/64, Device bank boundaries, empty device
 layers, transport and aftertouch. The exact list of assertions is maintained in
 `docs/VIRTUAL-PUSH1-COVERAGE.md`.
