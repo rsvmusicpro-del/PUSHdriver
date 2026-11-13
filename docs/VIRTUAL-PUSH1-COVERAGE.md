@@ -65,6 +65,7 @@ The virtual host model includes explicit state and assertions for these workflow
 | Transport | Play/stop model state and Play LED feedback |
 | Device and Session navigation | Arrow navigation, In/Out device selection and parameter-page movement |
 | Mixer modes | Volume, Pan, Send 1, Master and Crossfader encoder touch/change actions reach their production parameters |
+| Device/User parameters | Device parameter, layer volume/pan/send and User parameter encoders reach their production parameter objects |
 | Session and Scene Play | Pad input launches a clip slot in Session and a scene in Scene Play |
 | Device bank boundaries | Previous/next item and previous/next page availability at first and last boundaries |
 | Device layers | Empty layer-bank safety and populated layer send-bank access |
