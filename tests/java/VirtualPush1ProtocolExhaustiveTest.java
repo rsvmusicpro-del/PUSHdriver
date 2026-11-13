@@ -100,7 +100,7 @@ public final class VirtualPush1ProtocolExhaustiveTest
         }
         device.turnEncoderBy (0, 0);
         device.turnSmallEncoderBy (0, 0);
-        if (input.size () != 64 * 4 + BUTTON_CCS.length * 2 + 9 * 4 + 2 * 3)
+        if (input.size () != 64 * 4 + 64 * 256 + BUTTON_CCS.length * 2 + 9 * 4 + 2 * 3)
             throw new AssertionError ("Zero-step encoder emitted an unexpected MIDI event");
         device.touchRibbon (true);
         requireLast (input, 0x90, 12, 127, "ribbon touch");
