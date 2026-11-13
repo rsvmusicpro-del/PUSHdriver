@@ -408,12 +408,42 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releasePad (0, 0);
         require (sessionSlot.launches == 1 && sessionSlot.playing,
             "Session pad release did not launch the corresponding virtual clip slot");
+
+        // Duplicate copies the selected source clip into the next empty slot;
+        // Delete removes the addressed slot; Stop+pad stops only its track.
+        final MixerModel.SlotState duplicateTarget = mixerModel.slot (0, 6);
+        midi.device ().pressButton (VirtualPush1Device.DUPLICATE);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
+        midi.device ().pressButton (VirtualPush1Device.DUPLICATE);
+        midi.device ().pressPad (0, 1, 100);
+        midi.device ().releasePad (0, 1);
+        midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
+        require (duplicateTarget.hasContent && duplicateTarget.pastes == 1,
+            "Duplicate+pad did not paste the selected clip into the target slot");
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        require (!sessionSlot.hasContent && sessionSlot.removals == 1,
+            "Delete+pad did not remove the selected Session clip");
+        sessionSlot.hasContent = true;
+        sessionSlot.playing = true;
+        midi.device ().pressButton (VirtualPush1Device.STOP);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        midi.device ().releaseButton (VirtualPush1Device.STOP);
+        require (!sessionSlot.playing && !mixerModel.isTrackPlaying (0),
+            "Stop+pad did not stop the corresponding track's clip");
+
         surface.getViewManager ().setActive (Views.SCENE_PLAY);
         midi.device ().pressPad (0, 0, 100);
         midi.device ().releasePad (0, 0);
         require (mixerModel.sceneLaunchCount (0) == 1 && mixerModel.selectedScene () == 0,
             "Scene Play pad did not launch and select the corresponding scene");
         surface.getViewManager ().setActive (Views.SESSION);
+        sessionSlot.playing = true;
         midi.device ().pressButton (VirtualPush1Device.SHIFT);
         requireButtonMidiDelivery (midi, VirtualPush1Device.STOP, "Shift+Stop all Session clips");
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
@@ -1493,6 +1523,8 @@ public final class VirtualPush1RuntimeTest
             int launches;
             int immediateLaunches;
             int recordings;
+            int pastes;
+            int removals;
         }
 
         private final boolean [] muted = new boolean [8];
@@ -1591,8 +1623,9 @@ public final class VirtualPush1RuntimeTest
                             case "launchImmediately" -> { slotState.immediateLaunches++; slotState.launchedImmediately = true; slotState.playing = true; this.trackPlaying[index] = true; yield null; }
                             case "testAndClearLaunchedImmediately" -> { final boolean value = slotState.launchedImmediately; slotState.launchedImmediately = false; yield value; }
                             case "startRecording" -> { slotState.recordings++; slotState.recording = true; slotState.hasContent = true; this.trackPlaying[index] = true; yield null; }
-                            case "remove" -> { slotState.hasContent = false; slotState.playing = false; slotState.recording = false; yield null; }
-                            case "duplicate", "paste" -> { slotState.hasContent = true; yield null; }
+                            case "remove" -> { slotState.removals++; slotState.hasContent = false; slotState.playing = false; slotState.recording = false; yield null; }
+                            case "duplicate" -> { slotState.hasContent = true; yield null; }
+                            case "paste" -> { slotState.pastes++; slotState.hasContent = true; yield null; }
                             case "setColor" -> null;
                             default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                         });
@@ -1682,6 +1715,7 @@ public final class VirtualPush1RuntimeTest
         ParameterState pan (final int index) { return this.pans[index]; }
         ParameterState send (final int track, final int index) { return this.sends[track][index]; }
         boolean isMuted (final int index) { return this.muted[index]; }
+        boolean isTrackPlaying (final int index) { return this.trackPlaying[index]; }
         void stopAll () { this.trackPlayingStopAll (); }
     }
 
