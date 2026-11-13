@@ -433,6 +433,55 @@ public final class VirtualPush1RuntimeTest
         modes.setActive (modeBeforeParameters);
         setup.flush ();
 
+        // Empty device-layer banks must safely no-op on encoder touch.
+        state.layersExist = false;
+        modes.setActive (Modes.DEVICE_LAYER_VOLUME);
+        midi.device ().touchEncoder (0, true);
+        midi.device ().touchEncoder (0, false);
+        state.layersExist = true;
+        midi.device ().touchEncoder (0, true);
+        midi.device ().touchEncoder (0, false);
+
+        // Device bank arrow availability must reflect the first/last item
+        // and page boundaries exposed by the API-17 device bank.
+        final DeviceParamsMode boundaryDeviceMode = (DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS);
+        boundaryDeviceMode.setShowDevices (true);
+        state.deviceCanScrollBackwards = false;
+        state.deviceCanScrollForwards = true;
+        state.deviceCanScrollPageBackwards = false;
+        state.deviceCanScrollPageForwards = true;
+        require (!boundaryDeviceMode.hasPreviousItem () && boundaryDeviceMode.hasNextItem (),
+            "Device navigation must disable Left at the first item and enable Right");
+        require (!boundaryDeviceMode.hasPreviousItemPage () && boundaryDeviceMode.hasNextItemPage (),
+            "Device paging must disable Shift+Left at the first page and enable Shift+Right");
+        state.deviceCanScrollBackwards = true;
+        state.deviceCanScrollForwards = false;
+        state.deviceCanScrollPageBackwards = true;
+        state.deviceCanScrollPageForwards = false;
+        require (boundaryDeviceMode.hasPreviousItem () && !boundaryDeviceMode.hasNextItem (),
+            "Device navigation must disable Right at the last item and enable Left");
+        require (boundaryDeviceMode.hasPreviousItemPage () && !boundaryDeviceMode.hasNextItemPage (),
+            "Device paging must disable Shift+Right at the last page and enable Shift+Left");
+        boundaryDeviceMode.setShowDevices (false);
+
+        // Track navigation and Shift+Track swapping must reach the API model.
+        navigationContext = true;
+        modes.setActive (Modes.TRACK);
+        MODEL_ACTIONS.clear ();
+        midi.device ().tapButton (VirtualPush1Device.LEFT);
+        midi.device ().tapButton (VirtualPush1Device.RIGHT);
+        requireAction ("track.selectPreviousItem", "Track Left must select the previous track");
+        requireAction ("track.selectNextItem", "Track Right must select the next track");
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        midi.device ().tapButton (VirtualPush1Device.LEFT);
+        midi.device ().tapButton (VirtualPush1Device.RIGHT);
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        requireAction ("cursorTrack.swapWithPrevious", "Shift+Track Left must swap with the previous track");
+        requireAction ("cursorTrack.swapWithNext", "Shift+Track Right must swap with the next track");
+        navigationContext = false;
+        modes.setActive (modeBeforeParameters);
+
         // Session scene buttons must launch, delete and duplicate the
         // selected scene through the production SessionView.
         final SessionView sessionView = (SessionView) surface.getViewManager ().get (Views.SESSION);
@@ -550,6 +599,43 @@ public final class VirtualPush1RuntimeTest
         midi.device ().touchEncoder (6, true);
         midi.device ().touchEncoder (6, false);
         midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        modes.setActive (modeBeforeNoteRepeat);
+
+        // Note Repeat must also refresh when Bitwig creates its optional
+        // note-repeat service after the extension has already started.
+        modes.setActive (Modes.REPEAT_NOTE);
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().touchEncoder (5, true);
+        midi.device ().touchEncoder (5, false);
+        midi.device ().touchEncoder (6, true);
+        midi.device ().touchEncoder (6, false);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        midi.device ().tapButton (VirtualPush1Device.TOP_ROW_FIRST + 4);
+        midi.device ().tapButton (VirtualPush1Device.BOTTOM_ROW_FIRST + 7);
+        final INoteRepeat lateNoteRepeat = (INoteRepeat) Proxy.newProxyInstance (
+            INoteRepeat.class.getClassLoader (), new Class<?> [] { INoteRepeat.class },
+            (proxy, method, callArgs) -> {
+                if (method.getName ().startsWith ("set") || method.getName ().startsWith ("toggle"))
+                    MODEL_ACTIONS.add ("lateNoteRepeat." + method.getName ());
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+        final INoteInput lateNoteInput = (INoteInput) Proxy.newProxyInstance (
+            INoteInput.class.getClassLoader (), new Class<?> [] { INoteInput.class },
+            (proxy, method, callArgs) -> method.getName ().equals ("getNoteRepeat")
+                ? lateNoteRepeat : defaultValue (method.getReturnType (), method.getGenericReturnType ()));
+        midi.setDefaultNoteInput (lateNoteInput);
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().touchEncoder (5, true);
+        midi.device ().touchEncoder (5, false);
+        midi.device ().touchEncoder (6, true);
+        midi.device ().touchEncoder (6, false);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        midi.device ().tapButton (VirtualPush1Device.TOP_ROW_FIRST + 4);
+        require (MODEL_ACTIONS.contains ("lateNoteRepeat.setMode")
+                && MODEL_ACTIONS.contains ("lateNoteRepeat.setOctaves")
+                && MODEL_ACTIONS.contains ("lateNoteRepeat.toggleLatchActive"),
+            "Late-created Note Repeat service must be discovered and receive mode, octave and latch controls");
+        midi.setDefaultNoteInput (null);
         modes.setActive (modeBeforeNoteRepeat);
 
         // The live sequencer playhead must follow only an existing note clip;
@@ -1486,6 +1572,7 @@ public final class VirtualPush1RuntimeTest
                         state.browserPreviewEnabled = !state.browserPreviewEnabled;
                         return null;
                     case "isPreviewEnabled": return state.browserPreviewEnabled;
+                    case "replace": state.browserActions.add ("browser.replace"); return null;
                     case "isActive": return true;
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 }
@@ -1550,6 +1637,8 @@ public final class VirtualPush1RuntimeTest
                     case "doesExist": return state.cursorTrackExists;
                     case "getColor": return de.mossgrabers.framework.controller.color.ColorEx.BLACK;
                     case "isPlaying": return state.cursorTrackPlaying;
+                    case "swapWithPrevious": MODEL_ACTIONS.add ("cursorTrack.swapWithPrevious"); return null;
+                    case "swapWithNext": MODEL_ACTIONS.add ("cursorTrack.swapWithNext"); return null;
                     case "getSlotBank": return slotBank;
                     case "stop":
                         state.cursorTrackStopCount++;
