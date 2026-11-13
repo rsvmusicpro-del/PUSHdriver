@@ -399,7 +399,9 @@ public final class VirtualPush1RuntimeTest
 
         // Session pads must launch the selected track/slot through the real
         // SessionView, while Scene Play pads launch and select their scene.
-        final MixerModel.SlotState sessionSlot = mixerModel.slot (0, 0);
+        // MIDI note 36 is the bottom-left pad, so SessionView maps it to
+        // track 0, slot row 7 (the physical grid is vertically inverted).
+        final MixerModel.SlotState sessionSlot = mixerModel.slot (0, 7);
         sessionSlot.hasContent = true;
         surface.getViewManager ().setActive (Views.SESSION);
         midi.device ().pressPad (0, 0, 100);
