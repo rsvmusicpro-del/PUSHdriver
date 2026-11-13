@@ -1637,7 +1637,14 @@ public final class VirtualPush1RuntimeTest
                     case "bind":
                         if (args[0] instanceof ContinuousCommand continuous) { command[0] = continuous; parameter[0] = null; }
                         else if (args[0] instanceof PitchbendCommand bend) pitchbend[0] = bend;
-                        else if (args[0] == null || args[0] instanceof IParameter) parameter[0] = (IParameter) args[0];
+                        else if (args[0] == null || args[0] instanceof IParameter)
+                        {
+                            // Bitwig's HwRelativeKnobImpl switches to its simple
+                            // parameter target when a parameter is bound; it must
+                            // not keep executing the previous ContinuousCommand.
+                            command[0] = null;
+                            parameter[0] = (IParameter) args[0];
+                        }
                         else if (args[0] instanceof IMidiInput input)
                         {
                             if (proxy instanceof IHwRelativeKnob knob)
