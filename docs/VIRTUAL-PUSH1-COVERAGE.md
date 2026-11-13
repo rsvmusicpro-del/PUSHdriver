@@ -69,7 +69,7 @@ The virtual host model includes explicit state and assertions for these workflow
 | Session and Scene Play | Pad input launches a clip slot in Session and a scene in Scene Play |
 | Device bank boundaries | Previous/next item and previous/next page availability at first and last boundaries |
 | Device layers | Empty layer-bank safety and populated layer send-bank access |
-| Browser | Filter-column movement, result movement, Shift content-type paging, preview toggle, encoder filter/result selection and Delete-to-reset |
+| Browser | Row item replacement, next filter item, previous/next results, Shift content-type paging and preview toggle, encoder filter/result selection and Delete-to-reset |
 | New clip | Search from selected slot, stop only the playing cursor track after a free slot is found, create clip, Shift+New overdub behavior, no-free-slot and no-cursor-track fallbacks |
 | Note Repeat | Missing default MIDI input, late-created Note Repeat service, control updates and subsequent service removal |
 | Sequencer | Existing-clip activation, step toggle on pad release and clip page navigation |
