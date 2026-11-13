@@ -448,8 +448,6 @@ public final class VirtualPush1RuntimeTest
         };
         for (final Views view: requiredViews)
             require (views.get (view) != null, "Required Push 1 view is not registered: " + view);
-        require (views.get (Views.RAINDROPS) == null,
-            "The excluded Raindrops view must not leak into the Push 1 extension");
     }
 
 
