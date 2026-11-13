@@ -135,7 +135,11 @@ certify physical Push USB, pressure calibration or LCD glass appearance.
 
 The GitHub Actions workflow builds and validates Linux and Intel macOS with
 Java 17, runs the Push 1 protocol/display/runtime regression suites, packages
-the API-17 extension and enforces a combined `quality-gate` job. The
+the API-17 extension and enforces a combined `quality-gate` job. The detailed
+coverage inventory and explicit gaps are tracked in
+`docs/VIRTUAL-PUSH1-COVERAGE.md`. Protocol regressions cover every valid pad
+velocity and pressure value on all 64 pads, all signed relative-step values on
+all 11 encoders, and all 16,384 ribbon positions. The
 `quality-gate` must be configured as a required status check in GitHub branch
 protection; workflow presence alone does not prevent direct pushes or merges.
 
