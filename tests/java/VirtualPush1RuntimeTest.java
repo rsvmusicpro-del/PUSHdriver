@@ -1672,10 +1672,10 @@ public final class VirtualPush1RuntimeTest
                         else if (args[0] instanceof PitchbendCommand bend) pitchbend[0] = bend;
                         else if (args[0] == null || args[0] instanceof IParameter)
                         {
-                            // Bitwig's HwRelativeKnobImpl switches to its simple
-                            // parameter target when a parameter is bound; it must
-                            // not keep executing the previous ContinuousCommand.
-                            command[0] = null;
+                            // HwRelativeKnobImpl keeps the command binding but
+                            // switches its simple-parameter target independently.
+                            // Prefer the active parameter while one is bound; when
+                            // it is cleared, restore the still-registered command.
                             parameter[0] = (IParameter) args[0];
                         }
                         else if (args[0] instanceof IMidiInput input)
@@ -1707,10 +1707,10 @@ public final class VirtualPush1RuntimeTest
                         final double relative = (double) args[0] * 61.0;
                         final int steps = (int) (relative > 0 ? Math.ceil (relative) : Math.floor (relative));
                         final int encoded = steps < 0 ? steps + 128 : steps;
-                        if (command[0] != null)
-                            command[0].execute (encoded);
-                        else if (parameter[0] != null)
+                        if (parameter[0] != null)
                             parameter[0].changeValue (encoded);
+                        else if (command[0] != null)
+                            command[0].execute (encoded);
                         return null;
                     case "isTouched": case "isLongTouched": case "shouldAdaptSensitivity": return false;
                     case "toString": return "Virtual Push continuous control";
