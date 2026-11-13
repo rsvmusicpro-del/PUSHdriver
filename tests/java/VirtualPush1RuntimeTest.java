@@ -644,9 +644,16 @@ public final class VirtualPush1RuntimeTest
         final AbstractSequencerView<?, ?> polySequencer =
             (AbstractSequencerView<?, ?>) surface.getViewManager ().get (Views.POLY_SEQUENCER);
         polySequencer.updateControlSurface ();
-        polySequencer.getKeyManager ().setNoteMatrix (new int [] { 36, 37, 38, 39, 40 });
+        final int [] polyNoteMap = new int [128];
+        Arrays.fill (polyNoteMap, -1);
+        polyNoteMap[36] = 60;
+        polySequencer.getKeyManager ().setNoteMatrix (polyNoteMap);
+        // First play a note in the lower four rows, then stamp that note into
+        // a sequencer step in the upper four rows.
         midi.device ().pressPad (0, 0, 100);
         midi.device ().releasePad (0, 0);
+        midi.device ().pressPad (4, 0, 100);
+        midi.device ().releasePad (4, 0);
         require (state.stepToggleCount > polyStepsBefore,
             "Poly sequencer pad release must edit the active note clip");
         state.noteClipExists = false;
