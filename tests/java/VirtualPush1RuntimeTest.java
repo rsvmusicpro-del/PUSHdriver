@@ -1048,6 +1048,10 @@ public final class VirtualPush1RuntimeTest
             {
                 // Continue through the mode inheritance chain.
             }
+            catch (final IllegalAccessException exception)
+            {
+                throw new AssertionError ("Cannot inspect DeviceParamsMode surface", exception);
+            }
         require (modeSurface == surface,
             "DeviceParamsMode must use the same PushControlSurface instance as the virtual MIDI host");
         require (((PushControlSurface) modeSurface).isShiftPressed (),
