@@ -794,8 +794,8 @@ public final class VirtualPush1RuntimeTest
         midi.device ().tapButton (VirtualPush1Device.LEFT);
         midi.device ().tapButton (VirtualPush1Device.RIGHT);
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
-        requireAction ("track.selectPreviousPage", "Shift+Track Left must select the previous track page");
-        requireAction ("track.selectNextPage", "Shift+Track Right must select the next track page");
+        requireAction ("cursorTrack.swapWithPrevious", "Shift+Track Left must swap the cursor track with its previous neighbor");
+        requireAction ("cursorTrack.swapWithNext", "Shift+Track Right must swap the cursor track with its next neighbor");
         navigationContext = false;
 
         // Track-bank item and page navigation must reach the model through
@@ -1158,6 +1158,9 @@ public final class VirtualPush1RuntimeTest
                         state.cursorTrackStopCount++;
                         state.cursorTrackPlaying = false;
                         MODEL_ACTIONS.add ("cursorTrack.stop");
+                        return null;
+                    case "swapWithPrevious": case "swapWithNext":
+                        MODEL_ACTIONS.add ("cursorTrack." + method.getName ());
                         return null;
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 }
