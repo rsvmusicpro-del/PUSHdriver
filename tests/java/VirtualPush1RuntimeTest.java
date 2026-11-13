@@ -921,7 +921,7 @@ public final class VirtualPush1RuntimeTest
             new Class<?> [] { ILayerBank.class }, (proxy, method, args) -> {
                 switch (method.getName ())
                 {
-                    case "getPageSize": return 8;
+                    case "getPageSize": case "getItemCount": return 8;
                     case "hasExistingItems": return true;
                     case "getItem": return layerProxy ((int) args[0]);
                     case "getSelectedItem": return Optional.of (layerProxy (0));
@@ -1006,7 +1006,7 @@ public final class VirtualPush1RuntimeTest
     {
         return (IParameterBank) Proxy.newProxyInstance (IParameterBank.class.getClassLoader (),
             new Class<?> [] { IParameterBank.class }, (proxy, method, args) -> {
-                if (method.getName ().equals ("getPageSize"))
+                if (method.getName ().equals ("getPageSize") || method.getName ().equals ("getItemCount"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
                     return parameterProxy ("device.parameter." + args[0]);
