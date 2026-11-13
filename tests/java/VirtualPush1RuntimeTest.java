@@ -215,7 +215,8 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 1);
         require (midi.device ().getCCLed (VirtualPush1Device.PLAY) > 0,
             "Play LED feedback missing: lightsCreated=" + lightsCreated + ", lightsUpdated=" + lightsUpdated
-                + ", captured=" + midi.capturedOutput ().stream ().filter (m -> m.contains ("85") || m.contains ("sendCCEx")).toList ());
+                + ", pendingTasks=" + state.scheduled.stream ().map (ScheduledTask::delay).toList ()
+                + ", errors=" + state.errors + ", captured=" + midi.capturedOutput ().stream ().filter (m -> m.contains ("85") || m.contains ("sendCCEx")).toList ());
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (!state.playing, "Second Play CC did not stop the Bitwig transport");
         setup.flush ();
