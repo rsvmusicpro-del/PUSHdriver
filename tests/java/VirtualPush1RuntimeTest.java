@@ -123,6 +123,7 @@ public final class VirtualPush1RuntimeTest
         VirtualPush1DeviceTest.main (new String [0]);
         VirtualPush1DisplayLayoutTest.main (new String [0]);
         VirtualPush1ProtocolExhaustiveTest.main (new String [0]);
+        VirtualPush1FirmwareVersionTest.main (new String [0]);
 
         lightsCreated = 0;
         lightsUpdated = 0;

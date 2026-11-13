@@ -25,6 +25,7 @@ test_sources = (
     root / "tests/java/VirtualPush1DeviceTest.java",
     root / "tests/java/VirtualPush1DisplayLayoutTest.java",
     root / "tests/java/VirtualPush1ProtocolExhaustiveTest.java",
+    root / "tests/java/VirtualPush1FirmwareVersionTest.java",
     root / "tests/java/VirtualPush1RuntimeTest.java",
     root / "tests/java/VirtualPush1Simulator.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
