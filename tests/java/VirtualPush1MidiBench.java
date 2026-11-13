@@ -30,6 +30,7 @@ public final class VirtualPush1MidiBench
     private final List<ContinuousBinding> continuousBindings = new ArrayList<> ();
     private final List<TouchBinding> touchBindings = new ArrayList<> ();
     private final List<int[]> rawDeviceInput = new ArrayList<> ();
+    private final List<String> rawDeviceSysex = new ArrayList<> ();
     private int dispatchedButtonEvents;
     private int dispatchedEncoderEvents;
     private int dispatchedTouchEvents;
@@ -107,7 +108,8 @@ public final class VirtualPush1MidiBench
         }, new VirtualPush1Device.EventListener () {
             @Override public void onShortMessage (int status, int data1, int data2)
             { VirtualPush1MidiBench.this.rawDeviceInput.add (new int [] { status, data1, data2 }); }
-            @Override public void onSysex (String frame) { }
+            @Override public void onSysex (String frame)
+            { VirtualPush1MidiBench.this.rawDeviceSysex.add (frame); }
         });
     }
 
@@ -272,6 +274,7 @@ public final class VirtualPush1MidiBench
     public List<String> capturedOutput () { return List.copyOf (this.output); }
     public List<int[]> capturedRawInputOutput () { return List.copyOf (this.rawInputOutput); }
     public List<int[]> capturedDeviceInput () { return List.copyOf (this.rawDeviceInput); }
+    public List<String> capturedDeviceSysex () { return List.copyOf (this.rawDeviceSysex); }
     public int getDispatchedButtonEvents () { return this.dispatchedButtonEvents; }
     public int getDispatchedEncoderEvents () { return this.dispatchedEncoderEvents; }
     public int getDispatchedTouchEvents () { return this.dispatchedTouchEvents; }
@@ -331,8 +334,9 @@ public final class VirtualPush1MidiBench
         final String lcd = "F0 47 7F 15 18 00 45 00 "
             + "20 ".repeat (67) + "20 F7";
         bench.injectSysex (lcd);
-        if (receivedSysex.size () != 1 || !receivedSysex.get (0).equals (lcd))
-            throw new AssertionError ("SysEx input delivery regression");
+        if (receivedSysex.size () != 1 || !receivedSysex.get (0).equals (lcd)
+                || bench.capturedDeviceSysex ().size () != 1 || !bench.capturedDeviceSysex ().get (0).equals (lcd))
+            throw new AssertionError ("SysEx input delivery/monitor capture regression");
 
         bench.output ().sendCC (49, 3);
         bench.output ().sendCCEx (15, 49, 4);
