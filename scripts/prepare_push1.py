@@ -3,6 +3,7 @@
 from pathlib import Path
 import shutil
 import subprocess
+import re
 
 root = Path.cwd()
 upstream = root / "upstream"
@@ -262,35 +263,225 @@ replace_once(piano_helper,
     "                else if (row % 2 == 0)",
     "PianoViewHelper root notes follow selected track color")
 
-# Align Push 1 physical selector rows with the LCD option rows in these two menus.
-for mode_name in ("FixedMode", "NoteMode"):
-    mode_path = root / ("src/main/java/de/mossgrabers/controller/ableton/push/mode/" + mode_name + ".java")
-    marker = "    /** {@inheritDoc} */\n    @Override\n    public void onFirstRow (final int index, final ButtonEvent event)"
-    row_dispatch = (
-        "    /** Route physical selectors to the option row directly above them. */\n"
+# Establish one explicit physical-to-LCD row contract for Push menus.
+# The physical top selector row is ROW1 (CC 20-27); the lower selector row is
+# ROW2 (CC 102-109). Several upstream menu modes implement onFirstRow as the
+# lower LCD option row and onSecondRow as the upper LCD option row. Keep that
+# convention local to those modes, and route LED queries through the same map.
+base_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/BaseMode.java"
+replace_once(base_mode,
+    "import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;\n",
+    "import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;\n"
+    "import de.mossgrabers.framework.controller.ButtonID;\n",
+    "BaseMode selector row mapping import")
+replace_once(base_mode,
+    "    /** {@inheritDoc} */\n"
+    "    @Override\n"
+    "    public void onButton (final int row, final int index, final ButtonEvent event)\n"
+    "    {\n"
+    "        if (row == 0)\n"
+    "            this.onFirstRow (index, event);\n"
+    "        else\n"
+    "            this.onSecondRow (index, event);\n"
+    "    }\n",
+    "    /**\n"
+    "     * Whether this mode's first-row callback represents the lower LCD option row.\n"
+    "     * The physical-to-menu mapping is shared by button dispatch and LED feedback.\n"
+    "     *\n"
+    "     * @return True if this mode's first and second menu rows are reversed\n"
+    "     */\n"
+    "    protected boolean isMenuRowDispatchInverted ()\n"
+    "    {\n"
+    "        return false;\n"
+    "    }\n\n"
+    "    /** {@inheritDoc} */\n"
+    "    @Override\n"
+    "    public void onButton (final int row, final int index, final ButtonEvent event)\n"
+    "    {\n"
+    "        final int logicalRow = this.isMenuRowDispatchInverted () ? 1 - row : row;\n"
+    "        if (logicalRow == 0)\n"
+    "            this.onFirstRow (index, event);\n"
+    "        else\n"
+    "            this.onSecondRow (index, event);\n"
+    "    }\n\n"
+    "    /** Map LED row queries through the same physical-to-menu row mapping. */\n"
+    "    @Override\n"
+    "    protected int isButtonRow (final int row, final ButtonID buttonID)\n"
+    "    {\n"
+    "        final int logicalRow = this.isMenuRowDispatchInverted () ? 1 - row : row;\n"
+    "        return super.isButtonRow (logicalRow, buttonID);\n"
+    "    }\n",
+    "BaseMode unified LCD/button/LED row routing")
+
+def enable_menu_row_inversion(mode_name, relative_path):
+    mode_path = root / "src/main/java/de/mossgrabers/controller/ableton/push" / relative_path
+    content = mode_path.read_text()
+    if "isMenuRowDispatchInverted" in content:
+        if "return true;" in content:
+            return
+        raise SystemExit(mode_name + ": conflicting selector-row policy already exists")
+    pattern = re.compile(
+        r"(public\s+(?:abstract\s+)?class\s+" + re.escape(mode_name) + r"\b[^{]*\{\s*\n)"
+    )
+    matches = list(pattern.finditer(content))
+    if len(matches) != 1:
+        raise SystemExit(mode_name + ": expected exactly one class declaration")
+    policy = (
         "    @Override\n"
-        "    public void onButton (final int row, final int index, final ButtonEvent event)\n"
+        "    protected boolean isMenuRowDispatchInverted ()\n"
         "    {\n"
-        "        super.onButton (1 - row, index, event);\n"
+        "        return true;\n"
         "    }\n\n"
     )
-    replace_once(mode_path, marker, row_dispatch + marker,
-                 mode_name + " physical selector row alignment")
-    if mode_name == "FixedMode":
-        replace_once(mode_path, "this.isButtonRow (0, buttonID)",
-                     "this.isButtonRow (1, buttonID)",
-                     "FixedMode selected-length LED row alignment")
-    else:
-        replace_once(mode_path, "this.isButtonRow (0, buttonID)",
-                     "this.isButtonRow (ROW_SWAP_TEMP, buttonID)",
-                     "NoteMode option LED row alignment")
-        replace_once(mode_path, "this.isButtonRow (1, buttonID)",
-                     "this.isButtonRow (0, buttonID)",
-                     "NoteMode page LED row alignment")
-        replace_once(mode_path, "this.isButtonRow (ROW_SWAP_TEMP, buttonID)",
-                     "this.isButtonRow (1, buttonID)",
-                     "NoteMode option LED row alignment completion")
+    match = matches[0]
+    mode_path.write_text(content[:match.end()] + policy + content[match.end():])
 
+# These modes display their onFirstRow choices in the lower LCD row and their
+# onSecondRow choices in the upper LCD row. The shared policy keeps physical
+# buttons and LEDs aligned without per-mode onButton workarounds.
+for mode_name, relative_path in (
+    ("FixedMode", "mode/FixedMode.java"),
+    ("NoteMode", "mode/NoteMode.java"),
+    ("NoteViewSelectMode", "mode/NoteViewSelectMode.java"),
+    ("SessionViewSelectMode", "mode/SessionViewSelectMode.java"),
+    ("ScalesMode", "mode/ScalesMode.java"),
+    ("ScaleLayoutMode", "mode/ScaleLayoutMode.java"),
+    ("GrooveMode", "mode/GrooveMode.java"),
+    ("QuantizeMode", "mode/QuantizeMode.java"),
+    ("RibbonMode", "mode/RibbonMode.java"),
+    ("AutomationSelectionMode", "mode/AutomationSelectionMode.java"),
+    ("MetronomeMode", "mode/MetronomeMode.java"),
+    ("MarkerMode", "mode/MarkerMode.java"),
+    ("FrameMode", "mode/FrameMode.java"),
+    ("TrackDetailsMode", "mode/track/TrackDetailsMode.java"),
+    ("AddTrackMode", "mode/track/AddTrackMode.java"),
+    ("MasterMode", "mode/track/MasterMode.java"),
+    ("ClipMode", "mode/track/ClipMode.java"),
+    ("DeviceLayerDetailsMode", "mode/device/DeviceLayerDetailsMode.java"),
+    ("DeviceChainsMode", "mode/device/DeviceChainsMode.java"),
+    ("DeviceLayerMode", "mode/device/DeviceLayerMode.java"),
+    ("DeviceParamsMode", "mode/device/DeviceParamsMode.java"),
+    ("UserMode", "mode/device/UserMode.java"),
+):
+    enable_menu_row_inversion(mode_name, relative_path)
+
+# DeviceChainsMode renders chain names in the lower LCD row. Its LED feedback
+# must query that same lower physical row after the shared row policy is applied.
+device_chains = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceChainsMode.java"
+replace_once(device_chains,
+    "        final int index = this.isButtonRow (0, buttonID);\n"
+    "        if (index >= 0)\n"
+    "            return super.getButtonColor (buttonID);\n\n"
+    "        final int existsColor = this.isPush2 ? PushColorManager.PUSH2_COLOR_YELLOW_LO : PushColorManager.PUSH1_COLOR_YELLOW_LO;\n"
+    "        final int offColor = this.isPush2 ? PushColorManager.PUSH2_COLOR_BLACK : PushColorManager.PUSH1_COLOR_BLACK;\n"
+    "        final String [] slotChains = this.model.getCursorDevice ().getSlotChains ();\n"
+    "        return index < slotChains.length ? existsColor : offColor;",
+    "        final int index = this.isButtonRow (0, buttonID);\n"
+    "        if (index >= 0)\n"
+    "        {\n"
+    "            final int existsColor = this.isPush2 ? PushColorManager.PUSH2_COLOR_YELLOW_LO : PushColorManager.PUSH1_COLOR_YELLOW_LO;\n"
+    "            final int offColor = this.isPush2 ? PushColorManager.PUSH2_COLOR_BLACK : PushColorManager.PUSH1_COLOR_BLACK;\n"
+    "            final String [] slotChains = this.model.getCursorDevice ().getSlotChains ();\n"
+    "            return index < slotChains.length ? existsColor : offColor;\n"
+    "        }\n"
+    "        return super.getButtonColor (buttonID);",
+    "DeviceChainsMode lower-row LED feedback")
+
+# Note Repeat mixes top-row Period/Length/Groove with bottom-row toggles.
+# Route each action by its actual LCD position rather than swapping the whole mode.
+note_repeat = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteRepeatMode.java"
+replace_once(note_repeat,
+    "    /** {@inheritDoc} */\n"
+    "    @Override\n"
+    "    public void onFirstRow (final int index, final ButtonEvent event)",
+    "    /** Route each Note Repeat action to the LCD row where its label is shown. */\n"
+    "    @Override\n"
+    "    public void onButton (final int row, final int index, final ButtonEvent event)\n"
+    "    {\n"
+    "        if (row == 0)\n"
+    "        {\n"
+    "            if (index <= 3)\n"
+    "                this.onFirstRow (index, event);\n"
+    "            else if (index == 7)\n"
+    "                this.onSecondRow (index, event);\n"
+    "        }\n"
+    "        else if (row == 1 && index >= 4)\n"
+    "            this.onFirstRow (index, event);\n"
+    "    }\n\n"
+    "    /** {@inheritDoc} */\n"
+    "    @Override\n"
+    "    public void onFirstRow (final int index, final ButtonEvent event)",
+    "NoteRepeat per-option physical row routing")
+
+def replace_section(path, start_marker, end_marker, replacement, label):
+    content = path.read_text()
+    start_index = content.find(start_marker)
+    end_index = content.find(end_marker, start_index + len(start_marker))
+    if start_index < 0 or end_index < 0 or content.find(start_marker, start_index + 1) >= 0:
+        raise SystemExit(label + ": expected one bounded source section")
+    path.write_text(content[:start_index] + replacement + content[end_index:])
+
+note_repeat_color = """    /** {@inheritDoc} */
+    @Override
+    public int getButtonColor (final ButtonID buttonID)
+    {
+        final ColorManager colorManager = this.model.getColorManager ();
+        final int offColor = colorManager.getColorIndex (AbstractFeatureGroup.BUTTON_COLOR_OFF);
+        final int onColor = colorManager.getColorIndex (AbstractFeatureGroup.BUTTON_COLOR_ON);
+        final int hiColor = colorManager.getColorIndex (AbstractMode.BUTTON_COLOR_HI);
+
+        int index = this.isButtonRow (0, buttonID);
+        if (index >= 0)
+        {
+            // Top row: Period, Length and Groove enablement.
+            if (index == 7)
+                return this.model.getGroove ().getParameter (GrooveParameterID.ENABLED).getValue () > 0 ? hiColor : onColor;
+            if (index >= 4)
+                return offColor;
+            if (index <= 1)
+                return onColor;
+            return this.host.supports (Capability.NOTE_REPEAT_LENGTH) ? onColor : offColor;
+        }
+
+        index = this.isButtonRow (1, buttonID);
+        if (index >= 0)
+        {
+            // Bottom row: Latch, Pressure, Sync and Shuffle.
+            switch (index)
+            {
+                case 4:
+                    if (this.host.supports (Capability.NOTE_REPEAT_LATCH))
+                        return this.noteRepeat.isLatchActive () ? hiColor : onColor;
+                    return offColor;
+                case 5:
+                    if (this.host.supports (Capability.NOTE_REPEAT_USE_PRESSURE_TO_VELOCITY))
+                        return this.noteRepeat.usePressure () ? hiColor : onColor;
+                    return offColor;
+                case 6:
+                    if (this.host.supports (Capability.NOTE_REPEAT_IS_FREE_RUNNING))
+                        return !this.noteRepeat.isFreeRunning () ? hiColor : onColor;
+                    return offColor;
+                case 7:
+                    if (this.host.supports (Capability.NOTE_REPEAT_SWING))
+                        return this.noteRepeat.isShuffle () ? hiColor : onColor;
+                    return offColor;
+                default:
+                    return offColor;
+            }
+        }
+
+        return super.getButtonColor (buttonID);
+    }
+
+
+"""
+replace_section(
+    note_repeat,
+    "    /** {@inheritDoc} */\n    @Override\n    public int getButtonColor (final ButtonID buttonID)\n",
+    "    /** {@inheritDoc} */\n    @Override\n    public void updateDisplay1 (final ITextDisplay display)\n",
+    note_repeat_color,
+    "NoteRepeat LCD-aligned LED feedback"
+)
 
 # Apply the small, reviewed Push 1 protocol override maintained by this project.
 shutil.copytree(root / "overrides/java", root / "src/main/java", dirs_exist_ok=True)

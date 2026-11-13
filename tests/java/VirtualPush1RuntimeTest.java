@@ -704,19 +704,19 @@ public final class VirtualPush1RuntimeTest
             "Virtual MIDI input should begin without the optional Note Repeat service");
         require (modes.get (Modes.REPEAT_NOTE) != null, "Note Repeat mode was not registered");
         modes.setActive (Modes.REPEAT_NOTE);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Note Repeat latch without service");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 4, "Note Repeat latch without service");
         require (!midi.noteRepeat ().isLatchActive (),
             "Note Repeat attempted to mutate an unavailable service");
         midi.setNoteRepeatAvailable (true);
         require (midi.input ().getDefaultNoteInput ().getNoteRepeat () == midi.noteRepeat (),
             "Late-created Note Repeat service was not exposed by the MIDI input");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Note Repeat latch after service creation");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 4, "Note Repeat latch after service creation");
         require (midi.noteRepeat ().isLatchActive (), "Late-created Note Repeat service was not resolved by the active mode");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 5, "Note Repeat pressure velocity");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 5, "Note Repeat pressure velocity");
         require (midi.noteRepeat ().usePressure (), "Note Repeat pressure-velocity state did not toggle");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Note Repeat free running");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 6, "Note Repeat free running");
         require (midi.noteRepeat ().isFreeRunning (), "Note Repeat free-running state did not toggle");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Note Repeat shuffle");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "Note Repeat shuffle");
         require (midi.noteRepeat ().isShuffle (), "Note Repeat shuffle state did not toggle");
         modes.setActive (Modes.TRACK);
 
