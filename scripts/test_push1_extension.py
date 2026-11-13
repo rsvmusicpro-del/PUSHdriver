@@ -22,10 +22,12 @@ test_sources = (
     root / "tests/java/PushdriverExtensionDiscoveryTest.java",
     root / "tests/java/VirtualPush1MidiBench.java",
     root / "tests/java/VirtualPush1Device.java",
+    root / "tests/java/VirtualPush1DisplayLayoutTest.java",
     root / "tests/java/VirtualPush1DeviceTest.java",
     root / "tests/java/VirtualPush1ProtocolExhaustiveTest.java",
     root / "tests/java/VirtualPush1RuntimeTest.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
+    root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java",
 )
 with tempfile.TemporaryDirectory(prefix="pushdriver-extension-test-") as output:
     subprocess.run(
@@ -37,6 +39,7 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-extension-test-") as output:
         "PushdriverExtensionDiscoveryTest",
         "VirtualPush1MidiBench",
         "VirtualPush1DeviceTest",
+        "VirtualPush1DisplayLayoutTest",
         "VirtualPush1ProtocolExhaustiveTest",
         "VirtualPush1RuntimeTest",
     ):
