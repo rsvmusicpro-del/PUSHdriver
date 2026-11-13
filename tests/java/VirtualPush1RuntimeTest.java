@@ -38,6 +38,12 @@ import de.mossgrabers.framework.command.core.PitchbendCommand;
 import de.mossgrabers.framework.command.core.TriggerCommand;
 import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
+import de.mossgrabers.controller.ableton.push.mode.device.DeviceBrowserMode;
+import de.mossgrabers.controller.ableton.push.controller.Push1Display;
+import de.mossgrabers.framework.featuregroup.AbstractFeatureGroup;
+import de.mossgrabers.framework.daw.IBrowser;
+import de.mossgrabers.framework.daw.data.IBrowserColumn;
+import de.mossgrabers.framework.daw.data.IBrowserColumnItem;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.utils.TestCallback;
@@ -97,6 +103,7 @@ public final class VirtualPush1RuntimeTest
         lightsCreated = 0;
         lightsUpdated = 0;
         final State state = new State ();
+        final BrowserModel browserModel = new BrowserModel ();
         final VirtualPush1MidiBench midi = new VirtualPush1MidiBench ();
         final IHwSurfaceFactory hardware = surfaceFactory (midi);
         final IHost host = (IHost) Proxy.newProxyInstance (IHost.class.getClassLoader (),
@@ -167,6 +174,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
                                 case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
+                                case "getBrowser" -> browserModel.browser ();
                                 default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                             });
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -186,6 +194,58 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.BROWSER) != null, "Browser mode was not registered");
         require (modes.get (Modes.SESSION) != null, "Session mode was not registered");
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
+
+        // Browser mode is exercised against a stateful API-17 IBrowser model:
+        // filter columns, result list, content-type paging and selection state
+        // all change in response to the real Push 1 MIDI bindings.
+        browserModel.setActive (true);
+        modes.setActive (Modes.BROWSER);
+        final DeviceBrowserMode browserMode = (DeviceBrowserMode) modes.get (Modes.BROWSER);
+        require (browserModel.isActive (), "Browser model did not enter the active state");
+        final String availableFilterLed = browserMode.getButtonColorID (ButtonID.ROW1_1);
+        require (AbstractFeatureGroup.BUTTON_COLOR_ON.equals (availableFilterLed),
+            "Existing Browser filter column did not advertise its top-row LED");
+
+        final int filterBefore = browserModel.filterCursor (0);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Browser previous filter item");
+        require (browserModel.filterCursor (0) == filterBefore - 1,
+            "Push 1 top row did not select the previous Browser filter item");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Browser next filter item");
+        require (browserModel.filterCursor (0) == filterBefore,
+            "Push 1 bottom row did not select the next Browser filter item");
+
+        // Encoder touch selects a filter column; eight relative detents pass
+        // the production Browser mode's deliberate movement-rate limiter.
+        midi.device ().touchEncoder (0, true);
+        for (int i = 0; i < 8; i++)
+            midi.device ().turnEncoderBy (0, 1);
+        midi.device ().touchEncoder (0, false);
+        require (browserModel.filterCursor (0) > filterBefore,
+            "Touched Browser encoder did not change the selected filter item");
+        setup.flush ();
+        require (midi.device ().getLcdRow (0).contains (String.valueOf (Push1Display.SELECT_ARROW)),
+            "Browser selected-column marker was not rendered on the Push 1 LCD");
+
+        // Shift+Left/Right pages browser content types; plain row buttons
+        // navigate filter entries and results rather than the content tabs.
+        final int contentBefore = browserModel.contentTypeIndex ();
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.LEFT, "Browser previous content type");
+        require (browserModel.contentTypeIndex () == contentBefore - 1,
+            "Shift+Left did not page to the previous Browser content type");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.RIGHT, "Browser next content type");
+        require (browserModel.contentTypeIndex () == contentBefore,
+            "Shift+Right did not page to the next Browser content type");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+
+        final int resultBefore = browserModel.resultCursor ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Browser previous result");
+        require (browserModel.resultCursor () == Math.max (0, resultBefore - 1),
+            "Push 1 top-row result button did not select the previous result");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "Browser next result");
+        require (browserModel.resultCursor () == resultBefore,
+            "Push 1 bottom-row result button did not select the next result");
+        modes.setActive (Modes.TRACK);
 
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
@@ -342,6 +402,157 @@ public final class VirtualPush1RuntimeTest
             throw new AssertionError ("Virtual Bitwig host reported errors: " + state.errors);
         System.out.println ("Virtual Push 1 runtime passed: real PushControllerSetup initialized; "
             + "real mode/view/transport commands, Shift chords, pad aftertouch, encoder/touch/ribbon input and LED/LCD feedback passed.");
+    }
+
+
+    /**
+     * Deterministic but stateful browser implementation for the API-17 runtime
+     * bench. It intentionally models selection, page bounds, filters and
+     * result lists rather than returning generic empty proxy defaults.
+     */
+    private static final class BrowserModel
+    {
+        private static final String [] CONTENT_TYPES = { "Devices", "Presets", "Samples" };
+        private final int [] filterCursors = { 2, 1, 3 };
+        private final IBrowserColumn [] columns = new IBrowserColumn [3];
+        private final int [] resultCursor = { 2 };
+        private final int [] contentType = { 1 };
+        private final boolean [] active = { false };
+        private final boolean [] preview = { true };
+        private final int [] selectedColumn = { 0 };
+        private final IBrowser browser;
+
+        BrowserModel ()
+        {
+            for (int i = 0; i < this.columns.length; i++)
+            {
+                final int column = i;
+                this.columns[i] = (IBrowserColumn) Proxy.newProxyInstance (
+                    IBrowserColumn.class.getClassLoader (), new Class<?> [] { IBrowserColumn.class },
+                    (proxy, method, args) -> {
+                        switch (method.getName ())
+                        {
+                            case "doesExist": case "doesCursorExist": return true;
+                            case "getIndex": case "getPosition": return column;
+                            case "getName": return "Filter " + column;
+                            case "getWildcard": return "All";
+                            case "getCursorName": return "Category " + this.filterCursors[column];
+                            case "getItems":
+                                final IBrowserColumnItem [] items = new IBrowserColumnItem [16];
+                                for (int item = 0; item < items.length; item++)
+                                    items[item] = this.filterItem (column, item);
+                                return items;
+                            case "getCursorIndex": return this.filterCursors[column];
+                            case "setCursorIndex":
+                                this.filterCursors[column] = Math.max (0, Math.min (15, (int) args[0]));
+                                return null;
+                            case "selectPreviousItem":
+                                this.filterCursors[column] = Math.max (0, this.filterCursors[column] - 1);
+                                return null;
+                            case "selectNextItem":
+                                this.filterCursors[column] = Math.min (15, this.filterCursors[column] + 1);
+                                return null;
+                            case "scrollItemPageUp":
+                                this.filterCursors[column] = Math.max (0, this.filterCursors[column] - 8);
+                                return null;
+                            case "scrollItemPageDown":
+                                this.filterCursors[column] = Math.min (15, this.filterCursors[column] + 8);
+                                return null;
+                            case "resetFilter": this.filterCursors[column] = 0; return null;
+                            default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                        }
+                    });
+            }
+            this.browser = (IBrowser) Proxy.newProxyInstance (IBrowser.class.getClassLoader (),
+                new Class<?> [] { IBrowser.class }, (proxy, method, args) -> {
+                    switch (method.getName ())
+                    {
+                        case "isActive": return this.active[0];
+                        case "addActiveObserver":
+                            ((IValueObserver<Boolean>) args[0]).update (Boolean.valueOf (this.active[0]));
+                            return null;
+                        case "getSelectedContentTypeIndex": return this.contentType[0];
+                        case "getSelectedContentType": return CONTENT_TYPES[this.contentType[0]];
+                        case "getContentTypeNames": return CONTENT_TYPES.clone ();
+                        case "hasPreviousContentType": return this.contentType[0] > 0;
+                        case "hasNextContentType": return this.contentType[0] < CONTENT_TYPES.length - 1;
+                        case "previousContentType": this.contentType[0] = Math.max (0, this.contentType[0] - 1); return null;
+                        case "nextContentType": this.contentType[0] = Math.min (CONTENT_TYPES.length - 1, this.contentType[0] + 1); return null;
+                        case "isPresetContentType": return this.contentType[0] == 1;
+                        case "isPreviewEnabled": return this.preview[0];
+                        case "togglePreviewEnabled": this.preview[0] = !this.preview[0]; return null;
+                        case "setPreviewEnabled": this.preview[0] = (boolean) args[0]; return null;
+                        case "stopBrowsing": this.active[0] = false; return null;
+                        case "replace": case "addDevice": case "insertBeforeCursorDevice": case "insertAfterCursorDevice":
+                            this.active[0] = true; return null;
+                        case "getFilterColumnCount": return this.columns.length;
+                        case "getFilterColumnNames": return new String [] { "Category", "Vendor", "Type" };
+                        case "getFilterColumn": return this.columns[(int) args[0]];
+                        case "getSelectedFilterColumn": return this.columns[this.selectedColumn[0]];
+                        case "selectPreviousFilterColumn":
+                            this.selectedColumn[0] = Math.max (0, this.selectedColumn[0] - 1); return null;
+                        case "selectNextFilterColumn":
+                            this.selectedColumn[0] = Math.min (this.columns.length - 1, this.selectedColumn[0] + 1); return null;
+                        case "selectPreviousFilterItem":
+                            this.filterCursors[(int) args[0]] = Math.max (0, this.filterCursors[(int) args[0]] - 1); return null;
+                        case "selectNextFilterItem":
+                            this.filterCursors[(int) args[0]] = Math.min (15, this.filterCursors[(int) args[0]] + 1); return null;
+                        case "previousFilterItemPage":
+                            this.filterCursors[(int) args[0]] = Math.max (0, this.filterCursors[(int) args[0]] - 8); return null;
+                        case "nextFilterItemPage":
+                            this.filterCursors[(int) args[0]] = Math.min (15, this.filterCursors[(int) args[0]] + 8); return null;
+                        case "getSelectedFilterItemIndex": return this.filterCursors[(int) args[0]];
+                        case "resetFilterColumn": this.filterCursors[(int) args[0]] = 0; return null;
+                        case "getResultColumnItems":
+                            final IBrowserColumnItem [] results = new IBrowserColumnItem [16];
+                            for (int item = 0; item < results.length; item++)
+                                results[item] = this.resultItem (item);
+                            return results;
+                        case "selectPreviousResult": this.resultCursor[0] = Math.max (0, this.resultCursor[0] - 1); return null;
+                        case "selectNextResult": this.resultCursor[0] = Math.min (15, this.resultCursor[0] + 1); return null;
+                        case "getSelectedResult": return "Preset " + this.resultCursor[0];
+                        case "getNumResults": case "getNumFilterColumnEntries": return 16;
+                        case "getInfoText": return "Insert device: Choose a category";
+                        default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                    }
+                });
+        }
+
+        IBrowser browser () { return this.browser; }
+        void setActive (final boolean value) { this.active[0] = value; }
+        boolean isActive () { return this.active[0]; }
+        int filterCursor (final int column) { return this.filterCursors[column]; }
+        int resultCursor () { return this.resultCursor[0]; }
+        int contentTypeIndex () { return this.contentType[0]; }
+
+        private IBrowserColumnItem filterItem (final int column, final int item)
+        {
+            return this.item (item, "Category " + item, () -> this.filterCursors[column] == item);
+        }
+
+        private IBrowserColumnItem resultItem (final int item)
+        {
+            return this.item (item, "Preset " + item, () -> this.resultCursor[0] == item);
+        }
+
+        private IBrowserColumnItem item (final int index, final String name, final Supplier<Boolean> selected)
+        {
+            return (IBrowserColumnItem) Proxy.newProxyInstance (
+                IBrowserColumnItem.class.getClassLoader (), new Class<?> [] { IBrowserColumnItem.class },
+                (proxy, method, args) -> {
+                    switch (method.getName ())
+                    {
+                        case "doesExist": return true;
+                        case "getIndex": case "getPosition": return index;
+                        case "getName": return args != null && args.length > 0
+                            ? name.substring (0, Math.min (name.length (), (int) args[0])) : name;
+                        case "isSelected": return selected.get ();
+                        case "getHitCount": return 12 + index;
+                        case "setSelected": case "select": return null;
+                        default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                    }
+                });
+        }
     }
 
     private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters)
