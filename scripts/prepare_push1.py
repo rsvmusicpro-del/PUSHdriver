@@ -557,6 +557,19 @@ replace_once(touchstrip,
     "            final double value = ribbonNoteRepeat == PushConfiguration.NOTE_REPEAT_PERIOD ? noteRepeat.getPeriod () : noteRepeat.getNoteLength ();",
     "TouchstripCommand null-safe note-repeat feedback")
 
+# Bitwig may expose the default note input before its optional Note Repeat
+# service exists. Do not let configuration observer initialization dereference
+# that absent service.
+note_repeat_setup = root / "src/main/java/de/mossgrabers/framework/controller/AbstractControllerSetup.java"
+replace_once(note_repeat_setup,
+    "        final INoteRepeat noteRepeat = defaultNoteInput.getNoteRepeat ();\\n"
+    "        conf.addSettingObserver (AbstractConfiguration.NOTEREPEAT_ACTIVE, () -> noteRepeat.setActive (conf.isNoteRepeatActive ()));",
+    "        final INoteRepeat noteRepeat = defaultNoteInput.getNoteRepeat ();\\n"
+    "        if (noteRepeat == null)\\n"
+    "            return;\\n"
+    "        conf.addSettingObserver (AbstractConfiguration.NOTEREPEAT_ACTIVE, () -> noteRepeat.setActive (conf.isNoteRepeatActive ()));",
+    "Controller setup optional Note Repeat service guard")
+
 # Harden Push 1 note-repeat against MIDI-input initialization and capability gaps.
 note_repeat = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteRepeatMode.java"
 replace_once(note_repeat,
