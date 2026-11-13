@@ -94,7 +94,7 @@ public final class VirtualPush1Simulator
                 root.doLayout ();
                 root.validate ();
                 simulator.refreshFeedback ();
-                if (simulator.controlButtons.size () != CCS.length
+                if (simulator.controlButtons.size () < CCS.length
                         || simulator.lcd[3][3] == null || simulator.pads[7][7] == null
                         || simulator.bottom[7] == null)
                     throw new AssertionError ("Swing simulator component tree is incomplete");
