@@ -263,6 +263,7 @@ public final class VirtualPush1RuntimeTest
         require (state.playing, "Play CC did not update the Bitwig transport model");
         setup.flush ();
         drainScheduled (state, 1);
+        factory.flush ();
         require (midi.device ().getCCLed (VirtualPush1Device.PLAY) > 0,
             "Play LED feedback missing: lightsCreated=" + lightsCreated + ", lightsUpdated=" + lightsUpdated
                 + ", scheduled=" + state.scheduled.size () + ", hostErrors=" + state.errors
