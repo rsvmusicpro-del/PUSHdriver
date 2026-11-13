@@ -45,37 +45,13 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Test Push 1 LCD protocol engine
-        run: python3 scripts/test_push1_display.py
-
-      - name: Test Push 1 note repeat and sequencer safety
-        run: python3 scripts/test_push1_modes.py
-
-      - name: Test Push 1 empty-clip playhead guard
-        run: python3 scripts/test_push1_playhead.py
-
-      - name: Test Push 1 directional navigation
-        run: python3 scripts/test_push1_navigation.py
-
-      - name: Test Push 1 In/Out controls
-        run: python3 scripts/test_push1_in_out.py
-
-      - name: Test Push 1 New clip workflow
-        run: python3 scripts/test_push1_new.py
-
-      - name: Test Push 1 scenario wiring
-        run: python3 scripts/test_push1_scenarios.py
-
-      - name: Test Push 1 firmware inquiry parsing
-        run: python3 scripts/test_push1_firmware.py
-
       - name: Build extension
         run: mvn --batch-mode --no-transfer-progress clean package
 
       - name: Verify Push 1-only package
         run: python3 scripts/verify_push1.py
 
-      - name: Smoke-test Bitwig extension discovery
+      - name: Run unified virtual Push 1 simulation suite
         run: python3 scripts/test_push1_extension.py
 
       - name: Prepare Bitwig extension
@@ -113,37 +89,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Test Push 1 LCD protocol engine
-        run: python3 scripts/test_push1_display.py
-
-      - name: Test Push 1 note repeat and sequencer safety
-        run: python3 scripts/test_push1_modes.py
-
-      - name: Test Push 1 empty-clip playhead guard
-        run: python3 scripts/test_push1_playhead.py
-
-      - name: Test Push 1 directional navigation
-        run: python3 scripts/test_push1_navigation.py
-
-      - name: Test Push 1 In/Out controls
-        run: python3 scripts/test_push1_in_out.py
-
-      - name: Test Push 1 New clip workflow
-        run: python3 scripts/test_push1_new.py
-
-      - name: Test Push 1 scenario wiring
-        run: python3 scripts/test_push1_scenarios.py
-
-      - name: Test Push 1 firmware inquiry parsing
-        run: python3 scripts/test_push1_firmware.py
-
       - name: Build extension on Intel macOS
         run: mvn --batch-mode --no-transfer-progress clean package
 
       - name: Verify Push 1-only package
         run: python3 scripts/verify_push1.py
 
-      - name: Smoke-test Bitwig extension discovery on macOS
+      - name: Run unified virtual Push 1 simulation suite on macOS
         run: python3 scripts/test_push1_extension.py
 
   quality-gate:
