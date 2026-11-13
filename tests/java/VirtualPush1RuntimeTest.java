@@ -596,7 +596,16 @@ public final class VirtualPush1RuntimeTest
         require (newClipModel.createCount () == 1 && newClipModel.lastSlotIndex () == 0,
             "New did not wrap its free-slot search to the first slot");
 
+        // A missing cursor track must leave playback untouched and must not
+        // attempt to create a clip. Restore a real cursor track for view tests.
+        newClipModel.resetScenario ();
         newClipModel.setTrackExists (false);
+        newClipModel.setTrackPlaying (true);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.NEW, "New without cursor track");
+        require (newClipModel.createCount () == 0 && newClipModel.stopCount () == 0
+                && newClipModel.isTrackPlaying (),
+            "New without a cursor track changed playback or created a clip");
+        newClipModel.setTrackExists (true);
         modes.setActive (Modes.TRACK);
 
         // Stateful musical model: exercise the production note sequencer,
