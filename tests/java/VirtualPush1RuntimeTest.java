@@ -304,25 +304,25 @@ public final class VirtualPush1RuntimeTest
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("track.volume.inc"),
+        require (MODEL_ACTIONS.contains ("track.changeVolume"),
             "Volume encoder must write the selected track's volume parameter");
         modes.setActive (Modes.PAN);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("track.pan.inc"),
+        require (MODEL_ACTIONS.contains ("track.changePan"),
             "Pan encoder must write the selected track's pan parameter");
         modes.setActive (Modes.CROSSFADER);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("track.crossfade.inc"),
+        require (MODEL_ACTIONS.contains ("track.changeCrossfade"),
             "Crossfade encoder must write the selected track's crossfade parameter");
         modes.setActive (Modes.SEND1);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("track.send.0.inc"),
+        require (MODEL_ACTIONS.contains ("track.send.0.changeValue"),
             "Send 1 encoder must write the selected track's send parameter");
         modes.setActive (Modes.MASTER);
         setup.flush ();
@@ -1192,6 +1192,18 @@ public final class VirtualPush1RuntimeTest
                     return parameterProxy ("track.pan");
                 if (method.getName ().equals ("getCrossfadeParameter"))
                     return parameterProxy ("track.crossfade");
+                if (List.of ("setVolume", "changeVolume", "resetVolume", "touchVolume",
+                    "setPan", "changePan", "resetPan", "touchPan",
+                    "setCrossfade", "changeCrossfade", "resetCrossfade", "touchCrossfade").contains (method.getName ()))
+                {
+                    MODEL_ACTIONS.add ("track." + method.getName ());
+                    return null;
+                }
+                if (method.getName ().equals ("getVolume")) return 64;
+                if (method.getName ().equals ("getPan")) return 64;
+                if (method.getName ().equals ("getCrossfade")) return 64;
+                if (method.getName ().equals ("getVolumeStr")) return "64";
+                if (method.getName ().equals ("getPanStr")) return "64";
                 if (method.getName ().equals ("getSceneBank"))
                     return sceneBank;
                 if (method.getName ().equals ("getSlotBank"))
