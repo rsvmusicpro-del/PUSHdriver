@@ -42,6 +42,7 @@ with ZipFile(jar) as archive:
     required_push1_classes = (
         "de/mossgrabers/controller/ableton/push/controller/Push1Display.class",
         "de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.class",
+        "de/mossgrabers/controller/ableton/push/controller/Push1DisplayGlyphs.class",
         "de/mossgrabers/controller/ableton/push/controller/PushColorManager.class",
         "de/mossgrabers/controller/ableton/push/controller/PushControlSurface.class",
         "de/mossgrabers/controller/ableton/push/PushControllerSetup.class",
