@@ -17,6 +17,9 @@ import de.mossgrabers.framework.controller.hardware.IHwSurfaceFactory;
 import de.mossgrabers.framework.daw.IHost;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.ITransport;
+import de.mossgrabers.framework.daw.IBrowser;
+import de.mossgrabers.framework.daw.data.IBrowserColumn;
+import de.mossgrabers.framework.daw.data.IBrowserColumnItem;
 import de.mossgrabers.framework.daw.data.bank.ITrackBank;
 import de.mossgrabers.framework.daw.data.bank.IDeviceBank;
 import de.mossgrabers.framework.daw.data.bank.IParameterPageBank;
@@ -158,6 +161,7 @@ public final class VirtualPush1RuntimeTest
                         final ISceneBank sceneBank = sceneBankProxy ();
                         final IParameterBank parameterBank = parameterBankProxy ();
                         final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank);
+                        final IBrowser browser = browserProxy ();
                         return Proxy.newProxyInstance (IModel.class.getClassLoader (),
                             new Class<?> [] { IModel.class }, (p, m, a) -> switch (m.getName ())
                             {
@@ -169,6 +173,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
                                 case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
+                                case "getBrowser" -> browser;
                                 default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                             });
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -378,6 +383,29 @@ public final class VirtualPush1RuntimeTest
             setup.flush ();
         }
 
+        // Browser: exercise both filter-column and result selection, the
+        // preset selector, preview chord, and browser content-type paging.
+        modes.setActive (Modes.BROWSER);
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Browser previous filter item");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Browser next filter item");
+        requireAction ("browser.selectPreviousFilterItem:0", "Browser top row must move to the previous filter item");
+        requireAction ("browser.selectNextFilterItem:0", "Browser bottom row must move to the next filter item");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Browser previous result");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "Browser next result");
+        requireAction ("browser.selectPreviousResult", "Browser top-right button must move to the previous result");
+        requireAction ("browser.selectNextResult", "Browser bottom-right button must move to the next result");
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Shift+Browser preview");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        require (MODEL_ACTIONS.contains ("browser.togglePreviewEnabled"),
+            "Shift+top-right Browser button must toggle preview");
+        MODEL_ACTIONS.clear ();
+        for (final int arrow: new int [] { VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT })
+            requireButtonMidiDelivery (midi, arrow, "Browser content type navigation");
+        requireAction ("browser.previousContentType", "Browser Left must move to previous content type");
+        requireAction ("browser.nextContentType", "Browser Right must move to next content type");
+
         // Exercise every registered Push 1 view with real pad note-on,
         // pressure and release traffic through the production bindings.
         final Views [] expectedViews = {
@@ -415,6 +443,75 @@ public final class VirtualPush1RuntimeTest
         System.out.println ("Virtual Push 1 runtime passed: real PushControllerSetup initialized; "
             + "real mode/view/transport commands, Shift chords, pad aftertouch, encoder/touch/ribbon input and LED/LCD feedback passed.");
     }
+
+    private static IBrowser browserProxy ()
+    {
+        final boolean [] preview = { false };
+        return (IBrowser) Proxy.newProxyInstance (IBrowser.class.getClassLoader (),
+            new Class<?> [] { IBrowser.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "isActive": return true;
+                    case "getFilterColumnCount": return 7;
+                    case "getFilterColumn": return browserColumnProxy ((int) args[0]);
+                    case "getResultColumnItems": return browserItems ();
+                    case "getInfoText": return "Type: Instruments";
+                    case "getSelectedContentType": return "Instrument";
+                    case "getSelectedResult": return "Virtual Preset";
+                    case "isPreviewEnabled": return preview[0];
+                    case "togglePreviewEnabled": preview[0] = !preview[0]; return null;
+                    case "nextContentType": case "previousContentType":
+                    case "selectNextResult": case "selectPreviousResult":
+                    case "selectNextFilterItem": case "selectPreviousFilterItem":
+                    case "resetFilterColumn": case "stopBrowsing":
+                        MODEL_ACTIONS.add ("browser." + method.getName ()
+                            + (args == null || args.length == 0 ? "" : ":" + args[0]));
+                        return null;
+                    case "hasPreviousContentType": case "hasNextContentType":
+                        return true;
+                    default:
+                        return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+    }
+
+
+    private static IBrowserColumn browserColumnProxy (final int index)
+    {
+        return (IBrowserColumn) Proxy.newProxyInstance (IBrowserColumn.class.getClassLoader (),
+            new Class<?> [] { IBrowserColumn.class }, (proxy, method, args) -> switch (method.getName ())
+            {
+                case "doesExist", "doesCursorExist" -> true;
+                case "getIndex" -> index;
+                case "getName" -> "Filter " + index;
+                case "getCursorName" -> "All";
+                case "getWildcard" -> "*";
+                case "getItems" -> browserItems ();
+                default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+
+    private static IBrowserColumnItem [] browserItems ()
+    {
+        final IBrowserColumnItem [] items = new IBrowserColumnItem [16];
+        for (int i = 0; i < items.length; i++)
+        {
+            final int index = i;
+            items[i] = (IBrowserColumnItem) Proxy.newProxyInstance (
+                IBrowserColumnItem.class.getClassLoader (), new Class<?> [] { IBrowserColumnItem.class },
+                (proxy, method, args) -> switch (method.getName ())
+                {
+                    case "doesExist" -> true;
+                    case "isSelected" -> index == 0;
+                    case "getName" -> "Browser item " + index;
+                    case "getHitCount" -> 12;
+                    default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                });
+        }
+        return items;
+    }
+
 
     private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters)
     {
