@@ -994,6 +994,8 @@ public final class VirtualPush1RuntimeTest
 
         // Exercise arrows end-to-end in Device mode, where horizontal
         // navigation selects devices and vertical navigation scrolls scenes.
+        final DeviceParamsMode deviceArrowMode = (DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS);
+        deviceArrowMode.setShowDevices (true);
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Device mode for arrows");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Device mode was not active for arrow navigation");
         MODEL_ACTIONS.clear ();
@@ -1007,6 +1009,7 @@ public final class VirtualPush1RuntimeTest
         requireAction ("scene.scrollBackwards", "Up must move one scene backwards");
         requireAction ("scene.scrollForwards", "Down must move one scene forwards");
         navigationContext = false;
+        deviceArrowMode.setShowDevices (false);
 
         // Shift changes arrows from one item to one bank page.
         MODEL_ACTIONS.clear ();
