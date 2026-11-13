@@ -589,6 +589,7 @@ public final class VirtualPush1RuntimeTest
         surface.getViewManager ().setActive (Views.SEQUENCER);
         setup.flush ();
         drainScheduled (state, 1);
+        drainScheduled (state, 6);
         drainScheduled (state, 100);
         require (surface.getViewManager ().getActiveID () == Views.SEQUENCER,
             "Sequencer view did not remain active before pad input");
@@ -618,6 +619,7 @@ public final class VirtualPush1RuntimeTest
         surface.getViewManager ().setActive (Views.POLY_SEQUENCER);
         setup.flush ();
         drainScheduled (state, 1);
+        drainScheduled (state, 6);
         drainScheduled (state, 100);
         midi.device ().pressPad (0, 0, 100);
         midi.device ().releasePad (0, 0);
@@ -636,6 +638,7 @@ public final class VirtualPush1RuntimeTest
         state.lastStepNumber = -1;
         state.lastStepNote = -1;
         surface.getViewManager ().setActive (Views.DRUM);
+        drainScheduled (state, 6);
         drainScheduled (state, 100);
         final AbstractDrumView<?, ?> drumView =
             (AbstractDrumView<?, ?>) surface.getViewManager ().get (Views.DRUM);
@@ -803,6 +806,7 @@ public final class VirtualPush1RuntimeTest
                 }
             setup.flush ();
             drainScheduled (state, 1);
+            drainScheduled (state, 6);
             drainScheduled (state, 100);
             require (midi.device ().getLcdRow (0).length () == 68,
                 "Push 1 LCD output failed while exercising view " + view);
