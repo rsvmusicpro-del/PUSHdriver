@@ -292,7 +292,7 @@ public final class VirtualPush1RuntimeTest
                 + ", trackSlotBanks=" + state.trackSlotBankRequests
                 + ", launches=" + state.slotLaunchCount
                 + ", deletePressed=" + surface.isDeletePressed ()
-                + ", duplicatePressed=" + surface.isDuplicatePressed ()
+                + ", duplicatePressed=" + surface.isPressed (ButtonID.DUPLICATE)
                 + ", selectPressed=" + surface.isSelectPressed () + ")");
         midi.device ().pressButton (VirtualPush1Device.SELECT);
         sessionView.onGridNote (36, 100);
