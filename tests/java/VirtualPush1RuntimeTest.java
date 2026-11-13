@@ -590,6 +590,7 @@ public final class VirtualPush1RuntimeTest
         require (changedPlayheadLeds > 0,
             "Sequencer playhead movement did not update the production pad-grid LED state");
 
+        final int togglesBeforeDrum = musicalModel.toggleCount ();
         viewManager.setActive (Views.DRUM);
         final DrumView drumView = (DrumView) viewManager.get (Views.DRUM);
         drumView.updateNoteMapping ();
@@ -600,7 +601,7 @@ public final class VirtualPush1RuntimeTest
         drumView.onGridNote (36, 0);
         drumView.onGridNote (68, 96);
         drumView.onGridNote (68, 0);
-        require (musicalModel.toggleCount () == 1 && musicalModel.lastToggle ().getStep () == 24,
+        require (musicalModel.toggleCount () == togglesBeforeDrum + 1 && musicalModel.lastToggle ().getStep () == 24,
             "Drum view did not map its sequencer row to the expected clip step: toggles="
                 + musicalModel.toggleCount () + ", last=" + musicalModel.lastToggle ().getStep ()
                 + ", note=" + musicalModel.lastToggle ().getNote ());
