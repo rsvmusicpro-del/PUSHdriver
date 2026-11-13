@@ -29,6 +29,7 @@ This distinction matters: protocol-only pad tests do not prove that the active p
 | RGB feedback | All 64 pads plus 8 lower-row controls; SysEx nibble decoding and invalid-address rejection | Exhaustive addresses |
 | LCD | Four independent 77-byte row frames; all 4 x 68 logical characters; all 128 seven-bit character values; module and logical-cell boundaries; custom glyph preservation | Exhaustive logical character space |
 | Invalid input | MIDI/SysEx ranges, malformed frames, invalid rows/addresses and invalid pad transitions | Boundary cases |
+| Display formatting and firmware identity | Fixed-width LCD text, notification overlay, parameter/pan bars, Ableton firmware identity parsing, malformed identity rejection and DeviceInquiry defensive-copy behavior | Boundary and identity cases |
 | API 17 MIDI adapter | CC, note, aftertouch, pitch bend and SysEx routing; channels 0 and 15; String and byte-array SysEx | Adapter contract |
 | Packaged extension | Push 1-only entry point, API 17, Java 17 bytecode, required classes/resources, forbidden Push 2/foreign code and dependency resolution | Package gate |
 | Reproducible assembly | Repeated generated-source assembly hash comparison | Deterministic assembly |
