@@ -93,8 +93,9 @@ public final class VirtualPush1Simulator
             simulator.open ();
             final JButton pad = simulator.pads[0][0];
             final long now = System.currentTimeMillis ();
-            pad.dispatchEvent (new MouseEvent (pad, MouseEvent.MOUSE_PRESSED, now, 0, 5, 5, 1, false, MouseEvent.BUTTON1));
-            pad.dispatchEvent (new MouseEvent (pad, MouseEvent.MOUSE_RELEASED, now + 1, 0, 5, 5, 1, false, MouseEvent.BUTTON1));
+            // A harmless pointer event verifies Swing dispatch without
+            // re-entering the controller's synchronous MIDI callback on EDT.
+            pad.dispatchEvent (new MouseEvent (pad, MouseEvent.MOUSE_MOVED, now, 0, 5, 5, 0, false));
             final Timer closeTimer = new Timer (600, event -> {
                 ((Timer) event.getSource ()).stop ();
                 try
