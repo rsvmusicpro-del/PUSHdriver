@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
+import de.mossgrabers.controller.ableton.push.controller.Push1DisplayGlyphs;
 
 /**
  * Hardware-independent Ableton Push 1 endpoint emulator.
@@ -378,6 +379,18 @@ public final class VirtualPush1Device
     {
         final String moduleRow = getLcdModuleRow (row, Push1DisplayLayout.moduleForColumn (column));
         return moduleRow.charAt (Push1DisplayLayout.moduleColumn (column));
+    }
+
+    /**
+     * Return the exact extracted 5x8 bitmap for a programmable LCD glyph.
+     * Standard controller-ROM glyphs return null and remain firmware-owned.
+     */
+    public int [] getLcdGlyphBitmap (final int row, final int column)
+    {
+        final int characterCode = getLcdCharacter (row, column);
+        return Push1DisplayGlyphs.isKnownCustomGlyph (characterCode)
+            ? Push1DisplayGlyphs.bitmapRows (characterCode)
+            : null;
     }
 
     public String [] getLcdSnapshot () { return this.lcd.clone (); }
