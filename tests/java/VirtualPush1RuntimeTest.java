@@ -287,7 +287,7 @@ public final class VirtualPush1RuntimeTest
 
         final INoteRepeat noteRepeat = (INoteRepeat) Proxy.newProxyInstance (
             INoteRepeat.class.getClassLoader (), new Class<?> [] { INoteRepeat.class },
-            (proxy, method, args) -> {
+            (proxy, method, callArgs) -> {
                 if (method.getName ().startsWith ("toggle") || method.getName ().startsWith ("set"))
                     state.noteRepeatActions.add (method.getName ());
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
