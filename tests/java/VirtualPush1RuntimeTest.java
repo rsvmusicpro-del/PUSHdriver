@@ -1009,9 +1009,9 @@ public final class VirtualPush1RuntimeTest
         requireAction ("scene.scrollBackwards", "Up must move one scene backwards");
         requireAction ("scene.scrollForwards", "Down must move one scene forwards");
         navigationContext = false;
-        deviceArrowMode.setShowDevices (false);
 
-        // Shift changes arrows from one item to one bank page.
+        // Shift changes Device mode arrows to cursor-device swaps, while
+        // vertical navigation pages the scene bank.
         MODEL_ACTIONS.clear ();
         navigationContext = true;
         midi.device ().pressButton (VirtualPush1Device.SHIFT);
@@ -1020,11 +1020,12 @@ public final class VirtualPush1RuntimeTest
             VirtualPush1Device.UP, VirtualPush1Device.DOWN })
             requireButtonMidiDelivery (midi, arrow, "Shift arrow " + arrow);
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
-        requireAction ("device.selectPreviousPage", "Shift+Left must select the previous device page");
-        requireAction ("device.selectNextPage", "Shift+Right must select the next device page");
+        requireAction ("cursorDevice.swapWithPrevious", "Shift+Left must swap the cursor device with its previous neighbor");
+        requireAction ("cursorDevice.swapWithNext", "Shift+Right must swap the cursor device with its next neighbor");
         requireAction ("scene.selectPreviousPage", "Shift+Up must select the previous scene page");
         requireAction ("scene.selectNextPage", "Shift+Down must select the next scene page");
         navigationContext = false;
+        deviceArrowMode.setShowDevices (false);
 
         // The same arrow controls must retain their intended behavior in the
         // Session view rather than launching clips or leaking into another mode.
@@ -1349,6 +1350,16 @@ public final class VirtualPush1RuntimeTest
                     return false;
                 if (method.getName ().equals ("getPosition"))
                     return 1;
+                if (method.getName ().equals ("swapWithPrevious"))
+                {
+                    MODEL_ACTIONS.add ("cursorDevice.swapWithPrevious");
+                    return null;
+                }
+                if (method.getName ().equals ("swapWithNext"))
+                {
+                    MODEL_ACTIONS.add ("cursorDevice.swapWithNext");
+                    return null;
+                }
                 if (method.getName ().equals ("getParameterBank"))
                     return parameters;
                 if (method.getName ().equals ("getDeviceBank"))
