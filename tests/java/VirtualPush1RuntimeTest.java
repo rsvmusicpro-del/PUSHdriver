@@ -230,6 +230,7 @@ public final class VirtualPush1RuntimeTest
         require (browserModel.filterCursor (0) > filterBefore,
             "Touched Browser encoder did not change the selected filter item");
         browserMode.updateDisplay ();
+        setup.flush ();
         require (midi.device ().getLcdRow (0).contains (">Filter"),
             "Browser selected-column marker was not rendered on the Push 1 LCD: " + midi.device ().getLcdRow (0));
 
