@@ -164,7 +164,7 @@ public final class VirtualPush1ProtocolExhaustiveTest
         expectInvalid (() -> device.receiveSysex ("F0 47 7F 15 1C 00 45 00 " + "20 ".repeat (68) + "F7"));
         expectInvalid (() -> device.receiveSysex ("F0 47 7F 15 18 00 45 00 " + "80 ".repeat (68) + "F7"));
         expectInvalid (() -> device.pressPad (0, 0, 0));
-        expectInvalid (() -> device.pressPadPressure (0, 0, 1));
+        expectIllegalState (() -> device.pressPadPressure (0, 0, 1));
         expectInvalid (() -> device.turnEncoderBy (0, 64));
         expectInvalid (() -> device.moveRibbon (16384));
     }
@@ -184,5 +184,12 @@ public final class VirtualPush1ProtocolExhaustiveTest
         try { action.run (); }
         catch (final IllegalArgumentException expected) { return; }
         throw new AssertionError ("Invalid hardware protocol input was accepted");
+    }
+
+    private static void expectIllegalState (final Runnable action)
+    {
+        try { action.run (); }
+        catch (final IllegalStateException expected) { return; }
+        throw new AssertionError ("Invalid hardware state transition was accepted");
     }
 }
