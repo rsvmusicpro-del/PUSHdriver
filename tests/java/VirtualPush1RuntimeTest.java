@@ -413,15 +413,19 @@ public final class VirtualPush1RuntimeTest
         // Delete removes the addressed slot; Stop+pad stops only its track.
         final MixerModel.SlotState duplicateTarget = mixerModel.slot (0, 6);
         midi.device ().pressButton (VirtualPush1Device.DUPLICATE);
+        require (surface.isPressed (ButtonID.DUPLICATE), "Duplicate button press did not remain held for the pad chord");
         midi.device ().pressPad (0, 0, 100);
         midi.device ().releasePad (0, 0);
         midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
+        require (sessionSlot.hasContent, "Duplicate source clip unexpectedly disappeared");
         midi.device ().pressButton (VirtualPush1Device.DUPLICATE);
+        require (surface.isPressed (ButtonID.DUPLICATE), "Second Duplicate button press did not remain held");
         midi.device ().pressPad (0, 1, 100);
         midi.device ().releasePad (0, 1);
-        midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
         require (duplicateTarget.hasContent && duplicateTarget.pastes == 1,
-            "Duplicate+pad did not paste the selected clip into the target slot");
+            "Duplicate+pad did not paste the selected clip into the target slot; pastes="
+                + duplicateTarget.pastes + ", content=" + duplicateTarget.hasContent);
+        midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
         midi.device ().pressButton (VirtualPush1Device.DELETE);
         midi.device ().pressPad (0, 0, 100);
         midi.device ().releasePad (0, 0);
