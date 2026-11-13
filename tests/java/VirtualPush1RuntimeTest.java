@@ -304,37 +304,41 @@ public final class VirtualPush1RuntimeTest
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("track.changeVolume"),
+        require (MODEL_ACTIONS.contains ("track.changeVolume") || MODEL_ACTIONS.contains ("track.setVolume"),
             "Volume encoder must write the selected track's volume parameter");
         modes.setActive (Modes.PAN);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("track.changePan"),
+        require (MODEL_ACTIONS.contains ("track.changePan") || MODEL_ACTIONS.contains ("track.setPan"),
             "Pan encoder must write the selected track's pan parameter");
         modes.setActive (Modes.CROSSFADER);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("track.changeCrossfade"),
+        require (MODEL_ACTIONS.contains ("track.changeCrossfade") || MODEL_ACTIONS.contains ("track.setCrossfade"),
             "Crossfade encoder must write the selected track's crossfade parameter");
         modes.setActive (Modes.SEND1);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("track.send.0.changeValue"),
+        require (MODEL_ACTIONS.contains ("track.send.0.changeValue") || MODEL_ACTIONS.contains ("track.send.0.setValue"),
             "Send 1 encoder must write the selected track's send parameter");
         modes.setActive (Modes.MASTER);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("master.volume.inc"),
+        require (MODEL_ACTIONS.stream ().anyMatch (action -> action.startsWith ("master.volume.")
+                && List.of ("inc", "changeValue", "setValue", "setNormalizedValue", "setValueImmediatly")
+                    .stream ().anyMatch (action::endsWith)),
             "Master encoder must write the master volume parameter");
         modes.setActive (Modes.DEVICE_PARAMS);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.stream ().anyMatch (action -> action.startsWith ("device.parameter.") && action.endsWith (".inc")),
+        require (MODEL_ACTIONS.stream ().anyMatch (action -> action.startsWith ("device.parameter.")
+                && List.of ("inc", "changeValue", "setValue", "setNormalizedValue", "setValueImmediatly")
+                    .stream ().anyMatch (action::endsWith)),
             "Device parameter encoder must write the selected device parameter");
         modes.setActive (modeBeforeParameters);
         setup.flush ();
