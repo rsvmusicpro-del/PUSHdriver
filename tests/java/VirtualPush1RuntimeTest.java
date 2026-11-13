@@ -18,6 +18,7 @@ import de.mossgrabers.framework.controller.hardware.IHwSurfaceFactory;
 import de.mossgrabers.framework.daw.IHost;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.ITransport;
+import de.mossgrabers.framework.daw.IProject;
 import de.mossgrabers.framework.daw.IBrowser;
 import de.mossgrabers.framework.daw.data.IBrowserColumn;
 import de.mossgrabers.framework.daw.data.bank.ITrackBank;
@@ -26,6 +27,7 @@ import de.mossgrabers.framework.daw.data.bank.IParameterPageBank;
 import de.mossgrabers.framework.daw.data.IDeviceMetadata;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.daw.data.ITrack;
+import de.mossgrabers.framework.daw.data.IMasterTrack;
 import de.mossgrabers.framework.daw.data.ICursorTrack;
 import de.mossgrabers.framework.daw.data.IDrumDevice;
 import de.mossgrabers.framework.daw.data.IDrumPad;
@@ -216,6 +218,8 @@ public final class VirtualPush1RuntimeTest
                         final IDrumPadBank cursorDrumBank = drumPadBankProxy (state);
                         final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank, state, cursorDrumBank);
                         final IDrumDevice drumDevice = drumDeviceProxy (primaryDrumBank);
+                        final IMasterTrack masterTrack = masterTrackProxy ();
+                        final IProject project = projectProxy ();
                         final IBrowser browser = browserProxy (state);
                         final INoteClip noteClip = noteClipProxy (state);
                         final ISlotBank slotBank = slotBankProxy (state);
@@ -232,6 +236,8 @@ public final class VirtualPush1RuntimeTest
                                 case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
                                 case "getDrumDevice" -> drumDevice;
+                                case "getMasterTrack" -> masterTrack;
+                                case "getProject" -> project;
                                 case "canSelectedTrackHoldNotes" -> state.canHoldNotes;
                                 case "getBrowser" -> browser;
                                 case "getNoteClip" -> noteClip;
@@ -312,6 +318,18 @@ public final class VirtualPush1RuntimeTest
         midi.device ().turnEncoderBy (0, 1);
         require (MODEL_ACTIONS.contains ("track.crossfade.setValue"),
             "Crossfade encoder must write the selected track's crossfade parameter");
+        modes.setActive (Modes.SEND1);
+        setup.flush ();
+        MODEL_ACTIONS.clear ();
+        midi.device ().turnEncoderBy (0, 1);
+        require (MODEL_ACTIONS.contains ("track.send.0.setValue"),
+            "Send 1 encoder must write the selected track's send parameter");
+        modes.setActive (Modes.MASTER);
+        setup.flush ();
+        MODEL_ACTIONS.clear ();
+        midi.device ().turnEncoderBy (0, 1);
+        require (MODEL_ACTIONS.contains ("master.volume.setValue"),
+            "Master encoder must write the master volume parameter");
         modes.setActive (Modes.DEVICE_PARAMS);
         setup.flush ();
         MODEL_ACTIONS.clear ();
@@ -886,6 +904,52 @@ public final class VirtualPush1RuntimeTest
             });
     }
 
+    private static ISend sendProxy (final String label)
+    {
+        return (ISend) Proxy.newProxyInstance (ISend.class.getClassLoader (),
+            new Class<?> [] { ISend.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "setValue": case "touchValue": case "inc": case "resetValue":
+                        MODEL_ACTIONS.add (label + "." + method.getName ());
+                        return null;
+                    case "getValue": case "getModulatedValue": case "getDisplayedValue": return 0.5;
+                    case "doesExist": case "isEnabled": return true;
+                    case "getName": return label;
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+    }
+
+    private static IMasterTrack masterTrackProxy ()
+    {
+        return (IMasterTrack) Proxy.newProxyInstance (IMasterTrack.class.getClassLoader (),
+            new Class<?> [] { IMasterTrack.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "getVolumeParameter": return parameterProxy ("master.volume");
+                    case "getPanParameter": return parameterProxy ("master.pan");
+                    case "setVolumeIndication": case "setPanIndication":
+                        MODEL_ACTIONS.add ("master." + method.getName ());
+                        return null;
+                    case "doesExist": return true;
+                    case "getName": return "Master";
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+    }
+
+    private static IProject projectProxy ()
+    {
+        return (IProject) Proxy.newProxyInstance (IProject.class.getClassLoader (),
+            new Class<?> [] { IProject.class }, (proxy, method, args) -> switch (method.getName ())
+            {
+                case "getCueVolumeParameter" -> parameterProxy ("project.cue.volume");
+                case "getCueMixParameter" -> parameterProxy ("project.cue.mix");
+                default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
     private static IParameter parameterProxy (final String label)
     {
         return (IParameter) Proxy.newProxyInstance (IParameter.class.getClassLoader (),
@@ -1109,9 +1173,7 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
-                    return Proxy.newProxyInstance (ISend.class.getClassLoader (),
-                        new Class<?> [] { ISend.class },
-                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                    return sendProxy ("track.send." + args[0]);
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
         return (ITrack) Proxy.newProxyInstance (ITrack.class.getClassLoader (),
