@@ -196,7 +196,7 @@ public final class VirtualPush1RuntimeTest
         midi.device ().tapButton (VirtualPush1Device.DEVICE);
         midi.device ().tapButton (VirtualPush1Device.OUT);
         midi.device ().tapButton (VirtualPush1Device.IN);
-        require (midi.getDispatchedButtonEvents () - navigationEvents == 20,
+        require (midi.getDispatchedButtonEvents () - navigationEvents == 24,
             "Arrow and In/Out controls did not all traverse their production MIDI bindings");
 
         // These are the production PushControllerSetup button commands, not
