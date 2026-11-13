@@ -62,9 +62,11 @@ public final class VirtualPush1Device
     public static final int CLIP = 113;
     public static final int VOLUME = 114;
     public static final int PAN_SEND = 115;
+    /** Upper physical selector row on Push 1 (CC 20-27). */
     public static final int TOP_ROW_FIRST = 20;
     public static final int MASTER = 28;
     public static final int STOP = 29;
+    /** Lower physical selector row on Push 1 (CC 102-109). */
     public static final int BOTTOM_ROW_FIRST = 102;
     public static final int REPEAT_BUTTON_FIRST = 36;
     public static final int SELECT = 48;

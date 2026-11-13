@@ -19,6 +19,8 @@ if api is None:
     raise SystemExit("Bitwig Extension API 17 JAR was not found in Maven's local repositories")
 
 classpath = os.pathsep.join((str(extension), str(api)))
+
+subprocess.run([sys.executable, str(root / "scripts/test_menu_button_alignment.py")], cwd=root, check=True)
 test_sources = (
     root / "tests/java/VirtualPush1MidiBench.java",
     root / "tests/java/VirtualPush1Device.java",
@@ -28,6 +30,7 @@ test_sources = (
     root / "tests/java/VirtualPush1FirmwareVersionTest.java",
     root / "tests/java/VirtualPush1DisplayValueFormatterTest.java",
     root / "tests/java/VirtualPush1DisplayTextTest.java",
+    root / "tests/java/ChordStrummingEngineTest.java",
     root / "tests/java/VirtualPush1RuntimeTest.java",
     root / "tests/java/VirtualPush1Simulator.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
