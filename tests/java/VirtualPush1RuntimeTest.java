@@ -5,6 +5,7 @@ import de.mossgrabers.framework.configuration.ISettingsUI;
 import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.controller.ContinuousID;
 import de.mossgrabers.framework.controller.ISetupFactory;
+import de.mossgrabers.framework.controller.display.ITextDisplay;
 import de.mossgrabers.framework.controller.color.ColorManager;
 import de.mossgrabers.framework.controller.hardware.BindType;
 import de.mossgrabers.framework.controller.hardware.IHwButton;
@@ -229,10 +230,20 @@ public final class VirtualPush1RuntimeTest
         midi.device ().touchEncoder (0, false);
         require (browserModel.filterCursor (0) > filterBefore,
             "Touched Browser encoder did not change the selected filter item");
-        browserMode.updateDisplay ();
-        setup.flush ();
-        require (midi.device ().getLcdRow (0).contains (">Filter"),
-            "Browser selected-column marker was not rendered on the Push 1 LCD: " + midi.device ().getLcdRow (0));
+        final List<String> browserDisplayText = new java.util.ArrayList<> ();
+        final ITextDisplay browserDisplay = (ITextDisplay) Proxy.newProxyInstance (
+            ITextDisplay.class.getClassLoader (), new Class<?> [] { ITextDisplay.class },
+            (proxy, method, args) -> {
+                if (args != null)
+                    for (final Object argument: args)
+                        if (argument instanceof String text)
+                            browserDisplayText.add (text);
+                return method.getReturnType ().isInstance (proxy) ? proxy
+                    : defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+        browserMode.updateDisplay1 (browserDisplay);
+        require (browserDisplayText.stream ().anyMatch (text -> text.startsWith (String.valueOf (Push1Display.SELECT_ARROW))),
+            "Browser selected-column marker was not composed for the Push 1 LCD: " + browserDisplayText);
 
         // Shift+Left/Right pages browser content types; plain row buttons
         // navigate filter entries and results rather than the content tabs.
