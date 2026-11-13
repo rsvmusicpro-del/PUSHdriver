@@ -562,11 +562,11 @@ replace_once(touchstrip,
 # that absent service.
 note_repeat_setup = root / "src/main/java/de/mossgrabers/framework/controller/AbstractControllerSetup.java"
 replace_once(note_repeat_setup,
-    "        final INoteRepeat noteRepeat = defaultNoteInput.getNoteRepeat ();\\n"
+    "        final INoteRepeat noteRepeat = defaultNoteInput.getNoteRepeat ();\n"
     "        conf.addSettingObserver (AbstractConfiguration.NOTEREPEAT_ACTIVE, () -> noteRepeat.setActive (conf.isNoteRepeatActive ()));",
-    "        final INoteRepeat noteRepeat = defaultNoteInput.getNoteRepeat ();\\n"
-    "        if (noteRepeat == null)\\n"
-    "            return;\\n"
+    "        final INoteRepeat noteRepeat = defaultNoteInput.getNoteRepeat ();\n"
+    "        if (noteRepeat == null)\n"
+    "            return;\n"
     "        conf.addSettingObserver (AbstractConfiguration.NOTEREPEAT_ACTIVE, () -> noteRepeat.setActive (conf.isNoteRepeatActive ()));",
     "Controller setup optional Note Repeat service guard")
 
