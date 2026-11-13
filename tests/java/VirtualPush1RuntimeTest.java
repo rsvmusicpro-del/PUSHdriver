@@ -122,6 +122,9 @@ public final class VirtualPush1RuntimeTest
         int sceneRemoveCount;
         int sceneDuplicateCount;
         int sceneSelectedIndex = -1;
+        int slotLaunchCount;
+        int slotLaunchImmediatelyCount;
+        int slotSelectCount;
         final List<String> browserActions = new java.util.ArrayList<> ();
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
@@ -275,6 +278,14 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
         require (state.sceneDuplicateCount == 1,
             "Duplicate+Scene must duplicate the selected scene instead of launching it");
+        sessionView.onGridNote (36, 0);
+        require (state.slotLaunchCount == 1,
+            "Session pad release must launch the corresponding clip slot");
+        midi.device ().pressButton (VirtualPush1Device.SELECT);
+        sessionView.onGridNote (36, 100);
+        midi.device ().releaseButton (VirtualPush1Device.SELECT);
+        require (state.slotLaunchImmediatelyCount == 1,
+            "Select+Session pad press must launch the clip slot immediately");
 
         // Browser filter columns and preset-result navigation are stateful
         // model interactions, not merely a registered-mode smoke check.
@@ -881,29 +892,45 @@ public final class VirtualPush1RuntimeTest
             });
     }
 
-    private static ISlot slotProxy (final int index)
+    private static ISlot slotProxy (final State state, final int index)
     {
         return (ISlot) Proxy.newProxyInstance (ISlot.class.getClassLoader (),
             new Class<?> [] { ISlot.class }, (proxy, method, args) -> {
-                if (method.getName ().equals ("getIndex"))
-                    return index;
-                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                switch (method.getName ())
+                {
+                    case "getIndex": return index;
+                    case "hasContent": return false;
+                    case "testAndClearLaunchedImmediately": return false;
+                    case "launch":
+                        state.slotLaunchCount++;
+                        return null;
+                    case "launchImmediately":
+                        state.slotLaunchImmediatelyCount++;
+                        return null;
+                    case "select":
+                        state.slotSelectCount++;
+                        return null;
+                    case "getName": return "Virtual Clip";
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
             });
     }
 
     private static ISlotBank slotBankProxy (final State state)
     {
-        final ISlot selected = slotProxy (state.selectedSlotIndex < 0 ? 0 : state.selectedSlotIndex);
-        final ISlot empty = slotProxy (state.selectedSlotIndex < 0 ? 0 : state.selectedSlotIndex);
         return (ISlotBank) Proxy.newProxyInstance (ISlotBank.class.getClassLoader (),
             new Class<?> [] { ISlotBank.class }, (proxy, method, args) -> {
                 if (method.getName ().equals ("getSelectedItem"))
-                    return state.selectedSlotIndex < 0 ? Optional.empty () : Optional.of (selected);
+                    return state.selectedSlotIndex < 0
+                        ? Optional.empty () : Optional.of (slotProxy (state, state.selectedSlotIndex));
                 if (method.getName ().equals ("getEmptySlot"))
                 {
                     state.lastEmptySearchStart = (int) args[0];
-                    return state.emptySlotAvailable ? Optional.of (empty) : Optional.empty ();
+                    return state.emptySlotAvailable
+                        ? Optional.of (slotProxy (state, Math.max (0, state.selectedSlotIndex))) : Optional.empty ();
                 }
+                if (method.getName ().equals ("getItem"))
+                    return slotProxy (state, (int) args[0]);
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -947,6 +974,10 @@ public final class VirtualPush1RuntimeTest
                     return sendBank;
                 if (method.getName ().equals ("getSceneBank"))
                     return sceneBank;
+                if (method.getName ().equals ("getSlotBank"))
+                    return slotBankProxy (state);
+                if (method.getName ().equals ("isRecArm"))
+                    return false;
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
