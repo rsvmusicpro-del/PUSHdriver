@@ -662,12 +662,6 @@ public final class VirtualPush1RuntimeTest
             (proxy, method, args) -> {
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
-                if (method.getName ().equals ("getDrumPadBank"))
-                    return drumPadBank;
-                if (method.getName ().equals ("isNested"))
-                    return false;
-                if (method.getName ().equals ("getPosition"))
-                    return 1;
                 if (method.getName ().equals ("getItem"))
                     return Proxy.newProxyInstance (de.mossgrabers.framework.daw.data.IDevice.class.getClassLoader (),
                         new Class<?> [] { de.mossgrabers.framework.daw.data.IDevice.class },
@@ -695,6 +689,12 @@ public final class VirtualPush1RuntimeTest
             });
         return (ICursorDevice) Proxy.newProxyInstance (ICursorDevice.class.getClassLoader (),
             new Class<?> [] { ICursorDevice.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getDrumPadBank"))
+                    return drumPadBank;
+                if (method.getName ().equals ("isNested"))
+                    return false;
+                if (method.getName ().equals ("getPosition"))
+                    return 1;
                 if (method.getName ().equals ("getParameterBank"))
                     return parameters;
                 if (method.getName ().equals ("getDeviceBank"))
