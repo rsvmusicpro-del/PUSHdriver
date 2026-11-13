@@ -282,6 +282,10 @@ public final class VirtualPush1RuntimeTest
         // Poly-aftertouch must travel from the virtual pad pressure sensor
         // through the active Play view command and back to MIDI output.
         drainScheduled (state, 6);
+        final int [] playNoteMap = new int [128];
+        Arrays.fill (playNoteMap, -1);
+        playNoteMap[36] = 60;
+        surface.getViewManager ().get (Views.PLAY).getKeyManager ().setNoteMatrix (playNoteMap);
         MODEL_ACTIONS.clear ();
         final int outputBeforeAftertouch = midi.capturedOutput ().size ();
         midi.device ().pressPad (0, 0, 100);
