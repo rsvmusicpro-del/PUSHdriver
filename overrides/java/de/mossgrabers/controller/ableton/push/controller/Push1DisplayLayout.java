@@ -26,6 +26,8 @@ public final class Push1DisplayLayout
     public static final int BLOCKS_PER_ROW = MODULE_COUNT;
     public static final int BLOCK_WIDTH = MODULE_COLUMNS;
     public static final int CELL_TEXT_WIDTH = 8;
+    public static final int GLYPH_PIXEL_WIDTH = 5;
+    public static final int GLYPH_PIXEL_HEIGHT = 8;
 
     private Push1DisplayLayout ()
     {
