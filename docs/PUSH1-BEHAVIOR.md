@@ -55,7 +55,7 @@ The runtime scenarios cover Device/Track/Volume/Clip modes, Note/Session view se
 The protocol suite now has two levels:
 
 - `VirtualPush1DeviceTest` checks the hardware model's baseline mapping, state transitions, malformed input rejection and feedback decoding.
-- `VirtualPush1DisplayLayoutTest` checks the exact four-module construction, all 272 global character positions, module-local coordinates, all eight 9/8-width cells per row, and preservation of Push-specific seven-bit glyph codes through the production LCD SysEx encoder and virtual hardware decoder.
+- `VirtualPush1DisplayLayoutTest` checks the exact four-module construction, all 272 global character positions, module-local coordinates, all eight 9/8-width cells per row, preservation of Push-specific seven-bit glyph codes through the production LCD SysEx encoder and virtual hardware decoder, and the eight extracted 5×8 custom-glyph bitmaps.
 - `VirtualPush1ProtocolExhaustiveTest` exhaustively walks all 64 pad addresses and pressure boundaries, every declared Push 1 button CC press/release, all 11 encoder/touch identities and signed movement limits, all 72 RGB output addresses (64 pads + 8 lower-row buttons), every LCD row and all 128 seven-bit character values, plus malformed/out-of-range SysEx and invalid control values.
 - `VirtualPush1MidiBench` checks API output channels 0 and 15, String and byte-array SysEx, and distinguishes LCD frames from other Push 1 system SysEx.
 - `VirtualPush1RuntimeTest` exercises the real controller setup and registered production bindings against deterministic virtual host/model collaborators.
