@@ -58,14 +58,14 @@ The following behaviors are implemented in the production adaptation. The labels
 
 | Feature | Production implementation / current evidence | Remaining semantic proof in the virtual host |
 |---|---|---|
-| Push 1 firmware identity | `Push1FirmwareVersion` parser and hardened `DeviceInquiry` are production code | Test valid Ableton identity, manufacturer mismatch, malformed digits/data, defensive copies and query immutability |
-| LCD geometry, glyphs and framing | Shared production geometry/protocol and exhaustive logical character tests | Formatting helpers and firmware parser are included in the unified runtime suite |
+| Push 1 firmware identity | `Push1FirmwareVersion` parser and hardened `DeviceInquiry` are production code | Unified suite tests valid Ableton identities, manufacturer mismatch, malformed digits/data, defensive copies and query immutability |
+| LCD geometry, glyphs and framing | Shared production geometry/protocol and exhaustive logical character tests | Unified suite also tests fixed-width labels, seven-bit sanitization, notification overlay and eight-cell value/pan bars |
 | Navigation and Shift paging | Production `PushCursorCommand`, page commands; Device and Session actions asserted | Exercise first/last boundaries, empty banks, all view-specific contexts and LED/action parity |
-| In/Out | Production Device/Browser context handling; Device item and parameter-page actions asserted | Stateful Browser filter-column selection, marker movement, empty columns and LED availability |
+| In/Out and Browser | Production Device/Browser context handling; Device item and parameter-page actions asserted | Stateful Browser tests cover previous/next filter items, previous/next preset results, encoder-selected filter movement and Shift+Preview; empty columns, selection-marker rendering and LED availability remain additional edge cases |
 | New clip | Production `PushNewCommand` wrapper | Unified runtime now uses a stateful cursor-track/slot model to assert selected-slot search, stop-before-create on the cursor track, normal overdub, Shift+New without overdub, no-slot fallback without stopping playback |
 | Note Repeat | Production mode and null-safe optional service handling; package verifier checks safe LED path | Available, absent and late-created service states; mode entry, repeat controls, ribbon and feedback |
 | Drum / Drum4 / Drum8 / Drum64 | Production views and modes are registered and traversed by the complete command-dispatch matrix | Stateful drum-note/pad map, selected drum pad, note assignment, layout transitions and LED feedback |
-| Sequencer / Poly Sequencer | Production views are registered and traversed by the complete command-dispatch matrix; mono sequencer playhead-follow assertions now use an existing/empty note-clip model | Stateful clip/step/note model for step editing, selected step, manual page lock/unlock, loop gestures and Poly Sequencer musical behavior |
+| Sequencer / Poly Sequencer | Production views are registered and traversed by the complete command-dispatch matrix; mono sequencer playhead-follow assertions use an existing/empty note-clip model | Stateful clip/step/note model for step editing, selected step, manual page lock/unlock, loop gestures and Poly Sequencer musical behavior |
 | Track, mixer, sends, master, device and clip modes | Production modes and command matrix are exercised | Stateful bank models for first/last items, empty banks, unavailable actions, selection changes and context transitions |
 | Swing simulator | GUI can be launched from the same virtual device and MIDI bench | Display-backed CI smoke test for construction, event dispatch, repaint and clean close is not yet automated |
 
