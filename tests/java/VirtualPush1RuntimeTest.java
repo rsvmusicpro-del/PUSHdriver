@@ -557,11 +557,12 @@ public final class VirtualPush1RuntimeTest
         surface.getViewManager ().setActive (Views.DRUM);
         final AbstractDrumView<?, ?> drumView =
             (AbstractDrumView<?, ?>) surface.getViewManager ().get (Views.DRUM);
-        drumView.onGridNote (37, 100);
+        midi.device ().pressPad (0, 1, 100);
+        midi.device ().releasePad (0, 1);
         require (drumView.getSelectedPad () == 1, "Drum 4 pad mapping must select the expected lower-block pad");
         ((AbstractSequencerView<?, ?>) drumView).setSequencerActive (true);
-        drumView.onGridNote (68, 100);
-        drumView.onGridNote (68, 0);
+        midi.device ().pressPad (4, 0, 100);
+        midi.device ().releasePad (4, 0);
         require (state.stepToggleCount == 1 && state.lastStepNumber == 24,
             "Drum sequencer grid must toggle the expected clip step on pad release");
         require (state.lastStepNote >= 0,
@@ -570,7 +571,8 @@ public final class VirtualPush1RuntimeTest
         surface.getViewManager ().setActive (Views.DRUM8);
         final AbstractDrumView<?, ?> drum8View =
             (AbstractDrumView<?, ?>) surface.getViewManager ().get (Views.DRUM8);
-        drum8View.onGridNote (38, 100);
+        midi.device ().pressPad (0, 2, 100);
+        midi.device ().releasePad (0, 2);
         require (drum8View.getSelectedPad () >= 0,
             "Drum 8 pad grid must map a valid selected pad");
 
