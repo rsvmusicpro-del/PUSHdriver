@@ -406,12 +406,9 @@ public final class VirtualPush1RuntimeTest
         // The production mode must tolerate absence and resolve the service if
         // Bitwig creates it after controller startup.
         require (midi.input ().getDefaultNoteInput () != null
-                && midi.input ().getDefaultNoteInput ().getNoteRepeat () == midi.noteRepeat (),
-            "Virtual MIDI input did not expose its initial Note Repeat service");
+                && midi.input ().getDefaultNoteInput ().getNoteRepeat () == null,
+            "Virtual MIDI input should begin without the optional Note Repeat service");
         require (modes.get (Modes.REPEAT_NOTE) != null, "Note Repeat mode was not registered");
-        midi.setNoteRepeatAvailable (false);
-        require (midi.input ().getDefaultNoteInput ().getNoteRepeat () == null,
-            "Virtual MIDI input did not model temporary Note Repeat service absence");
         modes.setActive (Modes.REPEAT_NOTE);
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Note Repeat latch without service");
         require (!midi.noteRepeat ().isLatchActive (),
