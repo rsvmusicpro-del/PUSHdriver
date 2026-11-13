@@ -1070,12 +1070,16 @@ public final class VirtualPush1RuntimeTest
             new Class<?> [] { IParameter.class }, (proxy, method, args) -> {
                 switch (method.getName ())
                 {
-                    case "setValue": case "touchValue": case "inc": case "resetValue":
+                    case "setValue": case "setValueImmediatly": case "setNormalizedValue":
+                    case "changeValue": case "touchValue": case "inc": case "resetValue":
                         MODEL_ACTIONS.add (label + "." + method.getName ());
                         return null;
-                    case "getValue": case "getModulatedValue": case "getDisplayedValue": return 0.5;
+                    case "getValue": case "getModulatedValue": return 64;
+                    case "getDisplayedValue": return "64";
                     case "doesExist": case "isEnabled": return true;
                     case "getName": return label;
+                    case "getIndex": return 0;
+                    case "getId": return label;
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 }
             });
