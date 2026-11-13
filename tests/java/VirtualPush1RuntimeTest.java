@@ -322,6 +322,7 @@ public final class VirtualPush1RuntimeTest
         // Use a note-capable cursor track for both Note/Session view transitions.
         musicalModel.setCanHoldNotes (true);
         require (newClipModel.cursorTrack ().doesExist (), "Virtual cursor track should exist before Note/Session view selection");
+        surface.getViewManager ().setActive (Views.PLAY);
         surface.getViewManager ().setPreferredView (newClipModel.cursorTrack ().getPosition (), Views.PLAY);
         midi.device ().tapButton (VirtualPush1Device.NOTE);
         require (Views.isNoteView (surface.getViewManager ().getActiveID ()), "Note CC did not select a note view");
