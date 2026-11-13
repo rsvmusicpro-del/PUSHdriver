@@ -291,22 +291,6 @@ for mode_name in ("FixedMode", "NoteMode"):
                      "this.isButtonRow (1, buttonID)",
                      "NoteMode option LED row alignment completion")
 
-        # Compact the four available Note Mode pages into the first four LCD
-        # columns. The parameter/encoder columns remain unchanged; only the
-        # page selector label, lower-row event and its LED move from column 7
-        # to column 3.
-        replace_once(mode_path,
-            '        "Repeat",\n        " ",\n        " ",\n        " ",\n        " ",\n        "Recurr. Pattern"',
-            '        "Repeat",\n        "Recurr. Pattern",\n        " ",\n        " ",\n        " ",\n        " "',
-            "NoteMode compact contiguous page labels")
-        replace_once(mode_path,
-            "            case 7:\n                if (this.host.supports (NoteAttribute.RECURRENCE_LENGTH))\n                    this.page = Page.RECCURRENCE_PATTERN;",
-            "            case 3:\n                if (this.host.supports (NoteAttribute.RECURRENCE_LENGTH))\n                    this.page = Page.RECCURRENCE_PATTERN;",
-            "NoteMode recurrence page selector moved to column four")
-        replace_once(mode_path,
-            "                    case RECCURRENCE_PATTERN:\n                        if (index == 7)\n                            return this.colorManager.getColorIndex (PushColorManager.PUSH_GREEN_2);",
-            "                    case RECCURRENCE_PATTERN:\n                        if (index == 3)\n                            return this.colorManager.getColorIndex (PushColorManager.PUSH_GREEN_2);",
-            "NoteMode recurrence page LED moved to column four")
 
 # Apply the small, reviewed Push 1 protocol override maintained by this project.
 shutil.copytree(root / "overrides/java", root / "src/main/java", dirs_exist_ok=True)
@@ -1032,6 +1016,46 @@ replace_once(configuration, "        Views.RAINDROPS,\n", "",
 note_view_select = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteViewSelectMode.java"
 replace_once(note_view_select, "        Views.RAINDROPS,\n", "        null,\n",
     "NoteViewSelectMode Raindrops slot")
+
+# Arrange every supported game view in two balanced, contiguous left-aligned rows.
+# Keep Clip Length and Program Change in their original lower-row positions (7, 8).
+# The remaining cells are deliberately reserved for future Note Mode entries.
+replace_once(note_view_select,
+    "        Views.PLAY,\n"
+    "        Views.CHORDS,\n"
+    "        Views.PIANO,\n"
+    "        Views.DRUM64,\n"
+    "        null,\n"
+    "        null,\n"
+    "        Views.CLIP_LENGTH,\n"
+    "        Views.PRG_CHANGE\n",
+    "        Views.PLAY,\n"
+    "        Views.DRUM,\n"
+    "        Views.DRUM64,\n"
+    "        Views.DRUM4,\n"
+    "        Views.DRUM8,\n"
+    "        null,\n"
+    "        Views.CLIP_LENGTH,\n"
+    "        Views.PRG_CHANGE\n",
+    "NoteViewSelectMode bottom game-view row")
+replace_once(note_view_select,
+    "        Views.SEQUENCER,\n"
+    "        Views.POLY_SEQUENCER,\n"
+    "        null,\n"
+    "        Views.DRUM,\n"
+    "        Views.DRUM4,\n"
+    "        Views.DRUM8,\n"
+    "        null,\n"
+    "        null\n",
+    "        Views.SEQUENCER,\n"
+    "        Views.POLY_SEQUENCER,\n"
+    "        Views.PIANO,\n"
+    "        Views.CHORDS,\n"
+    "        null,\n"
+    "        null,\n"
+    "        null,\n"
+    "        null\n",
+    "NoteViewSelectMode top game-view row")
 
 layout = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/trigger/LayoutCommand.java"
 replace_once(layout,
