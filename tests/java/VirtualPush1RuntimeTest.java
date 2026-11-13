@@ -304,37 +304,37 @@ public final class VirtualPush1RuntimeTest
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("track.volume.setValue"),
+        require (MODEL_ACTIONS.contains ("track.volume.inc"),
             "Volume encoder must write the selected track's volume parameter");
         modes.setActive (Modes.PAN);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("track.pan.setValue"),
+        require (MODEL_ACTIONS.contains ("track.pan.inc"),
             "Pan encoder must write the selected track's pan parameter");
         modes.setActive (Modes.CROSSFADER);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("track.crossfade.setValue"),
+        require (MODEL_ACTIONS.contains ("track.crossfade.inc"),
             "Crossfade encoder must write the selected track's crossfade parameter");
         modes.setActive (Modes.SEND1);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("track.send.0.setValue"),
+        require (MODEL_ACTIONS.contains ("track.send.0.inc"),
             "Send 1 encoder must write the selected track's send parameter");
         modes.setActive (Modes.MASTER);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("master.volume.setValue"),
+        require (MODEL_ACTIONS.contains ("master.volume.inc"),
             "Master encoder must write the master volume parameter");
         modes.setActive (Modes.DEVICE_PARAMS);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.stream ().anyMatch (action -> action.startsWith ("device.parameter.") && action.endsWith (".setValue")),
+        require (MODEL_ACTIONS.stream ().anyMatch (action -> action.startsWith ("device.parameter.") && action.endsWith (".inc")),
             "Device parameter encoder must write the selected device parameter");
         modes.setActive (modeBeforeParameters);
         setup.flush ();
@@ -910,12 +910,16 @@ public final class VirtualPush1RuntimeTest
             new Class<?> [] { ISend.class }, (proxy, method, args) -> {
                 switch (method.getName ())
                 {
-                    case "setValue": case "touchValue": case "inc": case "resetValue":
+                    case "setValue": case "setValueImmediatly": case "setNormalizedValue":
+                    case "changeValue": case "touchValue": case "inc": case "resetValue":
                         MODEL_ACTIONS.add (label + "." + method.getName ());
                         return null;
-                    case "getValue": case "getModulatedValue": case "getDisplayedValue": return 0.5;
+                    case "getValue": case "getModulatedValue": return 64;
+                    case "getDisplayedValue": return "64";
                     case "doesExist": case "isEnabled": return true;
                     case "getName": return label;
+                    case "getIndex": return 0;
+                    case "getId": return label;
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 }
             });
