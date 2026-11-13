@@ -280,7 +280,10 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
         require (state.sceneDuplicateCount == 1,
             "Duplicate+Scene must duplicate the selected scene instead of launching it");
-        surface.getViewManager ().setActive (Views.SESSION);
+        final Views viewBeforeSessionPads = surface.getViewManager ().getActiveID ();
+        midi.device ().tapButton (VirtualPush1Device.SESSION);
+        require (Views.isSessionView (surface.getViewManager ().getActiveID ()),
+            "Session button must activate the Session view before slot tests");
         midi.device ().releaseButton (VirtualPush1Device.DELETE);
         midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
@@ -299,6 +302,9 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releaseButton (VirtualPush1Device.SELECT);
         require (state.slotLaunchImmediatelyCount == 1,
             "Select+Session pad press must launch the clip slot immediately");
+        midi.device ().releaseButton (VirtualPush1Device.SESSION);
+        require (surface.getViewManager ().getActiveID () == viewBeforeSessionPads,
+            "Releasing the temporary Session view must restore the previously active view");
 
         // Browser filter columns and preset-result navigation are stateful
         // model interactions, not merely a registered-mode smoke check.
