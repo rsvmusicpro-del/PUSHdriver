@@ -27,8 +27,8 @@ These are not silently treated as passed merely because the general command bind
 
 | Area | Current evidence | Remaining work for stronger coverage |
 |---|---|---|
-| Browser mode semantics | Browser mode is registered; the generic binding matrix exercises registered commands | Build a stateful API-17 browser/filter-column host model and assert In/Out column movement, selection marker and LED availability end-to-end |
-| New clip workflow | Production PushNewCommand is installed; current runtime host model does not fully model cursor-track slot banks and clip creation | Add stateful track/slot/clip/overdub model; test free-slot search, playing-clip stop on cursor track only, no-slot fallback, Shift+New and preservation of other tracks |
+| Browser mode semantics | Stateful API-17 IBrowser model driven through production MIDI bindings | Top/bottom row filter and result selection, touched-encoder filter navigation, Shift+Left/Right content-type paging, LCD selection marker and filter-button LED availability |
+| New clip workflow | Stateful API-17 cursor-track/slot-bank model driven through the production New binding | Free-slot search from selected slot, stop only the playing cursor track after a slot is found, preserve other-track playback, Shift+New overdub disabled, and no-slot fallback without stopping playback |
 | Note Repeat | Source guards optional MIDI-input / Note Repeat service absence; package verifier checks the null-safe LED path | Model absent, late-created and available INoteRepeat; exercise mode entry, controls, ribbon and feedback in each state |
 | Drum / Drum64 / sequencer musical semantics | Production view/mode registrations and generic binding matrix are exercised | Add note/step/clip/scene state models and assert pad-to-note mapping, selected-step behavior, playhead follow, drum layout and LED feedback in representative modes |
 | Browser, mixer, track, device and clip edge cases | Some Device/Session/transport scenarios are asserted directly | Add stateful model assertions for empty banks, first/last item boundaries, unavailable actions and context switching |
@@ -42,4 +42,4 @@ Ordinary feature work should be validated by this virtual bench and its CI regre
 
 ## Merge protection requirement
 
-The workflow's final check is named quality-gate. GitHub must require this check on branch custom, and direct pushes must be restricted, for the gate to be genuinely mandatory before merging. The branch was inspected during this audit and currently reports protected: false; the repository integration available to this session can inspect protection but cannot create or update branch-protection rules. Do not describe the gate as mandatory until that repository setting has been enabled and re-read successfully.
+The workflow's final check is named quality-gate. GitHub must require this check on branch custom, and direct pushes must be restricted, for the gate to be genuinely mandatory before merging. The latest GitHub branch metadata reports `protected: false`; its accompanying protection summary still lists `quality-gate` as a required context, so the API fields are inconsistent. Treat the gate as a CI workflow check, not as confirmed server-side merge enforcement, until the repository's branch/ruleset settings are inspected in GitHub.
