@@ -586,6 +586,32 @@ public final class VirtualPush1RuntimeTest
     }
 
 
+    private static ISendBank sendBankProxy ()
+    {
+        return (ISendBank) Proxy.newProxyInstance (ISendBank.class.getClassLoader (),
+            new Class<?> [] { ISendBank.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getPageSize"))
+                    return 8;
+                if (method.getName ().equals ("getItem"))
+                    return sendProxy ();
+                if (method.getName ().equals ("getSelectedItem"))
+                    return Optional.of (sendProxy ());
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+
+    private static ISend sendProxy ()
+    {
+        return (ISend) Proxy.newProxyInstance (ISend.class.getClassLoader (),
+            new Class<?> [] { ISend.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("doesExist"))
+                    return true;
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+
     private static ILayer layerProxy ()
     {
         return (ILayer) Proxy.newProxyInstance (ILayer.class.getClassLoader (),
