@@ -58,7 +58,7 @@ public final class VirtualPush1Simulator
     private final JTextArea log = new JTextArea (8, 72);
     private JFrame frame;
     private Timer feedbackTimer;
-    private boolean closed;
+    private volatile boolean closed;
     private final JSlider pressure = new JSlider (0, 127, 0);
     private final JSlider velocity = new JSlider (1, 127, 100);
     private final JCheckBox holdPad = new JCheckBox ("Hold selected pad for aftertouch");
@@ -110,6 +110,17 @@ public final class VirtualPush1Simulator
             });
             closeTimer.setRepeats (false);
             closeTimer.start ();
+            final Thread watchdog = new Thread (() -> {
+                try { Thread.sleep (5000); }
+                catch (final InterruptedException ignored) { Thread.currentThread ().interrupt (); }
+                if (!simulator.closed)
+                {
+                    System.err.println ("Virtual Push 1 Swing simulator did not close within the smoke-test deadline");
+                    System.exit (1);
+                }
+                System.exit (0);
+            }, "virtual-push1-gui-smoke-watchdog");
+            watchdog.start ();
         });
     }
 
