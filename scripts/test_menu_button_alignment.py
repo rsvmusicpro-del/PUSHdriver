@@ -14,4 +14,9 @@ if "this.isButtonRow (1, buttonID)" not in (base / "FixedMode.java").read_text(e
 note = (base / "NoteMode.java").read_text(encoding="utf-8")
 assert note.count("this.isButtonRow (1, buttonID)") >= 1, "NoteMode upper LCD options must use the upper physical selector row"
 assert note.count("this.isButtonRow (0, buttonID)") >= 1, "NoteMode lower LCD page options must use the lower physical selector row"
-print("Push 1 Fixed Length / Note Mode selector alignment: PASS")
+
+assert '        "Repeat",\n        "Recurr. Pattern",\n        " ",\n        " ",\n        " ",\n        " "' in note, "Note Mode pages must occupy four contiguous leftmost LCD columns"
+assert "case 3:\n                if (this.host.supports (NoteAttribute.RECURRENCE_LENGTH))\n                    this.page = Page.RECCURRENCE_PATTERN;" in note, "Recurrence Pattern must be selected by the fourth lower-row button"
+assert "case RECCURRENCE_PATTERN:\n                        if (index == 3)\n                            return this.colorManager.getColorIndex (PushColorManager.PUSH_GREEN_2);" in note, "Recurrence Pattern selection LED must follow its relocated button"
+
+print("Push 1 menu layout, selector and LED alignment: PASS")
