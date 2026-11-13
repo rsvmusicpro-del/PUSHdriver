@@ -82,6 +82,12 @@ public final class VirtualPush1RuntimeTest
 
     public static void main (final String [] args)
     {
+        // Protocol and device-contract checks are subtests of the same virtual
+        // Push bench entry point; none opens a separate hardware/test path.
+        VirtualPush1DeviceTest.main (new String [0]);
+        VirtualPush1DisplayLayoutTest.main (new String [0]);
+        VirtualPush1ProtocolExhaustiveTest.main (new String [0]);
+
         lightsCreated = 0;
         lightsUpdated = 0;
         final State state = new State ();
@@ -174,6 +180,24 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.BROWSER) != null, "Browser mode was not registered");
         require (modes.get (Modes.SESSION) != null, "Session mode was not registered");
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
+
+        // Exercise every physical direction through MIDI -> production binding
+        // -> production command in Track and Session contexts.
+        int navigationEvents = midi.getDispatchedButtonEvents ();
+        for (final int arrow: new int [] {
+            VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
+            VirtualPush1Device.UP, VirtualPush1Device.DOWN })
+            midi.device ().tapButton (arrow);
+        midi.device ().tapButton (VirtualPush1Device.SESSION);
+        for (final int arrow: new int [] {
+            VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
+            VirtualPush1Device.UP, VirtualPush1Device.DOWN })
+            midi.device ().tapButton (arrow);
+        midi.device ().tapButton (VirtualPush1Device.DEVICE);
+        midi.device ().tapButton (VirtualPush1Device.OUT);
+        midi.device ().tapButton (VirtualPush1Device.IN);
+        require (midi.getDispatchedButtonEvents () - navigationEvents == 20,
+            "Arrow and In/Out controls did not all traverse their production MIDI bindings");
 
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
