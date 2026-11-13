@@ -153,38 +153,33 @@ The build remains pinned to Bitwig Extension API 17 and Java 17. The Push 1 uses
 A successful build proves compilation, packaging, and the deterministic protocol checks. It does **not** prove physical LCD appearance, USB port naming on every operating system, pad velocity/pressure calibration, or timing on a real Push 1. Those require a hardware session with Bitwig Studio 4.3.10.
 
 
-## In/Out controls: Ableton behavior adapted to Bitwig API 17
+## In/Out controls and Browser navigation
 
-The two physical controls are the Push 1 CC 62 and CC 63 buttons, represented by
-the upstream `PUSH_BUTTON_DEVICE_LEFT` and `PUSH_BUTTON_DEVICE_RIGHT` constants.
-Ableton documents them as In/Out: in Device mode they navigate additional
-devices and parameter banks; in Browser mode they shift the visible browser
-hierarchy horizontally. Ableton also documents access to additional Rack
-chains through these controls.
+The physical In and Out buttons are CC 62 and CC 63 respectively. In Device
+mode, In (CC 62) selects the next device and Out (CC 63) selects the previous
+device. When the parameter-page selector is active, the same controls select
+the next and previous parameter pages respectively. These mappings are
+covered by the production `DeviceParamsMode` runtime scenario.
 
-PUSHdriver keeps the physical bindings unchanged and adapts their actions to
-the existing Bitwig 4.3 / Extension API 17 model:
+Browser navigation uses a different set of Push 1 controls in the pinned
+DrivenByMoss implementation; In/Out do not move Browser filter columns:
 
-- **Out / CC 62:** previous device in Device mode, or previous parameter-page
-  bank when the parameter-page selector is active; previous filter column in
-  Browser mode.
-- **In / CC 63:** next device in Device mode, or next parameter-page bank when
-  the parameter-page selector is active; next filter column in Browser mode.
-- The browser's selected filter column and Push 1 LCD selection marker are
-  updated together. Button LEDs reflect whether another item/column exists.
-- In Session and sequencer contexts, the existing track-bank page and
-  sequencer-page behavior is retained to avoid breaking the project's current
-  Bitwig workflows. These contexts are outside Ableton's documented In/Out
-  Device/Browser behavior.
+- Left/Right arrows page to the previous/next Browser content type when Shift
+  is held.
+- The eight top-row buttons select the previous item in their corresponding
+  visible filter columns; the eight bottom-row buttons select the next item.
+- Touching an encoder selects its filter column; turning that encoder moves
+  the selected item in that column.
+- The eighth top/bottom row buttons navigate the results list. The selected
+  filter/result state is shown on the Push 1 LCD, and LED availability follows
+  the existence of the corresponding filter column.
 
-Device selection and parameter-page paging use dedicated In/Out methods in
-`DeviceParamsMode`. The ordinary Left/Right arrow methods and their LED
-availability remain unchanged, so the parameter-page action cannot leak into
-arrow navigation. Browser navigation uses the API-17 `IBrowser` filter-column
-methods. In Rack-chain mode the buttons remain inactive: Extension API 17 does
-not expose a reliable selected-chain cursor for safe previous/next navigation.
-No MIDI IDs, extra event loop, or alternate controller dispatcher are introduced.
-
+The virtual runtime now exercises these Browser operations against a
+stateful API-17 `IBrowser` model, including filter/result selection,
+content-type paging, the LCD selection marker and filter-button LED state.
+Rack-chain navigation remains inactive because API 17 does not expose a
+reliable selected-chain cursor for safe previous/next navigation. No MIDI
+IDs or alternate controller dispatcher are introduced.
 
 ## Interactive virtual Push 1 simulator
 
