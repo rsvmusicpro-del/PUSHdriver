@@ -28,6 +28,7 @@ test_sources = (
     root / "tests/java/VirtualPush1RuntimeTest.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java",
+    root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayGlyphs.java",
 )
 with tempfile.TemporaryDirectory(prefix="pushdriver-extension-test-") as output:
     subprocess.run(
