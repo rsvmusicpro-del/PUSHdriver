@@ -33,6 +33,7 @@ public final class VirtualPush1ProtocolExhaustiveTest
         testAllPads (device, input);
         testAllPadVelocityAndPressureRanges (device, input);
         testAllButtons (device, input);
+        testInterleavedControlStateIsolation (device, input);
         testAllEncoders (device, input);
         testAllRelativeEncoderSteps (device, input);
         testAllPitchBendValues (device, input);
@@ -102,8 +103,71 @@ public final class VirtualPush1ProtocolExhaustiveTest
         }
     }
 
+    /** Keep every pad and button held while unrelated controls generate MIDI. */
+    private static void testInterleavedControlStateIsolation (final VirtualPush1Device device, final List<int[]> input)
+    {
+        final int [] pressures = new int [64];
+        for (int note = 36; note <= 99; note++)
+        {
+            final int index = note - 36;
+            device.pressPad (index / 8, index % 8, 1 + index % 127);
+            if (!device.isPadPressed (index / 8, index % 8))
+                throw new AssertionError ("Concurrent pad press was lost at note " + note);
+        }
+        for (final int cc: BUTTON_CCS)
+        {
+            device.pressButton (cc);
+            if (!device.isButtonPressed (cc))
+                throw new AssertionError ("Concurrent button press was lost at CC " + cc);
+        }
+        for (int note = 36; note <= 99; note++)
+        {
+            final int index = note - 36;
+            pressures[index] = (index * 2) & 0x7F;
+            device.pressPadPressure (index / 8, index % 8, pressures[index]);
+        }
+
+        // Interleave all rotary controls and the ribbon while the complete
+        // pad/button matrix remains held, then verify no state was cross-wired.
+        for (int encoder = 0; encoder < 11; encoder++)
+            if (encoder < 9)
+                device.turnEncoderBy (encoder, encoder % 2 == 0 ? 1 : -1);
+            else
+                device.turnSmallEncoderBy (encoder - 9, encoder % 2 == 0 ? 1 : -1);
+        device.touchRibbon (true);
+        device.moveRibbon (8192);
+        device.touchRibbon (false);
+
+        for (int note = 36; note <= 99; note++)
+        {
+            final int index = note - 36;
+            if (!device.isPadPressed (index / 8, index % 8)
+                    || device.getPadPressure (index / 8, index % 8) != pressures[index])
+                throw new AssertionError ("Interleaved controls corrupted pad state at note " + note);
+        }
+        for (final int cc: BUTTON_CCS)
+            if (!device.isButtonPressed (cc))
+                throw new AssertionError ("Interleaved controls corrupted button state at CC " + cc);
+
+        for (int note = 99; note >= 36; note--)
+        {
+            final int index = note - 36;
+            device.releasePad (index / 8, index % 8);
+            if (device.isPadPressed (index / 8, index % 8) || device.getPadPressure (index / 8, index % 8) != 0)
+                throw new AssertionError ("Concurrent pad release did not clear state at note " + note);
+        }
+        for (int i = BUTTON_CCS.length - 1; i >= 0; i--)
+        {
+            final int cc = BUTTON_CCS[i];
+            device.releaseButton (cc);
+            if (device.isButtonPressed (cc))
+                throw new AssertionError ("Concurrent button release did not clear state at CC " + cc);
+        }
+    }
+
     private static void testAllEncoders (final VirtualPush1Device device, final List<int[]> input)
     {
+        final int initialMessageCount = input.size ();
         for (int encoder = 0; encoder < 9; encoder++)
         {
             device.turnEncoderBy (encoder, 63);
@@ -126,7 +190,7 @@ public final class VirtualPush1ProtocolExhaustiveTest
         }
         device.turnEncoderBy (0, 0);
         device.turnSmallEncoderBy (0, 0);
-        if (input.size () != 64 * 4 + 64 * 256 + BUTTON_CCS.length * 2 + 9 * 4 + 2 * 3)
+        if (input.size () - initialMessageCount != 9 * 4 + 2 * 3)
             throw new AssertionError ("Zero-step encoder emitted an unexpected MIDI event");
         device.touchRibbon (true);
         requireLast (input, 0x90, 12, 127, "ribbon touch");
