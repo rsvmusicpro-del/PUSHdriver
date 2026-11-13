@@ -128,6 +128,7 @@ public final class VirtualPush1RuntimeTest
         boolean deviceCanScrollForwards;
         boolean deviceCanScrollPageBackwards;
         boolean deviceCanScrollPageForwards;
+        boolean layersExist = true;
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
     }
@@ -440,6 +441,16 @@ public final class VirtualPush1RuntimeTest
             }
             setup.flush ();
         }
+
+        // Empty device-layer banks are a valid host state: layer mode knob
+        // touch must safely no-op instead of dereferencing a missing layer.
+        state.layersExist = false;
+        modes.setActive (Modes.DEVICE_LAYER_VOLUME);
+        midi.device ().touchEncoder (0, true);
+        midi.device ().touchEncoder (0, false);
+        state.layersExist = true;
+        midi.device ().touchEncoder (0, true);
+        midi.device ().touchEncoder (0, false);
 
         // Device bank boundaries: arrow availability must follow the
         // host bank's first/last-item and first/last-page state.
@@ -1020,7 +1031,7 @@ public final class VirtualPush1RuntimeTest
                 }
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
-        final ILayerBank layers = layerBankProxy ();
+        final ILayerBank layers = layerBankProxy (state);
         return (ICursorDevice) Proxy.newProxyInstance (ICursorDevice.class.getClassLoader (),
             new Class<?> [] { ICursorDevice.class }, (proxy, method, args) -> {
                 if (method.getName ().equals ("getParameterBank"))
@@ -1048,20 +1059,20 @@ public final class VirtualPush1RuntimeTest
     }
 
 
-    private static ILayerBank layerBankProxy ()
+    private static ILayerBank layerBankProxy (final State state)
     {
         return (ILayerBank) Proxy.newProxyInstance (ILayerBank.class.getClassLoader (),
             new Class<?> [] { ILayerBank.class }, (proxy, method, args) -> {
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("hasExistingItems"))
-                    return true;
+                    return state.layersExist;
                 if (method.getName ().equals ("getSelectedItem"))
-                    return Optional.of (layerProxy ());
+                    return state.layersExist ? Optional.of (layerProxy (state)) : Optional.empty ();
                 if (method.getName ().equals ("getSelectedItemIndex"))
                     return 0;
                 if (method.getName ().equals ("getItem"))
-                    return layerProxy ();
+                    return layerProxy (state);
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
@@ -1093,12 +1104,12 @@ public final class VirtualPush1RuntimeTest
     }
 
 
-    private static ILayer layerProxy ()
+    private static ILayer layerProxy (final State state)
     {
         return (ILayer) Proxy.newProxyInstance (ILayer.class.getClassLoader (),
             new Class<?> [] { ILayer.class }, (proxy, method, args) -> {
                 if (method.getName ().equals ("doesExist") || method.getName ().equals ("isSelected"))
-                    return true;
+                    return state.layersExist;
                 if (method.getName ().equals ("getIndex"))
                     return args != null && args.length > 0 && args[0] instanceof Integer index ? index : 0;
                 if (method.getName ().equals ("hasDevices"))
