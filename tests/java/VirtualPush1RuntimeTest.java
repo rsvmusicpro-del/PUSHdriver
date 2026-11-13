@@ -986,6 +986,8 @@ public final class VirtualPush1RuntimeTest
             });
         return (ITrack) Proxy.newProxyInstance (ITrack.class.getClassLoader (),
             new Class<?> [] { ITrack.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("doesExist"))
+                    return true;
                 if (method.getName ().equals ("getSendBank"))
                     return sendBank;
                 if (method.getName ().equals ("getSceneBank"))
