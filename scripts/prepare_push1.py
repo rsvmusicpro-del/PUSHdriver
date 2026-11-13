@@ -415,14 +415,7 @@ replace_once(push_display,
     "                sb.append (' ');\n"
     "        }",
     "        final String t = text.replace (Push1Display.BARS_NON, \"-\").replace (Push1Display.BARS_ONE, \"|\").replace (Push1Display.BARS_TWO, \"|\").replace (Push1Display.BARS_ONE_L, \"|\").replace (Push1Display.SELECT_ARROW, \">\").replace (Push1Display.RIGHT_ARROW, \">\");\n"
-    "        final StringBuilder sb = new StringBuilder (t.length () + Push1DisplayLayout.MODULE_COUNT - 1);\n"
-    "        for (int module = 0; module < Push1DisplayLayout.MODULE_COUNT; module++)\n"
-    "        {\n"
-    "            final int beginIndex = Push1DisplayLayout.blockStartColumn (module);\n"
-    "            sb.append (t, beginIndex, beginIndex + Push1DisplayLayout.MODULE_COLUMNS);\n"
-    "            if (module + 1 < Push1DisplayLayout.MODULE_COUNT)\n"
-    "                sb.append (' ');\n"
-    "        }",
+    "        return Push1DisplayLayout.separateModulesForSimulator (t);",
     "Push 1 simulator display module segmentation")
 replace_once(push_display,
     "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, Push1DisplayText.fit (text, 68)));",
