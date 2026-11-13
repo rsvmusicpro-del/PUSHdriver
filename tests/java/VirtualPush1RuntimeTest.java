@@ -99,6 +99,9 @@ public final class VirtualPush1RuntimeTest
         int clipCurrentStep;
         int clipEditPage;
         int clipScrollToPageCount;
+        int clipExistenceQueries;
+        int clipCurrentStepQueries;
+        int transportPlayingQueries;
         int lastClipPage = -1;
         final List<String> browserActions = new java.util.ArrayList<> ();
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
@@ -150,7 +153,9 @@ public final class VirtualPush1RuntimeTest
                 {
                     case "play": state.playing = true; return null;
                     case "stop": case "stopAndRewind": state.playing = false; state.recording = false; return null;
-                    case "isPlaying": return state.playing;
+                    case "isPlaying":
+                        state.transportPlayingQueries++;
+                        return state.playing;
                     case "startRecording": state.recording = true; return null;
                     case "isRecording": return state.recording;
                     case "isLauncherOverdub": return state.launcherOverdub;
@@ -279,6 +284,11 @@ public final class VirtualPush1RuntimeTest
                 + ", page=" + state.lastClipPage
                 + ", currentStep=" + state.clipCurrentStep
                 + ", editPage=" + state.clipEditPage
+                + ", clipExists=" + state.clipExists
+                + ", clipExistenceQueries=" + state.clipExistenceQueries
+                + ", clipCurrentStepQueries=" + state.clipCurrentStepQueries
+                + ", transportPlayingQueries=" + state.transportPlayingQueries
+                + ", activeView=" + surface.getViewManager ().getActiveID ()
                 + ", transportPlaying=" + state.playing + ")");
         state.playing = false;
         surface.getViewManager ().setActive (previousView);
@@ -631,8 +641,12 @@ public final class VirtualPush1RuntimeTest
             new Class<?> [] { INoteClip.class }, (proxy, method, args) -> {
                 switch (method.getName ())
                 {
-                    case "doesExist": return state.clipExists;
-                    case "getCurrentStep": return state.clipCurrentStep;
+                    case "doesExist":
+                        state.clipExistenceQueries++;
+                        return state.clipExists;
+                    case "getCurrentStep":
+                        state.clipCurrentStepQueries++;
+                        return state.clipCurrentStep;
                     case "getEditPage": return state.clipEditPage;
                     case "scrollToPage":
                         state.clipScrollToPageCount++;
