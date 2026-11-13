@@ -35,6 +35,9 @@ import de.mossgrabers.framework.daw.data.ILayer;
 import de.mossgrabers.framework.daw.data.bank.IDrumPadBank;
 import de.mossgrabers.framework.daw.data.bank.ILayerBank;
 import de.mossgrabers.framework.daw.clip.INoteClip;
+import de.mossgrabers.framework.daw.clip.IStepInfo;
+import de.mossgrabers.framework.daw.clip.NotePosition;
+import de.mossgrabers.framework.daw.clip.StepState;
 import de.mossgrabers.framework.daw.data.ISlot;
 import de.mossgrabers.framework.daw.data.bank.ISlotBank;
 import de.mossgrabers.framework.daw.data.ISend;
@@ -59,6 +62,9 @@ import de.mossgrabers.controller.ableton.push.view.SequencerView;
 import de.mossgrabers.controller.ableton.push.view.Drum64View;
 import de.mossgrabers.controller.ableton.push.view.SessionView;
 import de.mossgrabers.framework.view.Views;
+import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
+import de.mossgrabers.framework.view.sequencer.AbstractDrumView;
+import de.mossgrabers.framework.view.AbstractDrum64View;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.utils.TestCallback;
 import de.mossgrabers.framework.observer.IValueObserver;
@@ -70,6 +76,7 @@ import java.lang.reflect.Type;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -103,10 +110,12 @@ public final class VirtualPush1RuntimeTest
         boolean cursorTrackExists;
         boolean cursorTrackPlaying;
         boolean emptySlotAvailable = true;
+        int emptySlotIndex = 5;
         int selectedSlotIndex = 3;
         int lastEmptySearchStart = -1;
         int cursorTrackStopCount;
         int createdClipCount;
+        int createdSlotIndex = -1;
         int lastCreatedClipLength = -1;
         boolean lastCreatedClipOverdub;
         boolean browserPreviewEnabled;
@@ -123,7 +132,26 @@ public final class VirtualPush1RuntimeTest
         boolean canHoldNotes;
         int drumScrollPosition;
         int drumScrollCount;
+        int drumScrollForwardCount;
+        int drumScrollBackwardCount;
+        int drumIndicationOnCount;
+        int drumIndicationOffCount;
+        boolean drumPadsExist = true;
         int drumSelectedPad = -1;
+        boolean deviceCanScrollBackwards;
+        boolean deviceCanScrollForwards;
+        boolean deviceCanScrollPageBackwards;
+        boolean deviceCanScrollPageForwards;
+        boolean layersExist = true;
+        int stepToggleCount;
+        int stepSetCount;
+        int stepClearCount;
+        int stepPageForwardCount;
+        int stepPageBackwardCount;
+        int stepLengthChangeCount;
+        int lastStepNumber = -1;
+        int lastStepNote = -1;
+        final Map<String, StepState> stepStates = new java.util.HashMap<> ();
         int lastLayerPage = -1;
         int sceneLaunchCount;
         int sceneRemoveCount;
@@ -233,7 +261,7 @@ public final class VirtualPush1RuntimeTest
                         final IDrumPadBank cursorDrumBank = drumPadBankProxy (state);
                         final ILayerBank layerBank = layerBankProxy (state);
                         final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank, state, cursorDrumBank, layerBank);
-                        final IDrumDevice drumDevice = drumDeviceProxy (primaryDrumBank);
+                        final IDrumDevice drumDevice = drumDeviceProxy (state, primaryDrumBank);
                         final IMasterTrack masterTrack = masterTrackProxy ();
                         final IProject project = projectProxy ();
                         final IBrowser browser = browserProxy (state);
@@ -260,6 +288,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getCursorTrack" -> cursorTrack;
                                 case "createNoteClip" -> {
                                     state.createdClipCount++;
+                                    state.createdSlotIndex = (int) a[1];
                                     state.lastCreatedClipLength = (int) a[2];
                                     state.lastCreatedClipOverdub = (boolean) a[3];
                                     yield null;
@@ -866,7 +895,11 @@ public final class VirtualPush1RuntimeTest
             new Class<?> [] { IDrumPad.class }, (proxy, method, args) -> {
                 switch (method.getName ())
                 {
+                    case "doesExist": case "isActivated": return state.drumPadsExist;
                     case "isSelected": return state.drumSelectedPad == index;
+                    case "toggleMute": MODEL_ACTIONS.add ("drumPad.toggleMute:" + index); return null;
+                    case "toggleSolo": MODEL_ACTIONS.add ("drumPad.toggleSolo:" + index); return null;
+                    case "isMute": case "isSolo": return false;
                     case "select":
                         state.drumSelectedPad = index;
                         return null;
@@ -884,6 +917,18 @@ public final class VirtualPush1RuntimeTest
                     case "getPageSize": return 16;
                     case "getScrollPosition": return state.drumScrollPosition;
                     case "getItem": return drumPadProxy (state, (int) args[0]);
+                    case "scrollForwards":
+                        state.drumScrollForwardCount++;
+                        state.drumScrollPosition++;
+                        return null;
+                    case "scrollBackwards":
+                        state.drumScrollBackwardCount++;
+                        state.drumScrollPosition--;
+                        return null;
+                    case "setIndication":
+                        if ((boolean) args[0]) state.drumIndicationOnCount++;
+                        else state.drumIndicationOffCount++;
+                        return null;
                     case "scrollTo":
                         state.drumScrollPosition = (int) args[0];
                         state.drumScrollCount++;
@@ -930,7 +975,7 @@ public final class VirtualPush1RuntimeTest
                 switch (method.getName ())
                 {
                     case "getPageSize": case "getItemCount": return 8;
-                    case "hasExistingItems": return true;
+                    case "hasExistingItems": return state.layersExist;
                     case "getItem": return layerProxy ((int) args[0]);
                     case "getSelectedItem": return Optional.of (layerProxy (0));
                     case "scrollTo":
@@ -941,12 +986,12 @@ public final class VirtualPush1RuntimeTest
             });
     }
 
-    private static IDrumDevice drumDeviceProxy (final IDrumPadBank drumPadBank)
+    private static IDrumDevice drumDeviceProxy (final State state, final IDrumPadBank drumPadBank)
     {
         return (IDrumDevice) Proxy.newProxyInstance (IDrumDevice.class.getClassLoader (),
             new Class<?> [] { IDrumDevice.class }, (proxy, method, args) -> switch (method.getName ())
             {
-                case "hasDrumPads" -> true;
+                case "hasDrumPads" -> state.drumPadsExist;
                 case "getDrumPadBank" -> drumPadBank;
                 case "getPosition" -> 1;
                 default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -961,6 +1006,14 @@ public final class VirtualPush1RuntimeTest
             (proxy, method, args) -> {
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
+                if (method.getName ().equals ("canScrollBackwards"))
+                    return state.deviceCanScrollBackwards;
+                if (method.getName ().equals ("canScrollForwards"))
+                    return state.deviceCanScrollForwards;
+                if (method.getName ().equals ("canScrollPageBackwards"))
+                    return state.deviceCanScrollPageBackwards;
+                if (method.getName ().equals ("canScrollPageForwards"))
+                    return state.deviceCanScrollPageForwards;
                 if (method.getName ().equals ("getItem"))
                     return Proxy.newProxyInstance (de.mossgrabers.framework.daw.data.IDevice.class.getClassLoader (),
                         new Class<?> [] { de.mossgrabers.framework.daw.data.IDevice.class },
@@ -1159,6 +1212,23 @@ public final class VirtualPush1RuntimeTest
             });
     }
 
+    private static IStepInfo stepInfoProxy (final State state, final NotePosition position)
+    {
+        return (IStepInfo) Proxy.newProxyInstance (IStepInfo.class.getClassLoader (),
+            new Class<?> [] { IStepInfo.class }, (proxy, method, args) -> switch (method.getName ())
+            {
+                case "getState" -> state.stepStates.getOrDefault (stepKey (position), StepState.OFF);
+                case "isMuted", "isRepeatEnabled" -> false;
+                case "getRepeatCount" -> 0;
+                default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+    private static String stepKey (final NotePosition position)
+    {
+        return position.getChannel () + ":" + position.getStep () + ":" + position.getNote ();
+    }
+
     private static INoteClip noteClipProxy (final State state)
     {
         return (INoteClip) Proxy.newProxyInstance (INoteClip.class.getClassLoader (),
@@ -1169,6 +1239,48 @@ public final class VirtualPush1RuntimeTest
                         state.clipExistenceQueries++;
                         return state.clipExists;
                     case "getColor": return de.mossgrabers.framework.controller.color.ColorEx.BLACK;
+                    case "getNumSteps": return 16;
+                    case "getNumRows": return 128;
+                    case "getStepLength": return 0.25;
+                    case "getLoopStart": return 0.0;
+                    case "getLoopLength": return 16.0;
+                    case "getStep": return stepInfoProxy (state, (NotePosition) args[0]);
+                    case "toggleStep":
+                        final NotePosition toggled = (NotePosition) args[0];
+                        state.lastStepNumber = toggled.getStep ();
+                        state.lastStepNote = toggled.getNote ();
+                        final String toggleKey = stepKey (toggled);
+                        final StepState oldState = state.stepStates.getOrDefault (toggleKey, StepState.OFF);
+                        state.stepStates.put (toggleKey, oldState == StepState.OFF ? StepState.START : StepState.OFF);
+                        state.stepToggleCount++;
+                        MODEL_ACTIONS.add ("noteClip.toggleStep");
+                        return null;
+                    case "setStep":
+                        state.stepSetCount++;
+                        state.stepStates.put (stepKey ((NotePosition) args[0]), StepState.START);
+                        MODEL_ACTIONS.add ("noteClip.setStep");
+                        return null;
+                    case "clearStep":
+                        state.stepClearCount++;
+                        state.stepStates.put (stepKey ((NotePosition) args[0]), StepState.OFF);
+                        MODEL_ACTIONS.add ("noteClip.clearStep");
+                        return null;
+                    case "clearRow":
+                        state.stepClearCount++;
+                        MODEL_ACTIONS.add ("noteClip.clearRow");
+                        return null;
+                    case "scrollStepsPageForward":
+                        state.stepPageForwardCount++;
+                        MODEL_ACTIONS.add ("noteClip.scrollStepsPageForward");
+                        return null;
+                    case "scrollStepsPageBackwards":
+                        state.stepPageBackwardCount++;
+                        MODEL_ACTIONS.add ("noteClip.scrollStepsPageBackwards");
+                        return null;
+                    case "setStepLength":
+                        state.stepLengthChangeCount++;
+                        MODEL_ACTIONS.add ("noteClip.setStepLength");
+                        return null;
                     case "getCurrentStep":
                         state.clipCurrentStepQueries++;
                         return state.clipCurrentStep;
@@ -1263,7 +1375,7 @@ public final class VirtualPush1RuntimeTest
                 {
                     state.lastEmptySearchStart = (int) args[0];
                     return state.emptySlotAvailable
-                        ? Optional.of (slotProxy (state, Math.max (0, state.selectedSlotIndex))) : Optional.empty ();
+                        ? Optional.of (slotProxy (state, state.emptySlotIndex)) : Optional.empty ();
                 }
                 if (method.getName ().equals ("getItem"))
                 {
