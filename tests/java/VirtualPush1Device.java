@@ -85,6 +85,10 @@ public final class VirtualPush1Device
     public static final int DOUBLE = 117;
     public static final int DELETE = 118;
     public static final int UNDO = 119;
+    /** Physical Push 1 footswitch 1 MIDI CC. */
+    public static final int FOOTSWITCH1 = 64;
+    /** Physical Push 1 footswitch 2 MIDI CC. */
+    public static final int FOOTSWITCH2 = 69;
 
     private final MidiLink link;
     private final EventListener observer;
