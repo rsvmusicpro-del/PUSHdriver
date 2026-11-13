@@ -288,7 +288,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getCursorTrack" -> cursorTrack;
                                 case "createNoteClip" -> {
                                     state.createdClipCount++;
-                                    state.createdSlotIndex = (int) a[1];
+                                    state.createdSlotIndex = ((ISlot) a[1]).getIndex ();
                                     state.lastCreatedClipLength = (int) a[2];
                                     state.lastCreatedClipOverdub = (boolean) a[3];
                                     yield null;
