@@ -466,6 +466,36 @@ public final class VirtualPush1RuntimeTest
         surface.getViewManager ().setActive (viewBeforeDrum);
         state.canHoldNotes = false;
 
+        // Exercise every physical pad through the active production view,
+        // across the complete 14-view Push 1 surface (64 pads × press/release).
+        final Views [] padMatrixViews = {
+            Views.PLAY, Views.CHORDS, Views.PIANO, Views.PRG_CHANGE, Views.CLIP_LENGTH,
+            Views.COLOR, Views.SESSION, Views.SEQUENCER, Views.POLY_SEQUENCER,
+            Views.DRUM, Views.DRUM4, Views.DRUM8, Views.DRUM64, Views.SCENE_PLAY
+        };
+        final Views viewBeforePadMatrix = surface.getViewManager ().getActiveID ();
+        final int padEventsBeforeMatrix = midi.getDispatchedButtonEvents ();
+        state.canHoldNotes = true;
+        for (final Views view: padMatrixViews)
+        {
+            surface.getViewManager ().setActive (view);
+            setup.flush ();
+            drainScheduled (state, 1);
+            for (int row = 0; row < 8; row++)
+                for (int column = 0; column < 8; column++)
+                {
+                    midi.device ().pressPad (row, column, 64);
+                    midi.device ().releasePad (row, column);
+                }
+            if (view == Views.SESSION)
+                midi.device ().releaseButton (VirtualPush1Device.SESSION);
+        }
+        require (midi.getDispatchedButtonEvents () - padEventsBeforeMatrix >= 1792,
+            "The complete 14-view pad matrix must dispatch 64 pad press/release pairs per view");
+        state.canHoldNotes = false;
+        surface.getViewManager ().setActive (viewBeforePadMatrix);
+        drainScheduled (state, 100);
+
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
         midi.device ().tapButton (VirtualPush1Device.DEVICE);
