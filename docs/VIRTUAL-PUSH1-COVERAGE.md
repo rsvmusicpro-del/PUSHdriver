@@ -65,11 +65,11 @@ The following behaviors are implemented in the production adaptation. The labels
 | New clip | Production `PushNewCommand` wrapper | Unified runtime now uses a stateful cursor-track/slot model to assert selected-slot search, stop-before-create on the cursor track, normal overdub, Shift+New without overdub, no-slot fallback without stopping playback |
 | Note Repeat | Production mode and null-safe optional service handling; package verifier checks safe LED path | Available, absent and late-created service states; mode entry, repeat controls, ribbon and feedback |
 | Drum / Drum4 / Drum8 / Drum64 | Production views and modes are registered and traversed by the complete command-dispatch matrix | Stateful drum-note/pad map, selected drum pad, note assignment, layout transitions and LED feedback |
-| Sequencer / Poly Sequencer | Production views are registered and traversed by the complete command-dispatch matrix; Push-specific playhead safety is implemented | Stateful clip/step/note model: step editing, selected step, page changes, playhead follow, empty clip and boundary behavior |
+| Sequencer / Poly Sequencer | Production views are registered and traversed by the complete command-dispatch matrix; mono sequencer playhead-follow assertions now use an existing/empty note-clip model | Stateful clip/step/note model for step editing, selected step, manual page lock/unlock, loop gestures and Poly Sequencer musical behavior |
 | Track, mixer, sends, master, device and clip modes | Production modes and command matrix are exercised | Stateful bank models for first/last items, empty banks, unavailable actions, selection changes and context transitions |
 | Swing simulator | GUI can be launched from the same virtual device and MIDI bench | Display-backed CI smoke test for construction, event dispatch, repaint and clean close is not yet automated |
 
-The firmware/display regression tests and New-clip stateful scenarios are part of the same unified suite and are compiled and invoked by `scripts/test_push1_extension.py`. The inventory assertions also make the complete 50-mode / 14-view Push 1 registration scope explicit.
+The firmware/display regression tests, New-clip scenarios, Browser navigation/preview scenarios and mono-sequencer playhead assertions are part of the same unified suite and are compiled and invoked by `scripts/test_push1_extension.py`. The inventory assertions also make the complete 50-mode / 14-view Push 1 registration scope explicit.
 
 ## 4. Build, package and CI contract
 
