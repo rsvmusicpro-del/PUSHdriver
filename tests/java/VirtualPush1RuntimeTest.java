@@ -27,9 +27,12 @@ import de.mossgrabers.framework.daw.data.bank.IDeviceBank;
 import de.mossgrabers.framework.daw.data.bank.IParameterPageBank;
 import de.mossgrabers.framework.daw.data.IDeviceMetadata;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
+import de.mossgrabers.framework.daw.data.IDrumDevice;
+import de.mossgrabers.framework.daw.data.IDrumPad;
 import de.mossgrabers.framework.daw.data.ITrack;
 import de.mossgrabers.framework.daw.data.ILayer;
 import de.mossgrabers.framework.daw.data.bank.ILayerBank;
+import de.mossgrabers.framework.daw.data.bank.IDrumPadBank;
 import de.mossgrabers.framework.daw.data.ISend;
 import de.mossgrabers.framework.daw.data.ISlot;
 import de.mossgrabers.framework.daw.clip.INoteClip;
@@ -53,6 +56,7 @@ import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
+import de.mossgrabers.framework.view.AbstractDrum64View;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.utils.TestCallback;
 import de.mossgrabers.framework.observer.IValueObserver;
@@ -109,6 +113,12 @@ public final class VirtualPush1RuntimeTest
         int stepPageBackwardCount;
         int stepLengthChangeCount;
         final Map<String, StepState> stepStates = new HashMap<> ();
+        int selectedDrumPad = -1;
+        int drumScrollPosition;
+        int drumScrollForwardCount;
+        int drumScrollBackwardCount;
+        int drumIndicationOnCount;
+        int drumIndicationOffCount;
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
     }
@@ -201,6 +211,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getSceneBank" -> sceneBank;
                                 case "getUserParameterBank" -> parameterBankProxy ();
                                 case "getCursorDevice" -> cursorDevice;
+                                case "getDrumDevice" -> drumDeviceProxy (state);
                                 case "getCursorTrack" -> cursorTrackProxy (state);
                                 case "canSelectedTrackHoldNotes" -> state.noteClipExists;
                                 case "getNoteClip" -> noteClipProxy (state);
@@ -533,6 +544,29 @@ public final class VirtualPush1RuntimeTest
         surface.getViewManager ().setActive (Views.PLAY);
         setup.flush ();
 
+        // Drum 64: verify the 4x4 block traversal across the 8x8 grid
+        // and the octave bank scroll contract (16 drum-pad bank steps).
+        state.noteClipExists = true;
+        state.selectedDrumPad = -1;
+        state.drumScrollForwardCount = 0;
+        state.drumIndicationOnCount = 0;
+        surface.getViewManager ().setActive (Views.DRUM64);
+        final AbstractDrum64View<?, ?> drum64 =
+            (AbstractDrum64View<?, ?>) surface.getViewManager ().get (Views.DRUM64);
+        require (state.drumIndicationOnCount > 0, "Drum64 activation must enable drum-pad indication");
+        drum64.onGridNote (36, 100);
+        require (drum64.getSelectedPad () == 0, "Drum64 lower-left pad must map to pad 0");
+        drum64.onGridNote (40, 100);
+        require (drum64.getSelectedPad () == 32, "Drum64 second 4x4 block must map to pad 32");
+        drum64.onGridNote (68, 100);
+        require (drum64.getSelectedPad () == 16, "Drum64 upper block must map to pad 16");
+        drum64.onOctaveUp (ButtonEvent.DOWN);
+        require (state.drumScrollForwardCount == 16,
+            "Drum64 octave-up must scroll the drum bank by exactly 16 pad positions");
+        surface.getViewManager ().setActive (Views.PLAY);
+        require (state.drumIndicationOffCount > 0, "Drum64 deactivation must disable drum-pad indication");
+        state.noteClipExists = false;
+
         // Browser: exercise both filter-column and result selection, the
         // preset selector, preview chord, and browser content-type paging.
         modes.setActive (Modes.BROWSER);
@@ -595,6 +629,78 @@ public final class VirtualPush1RuntimeTest
         System.out.println ("Virtual Push 1 runtime passed: real PushControllerSetup initialized; "
             + "real mode/view/transport commands, Shift chords, pad aftertouch, encoder/touch/ribbon input and LED/LCD feedback passed.");
     }
+
+    private static IDrumDevice drumDeviceProxy (final State state)
+    {
+        return (IDrumDevice) Proxy.newProxyInstance (IDrumDevice.class.getClassLoader (),
+            new Class<?> [] { IDrumDevice.class }, (proxy, method, args) -> switch (method.getName ())
+            {
+                case "hasDrumPads" -> true;
+                case "getDrumPadBank" -> drumPadBankProxy (state);
+                case "getPosition" -> 0;
+                default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+
+    private static IDrumPadBank drumPadBankProxy (final State state)
+    {
+        return (IDrumPadBank) Proxy.newProxyInstance (IDrumPadBank.class.getClassLoader (),
+            new Class<?> [] { IDrumPadBank.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "getPageSize": return 16;
+                    case "getScrollPosition": return state.drumScrollPosition;
+                    case "getItem": return drumPadProxy (state, (int) args[0]);
+                    case "scrollForwards":
+                        state.drumScrollForwardCount++;
+                        state.drumScrollPosition++;
+                        return null;
+                    case "scrollBackwards":
+                        state.drumScrollBackwardCount++;
+                        state.drumScrollPosition--;
+                        return null;
+                    case "scrollTo":
+                        state.drumScrollPosition = (int) args[0];
+                        return null;
+                    case "setIndication":
+                        if ((boolean) args[0])
+                            state.drumIndicationOnCount++;
+                        else
+                            state.drumIndicationOffCount++;
+                        return null;
+                    default:
+                        return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+    }
+
+
+    private static IDrumPad drumPadProxy (final State state, final int index)
+    {
+        return (IDrumPad) Proxy.newProxyInstance (IDrumPad.class.getClassLoader (),
+            new Class<?> [] { IDrumPad.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "doesExist", "isActivated": return true;
+                    case "isSelected": return state.selectedDrumPad == index;
+                    case "select":
+                        state.selectedDrumPad = index;
+                        MODEL_ACTIONS.add ("drumPad.select:" + index);
+                        return null;
+                    case "toggleMute":
+                        MODEL_ACTIONS.add ("drumPad.toggleMute:" + index);
+                        return null;
+                    case "toggleSolo":
+                        MODEL_ACTIONS.add ("drumPad.toggleSolo:" + index);
+                        return null;
+                    case "isMute", "isSolo": return false;
+                    default:
+                        return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+    }
+
 
     private static INoteClip noteClipProxy (final State state)
     {
