@@ -122,7 +122,7 @@ public final class VirtualPush1ProtocolExhaustiveTest
             final int g = (address + 5) & 15;
             final int b = (address + 11) & 15;
             device.receiveSysex (String.format (
-                "F0 47 7F 15 04 00 08 %02X %X %X %X %X %X %X F7",
+                "F0 47 7F 15 04 00 08 %02X %02X %02X %02X %02X %02X %02X F7",
                 address, r, r, g, g, b, b));
             final int [] actual = address < 64
                 ? device.getPadRgb (address / 8, address % 8)
