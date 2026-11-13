@@ -867,6 +867,7 @@ public final class VirtualPush1RuntimeTest
         final Modes modeBeforeDrum = modes.getActiveID ();
         final Drum64View drum64View = (Drum64View) surface.getViewManager ().get (Views.DRUM64);
         state.canHoldNotes = true;
+        state.drumPadsExist = true;
         state.drumScrollPosition = 0;
         state.drumScrollCount = 0;
         state.drumSelectedPad = -1;
@@ -875,7 +876,11 @@ public final class VirtualPush1RuntimeTest
         drum64View.onGridNote (36 + 35, 100);
         midi.device ().releaseButton (VirtualPush1Device.SELECT);
         require (state.drumScrollCount == 1 && state.drumScrollPosition == 16,
-            "Drum64 Select+Pad must align the cursor drum bank to the matching 16-pad page");
+            "Drum64 Select+Pad must align the cursor drum bank to the matching 16-pad page"
+                + " (scrolls=" + state.drumScrollCount
+                + ", position=" + state.drumScrollPosition
+                + ", selectedPad=" + state.drumSelectedPad
+                + ", hasDrumPads=" + state.drumPadsExist + ")");
         require (state.drumSelectedPad == 19,
             "Drum64 Select+Pad must select the matching primary drum pad");
         modes.setActive (modeBeforeDrum);
