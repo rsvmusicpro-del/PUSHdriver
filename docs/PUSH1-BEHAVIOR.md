@@ -57,6 +57,7 @@ The acceptance matrix checks all 50 registered Push 1 modes and all 14 packaged 
 
 Protocol and runtime test layers:
 
+- `VirtualPush1FormattingAndFirmwareTest` checks fixed-width LCD text, notification overlays, parameter/pan bars, firmware identity parsing and DeviceInquiry defensive-copy behavior.
 - `VirtualPush1DeviceTest` checks hardware mapping, state transitions, malformed input rejection and feedback decoding.
 - `VirtualPush1DisplayLayoutTest` checks four-module construction, all 272 global character positions, module-local coordinates, all eight 9/8-width cells per row, preservation of Push-specific seven-bit glyph codes through production LCD SysEx encoding/decoding, and the eight extracted 5x8 custom-glyph bitmaps.
 - `VirtualPush1ProtocolExhaustiveTest` exhaustively walks all 64 pad addresses and pressure/velocity values, every declared Push 1 button CC press/release, all 11 encoder/touch identities and signed movement limits, all 72 RGB output addresses, every LCD row and all 128 seven-bit character values, plus malformed/out-of-range SysEx and invalid control values.
