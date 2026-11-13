@@ -591,17 +591,17 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 1);
         require (surface.getViewManager ().getActiveID () == Views.SEQUENCER,
             "Sequencer view did not remain active before pad input");
+        final AbstractSequencerView<?, ?> sequencer =
+            (AbstractSequencerView<?, ?>) surface.getViewManager ().get (Views.SEQUENCER);
+        sequencer.updateControlSurface ();
+        require (sequencer.isActive () && sequencer.getClip ().doesExist (),
+            "Sequencer must activate against the existing virtual note clip");
         MODEL_ACTIONS.clear ();
         midi.device ().pressPad (0, 0, 100);
         midi.device ().releasePad (0, 0);
         require (state.stepToggleCount > 0,
             "Sequencer pad release must toggle a step in an existing note clip; activeView="
                 + surface.getViewManager ().getActiveID () + ", gridEvents=" + MODEL_ACTIONS);
-        final AbstractSequencerView<?, ?> sequencer =
-            (AbstractSequencerView<?, ?>) surface.getViewManager ().get (Views.SEQUENCER);
-        sequencer.updateControlSurface ();
-        require (sequencer.isActive () && sequencer.getClip ().doesExist (),
-            "Sequencer must activate against the existing virtual note clip");
         sequencer.onLeft (ButtonEvent.DOWN);
         sequencer.onRight (ButtonEvent.DOWN);
         require (state.stepPageBackwardCount > 0 && state.stepPageForwardCount > 0,
