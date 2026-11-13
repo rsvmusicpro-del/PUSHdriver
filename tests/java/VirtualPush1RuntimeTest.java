@@ -25,6 +25,17 @@ import de.mossgrabers.framework.daw.data.bank.IParameterPageBank;
 import de.mossgrabers.framework.daw.data.IDeviceMetadata;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.daw.data.ITrack;
+import de.mossgrabers.framework.daw.data.IDrumDevice;
+import de.mossgrabers.framework.daw.data.IDrumPad;
+import de.mossgrabers.framework.daw.data.bank.IDrumPadBank;
+import de.mossgrabers.framework.daw.clip.INoteClip;
+import de.mossgrabers.framework.daw.clip.IStepInfo;
+import de.mossgrabers.framework.daw.clip.NotePosition;
+import de.mossgrabers.framework.daw.clip.StepState;
+import de.mossgrabers.framework.daw.constants.Resolution;
+import de.mossgrabers.controller.ableton.push.view.SequencerView;
+import de.mossgrabers.controller.ableton.push.view.DrumView;
+import de.mossgrabers.controller.ableton.push.view.Drum64View;
 import de.mossgrabers.framework.daw.data.ICursorTrack;
 import de.mossgrabers.framework.daw.data.ISlot;
 import de.mossgrabers.framework.daw.data.bank.ISlotBank;
@@ -110,6 +121,7 @@ public final class VirtualPush1RuntimeTest
         final State state = new State ();
         final BrowserModel browserModel = new BrowserModel ();
         final NewClipModel newClipModel = new NewClipModel ();
+        final MusicalModel musicalModel = new MusicalModel ();
         final VirtualPush1MidiBench midi = new VirtualPush1MidiBench ();
         final IHwSurfaceFactory hardware = surfaceFactory (midi);
         final IHost host = (IHost) Proxy.newProxyInstance (IHost.class.getClassLoader (),
@@ -182,6 +194,9 @@ public final class VirtualPush1RuntimeTest
                                 case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
                                 case "getBrowser" -> browserModel.browser ();
+                                case "getNoteClip" -> musicalModel.noteClip ();
+                                case "canSelectedTrackHoldNotes" -> musicalModel.canHoldNotes ();
+                                case "getDrumDevice" -> musicalModel.drumDevice ();
                                 case "getCursorTrack" -> newClipModel.cursorTrack ();
                                 case "createNoteClip" -> { newClipModel.createNoteClip (a); yield null; }
                                 default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
@@ -463,6 +478,54 @@ public final class VirtualPush1RuntimeTest
 
         newClipModel.setTrackExists (false);
         modes.setActive (Modes.TRACK);
+
+        // Stateful musical model: exercise the production note sequencer,
+        // hybrid Drum view and 64-pad block mapping through Push 1 pad MIDI.
+        musicalModel.setCanHoldNotes (true);
+        final var viewManager = surface.getViewManager ();
+        viewManager.setActive (Views.SEQUENCER);
+        final SequencerView sequencerView = (SequencerView) viewManager.get (Views.SEQUENCER);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        require (musicalModel.toggleCount () == 1,
+            "Sequencer pad MIDI did not toggle a note in the stateful clip model");
+        final NotePosition sequencerPosition = musicalModel.lastToggle ();
+        require (sequencerPosition.getStep () == 0 && sequencerPosition.getNote () >= 0
+                && sequencerPosition.getNote () <= 127,
+            "Sequencer pad mapping produced an invalid note position");
+        sequencerView.onLeft (ButtonEvent.DOWN);
+        sequencerView.onRight (ButtonEvent.DOWN);
+        require (musicalModel.pageBackCount () == 1 && musicalModel.pageForwardCount () == 1,
+            "Sequencer page navigation did not reach the note clip model");
+        sequencerView.setResolutionIndex (4);
+        require (Math.abs (musicalModel.stepLength () - Resolution.values ()[4].getValue ()) < 0.000001,
+            "Sequencer resolution selection did not update the clip step length");
+
+        viewManager.setActive (Views.DRUM);
+        final DrumView drumView = (DrumView) viewManager.get (Views.DRUM);
+        midi.device ().pressPad (0, 0, 96);
+        midi.device ().releasePad (0, 0);
+        midi.device ().pressPad (4, 0, 96);
+        midi.device ().releasePad (4, 0);
+        require (musicalModel.toggleCount () == 2 && musicalModel.lastToggle ().getStep () == 24,
+            "Drum view did not map its sequencer row to the expected clip step");
+        require (musicalModel.lastToggle ().getNote () >= 0 && musicalModel.lastToggle ().getNote () <= 127,
+            "Drum view produced an invalid drum note row");
+
+        viewManager.setActive (Views.DRUM64);
+        final Drum64View drum64View = (Drum64View) viewManager.get (Views.DRUM64);
+        midi.device ().pressPad (0, 4, 100);
+        midi.device ().releasePad (0, 4);
+        drum64View.drawGrid ();
+        setup.flush ();
+        drainScheduled (state, 1);
+        hardware.flush ();
+        final int [] selectedDrumPadRgb = midi.device ().getPadRgb (7, 4);
+        final int [] adjacentDrumPadRgb = midi.device ().getPadRgb (7, 3);
+        require (!Arrays.equals (selectedDrumPadRgb, adjacentDrumPadRgb),
+            "Drum64 4x4-block mapping did not distinguish the selected pad LED from its neighbor");
+        musicalModel.setCanHoldNotes (false);
+        viewManager.setActive (Views.PLAY);
 
         // DrivenByMoss' own setup test traverses every registered view/mode
         // pair, presses every real bound button (down/long/up), and executes
