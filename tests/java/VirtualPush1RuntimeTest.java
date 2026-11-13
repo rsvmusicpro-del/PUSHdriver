@@ -95,6 +95,10 @@ public final class VirtualPush1RuntimeTest
     private static int lightsUpdated;
     private static final List<String> MODEL_ACTIONS = new java.util.ArrayList<> ();
     private static boolean navigationContext;
+    private static int deviceIndex = 4;
+    private static int sceneIndex = 4;
+    private static int trackIndex = 4;
+    private static int parameterPageIndex = 1;
 
     private static final class State
     {
@@ -326,6 +330,21 @@ public final class VirtualPush1RuntimeTest
         requireAction ("device.selectNextPage", "Shift+Right must select the next device page");
         requireAction ("scene.selectPreviousPage", "Shift+Up must select the previous scene page");
         requireAction ("scene.selectNextPage", "Shift+Down must select the next scene page");
+
+        // First/last device and scene boundaries must remain clamped while the
+        // real Device mode arrow bindings are active.
+        deviceIndex = 0;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.LEFT, "Device lower boundary");
+        require (deviceIndex == 0, "Device navigation moved before the first device");
+        deviceIndex = 15;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.RIGHT, "Device upper boundary");
+        require (deviceIndex == 15, "Device navigation moved beyond the last device");
+        sceneIndex = 0;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.UP, "Scene lower boundary");
+        require (sceneIndex == 0, "Scene navigation moved before the first scene");
+        sceneIndex = 15;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.DOWN, "Scene upper boundary");
+        require (sceneIndex == 15, "Scene navigation moved beyond the last scene");
         navigationContext = false;
 
         // The same arrow controls must retain their intended behavior in the
@@ -341,6 +360,20 @@ public final class VirtualPush1RuntimeTest
             requireButtonMidiDelivery (midi, arrow, "Session arrow " + arrow);
         requireAction ("scene.scrollBackwards", "Session Up must move one scene backwards");
         requireAction ("scene.scrollForwards", "Session Down must move one scene forwards");
+        requireAction ("track.selectPreviousItem", "Session Left must select the previous track");
+        requireAction ("track.selectNextItem", "Session Right must select the next track");
+        trackIndex = 0;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.LEFT, "Track lower boundary");
+        require (trackIndex == 0, "Track navigation moved before the first track");
+        trackIndex = 15;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.RIGHT, "Track upper boundary");
+        require (trackIndex == 15, "Track navigation moved beyond the last track");
+        sceneIndex = 0;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.UP, "Session scene lower boundary");
+        require (sceneIndex == 0, "Session scene navigation moved before the first scene");
+        sceneIndex = 15;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.DOWN, "Session scene upper boundary");
+        require (sceneIndex == 15, "Session scene navigation moved beyond the last scene");
         navigationContext = false;
 
         // In/Out are separate from arrows: first navigate devices, then
@@ -358,6 +391,12 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In parameter page");
         requireAction ("parameterPage.selectPreviousPage", "Out must select the previous parameter page");
         requireAction ("parameterPage.selectNextPage", "In must select the next parameter page");
+        parameterPageIndex = 0;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page lower boundary");
+        require (parameterPageIndex == 0, "Parameter page moved before its first page");
+        parameterPageIndex = 3;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Parameter page upper boundary");
+        require (parameterPageIndex == 3, "Parameter page moved beyond its last page");
 
         // Browser mode is exercised against a stateful API-17 IBrowser model:
         // filter columns, result list, content-type paging and selection state
@@ -522,6 +561,12 @@ public final class VirtualPush1RuntimeTest
         sequencerView.onRight (ButtonEvent.DOWN);
         require (musicalModel.pageBackCount () == 1 && musicalModel.pageForwardCount () == 1,
             "Sequencer page navigation did not reach the note clip model");
+        musicalModel.setEditPage (0);
+        sequencerView.onLeft (ButtonEvent.DOWN);
+        require (musicalModel.editPage () == 0, "Sequencer clip page moved before its first page");
+        musicalModel.setEditPage (7);
+        sequencerView.onRight (ButtonEvent.DOWN);
+        require (musicalModel.editPage () == 7, "Sequencer clip page moved beyond its last page");
         sequencerView.setResolutionIndex (4);
         require (Math.abs (musicalModel.stepLength () - Resolution.values ()[4].getValue ()) < 0.000001,
             "Sequencer resolution selection did not update the clip step length");
@@ -715,8 +760,8 @@ public final class VirtualPush1RuntimeTest
                         case "setLoopLength": this.loopLength[0] = ((Number) args[0]).doubleValue (); return null;
                         case "getEditPage": return this.editPage[0];
                         case "scrollToPage": this.editPage[0] = (int) args[0]; return null;
-                        case "scrollStepsPageBackwards": this.pageBack[0]++; return null;
-                        case "scrollStepsPageForward": this.pageForward[0]++; return null;
+                        case "scrollStepsPageBackwards": this.pageBack[0]++; this.editPage[0] = Math.max (0, this.editPage[0] - 1); return null;
+                        case "scrollStepsPageForward": this.pageForward[0]++; this.editPage[0] = Math.min (7, this.editPage[0] + 1); return null;
                         case "getStep": return this.stepInfo ((NotePosition) args[0]);
                         case "toggleStep":
                         {
@@ -847,6 +892,8 @@ public final class VirtualPush1RuntimeTest
         NotePosition lastToggle () { return this.lastToggle == null ? new NotePosition () : new NotePosition (this.lastToggle); }
         int pageBackCount () { return this.pageBack[0]; }
         int pageForwardCount () { return this.pageForward[0]; }
+        int editPage () { return this.editPage[0]; }
+        void setEditPage (final int value) { this.editPage[0] = Math.max (0, Math.min (7, value)); }
         double stepLength () { return this.stepLength[0]; }
         void setCurrentStep (final int value) { this.currentStep[0] = value; }
     }
@@ -1122,6 +1169,14 @@ public final class VirtualPush1RuntimeTest
                 if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("device." + method.getName ());
+                    switch (method.getName ())
+                    {
+                        case "selectPreviousItem": deviceIndex = Math.max (0, deviceIndex - 1); break;
+                        case "selectNextItem": deviceIndex = Math.min (15, deviceIndex + 1); break;
+                        case "selectPreviousPage": deviceIndex = Math.max (0, deviceIndex - 8); break;
+                        case "selectNextPage": deviceIndex = Math.min (15, deviceIndex + 8); break;
+                        default: break;
+                    }
                     return null;
                 }
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -1136,6 +1191,8 @@ public final class VirtualPush1RuntimeTest
                 if (List.of ("selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("parameterPage." + method.getName ());
+                    parameterPageIndex = method.getName ().equals ("selectPreviousPage")
+                        ? Math.max (0, parameterPageIndex - 1) : Math.min (3, parameterPageIndex + 1);
                     return null;
                 }
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -1173,6 +1230,14 @@ public final class VirtualPush1RuntimeTest
                 if (List.of ("scrollBackwards", "scrollForwards", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("scene." + method.getName ());
+                    switch (method.getName ())
+                    {
+                        case "scrollBackwards": sceneIndex = Math.max (0, sceneIndex - 1); break;
+                        case "scrollForwards": sceneIndex = Math.min (15, sceneIndex + 1); break;
+                        case "selectPreviousPage": sceneIndex = Math.max (0, sceneIndex - 8); break;
+                        case "selectNextPage": sceneIndex = Math.min (15, sceneIndex + 8); break;
+                        default: break;
+                    }
                     return null;
                 }
                 if (method.getName ().equals ("getPageSize"))
@@ -1194,6 +1259,14 @@ public final class VirtualPush1RuntimeTest
                 if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("track." + method.getName ());
+                    switch (method.getName ())
+                    {
+                        case "selectPreviousItem": trackIndex = Math.max (0, trackIndex - 1); break;
+                        case "selectNextItem": trackIndex = Math.min (15, trackIndex + 1); break;
+                        case "selectPreviousPage": trackIndex = Math.max (0, trackIndex - 8); break;
+                        case "selectNextPage": trackIndex = Math.min (15, trackIndex + 8); break;
+                        default: break;
+                    }
                     return null;
                 }
                 if (method.getName ().equals ("getPageSize"))
