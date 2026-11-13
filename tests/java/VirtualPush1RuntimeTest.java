@@ -401,10 +401,12 @@ public final class VirtualPush1RuntimeTest
         require (MODEL_ACTIONS.contains ("browser.togglePreviewEnabled"),
             "Shift+top-right Browser button must toggle preview");
         MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
         for (final int arrow: new int [] { VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT })
-            requireButtonMidiDelivery (midi, arrow, "Browser content type navigation");
-        requireAction ("browser.previousContentType", "Browser Left must move to previous content type");
-        requireAction ("browser.nextContentType", "Browser Right must move to next content type");
+            requireButtonMidiDelivery (midi, arrow, "Shift+Browser content type navigation");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        requireAction ("browser.previousContentType", "Shift+Browser Left must move to previous content type");
+        requireAction ("browser.nextContentType", "Shift+Browser Right must move to next content type");
 
         // Exercise every registered Push 1 view with real pad note-on,
         // pressure and release traffic through the production bindings.
