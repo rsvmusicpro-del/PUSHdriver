@@ -486,6 +486,7 @@ public final class VirtualPush1RuntimeTest
         viewManager.setActive (Views.SEQUENCER);
         drainScheduled (state, 6);
         final SequencerView sequencerView = (SequencerView) viewManager.get (Views.SEQUENCER);
+        sequencerView.updateNoteMapping ();
         sequencerView.onGridNote (36, 100);
         sequencerView.onGridNote (36, 0);
         require (musicalModel.toggleCount () == 1,
@@ -505,6 +506,7 @@ public final class VirtualPush1RuntimeTest
         viewManager.setActive (Views.DRUM);
         drainScheduled (state, 6);
         final DrumView drumView = (DrumView) viewManager.get (Views.DRUM);
+        drumView.updateNoteMapping ();
         drumView.onGridNote (36, 96);
         drumView.onGridNote (36, 0);
         drumView.onGridNote (68, 96);
@@ -517,6 +519,7 @@ public final class VirtualPush1RuntimeTest
         viewManager.setActive (Views.DRUM64);
         drainScheduled (state, 6);
         final Drum64View drum64View = (Drum64View) viewManager.get (Views.DRUM64);
+        drum64View.updateNoteMapping ();
         drum64View.onGridNote (40, 100);
         drum64View.onGridNote (40, 0);
         drum64View.drawGrid ();
