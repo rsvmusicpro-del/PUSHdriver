@@ -375,12 +375,16 @@ public final class VirtualPush1RuntimeTest
         require (MODEL_ACTIONS.contains ("track.changeCrossfade") || MODEL_ACTIONS.contains ("track.setCrossfade")
                 || MODEL_ACTIONS.contains ("track.crossfade.changeValue"),
             "Crossfade encoder must write the selected track's crossfade parameter");
-        modes.setActive (Modes.SEND1);
-        setup.flush ();
-        MODEL_ACTIONS.clear ();
-        midi.device ().turnEncoderBy (0, 1);
-        require (MODEL_ACTIONS.contains ("track.send.0.changeValue") || MODEL_ACTIONS.contains ("track.send.0.setValue"),
-            "Send 1 encoder must write the selected track's send parameter");
+        for (int send = 0; send < 8; send++)
+        {
+            modes.setActive (Modes.get (Modes.SEND1, send));
+            setup.flush ();
+            MODEL_ACTIONS.clear ();
+            midi.device ().turnEncoderBy (0, 1);
+            final String prefix = "track.send." + send + ".";
+            require (MODEL_ACTIONS.stream ().anyMatch (action -> action.startsWith (prefix)),
+                "Track Send " + (send + 1) + " encoder must write its corresponding send parameter: " + MODEL_ACTIONS);
+        }
         modes.setActive (Modes.MASTER);
         setup.flush ();
         MODEL_ACTIONS.clear ();
@@ -412,6 +416,16 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releaseButton (VirtualPush1Device.DELETE);
         require (MODEL_ACTIONS.contains ("layer.0.resetPan") && MODEL_ACTIONS.contains ("layer.0.touchPan"),
             "Delete+Layer Pan touch must reset the layer and report automation touch");
+        for (int send = 0; send < 8; send++)
+        {
+            modes.setActive (Modes.get (Modes.DEVICE_LAYER_SEND1, send));
+            setup.flush ();
+            MODEL_ACTIONS.clear ();
+            midi.device ().turnEncoderBy (0, 1);
+            final String prefix = "layer.0.send." + send + ".";
+            require (MODEL_ACTIONS.stream ().anyMatch (action -> action.startsWith (prefix)),
+                "Device Layer Send " + (send + 1) + " encoder must write its corresponding send parameter: " + MODEL_ACTIONS);
+        }
         modes.setActive (Modes.get (Modes.DEVICE_LAYER_SEND1, 0));
         setup.flush ();
         MODEL_ACTIONS.clear ();
@@ -666,6 +680,13 @@ public final class VirtualPush1RuntimeTest
                 && MODEL_ACTIONS.contains ("lateNoteRepeat.toggleLatchActive"),
             "Late-created Note Repeat service must be discovered and receive mode, octave and latch controls");
         midi.setDefaultNoteInput (null);
+        modes.setActive (Modes.REPEAT_NOTE);
+        MODEL_ACTIONS.clear ();
+        midi.device ().tapButton (VirtualPush1Device.TOP_ROW_FIRST + 4);
+        midi.device ().touchEncoder (5, true);
+        midi.device ().touchEncoder (5, false);
+        require (!MODEL_ACTIONS.stream ().anyMatch (action -> action.startsWith ("lateNoteRepeat.")),
+            "Note Repeat controls must safely stop targeting a service removed after activation");
         modes.setActive (modeBeforeNoteRepeat);
 
         // The live sequencer playhead must follow only an existing note clip;
