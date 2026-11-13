@@ -50,7 +50,7 @@ The Push 1 mode inventory registered by the production setup is:
 - Automation, Transport/Metronome, Markers, User, Configuration
 - Session, Session View Select, Note Repeat, Add Track
 
-The matrix above is broad command-dispatch and exception smoke coverage across the complete registered extension surface. It does **not** by itself prove that each host-model operation has the correct musical or editing effect. The focused runtime assertions currently additionally verify startup, mode/view switching, Play/Record/Shift+Record transport behavior, Shift state, pad/aftertouch input, encoder/touch/ribbon dispatch, LED/LCD feedback, Device and Session arrow semantics, In/Out device navigation and parameter-page navigation.
+An independent runtime counter asserts that the production matrix actually executes exactly 700 pairs (50 registered modes × 14 registered views) on each run. The matrix above is broad command-dispatch and exception smoke coverage across the complete registered extension surface. It does **not** by itself prove that each host-model operation has the correct musical or editing effect. The focused runtime assertions currently additionally verify startup, mode/view switching, Play/Record/Shift+Record transport behavior, Shift state, pad/aftertouch input, encoder/touch/ribbon dispatch, LED/LCD feedback, Device and Session arrow semantics, In/Out device navigation and parameter-page navigation.
 
 ## 3. Push 1-specific production behavior — regression coverage and semantic depth
 
@@ -61,6 +61,7 @@ The following behaviors are implemented in the production adaptation. The labels
 | Push 1 firmware identity | `Push1FirmwareVersion` parser and hardened `DeviceInquiry` are production code | Unified suite tests valid Ableton identities, manufacturer mismatch, malformed digits/data, defensive copies and query immutability |
 | LCD geometry, glyphs and framing | Shared production geometry/protocol and exhaustive logical character tests | Unified suite also tests fixed-width labels, seven-bit sanitization, notification overlay and eight-cell value/pan bars |
 | Navigation and Shift paging | Production `PushCursorCommand`, page commands; Device and Session actions asserted | Exercise first/last boundaries, empty banks, all view-specific contexts and LED/action parity |
+| Session scenes | Production `SessionView` | Stateful scene model asserts Scene select+launch, Delete+Scene removal and Duplicate+Scene duplication |
 | In/Out and Browser | Production Device/Browser context handling; Device item and parameter-page actions asserted | Stateful Browser tests cover previous/next filter items, previous/next preset results, encoder-selected filter movement and Shift+Preview; empty columns, selection-marker rendering and LED availability remain additional edge cases |
 | New clip | Production `PushNewCommand` wrapper | Unified runtime now uses a stateful cursor-track/slot model to assert selected-slot search, stop-before-create on the cursor track, normal overdub, Shift+New without overdub, no-slot fallback without stopping playback |
 | Note Repeat | Production mode and null-safe optional service handling; package verifier checks safe LED path | Unified runtime tests both absent and available optional services and asserts Latch, Pressure, Free Running and Shuffle toggles; late service creation, knob/ribbon interaction and LED feedback remain additional scenarios |
@@ -69,7 +70,7 @@ The following behaviors are implemented in the production adaptation. The labels
 | Track, mixer, sends, master, device and clip modes | Production modes and command matrix are exercised | Stateful bank models for first/last items, empty banks, unavailable actions, selection changes and context transitions |
 | Swing simulator | GUI can be launched from the same virtual device and MIDI bench | Display-backed CI smoke test for construction, event dispatch, repaint and clean close is not yet automated |
 
-The firmware/display regression tests, New-clip scenarios, Browser navigation/preview scenarios, absent/available Note Repeat service scenarios, Drum64 page/selection scenario and mono-sequencer playhead assertions are part of the same unified suite and are compiled and invoked by `scripts/test_push1_extension.py`. The inventory assertions also make the complete 50-mode / 14-view Push 1 registration scope explicit.
+The firmware/display regression tests, New-clip scenarios, Session scene actions, Browser navigation/preview scenarios, absent/available Note Repeat service scenarios, Drum64 page/selection scenario and mono-sequencer playhead assertions are part of the same unified suite and are compiled and invoked by `scripts/test_push1_extension.py`. The inventory assertions also make the complete 50-mode / 14-view Push 1 registration scope explicit.
 
 ## 4. Build, package and CI contract
 
