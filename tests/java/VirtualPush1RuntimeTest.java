@@ -254,15 +254,22 @@ public final class VirtualPush1RuntimeTest
         require (browserModel.resultCursor () == resultBefore,
             "Push 1 bottom-row result button did not select the next result");
 
-        // Note Repeat is backed by a mutable API-17 INoteRepeat service rather
-        // than a null/default proxy. Exercise the real mode's four state toggles.
+        // The API-17 note input exists before its optional Note Repeat service.
+        // The production mode must tolerate absence and resolve the service if
+        // Bitwig creates it after controller startup.
         require (midi.input ().getDefaultNoteInput () != null
-                && midi.input ().getDefaultNoteInput ().getNoteRepeat () == midi.noteRepeat (),
-            "Virtual MIDI input did not expose its Note Repeat service");
+                && midi.input ().getDefaultNoteInput ().getNoteRepeat () == null,
+            "Virtual MIDI input should begin without the optional Note Repeat service");
         require (modes.get (Modes.REPEAT_NOTE) != null, "Note Repeat mode was not registered");
         modes.setActive (Modes.REPEAT_NOTE);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Note Repeat latch");
-        require (midi.noteRepeat ().isLatchActive (), "Note Repeat latch state did not toggle");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Note Repeat latch without service");
+        require (!midi.noteRepeat ().isLatchActive (),
+            "Note Repeat attempted to mutate an unavailable service");
+        midi.setNoteRepeatAvailable (true);
+        require (midi.input ().getDefaultNoteInput ().getNoteRepeat () == midi.noteRepeat (),
+            "Late-created Note Repeat service was not exposed by the MIDI input");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Note Repeat latch after service creation");
+        require (midi.noteRepeat ().isLatchActive (), "Late-created Note Repeat service was not resolved by the active mode");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 5, "Note Repeat pressure velocity");
         require (midi.noteRepeat ().usePressure (), "Note Repeat pressure-velocity state did not toggle");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Note Repeat free running");
