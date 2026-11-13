@@ -1233,6 +1233,7 @@ public final class VirtualPush1RuntimeTest
                 switch (method.getName ())
                 {
                     case "getIndex": return index;
+                    case "getColor": return de.mossgrabers.framework.controller.color.ColorEx.BLACK;
                     case "hasContent": return false;
                     case "testAndClearLaunchedImmediately": return false;
                     case "launch":
