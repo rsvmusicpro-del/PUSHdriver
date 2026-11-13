@@ -260,16 +260,18 @@ public final class VirtualPush1RuntimeTest
         require (midi.capturedOutput ().stream ().anyMatch (message -> message.startsWith ("sendSysex ")),
             "Production setup did not emit any Push 1 SysEx feedback");
 
-        // Exercise arrows end-to-end: the real MIDI bindings must invoke the
-        // production command and mutate the corresponding Bitwig bank proxy.
+        // Exercise arrows end-to-end in Device mode, where horizontal
+        // navigation selects devices and vertical navigation scrolls scenes.
+        requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Device mode for arrows");
+        require (modes.isActive (Modes.DEVICE_PARAMS), "Device mode was not active for arrow navigation");
         MODEL_ACTIONS.clear ();
         navigationContext = true;
         for (final int arrow: new int [] {
             VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
             VirtualPush1Device.UP, VirtualPush1Device.DOWN })
             requireButtonMidiDelivery (midi, arrow, "Track arrow " + arrow);
-        requireAction ("track.selectPreviousItem", "Left must move the selected track bank item");
-        requireAction ("track.selectNextItem", "Right must move the selected track bank item");
+        requireAction ("device.selectPreviousItem", "Left must select the previous device");
+        requireAction ("device.selectNextItem", "Right must select the next device");
         requireAction ("scene.scrollBackwards", "Up must move one scene backwards");
         requireAction ("scene.scrollForwards", "Down must move one scene forwards");
         navigationContext = false;
@@ -283,8 +285,8 @@ public final class VirtualPush1RuntimeTest
             VirtualPush1Device.UP, VirtualPush1Device.DOWN })
             requireButtonMidiDelivery (midi, arrow, "Shift arrow " + arrow);
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
-        requireAction ("track.selectPreviousPage", "Shift+Left must select the previous track page");
-        requireAction ("track.selectNextPage", "Shift+Right must select the next track page");
+        requireAction ("device.selectPreviousPage", "Shift+Left must select the previous device page");
+        requireAction ("device.selectNextPage", "Shift+Right must select the next device page");
         requireAction ("scene.selectPreviousPage", "Shift+Up must select the previous scene page");
         requireAction ("scene.selectNextPage", "Shift+Down must select the next scene page");
         navigationContext = false;
