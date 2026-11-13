@@ -1015,10 +1015,14 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         navigationContext = true;
         midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        require (surface.isShiftPressed (), "Physical Shift state was not held during Device-mode arrow tests");
         for (final int arrow: new int [] {
             VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
             VirtualPush1Device.UP, VirtualPush1Device.DOWN })
+        {
+            require (surface.isShiftPressed (), "Shift state was lost before Device-mode arrow " + arrow);
             requireButtonMidiDelivery (midi, arrow, "Shift arrow " + arrow);
+        }
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
         requireAction ("cursorDevice.swapWithPrevious", "Shift+Left must swap the cursor device with its previous neighbor");
         requireAction ("cursorDevice.swapWithNext", "Shift+Right must swap the cursor device with its next neighbor");
