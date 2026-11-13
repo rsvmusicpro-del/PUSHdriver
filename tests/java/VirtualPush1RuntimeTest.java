@@ -452,6 +452,7 @@ public final class VirtualPush1RuntimeTest
             expectedModes.add (Modes.get (Modes.SEND1, i));
             expectedModes.add (Modes.get (Modes.DEVICE_LAYER_SEND1, i));
         }
+        require (expectedModes.size () == 50, "Push 1 mode inventory must remain complete (expected 50, found " + expectedModes.size () + ")");
         for (final Modes mode: expectedModes)
         {
             require (modes.get (mode) != null, "Push 1 production mode was not registered: " + mode);
@@ -838,6 +839,7 @@ public final class VirtualPush1RuntimeTest
             Views.POLY_SEQUENCER, Views.DRUM, Views.DRUM4, Views.DRUM8,
             Views.SCENE_PLAY, Views.DRUM64
         };
+        require (expectedViews.length == 14, "Push 1 view inventory must remain complete (expected 14, found " + expectedViews.length + ")");
         for (final Views view: expectedViews)
         {
             require (surface.getViewManager ().get (view) != null,
