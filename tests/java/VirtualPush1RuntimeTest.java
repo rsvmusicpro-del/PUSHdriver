@@ -1424,7 +1424,7 @@ public final class VirtualPush1RuntimeTest
                         case "doesExist", "isActivated", "canHoldNotes", "canHoldAudioData" -> true;
                         case "getIndex", "getPosition" -> index;
                         case "getName" -> a == null || a.length == 0 ? "Virtual Track " + (index + 1)
-                            : ("Virtual Track " + (index + 1)).substring (0, Math.min ("Virtual Track " + (index + 1).length (), (int) a[0]));
+                            : ("Virtual Track " + (index + 1)).substring (0, Math.min (("Virtual Track " + (index + 1)).length (), (int) a[0]));
                         case "isSelected" -> this.selectedTrack == index;
                         case "select" -> { this.selectedTrack = index; yield null; }
                         case "getVolumeParameter" -> this.volumes[index].parameter;
