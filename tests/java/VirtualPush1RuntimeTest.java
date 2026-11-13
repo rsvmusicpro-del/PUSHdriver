@@ -182,22 +182,23 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
 
         // Exercise every physical direction through MIDI -> production binding
-        // -> production command in Track and Session contexts.
-        int navigationEvents = midi.getDispatchedButtonEvents ();
+        // -> production command in Track and Session contexts. Each tap must
+        // dispatch exactly one DOWN and one UP event.
         for (final int arrow: new int [] {
             VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
             VirtualPush1Device.UP, VirtualPush1Device.DOWN })
-            midi.device ().tapButton (arrow);
-        midi.device ().tapButton (VirtualPush1Device.SESSION);
+            requireButtonMidiDelivery (midi, arrow, "Track arrow " + arrow);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.SESSION, "Session mode");
+        require (Views.isSessionView (surface.getViewManager ().getActiveID ()),
+            "Session button did not activate the Session view for navigation tests");
         for (final int arrow: new int [] {
             VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
             VirtualPush1Device.UP, VirtualPush1Device.DOWN })
-            midi.device ().tapButton (arrow);
-        midi.device ().tapButton (VirtualPush1Device.DEVICE);
-        midi.device ().tapButton (VirtualPush1Device.OUT);
-        midi.device ().tapButton (VirtualPush1Device.IN);
-        require (midi.getDispatchedButtonEvents () - navigationEvents == 24,
-            "Arrow and In/Out controls did not all traverse their production MIDI bindings");
+            requireButtonMidiDelivery (midi, arrow, "Session arrow " + arrow);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Device mode");
+        require (modes.isActive (Modes.DEVICE_PARAMS), "Device button did not activate Device mode for In/Out tests");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In");
 
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
@@ -646,6 +647,15 @@ public final class VirtualPush1RuntimeTest
             next.task ().run ();
         }
         throw new AssertionError ("Virtual Bitwig scheduler exceeded 100000 tasks at delay " + delay);
+    }
+
+    private static void requireButtonMidiDelivery (final VirtualPush1MidiBench midi,
+        final int control, final String label)
+    {
+        final int before = midi.getDispatchedButtonEvents ();
+        midi.device ().tapButton (control);
+        final int dispatched = midi.getDispatchedButtonEvents () - before;
+        require (dispatched == 2, label + " did not dispatch exactly DOWN+UP through production MIDI bindings; got " + dispatched);
     }
 
     private static void require (final boolean condition, final String message)
