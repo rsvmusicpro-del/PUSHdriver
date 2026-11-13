@@ -355,18 +355,34 @@ public final class VirtualPush1RuntimeTest
         // The service appears after the controller has already been created.
         // NoteRepeatMode must refresh the optional service instead of retaining
         // the null reference captured during startup.
+        final Modes modeBeforeNoteRepeat = modes.getActiveID ();
+        modes.setActive (Modes.REPEAT_NOTE);
+        setup.flush ();
+        drainScheduled (state, 1);
         midi.setDefaultNoteInput (noteInput);
-        unavailableNoteRepeat.onFirstRow (4, ButtonEvent.UP);
-        unavailableNoteRepeat.onFirstRow (5, ButtonEvent.UP);
-        unavailableNoteRepeat.onFirstRow (6, ButtonEvent.UP);
-        unavailableNoteRepeat.onFirstRow (7, ButtonEvent.UP);
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().touchEncoder (5, true);
+        midi.device ().touchEncoder (5, false);
+        midi.device ().touchEncoder (6, true);
+        midi.device ().touchEncoder (6, false);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        midi.device ().tapButton (VirtualPush1Device.TOP_ROW_FIRST + 4);
+        midi.device ().tapButton (VirtualPush1Device.TOP_ROW_FIRST + 5);
+        midi.device ().tapButton (VirtualPush1Device.TOP_ROW_FIRST + 6);
+        midi.device ().tapButton (VirtualPush1Device.TOP_ROW_FIRST + 7);
         for (final String action: List.of (
             "setMode", "setOctaves", "toggleLatchActive", "toggleUsePressure",
             "toggleIsFreeRunning", "toggleShuffle"))
             require (state.noteRepeatActions.contains (action),
                 "Late-created Note Repeat service did not receive " + action);
         midi.setDefaultNoteInput (null);
-        unavailableNoteRepeat.onFirstRow (4, ButtonEvent.UP);
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().touchEncoder (5, true);
+        midi.device ().touchEncoder (5, false);
+        midi.device ().touchEncoder (6, true);
+        midi.device ().touchEncoder (6, false);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        modes.setActive (modeBeforeNoteRepeat);
 
         // The live sequencer playhead must follow only an existing note clip;
         // an empty cursor slot must never cause an edit-page scroll.
