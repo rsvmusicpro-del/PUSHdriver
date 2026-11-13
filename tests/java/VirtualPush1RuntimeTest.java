@@ -332,7 +332,77 @@ public final class VirtualPush1RuntimeTest
         });
         drainScheduled (state, 100);
         require (matrixComplete[0], "Production view/mode command matrix did not finish");
-        require (state.errors.isEmpty (), "Production mode matrix reported runtime errors: " + state.errors);
+
+        // Full Push 1 registration inventory, taken from the Push 1 branch
+        // of PushControllerSetup rather than recent feature changes alone.
+        final List<Modes> expectedModes = new java.util.ArrayList<> (List.of (
+            Modes.TRACK, Modes.TRACK_DETAILS, Modes.VOLUME, Modes.PAN, Modes.CROSSFADER,
+            Modes.MASTER, Modes.MASTER_TEMP,
+            Modes.DEVICE_PARAMS, Modes.DEVICE_CHAINS, Modes.DEVICE_LAYER,
+            Modes.DEVICE_LAYER_VOLUME, Modes.DEVICE_LAYER_PAN, Modes.DEVICE_LAYER_DETAILS,
+            Modes.BROWSER, Modes.CLIP, Modes.NOTE, Modes.FRAME, Modes.GROOVE,
+            Modes.REC_ARM, Modes.ACCENT, Modes.SCALES, Modes.SCALE_LAYOUT, Modes.FIXED,
+            Modes.RIBBON, Modes.VIEW_SELECT, Modes.AUTOMATION, Modes.TRANSPORT,
+            Modes.MARKERS, Modes.USER, Modes.CONFIGURATION, Modes.SESSION,
+            Modes.SESSION_VIEW_SELECT, Modes.REPEAT_NOTE, Modes.ADD_TRACK));
+        for (int i = 0; i < 8; i++)
+        {
+            expectedModes.add (Modes.get (Modes.SEND1, i));
+            expectedModes.add (Modes.get (Modes.DEVICE_LAYER_SEND1, i));
+        }
+        for (final Modes mode: expectedModes)
+        {
+            require (modes.get (mode) != null, "Push 1 production mode was not registered: " + mode);
+            modes.setActive (mode);
+            setup.flush ();
+            for (int encoder = 0; encoder < 8; encoder++)
+            {
+                midi.device ().turnEncoderBy (encoder, 1);
+                midi.device ().turnEncoderBy (encoder, -1);
+                midi.device ().touchEncoder (encoder, true);
+                midi.device ().touchEncoder (encoder, false);
+            }
+            midi.device ().turnEncoderBy (8, 1);
+            midi.device ().turnEncoderBy (8, -1);
+            midi.device ().touchEncoder (8, true);
+            midi.device ().touchEncoder (8, false);
+            for (int encoder = 0; encoder < 2; encoder++)
+            {
+                midi.device ().turnSmallEncoderBy (encoder, 1);
+                midi.device ().turnSmallEncoderBy (encoder, -1);
+                midi.device ().touchSmallEncoder (encoder, true);
+                midi.device ().touchSmallEncoder (encoder, false);
+            }
+            setup.flush ();
+        }
+
+        // Exercise every registered Push 1 view with real pad note-on,
+        // pressure and release traffic through the production bindings.
+        final Views [] expectedViews = {
+            Views.PLAY, Views.CHORDS, Views.PIANO, Views.PRG_CHANGE,
+            Views.CLIP_LENGTH, Views.COLOR, Views.SESSION, Views.SEQUENCER,
+            Views.POLY_SEQUENCER, Views.DRUM, Views.DRUM4, Views.DRUM8,
+            Views.RAINDROPS, Views.SCENE_PLAY, Views.DRUM64
+        };
+        for (final Views view: expectedViews)
+        {
+            require (surface.getViewManager ().get (view) != null,
+                "Push 1 production view was not registered: " + view);
+            surface.getViewManager ().setActive (view);
+            for (int row = 0; row < 8; row++)
+                for (int column = 0; column < 8; column++)
+                {
+                    midi.device ().pressPad (row, column, 96);
+                    midi.device ().pressPadPressure (row, column, 64);
+                    midi.device ().releasePad (row, column);
+                }
+            setup.flush ();
+            require (midi.device ().getLcdRow (0).length () == 68,
+                "Push 1 LCD output failed while exercising view " + view);
+        }
+
+        require (state.errors.isEmpty (),
+            "Production mode/view acceptance matrix reported runtime errors: " + state.errors);
 
         if (args.length > 0 && "--gui".equals (args[0]))
             VirtualPush1Simulator.show (midi, setup::exit);
