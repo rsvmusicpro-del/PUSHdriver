@@ -18,6 +18,8 @@ import de.mossgrabers.framework.daw.IHost;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.ITransport;
 import de.mossgrabers.framework.daw.data.bank.ITrackBank;
+import de.mossgrabers.framework.daw.data.bank.IDeviceBank;
+import de.mossgrabers.framework.daw.data.bank.IParameterPageBank;
 import de.mossgrabers.framework.daw.data.IDeviceMetadata;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.daw.data.ITrack;
@@ -35,6 +37,7 @@ import de.mossgrabers.framework.command.core.ContinuousCommand;
 import de.mossgrabers.framework.command.core.PitchbendCommand;
 import de.mossgrabers.framework.command.core.TriggerCommand;
 import de.mossgrabers.framework.mode.Modes;
+import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.utils.TestCallback;
@@ -66,6 +69,7 @@ public final class VirtualPush1RuntimeTest
 {
     private static int lightsCreated;
     private static int lightsUpdated;
+    private static final List<String> MODEL_ACTIONS = new java.util.ArrayList<> ();
 
     private static final class State
     {
@@ -182,24 +186,46 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.SESSION) != null, "Session mode was not registered");
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
 
-        // Exercise every physical direction through MIDI -> production binding
-        // -> production command in Track and Session contexts. Each tap must
-        // dispatch exactly one DOWN and one UP event.
+        // Exercise arrows end-to-end: the real MIDI bindings must invoke the
+        // production command and mutate the corresponding Bitwig bank proxy.
+        MODEL_ACTIONS.clear ();
         for (final int arrow: new int [] {
             VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
             VirtualPush1Device.UP, VirtualPush1Device.DOWN })
             requireButtonMidiDelivery (midi, arrow, "Track arrow " + arrow);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.SESSION, "Session mode");
-        require (Views.isSessionView (surface.getViewManager ().getActiveID ()),
-            "Session button did not activate the Session view for navigation tests");
+        requireAction ("track.selectPreviousItem", "Left must move the selected track bank item");
+        requireAction ("track.selectNextItem", "Right must move the selected track bank item");
+        requireAction ("scene.scrollBackwards", "Up must move one scene backwards");
+        requireAction ("scene.scrollForwards", "Down must move one scene forwards");
+
+        // Shift changes arrows from one item to one bank page.
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
         for (final int arrow: new int [] {
             VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
             VirtualPush1Device.UP, VirtualPush1Device.DOWN })
-            requireButtonMidiDelivery (midi, arrow, "Session arrow " + arrow);
+            requireButtonMidiDelivery (midi, arrow, "Shift arrow " + arrow);
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        requireAction ("track.selectPreviousPage", "Shift+Left must select the previous track page");
+        requireAction ("track.selectNextPage", "Shift+Right must select the next track page");
+        requireAction ("scene.selectPreviousPage", "Shift+Up must select the previous scene page");
+        requireAction ("scene.selectNextPage", "Shift+Down must select the next scene page");
+
+        // In/Out are separate from arrows: first navigate devices, then
+        // parameter pages, using the actual DeviceParamsMode production path.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Device mode");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Device button did not activate Device mode for In/Out tests");
+        MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out");
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In");
+        requireAction ("device.selectPreviousItem", "Out must select the previous device");
+        requireAction ("device.selectNextItem", "In must select the next device");
+        ((DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS)).setShowDevices (false);
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out parameter page");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In parameter page");
+        requireAction ("parameterPage.selectPreviousPage", "Out must select the previous parameter page");
+        requireAction ("parameterPage.selectNextPage", "In must select the next parameter page");
 
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
@@ -298,10 +324,44 @@ public final class VirtualPush1RuntimeTest
 
     private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters)
     {
+        final IDeviceBank devices = (IDeviceBank) Proxy.newProxyInstance (
+            IDeviceBank.class.getClassLoader (), new Class<?> [] { IDeviceBank.class },
+            (proxy, method, args) -> {
+                if (method.getName ().equals ("getPageSize"))
+                    return 8;
+                if (method.getName ().equals ("getItem"))
+                    return Proxy.newProxyInstance (de.mossgrabers.framework.daw.data.IDevice.class.getClassLoader (),
+                        new Class<?> [] { de.mossgrabers.framework.daw.data.IDevice.class },
+                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
+                {
+                    MODEL_ACTIONS.add ("device." + method.getName ());
+                    return null;
+                }
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+        final IParameterPageBank pages = (IParameterPageBank) Proxy.newProxyInstance (
+            IParameterPageBank.class.getClassLoader (), new Class<?> [] { IParameterPageBank.class },
+            (proxy, method, args) -> {
+                if (method.getName ().equals ("getPageSize"))
+                    return 8;
+                if (method.getName ().equals ("getItem"))
+                    return "";
+                if (List.of ("selectPreviousPage", "selectNextPage").contains (method.getName ()))
+                {
+                    MODEL_ACTIONS.add ("parameterPage." + method.getName ());
+                    return null;
+                }
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
         return (ICursorDevice) Proxy.newProxyInstance (ICursorDevice.class.getClassLoader (),
             new Class<?> [] { ICursorDevice.class }, (proxy, method, args) -> {
                 if (method.getName ().equals ("getParameterBank"))
                     return parameters;
+                if (method.getName ().equals ("getDeviceBank"))
+                    return devices;
+                if (method.getName ().equals ("getParameterPageBank"))
+                    return pages;
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
@@ -324,6 +384,11 @@ public final class VirtualPush1RuntimeTest
     {
         return (ISceneBank) Proxy.newProxyInstance (ISceneBank.class.getClassLoader (),
             new Class<?> [] { ISceneBank.class }, (proxy, method, args) -> {
+                if (List.of ("scrollBackwards", "scrollForwards", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
+                {
+                    MODEL_ACTIONS.add ("scene." + method.getName ());
+                    return null;
+                }
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getSelectedItem"))
@@ -340,6 +405,11 @@ public final class VirtualPush1RuntimeTest
     {
         return (ITrackBank) Proxy.newProxyInstance (ITrackBank.class.getClassLoader (),
             new Class<?> [] { ITrackBank.class }, (proxy, method, args) -> {
+                if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
+                {
+                    MODEL_ACTIONS.add ("track." + method.getName ());
+                    return null;
+                }
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getSelectedItem"))
@@ -648,6 +718,11 @@ public final class VirtualPush1RuntimeTest
             next.task ().run ();
         }
         throw new AssertionError ("Virtual Bitwig scheduler exceeded 100000 tasks at delay " + delay);
+    }
+
+    private static void requireAction (final String action, final String message)
+    {
+        require (MODEL_ACTIONS.contains (action), message + "; observed model calls: " + MODEL_ACTIONS);
     }
 
     private static void requireButtonMidiDelivery (final VirtualPush1MidiBench midi,
