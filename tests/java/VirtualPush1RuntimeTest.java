@@ -252,8 +252,10 @@ public final class VirtualPush1RuntimeTest
             MODEL_ACTIONS.add ("grid:" + note + ":" + velocity);
             surface.getViewManager ().get (surface.getViewManager ().getActiveID ()).onGridNote (note.intValue (), velocity.intValue ());
         });
-        midi.setAftertouchHandler ((note, value) ->
-            surface.getViewManager ().get (surface.getViewManager ().getActiveID ()).executeAftertouchCommand (note.intValue (), value.intValue ()));
+        midi.setAftertouchHandler ((note, value) -> {
+            MODEL_ACTIONS.add ("aftertouch:" + note + ":" + value);
+            surface.getViewManager ().get (surface.getViewManager ().getActiveID ()).executeAftertouchCommand (note.intValue (), value.intValue ());
+        });
         final var modes = surface.getModeManager ();
         require (modes.get (Modes.TRACK) != null, "Track mode was not registered");
         require (modes.get (Modes.DEVICE_PARAMS) != null, "Device parameter mode was not registered");
@@ -276,6 +278,21 @@ public final class VirtualPush1RuntimeTest
             "Play LED feedback missing: lightsCreated=" + lightsCreated + ", lightsUpdated=" + lightsUpdated
                 + ", scheduled=" + state.scheduled.size () + ", hostErrors=" + state.errors
                 + ", captured=" + midi.capturedOutput ().stream ().filter (m -> m.contains ("85") || m.contains ("sendCCEx")).toList ());
+
+        // Poly-aftertouch must travel from the virtual pad pressure sensor
+        // through the active Play view command and back to MIDI output.
+        drainScheduled (state, 6);
+        MODEL_ACTIONS.clear ();
+        final int outputBeforeAftertouch = midi.capturedOutput ().size ();
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().pressPadPressure (0, 0, 80);
+        midi.device ().releasePad (0, 0);
+        requireAction ("aftertouch:36:80", "Pad pressure must reach the active Play view aftertouch command");
+        final List<String> aftertouchOutput = midi.capturedOutput ().subList (
+            outputBeforeAftertouch, midi.capturedOutput ().size ());
+        require (aftertouchOutput.stream ().anyMatch (message -> message.startsWith ("sendCC") && message.contains (", 80]")),
+            "Play view aftertouch conversion must produce MIDI output: " + aftertouchOutput);
+
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (!state.playing, "Second Play CC did not stop the Bitwig transport");
         setup.flush ();
