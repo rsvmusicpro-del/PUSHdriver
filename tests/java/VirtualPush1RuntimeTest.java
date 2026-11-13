@@ -641,6 +641,9 @@ public final class VirtualPush1RuntimeTest
         require (matrixComplete[0], "Production view/mode command matrix did not finish");
         require (state.errors.isEmpty (), "Production mode matrix reported runtime errors: " + state.errors);
 
+        // Exercise the complete Swing simulator in memory on every CI run.
+        VirtualPush1Simulator.smoke (midi);
+
         if (args.length > 0 && "--gui".equals (args[0]))
             VirtualPush1Simulator.show (midi, setup::exit);
         else
