@@ -222,6 +222,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getScales" -> scales;
                                 case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
                                 case "getSceneBank" -> sceneBank;
+                                case "getMasterTrack" -> trackProxy ("master");
                                 case "getUserParameterBank" -> parameterBankProxy ();
                                 case "getCursorDevice" -> cursorDevice;
                                 case "getDrumDevice" -> drumDeviceProxy (state);
@@ -1380,32 +1381,60 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getSceneBank"))
                     return sceneBankProxy ();
                 if (method.getName ().equals ("getItem"))
-                    return trackProxy ();
+                    return trackProxy ("track0");
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
 
-    private static ITrack trackProxy ()
+    private static ITrack trackProxy (final String label)
     {
         final ISendBank sendBank = (ISendBank) Proxy.newProxyInstance (ISendBank.class.getClassLoader (),
             new Class<?> [] { ISendBank.class }, (proxy, method, args) -> {
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
+                {
+                    final int sendIndex = (int) args[0];
                     return Proxy.newProxyInstance (ISend.class.getClassLoader (),
-                        new Class<?> [] { ISend.class },
-                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                        new Class<?> [] { ISend.class }, (p, m, a) -> {
+                            if (m.getName ().equals ("getParameter"))
+                                return parameterProxy (label + ".send" + sendIndex);
+                            return defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                        });
+                }
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
         return (ITrack) Proxy.newProxyInstance (ITrack.class.getClassLoader (),
             new Class<?> [] { ITrack.class }, (proxy, method, args) -> {
-                if (method.getName ().equals ("getSendBank"))
-                    return sendBank;
-                if (method.getName ().equals ("getSceneBank"))
-                    return sceneBankProxy ();
-                if (method.getName ().equals ("getSlotBank"))
-                    return slotBankProxy ();
-                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                switch (method.getName ())
+                {
+                    case "getSendBank": return sendBank;
+                    case "getSceneBank": return sceneBankProxy ();
+                    case "getSlotBank": return slotBankProxy ();
+                    case "getVolume": return parameterProxy (label + ".volume");
+                    case "getPan": return parameterProxy (label + ".pan");
+                    case "getCrossfade": return parameterProxy (label + ".crossfade");
+                    case "doesExist": return true;
+                    case "getName": return label;
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+    }
+
+    private static IParameter parameterProxy (final String label)
+    {
+        return (IParameter) Proxy.newProxyInstance (IParameter.class.getClassLoader (),
+            new Class<?> [] { IParameter.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "touchValue": case "setValue": case "inc": case "resetValue":
+                        MODEL_ACTIONS.add (label + "." + method.getName ());
+                        return null;
+                    case "getValue": case "getModulatedValue": case "getDisplayedValue": return 0.5;
+                    case "doesExist": case "isEnabled": return true;
+                    case "getName": return label;
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
             });
     }
 
