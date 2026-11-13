@@ -28,8 +28,10 @@ excluded from the packaged extension.
 
 ## Working rules
 
-- Work only on the Git branch `custom`; inspect its history before making
-  changes.
+- Target only the protected Git branch `custom`; inspect its history before
+  making changes. Because branch protection now requires pull requests, propose
+  changes through a short-lived PR branch targeting `custom`. Never modify
+  `main`.
 - Preserve the upstream source pin and API 17 compatibility.
 - Keep production behavior changes separate from test infrastructure.
 - Prefer small, regression-backed changes to production commands and modes.
@@ -62,8 +64,20 @@ The virtual bench has three layers:
    `PushControllerSetup` with deterministic API-17 host/model collaborators
    and exercises real registered commands and modes.
 
-The protocol and runtime tests are intended to run in CI without a physical
-controller or a Bitwig process. The host/model collaborators are proxies,
+The MIDI bench forwards pad note-on/note-off to the active production view's
+`onGridNote` and poly-aftertouch to its registered aftertouch command. It also
+captures the MIDI output produced by those commands. This ensures that pad
+protocol serialization and actual view handling are tested as separate layers.
+
+The acceptance inventory covers the Push 1 setup's 50 registered modes and 14
+packaged views, plus protocol-exhaustive pad, encoder, ribbon, LED and LCD
+checks. Stateful scenarios exercise Browser, New Clip, Note Repeat,
+Sequencer/Poly Sequencer, Drum 4/8/64, Device bank boundaries, empty device
+layers, transport and aftertouch. The exact list of assertions is maintained in
+`docs/VIRTUAL-PUSH1-COVERAGE.md`.
+
+The protocol and runtime tests run in CI without a physical controller or a
+Bitwig process. The host/model collaborators are deterministic API-17 proxies,
 not a complete reimplementation of Bitwig's internal engine. This proves the
 tested controller-side contract, not every undocumented Bitwig behavior.
 
@@ -134,14 +148,13 @@ certify physical Push USB, pressure calibration or LCD glass appearance.
 ## CI and known validation boundary
 
 The GitHub Actions workflow builds and validates Linux and Intel macOS with
-Java 17, runs the Push 1 protocol/display/runtime regression suites, packages
-the API-17 extension and enforces a combined `quality-gate` job. The detailed
-coverage inventory and explicit gaps are tracked in
-`docs/VIRTUAL-PUSH1-COVERAGE.md`. Protocol regressions cover every valid pad
-velocity and pressure value on all 64 pads, all signed relative-step values on
-all 11 encoders, and all 16,384 ribbon positions. The
-`quality-gate` must be configured as a required status check in GitHub branch
-protection; workflow presence alone does not prevent direct pushes or merges.
+Java 17, runs the Push 1 protocol/display/runtime acceptance suite, packages
+the API-17 extension and enforces a combined `quality-gate` job. Branch
+`custom` is protected and requires `quality-gate` before a pull request can
+merge. The detailed coverage inventory and explicit validation boundaries are
+tracked in `docs/VIRTUAL-PUSH1-COVERAGE.md`. Protocol regressions cover every
+valid pad velocity and pressure value on all 64 pads, all signed relative-step
+values on all 11 encoders, and all 16,384 ribbon positions.
 
 A successful CI run does not itself launch Bitwig Studio 4.3.10, emulate the
 Bitwig scheduler/model in full, test native MIDI port discovery on every
