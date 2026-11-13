@@ -310,6 +310,8 @@ public final class VirtualPush1RuntimeTest
         midi.device ().tapButton (VirtualPush1Device.TRACK);
         require (modes.isActive (Modes.TRACK), "Track CC did not restore TRACK after CLIP");
 
+        // Use a note-capable cursor track for both Note/Session view transitions.
+        musicalModel.setCanHoldNotes (true);
         midi.device ().tapButton (VirtualPush1Device.NOTE);
         require (Views.isNoteView (surface.getViewManager ().getActiveID ()), "Note CC did not select a note view");
         midi.device ().tapButton (VirtualPush1Device.SESSION);
