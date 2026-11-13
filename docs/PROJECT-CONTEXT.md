@@ -101,6 +101,35 @@ renderer may use documented/reverse-engineered 5 × 8 glyph patterns, but it
 must keep physical dimensions clearly marked as unknown unless an authoritative
 hardware source is found.
 
+## Interactive virtual Push 1 desktop simulator
+
+`tests/java/VirtualPush1Simulator.java` provides an optional Swing front end
+for the same `VirtualPush1Device` and `VirtualPush1MidiBench` used by the
+production runtime regression. It is opened from
+`VirtualPush1RuntimeTest` with the `--gui` argument; the normal headless CI
+path does not create a window.
+
+After building the extension and ensuring the Bitwig API 17 JAR is in Maven's
+local repository, launch it with:
+
+```sh
+python3 scripts/test_push1_extension.py --gui
+```
+
+The window exposes all 64 pads (mouse press/release, velocity 100), a
+selectable pad aftertouch slider, momentary Push buttons and Shift chords,
+nine main and two small encoders (step controls plus independent touch
+switches), Ribbon touch and 14-bit position, and the eight bottom-row RGB
+controls. It renders the four physical LCD modules as 4 × 17 character
+segments and refreshes pad/button LED feedback from the virtual device. The
+MIDI monitor displays device-to-controller messages, controller output and
+host raw MIDI output.
+
+This is a controller-side interactive test surface, not a DAW UI: the runtime
+still uses deterministic Bitwig API-17 host/model proxies. It does not create
+an OS-level virtual MIDI port, attach to an external Bitwig process, or
+certify physical Push USB, pressure calibration or LCD glass appearance.
+
 ## CI and known validation boundary
 
 The GitHub Actions workflow builds and validates Linux and Intel macOS with
