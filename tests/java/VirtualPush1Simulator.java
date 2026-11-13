@@ -57,6 +57,7 @@ public final class VirtualPush1Simulator
     private final JTextArea log = new JTextArea (8, 72);
     private final JSlider pressure = new JSlider (0, 127, 0);
     private final JCheckBox holdPad = new JCheckBox ("Hold selected pad for aftertouch");
+    private final JCheckBox [] encoderTouch = new JCheckBox [11];
     private final JLabel selectedPad = new JLabel ("Pad: none");
     private final JLabel status = new JLabel ("Production PushControllerSetup connected");
     private int selectedRow = -1, selectedColumn = -1;
@@ -91,7 +92,7 @@ public final class VirtualPush1Simulator
         frame.setLocationByPlatform (true);
         frame.addWindowListener (new WindowAdapter () {
             @Override public void windowClosed (final WindowEvent event)
-            { if (onClose != null) onClose.run (); }
+            { releaseAll (); if (onClose != null) onClose.run (); }
         });
         frame.setVisible (true);
         new Timer (150, event -> refreshFeedback ()).start ();
@@ -150,6 +151,9 @@ public final class VirtualPush1Simulator
                 pad.addMouseListener (new MouseAdapter () {
                     @Override public void mousePressed (final MouseEvent event)
                     {
+                        if (selectedRow >= 0 && (selectedRow != r || selectedColumn != c)
+                                && device.isPadPressed (selectedRow, selectedColumn))
+                            device.releasePad (selectedRow, selectedColumn);
                         selectedRow = r; selectedColumn = c;
                         selectedPad.setText ("Pad " + (r + 1) + ", " + (c + 1)
                             + " — MIDI note " + VirtualPush1Device.padNote (r, c));
@@ -188,6 +192,7 @@ public final class VirtualPush1Simulator
             line.add (new JLabel (encoder < 9 ? "Encoder " + (encoder + 1) : "Small " + (encoder - 8)));
             final JButton minus = new JButton ("−"), plus = new JButton ("+");
             final JCheckBox touch = new JCheckBox ("Touch");
+            encoderTouch[index] = touch;
             minus.addActionListener (event -> turn (index, -1));
             plus.addActionListener (event -> turn (index, 1));
             touch.addActionListener (event -> {
@@ -270,6 +275,20 @@ public final class VirtualPush1Simulator
             @Override public void mouseReleased (final MouseEvent event) { device.releaseButton (cc); }
         });
         return button;
+    }
+
+    private void releaseAll ()
+    {
+        for (int row = 0; row < 8; row++)
+            for (int column = 0; column < 8; column++)
+                if (device.isPadPressed (row, column)) device.releasePad (row, column);
+        for (int cc = 0; cc < 128; cc++)
+            if (device.isButtonPressed (cc)) device.releaseButton (cc);
+        for (int i = 0; i < 9; i++)
+            if (encoderTouch[i].isSelected ()) device.touchEncoder (i, false);
+        for (int i = 9; i < 11; i++)
+            if (encoderTouch[i].isSelected ()) device.touchSmallEncoder (i - 9, false);
+        device.touchRibbon (false);
     }
 
     private void turn (final int index, final int direction)
