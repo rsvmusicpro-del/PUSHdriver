@@ -360,14 +360,14 @@ public final class VirtualPush1RuntimeTest
             requireButtonMidiDelivery (midi, arrow, "Session arrow " + arrow);
         requireAction ("scene.scrollBackwards", "Session Up must move one scene backwards");
         requireAction ("scene.scrollForwards", "Session Down must move one scene forwards");
-        requireAction ("track.selectPreviousItem", "Session Left must select the previous track");
-        requireAction ("track.selectNextItem", "Session Right must select the next track");
+        // In Session view the dedicated In/Out buttons become track-bank
+        // page navigation; their first/last pages must remain clamped.
         trackIndex = 0;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.LEFT, "Track lower boundary");
-        require (trackIndex == 0, "Track navigation moved before the first track");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Track page lower boundary");
+        require (trackIndex == 0, "Track bank moved before its first page");
         trackIndex = 15;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.RIGHT, "Track upper boundary");
-        require (trackIndex == 15, "Track navigation moved beyond the last track");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Track page upper boundary");
+        require (trackIndex == 15, "Track bank moved beyond its last page");
         sceneIndex = 0;
         requireButtonMidiDelivery (midi, VirtualPush1Device.UP, "Session scene lower boundary");
         require (sceneIndex == 0, "Session scene navigation moved before the first scene");
