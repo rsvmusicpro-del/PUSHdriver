@@ -263,16 +263,52 @@ public final class VirtualPush1RuntimeTest
                 + volume.changes + ", lastControl=" + volume.lastControl
                 + ", active=" + modes.isActive (Modes.VOLUME)
                 + ", encoderEvents=" + midi.getDispatchedEncoderEvents ());
+        for (int encoder = 1; encoder < 8; encoder++)
+        {
+            final MixerModel.ParameterState channelVolume = mixerModel.volume (encoder);
+            final int before = channelVolume.changes;
+            midi.device ().turnEncoderBy (encoder, 1);
+            require (channelVolume.changes == before + 1 && channelVolume.lastControl == 1,
+                "Volume encoder " + (encoder + 1) + " did not target its corresponding track");
+        }
         midi.device ().touchEncoder (0, true);
         require (volume.touched, "Volume encoder touch did not reach the bound parameter");
         midi.device ().touchEncoder (0, false);
         require (!volume.touched, "Volume parameter touch state did not release");
+        volume.value = 91;
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().touchEncoder (0, true);
+        midi.device ().touchEncoder (0, false);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        require (volume.value == 64, "Delete+encoder touch did not reset the bound volume parameter");
         modes.setActive (Modes.PAN);
         final MixerModel.ParameterState pan = mixerModel.pan (0);
         final int panChanges = pan.changes;
         midi.device ().turnEncoderBy (0, -1);
         require (pan.changes == panChanges + 1 && pan.lastControl == 127,
             "Pan mode encoder did not preserve the negative relative parameter delta");
+        for (int encoder = 1; encoder < 8; encoder++)
+        {
+            final MixerModel.ParameterState channelPan = mixerModel.pan (encoder);
+            final int before = channelPan.changes;
+            midi.device ().turnEncoderBy (encoder, -1);
+            require (channelPan.changes == before + 1 && channelPan.lastControl == 127,
+                "Pan encoder " + (encoder + 1) + " did not target its corresponding track");
+        }
+        modes.setActive (Modes.SEND1);
+        final MixerModel.ParameterState send = mixerModel.send (0, 0);
+        final int sendChanges = send.changes;
+        midi.device ().turnEncoderBy (0, 1);
+        require (send.changes == sendChanges + 1 && send.lastControl == 1,
+            "Send 1 mode encoder did not update the first track's send parameter");
+        for (int encoder = 1; encoder < 8; encoder++)
+        {
+            final MixerModel.ParameterState channelSend = mixerModel.send (encoder, 0);
+            final int before = channelSend.changes;
+            midi.device ().turnEncoderBy (encoder, 1);
+            require (channelSend.changes == before + 1 && channelSend.lastControl == 1,
+                "Send 1 encoder " + (encoder + 1) + " did not target its corresponding track");
+        }
         modes.setActive (Modes.TRACK);
         midi.device ().tapButton (VirtualPush1Device.BOTTOM_ROW_FIRST);
         require (mixerModel.isMuted (0), "Track second-row button did not toggle the selected track mute state");
@@ -1489,6 +1525,7 @@ public final class VirtualPush1RuntimeTest
         ITrack track (final int index) { return this.tracks[index]; }
         ParameterState volume (final int index) { return this.volumes[index]; }
         ParameterState pan (final int index) { return this.pans[index]; }
+        ParameterState send (final int track, final int index) { return this.sends[track][index]; }
         boolean isMuted (final int index) { return this.muted[index]; }
     }
 
