@@ -266,6 +266,7 @@ public final class VirtualPush1MidiBench
     {
         if (frame == null || !frame.startsWith ("F0 ") || !frame.endsWith (" F7"))
             throw new IllegalArgumentException ("Malformed SysEx boundaries");
+        this.rawDeviceSysex.add (frame);
         if (this.sysexCallback == null)
             throw new IllegalStateException ("No SysEx callback is registered");
         this.sysexCallback.handleMidi (frame);
