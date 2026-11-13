@@ -302,8 +302,8 @@ public final class VirtualPush1RuntimeTest
         final List<int []> aftertouchOutput = midi.capturedRawInputOutput ().subList (
             rawOutputBeforeAftertouch, midi.capturedRawInputOutput ().size ());
         require (aftertouchOutput.stream ().anyMatch (message ->
-            (message[0] & 0xF0) == 0xB0 && message[1] == 0 && message[2] == 80),
-            "Play view aftertouch conversion must produce a MIDI CC message");
+            (message[0] & 0xF0) == 0xA0 && message[1] == 60 && message[2] == 80),
+            "Play view aftertouch conversion must produce mapped poly-aftertouch MIDI");
 
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (!state.playing, "Second Play CC did not stop the Bitwig transport");
