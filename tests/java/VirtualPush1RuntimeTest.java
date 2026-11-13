@@ -741,6 +741,34 @@ public final class VirtualPush1RuntimeTest
         requireAction ("browser.previousContentType", "Shift+Browser Left must move to previous content type");
         requireAction ("browser.nextContentType", "Shift+Browser Right must move to next content type");
 
+        // Encoder selection covers filter-column and preset-result navigation;
+        // Delete+touch resets only the selected filter column.
+        MODEL_ACTIONS.clear ();
+        midi.device ().touchEncoder (0, true);
+        midi.device ().turnEncoderBy (0, 8);
+        setup.flush ();
+        drainScheduled (state, 1);
+        midi.device ().touchEncoder (0, false);
+        requireAction ("browser.selectNextFilterItem:0",
+            "Browser encoder 1 must navigate the selected filter column");
+
+        MODEL_ACTIONS.clear ();
+        midi.device ().touchEncoder (7, true);
+        midi.device ().turnEncoderBy (7, 8);
+        setup.flush ();
+        drainScheduled (state, 1);
+        midi.device ().touchEncoder (7, false);
+        requireAction ("browser.selectNextResult",
+            "Browser master encoder must navigate preset results");
+
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().touchEncoder (0, true);
+        midi.device ().touchEncoder (0, false);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        requireAction ("browser.resetFilterColumn:0",
+            "Delete+Browser encoder touch must reset the selected filter column");
+
         // Exercise every registered Push 1 view with real pad note-on,
         // pressure and release traffic through the production bindings.
         final Views [] expectedViews = {
