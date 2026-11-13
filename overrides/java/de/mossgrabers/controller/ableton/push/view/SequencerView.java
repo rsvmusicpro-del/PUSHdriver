@@ -72,6 +72,27 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
 
 
     /**
+     * The upstream renderer treats the clip's total step count as the width
+     * of one visible page. Push 1 displays only numDisplayCols steps, so use
+     * the physical grid width when deciding whether the global playhead is
+     * inside the currently selected page.
+     *
+     * @param step The global playback step
+     * @return True if the step belongs to the visible Push 1 page
+     */
+    @Override
+    protected boolean isInXRange (final int step)
+    {
+        final int stepsPerPage = this.numDisplayCols;
+        if (stepsPerPage <= 0)
+            return false;
+
+        final int pageStart = this.getClip ().getEditPage () * stepsPerPage;
+        return step >= pageStart && step < pageStart + stepsPerPage;
+    }
+
+
+    /**
      * A single page tap selects an edit page. Selecting a page other than the
      * playing page locks the view there; selecting the playing page restores
      * auto-follow. A two-pad gesture changes the loop and keeps auto-follow.

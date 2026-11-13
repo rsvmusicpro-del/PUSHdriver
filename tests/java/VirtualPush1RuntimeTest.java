@@ -826,6 +826,67 @@ public final class VirtualPush1RuntimeTest
         require (changedPlayheadLeds > 0,
             "Sequencer playhead movement did not update the production pad-grid LED state");
 
+        // Regression: Bitwig reports the clip's full 128-step length, while
+        // the Push 1 grid displays eight columns per page. The playhead must
+        // remain visible after auto-follow moves beyond page zero.
+        state.playing = true;
+        musicalModel.setEditPage (0);
+        // Earlier boundary checks deliberately disabled auto-follow through
+        // manual arrows. Selecting the current page restores the live-follow mode.
+        musicalModel.setCurrentStep (5);
+        sequencerView.onGridNote (92, 100);
+        sequencerView.onGridNote (92, 0);
+        musicalModel.noteClip ().setStep (new NotePosition (0, 0, 36), 100, 0.25);
+        musicalModel.noteClip ().setStep (new NotePosition (0, 1, 36), 100, 0.25);
+        musicalModel.setCurrentStep (8);
+        sequencerView.drawGrid ();
+        setup.flush ();
+        drainScheduled (state, 6);
+        hardware.flush ();
+        require (musicalModel.editPage () == 1,
+            "Sequencer playhead did not auto-follow from page zero to page one");
+        final int [] pageOneAtStepEight = new int [64];
+        for (int i = 0; i < pageOneAtStepEight.length; i++)
+            pageOneAtStepEight[i] = surface.getPadGrid ().getLightInfo (36 + i).getColor ();
+        musicalModel.setCurrentStep (9);
+        sequencerView.drawGrid ();
+        setup.flush ();
+        drainScheduled (state, 6);
+        hardware.flush ();
+        int pageOnePlayheadChanges = 0;
+        for (int i = 0; i < pageOneAtStepEight.length; i++)
+            if (pageOneAtStepEight[i] != surface.getPadGrid ().getLightInfo (36 + i).getColor ())
+                pageOnePlayheadChanges++;
+        require (pageOnePlayheadChanges > 0,
+            "Sequencer playhead LED stopped following steps on page one");
+
+        // Manual arrow paging locks the selected page; selecting the live
+        // playhead page on the top row restores automatic following.
+        musicalModel.setCurrentStep (16);
+        sequencerView.drawGrid ();
+        setup.flush ();
+        drainScheduled (state, 6);
+        require (musicalModel.editPage () == 2,
+            "Sequencer playhead did not auto-follow to page two");
+        sequencerView.onRight (ButtonEvent.DOWN);
+        require (musicalModel.editPage () == 3,
+            "Manual sequencer paging did not select page three");
+        sequencerView.drawGrid ();
+        setup.flush ();
+        drainScheduled (state, 6);
+        require (musicalModel.editPage () == 3,
+            "Sequencer auto-follow overrode a manually selected page");
+        sequencerView.onGridNote (94, 100);
+        sequencerView.onGridNote (94, 0);
+        require (musicalModel.editPage () == 2,
+            "Selecting the current playhead page did not restore the live page");
+        musicalModel.setCurrentStep (24);
+        sequencerView.drawGrid ();
+        setup.flush ();
+        drainScheduled (state, 6);
+        require (musicalModel.editPage () == 3,
+            "Sequencer did not resume auto-follow after selecting the playhead page");
+
         final int togglesBeforeDrum = musicalModel.toggleCount ();
         viewManager.setActive (Views.DRUM);
         final DrumView drumView = (DrumView) viewManager.get (Views.DRUM);
