@@ -1537,6 +1537,14 @@ public final class VirtualPush1RuntimeTest
                     case "getPageSize", "getItemCount", "size" -> 64;
                     case "getItem" -> this.scenes[Math.max (0, Math.min (63, (int) a[0]))];
                     case "getSelectedItem" -> this.selectedScene < 0 ? Optional.empty () : Optional.of (this.scenes[this.selectedScene]);
+                    case "scrollBackwards" -> { MODEL_ACTIONS.add ("scene.scrollBackwards"); sceneIndex = Math.max (0, sceneIndex - 1); yield null; }
+                    case "scrollForwards" -> { MODEL_ACTIONS.add ("scene.scrollForwards"); sceneIndex = Math.min (15, sceneIndex + 1); yield null; }
+                    case "selectPreviousPage" -> { MODEL_ACTIONS.add ("scene.selectPreviousPage"); sceneIndex = Math.max (0, sceneIndex - 8); yield null; }
+                    case "selectNextPage" -> { MODEL_ACTIONS.add ("scene.selectNextPage"); sceneIndex = Math.min (15, sceneIndex + 8); yield null; }
+                    case "canScrollBackwards" -> sceneIndex > 0;
+                    case "canScrollForwards" -> sceneIndex < 15;
+                    case "canScrollPageBackwards" -> sceneIndex >= 8;
+                    case "canScrollPageForwards" -> sceneIndex <= 7;
                     case "stop" -> { this.trackPlayingStopAll (); yield null; }
                     default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                 });
