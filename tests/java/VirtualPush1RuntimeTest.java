@@ -129,6 +129,7 @@ public final class VirtualPush1RuntimeTest
         final State state = new State ();
         final BrowserModel browserModel = new BrowserModel ();
         final NewClipModel newClipModel = new NewClipModel ();
+        newClipModel.setTrackExists (true);
         final MusicalModel musicalModel = new MusicalModel ();
         final MixerModel mixerModel = new MixerModel ();
         final Scales [] scaleModel = new Scales [1];
