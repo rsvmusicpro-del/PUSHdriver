@@ -168,8 +168,17 @@ public final class VirtualPush1RuntimeTest
                     case "scheduleTask": state.scheduled.add (new ScheduledTask (((Number) callArgs[1]).longValue (), (Runnable) callArgs[0])); return null;
                     case "error":
                         if (state.errors.size () < 30)
-                            state.errors.add (String.valueOf (callArgs[0])
-                                + (callArgs.length > 1 && callArgs[1] instanceof Throwable error ? ": " + error : ""));
+                        {
+                            final StringBuilder detail = new StringBuilder (String.valueOf (callArgs[0]));
+                            if (callArgs.length > 1 && callArgs[1] instanceof Throwable error)
+                            {
+                                detail.append (": ").append (error);
+                                final java.io.StringWriter trace = new java.io.StringWriter ();
+                                error.printStackTrace (new java.io.PrintWriter (trace));
+                                detail.append ('\\n').append (trace);
+                            }
+                            state.errors.add (detail.toString ());
+                        }
                         return null;
                     case "println":
                         if (callArgs.length > 0 && String.valueOf (callArgs[0]).startsWith ("- View "))
