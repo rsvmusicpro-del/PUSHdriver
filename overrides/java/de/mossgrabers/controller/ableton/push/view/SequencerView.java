@@ -9,14 +9,14 @@ import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.clip.INoteClip;
+import de.mossgrabers.framework.daw.clip.IStepInfo;
 import de.mossgrabers.framework.daw.clip.NotePosition;
 import de.mossgrabers.framework.utils.ButtonEvent;
-import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.AbstractDrumView;
-import de.mossgrabers.framework.daw.clip.IStepInfo;
+import de.mossgrabers.framework.view.Views;
+import de.mossgrabers.framework.view.sequencer.AbstractNoteSequencerView;
 
 import java.util.List;
-import de.mossgrabers.framework.view.sequencer.AbstractNoteSequencerView;
 
 
 /**
@@ -47,11 +47,6 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
 
 
     /**
-     * Keep the visible sequencer page locked to Bitwig's live playhead while
-     * auto-follow is enabled. The inherited renderer paints the moving step
-     * and the top-row page indicators using the existing Push 1 LED colors.
-     */
-    /**
      * Render the moving playhead as a continuous dark-orange column across
      * every note row, including the lowest/root-note row. The shared renderer
      * otherwise leaves empty pads in their scale color while highlighting
@@ -75,6 +70,11 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     }
 
 
+    /**
+     * Keep the visible sequencer page locked to Bitwig's live playhead while
+     * auto-follow is enabled. The inherited renderer paints the moving step
+     * and the top-row page indicators using the existing Push 1 LED colors.
+     */
     @Override
     public void drawGrid ()
     {
