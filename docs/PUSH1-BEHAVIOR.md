@@ -26,7 +26,7 @@ The full physical ID declarations live in the pinned upstream `PushControlSurfac
 
 ## Observable output contract
 
-- LCD: four rows, 68 seven-bit character cells each. One complete row is one 77-byte SysEx frame:
+- LCD: four physical modules arranged horizontally; each module is four rows by 17 characters. The combined logical display is four rows by 68 seven-bit character cells. Each row has eight logical cells with alternating widths 9/8; each 17-character module maps to two adjacent cells. `Push1DisplayLayout` is the shared source of truth for production composition and virtual hardware coordinates. One complete row is one 77-byte SysEx frame:
   `F0 47 7F 15 [18..1B] 00 45 00 [68 data bytes] F7`.
 - Short notifications overlay the rightmost 17-character LCD block while preserving the first 51 cells; longer notifications use the normal four-row display path.
 - Pad/button LED feedback remains owned by the existing Push colour manager, views, modes and hardware-control bindings. No parallel LED state engine is introduced.
@@ -55,6 +55,7 @@ The runtime scenarios cover Device/Track/Volume/Clip modes, Note/Session view se
 The protocol suite now has two levels:
 
 - `VirtualPush1DeviceTest` checks the hardware model's baseline mapping, state transitions, malformed input rejection and feedback decoding.
+- `VirtualPush1DisplayLayoutTest` checks the exact four-module construction, all 272 global character positions, module-local coordinates, all eight 9/8-width cells per row, and preservation of Push-specific seven-bit glyph codes through the production LCD SysEx encoder and virtual hardware decoder.
 - `VirtualPush1ProtocolExhaustiveTest` exhaustively walks all 64 pad addresses and pressure boundaries, every declared Push 1 button CC press/release, all 11 encoder/touch identities and signed movement limits, all 72 RGB output addresses (64 pads + 8 lower-row buttons), every LCD row and all 128 seven-bit character values, plus malformed/out-of-range SysEx and invalid control values.
 - `VirtualPush1MidiBench` checks API output channels 0 and 15, String and byte-array SysEx, and distinguishes LCD frames from other Push 1 system SysEx.
 - `VirtualPush1RuntimeTest` exercises the real controller setup and registered production bindings against deterministic virtual host/model collaborators.
