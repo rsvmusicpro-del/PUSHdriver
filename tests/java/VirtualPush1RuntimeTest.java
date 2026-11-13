@@ -284,8 +284,11 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 6);
         final int [] playNoteMap = new int [128];
         Arrays.fill (playNoteMap, -1);
+        playNoteMap[0] = 60;
         playNoteMap[36] = 60;
         surface.getViewManager ().get (Views.PLAY).getKeyManager ().setNoteMatrix (playNoteMap);
+        require (surface.getViewManager ().get (Views.PLAY).getKeyManager ().getMidiNoteFromGrid (36) == 60,
+            "Play view aftertouch fixture must translate the physical pad to a mapped MIDI note");
         MODEL_ACTIONS.clear ();
         final int outputBeforeAftertouch = midi.capturedOutput ().size ();
         midi.device ().pressPad (0, 0, 100);
