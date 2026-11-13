@@ -143,6 +143,7 @@ public final class VirtualPush1RuntimeTest
     {
         // Protocol and device-contract checks are subtests of the same virtual
         // Push bench entry point; none opens a separate hardware/test path.
+        VirtualPush1FormattingAndFirmwareTest.main (new String [0]);
         VirtualPush1MidiBench.main (new String [0]);
         VirtualPush1DeviceTest.main (new String [0]);
         VirtualPush1DisplayLayoutTest.main (new String [0]);
