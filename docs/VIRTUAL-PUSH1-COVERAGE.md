@@ -21,6 +21,8 @@ The scope is the complete Push 1 controller extension assembled from DrivenByMos
 
 The runtime bench boots the assembled production `PushControllerSetup`, not a parallel controller implementation. It invokes DrivenByMoss' `setup.test(...)` matrix over every registered Push 1 view × every registered Push 1 mode. For every pair, the matrix executes every available button command with DOWN, LONG and UP; every available continuous command at minimum, maximum and midpoint; every touch command with DOWN, LONG and UP; and every pitch-bend command at minimum, maximum and midpoint. Exceptions are collected by the virtual host and fail the test.
 
+The runtime input matrix also sends all 64 physical pads through every registered view (1,792 press/release events), in addition to the 700 mode/view command pairs. A dedicated Play-view scenario verifies pad-to-MIDI-note mapping and poly-aftertouch output. Relative encoders in the virtual hardware adapter model both command bindings and direct `IParameter` bindings, converting signed two's-complement steps into `IParameter.changeValue` just as the Bitwig hardware adapter does.
+
 The Push 1 view inventory registered by the production setup is:
 
 - Play / keyboard
@@ -50,7 +52,7 @@ The Push 1 mode inventory registered by the production setup is:
 - Automation, Transport/Metronome, Markers, User, Configuration
 - Session, Session View Select, Note Repeat, Add Track
 
-An independent runtime counter asserts that the production matrix actually executes exactly 700 pairs (50 registered modes × 14 registered views) on each run. The matrix above is broad command-dispatch and exception smoke coverage across the complete registered extension surface. It does **not** by itself prove that each host-model operation has the correct musical or editing effect. The focused runtime assertions currently additionally verify startup, mode/view switching, Play/Record/Shift+Record transport behavior, Shift state, pad/aftertouch input, encoder/touch/ribbon dispatch, LED/LCD feedback, Device and Session arrow semantics, In/Out device navigation and parameter-page navigation.
+An independent runtime counter asserts that the production matrix actually executes exactly 700 pairs (50 registered modes × 14 registered views) on each run. The matrix above is broad command-dispatch and exception smoke coverage across the complete registered extension surface. It does **not** by itself prove that each host-model operation has the correct musical or editing effect. The focused runtime assertions additionally verify startup, mode/view switching, Play/Record/Shift+Record transport behavior, Shift state, pad/aftertouch input, command- and parameter-bound encoder/touch/ribbon dispatch, LED/LCD feedback, Device and Session arrow semantics, In/Out device navigation and parameter-page navigation.
 
 ## 3. Push 1-specific production behavior — regression coverage and semantic depth
 
@@ -67,10 +69,10 @@ The following behaviors are implemented in the production adaptation. The labels
 | Note Repeat | Production mode and null-safe optional service handling; package verifier checks safe LED path | Unified runtime tests absent, late-created and subsequently removed optional services through real encoder-touch/Delete and top-row button bindings; asserts mode/octave reset plus Latch, Pressure, Free Running and Shuffle toggles; ribbon and LED feedback remain additional scenarios |
 | Drum / Drum4 / Drum8 / Drum64 | Production views and modes are registered and traversed by the complete command-dispatch matrix; Drum64 Select+Pad uses a stateful drum-device/bank model to assert 16-pad page alignment and primary-pad selection | Drum4/Drum8 note mapping, drum-note assignment, mute/solo/delete combinations, nested device selection and pad LED feedback |
 | Sequencer / Poly Sequencer | Production views are registered and traversed by the complete command-dispatch matrix; mono sequencer playhead-follow assertions use an existing/empty note-clip model | Stateful clip/step/note model for step editing, selected step, manual page lock/unlock, loop gestures and Poly Sequencer musical behavior |
-| Track, mixer, sends, master, device and clip modes | Production modes and command matrix are exercised | Stateful bank models for first/last items, empty banks, unavailable actions, selection changes and context transitions |
-| Swing simulator | GUI can be launched from the same virtual device and MIDI bench | Display-backed CI smoke test for construction, event dispatch, repaint and clean close is not yet automated |
+| Track, mixer, sends, master, device and clip modes | Stateful proxies assert Volume, Pan, Crossfader and Send 1 writes; Master volume and Device Parameters writes; Device Layer Volume/Pan/Send 1 touch and Delete-reset behavior | Additional first/last bank boundaries, empty banks, unavailable actions, all send indices and context transitions |
+| Swing simulator | Same virtual device and MIDI bench; interactive `--gui` mode | Linux CI opens the real Swing window under Xvfb, dispatches a pointer event, refreshes feedback and verifies clean close with a bounded watchdog; visual appearance remains manual |
 
-The firmware/display regression tests, New-clip scenarios, Session scene actions, Browser navigation/preview scenarios, absent/available Note Repeat service scenarios, Drum64 page/selection scenario and mono-sequencer playhead assertions are part of the same unified suite and are compiled and invoked by `scripts/test_push1_extension.py`. The inventory assertions also make the complete 50-mode / 14-view Push 1 registration scope explicit.
+The firmware/display regression tests, 700-pair mode/view matrix, 1,792-event all-view pad matrix, Play aftertouch scenario, New-clip scenarios, Session scene/clip-slot actions, Browser navigation/preview scenarios, absent/late-created/removed Note Repeat service scenarios, Drum64 page/selection scenario, mixer/master/device parameter scenarios and mono-sequencer playhead assertions are part of the same unified suite and are compiled and invoked by `scripts/test_push1_extension.py`. The inventory assertions also make the complete 50-mode / 14-view Push 1 registration scope explicit.
 
 ## 4. Build, package and CI contract
 
