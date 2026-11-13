@@ -153,39 +153,34 @@ The build remains pinned to Bitwig Extension API 17 and Java 17. The Push 1 uses
 A successful build proves compilation, packaging, and the deterministic protocol checks. It does **not** prove physical LCD appearance, USB port naming on every operating system, pad velocity/pressure calibration, or timing on a real Push 1. Those require a hardware session with Bitwig Studio 4.3.10.
 
 
-## In/Out controls: Ableton behavior adapted to Bitwig API 17
+## In/Out controls: Push 1 CC 62 / CC 63
 
-The two physical controls are the Push 1 CC 62 and CC 63 buttons, represented by
-the upstream `PUSH_BUTTON_DEVICE_LEFT` and `PUSH_BUTTON_DEVICE_RIGHT` constants.
-Ableton documents them as In/Out: in Device mode they navigate additional
-devices and parameter banks; in Browser mode they shift the visible browser
-hierarchy horizontally. Ableton also documents access to additional Rack
-chains through these controls.
+The physical controls are Push 1 CC 62 and CC 63, represented by the upstream
+`PUSH_BUTTON_DEVICE_LEFT` and `PUSH_BUTTON_DEVICE_RIGHT` constants. Their
+physical identity is preserved.
 
-PUSHdriver keeps the physical bindings unchanged and adapts their actions to
-the existing Bitwig 4.3 / Extension API 17 model:
+In PUSHdriver's current production binding, In/Out navigation is implemented
+in `DeviceParamsMode`:
 
-- **Out / CC 62:** previous device in Device mode, or previous parameter-page
-  bank when the parameter-page selector is active; previous filter column in
-  Browser mode.
-- **In / CC 63:** next device in Device mode, or next parameter-page bank when
-  the parameter-page selector is active; next filter column in Browser mode.
-- The browser's selected filter column and Push 1 LCD selection marker are
-  updated together. Button LEDs reflect whether another item/column exists.
-- In Session and sequencer contexts, the existing track-bank page and
-  sequencer-page behavior is retained to avoid breaking the project's current
-  Bitwig workflows. These contexts are outside Ableton's documented In/Out
-  Device/Browser behavior.
+- **Out / CC 62:** previous device, or previous parameter-page bank when the
+  parameter-page selector is active.
+- **In / CC 63:** next device, or next parameter-page bank when the
+  parameter-page selector is active.
+
+Browser navigation is handled by Browser mode's own row selectors, encoders,
+and Shift+Left/Right content-type paging. It is not documented here as an
+In/Out filter-column action unless a production binding and a corresponding
+runtime assertion are added. Rack-chain previous/next navigation remains
+inactive where Extension API 17 does not expose a reliable selected-chain
+cursor.
 
 Device selection and parameter-page paging use dedicated In/Out methods in
 `DeviceParamsMode`. The ordinary Left/Right arrow methods and their LED
-availability remain unchanged, so the parameter-page action cannot leak into
-arrow navigation. Browser navigation uses the API-17 `IBrowser` filter-column
-methods. In Rack-chain mode the buttons remain inactive: Extension API 17 does
-not expose a reliable selected-chain cursor for safe previous/next navigation.
-No MIDI IDs, extra event loop, or alternate controller dispatcher are introduced.
+availability remain separate, so parameter-page actions cannot leak into
+arrow navigation. No MIDI IDs, extra event loop, or alternate controller
+dispatcher are introduced.
 
-
+ 
 ## Interactive virtual Push 1 simulator
 
 The repository includes an optional desktop surface backed by the production
