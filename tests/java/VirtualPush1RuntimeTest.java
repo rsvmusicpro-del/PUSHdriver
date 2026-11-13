@@ -203,129 +203,6 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.SESSION) != null, "Session mode was not registered");
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
 
-        // Browser mode is exercised against a stateful API-17 IBrowser model:
-        // filter columns, result list, content-type paging and selection state
-        // all change in response to the real Push 1 MIDI bindings.
-        browserModel.setActive (true);
-        modes.setActive (Modes.BROWSER);
-        final DeviceBrowserMode browserMode = (DeviceBrowserMode) modes.get (Modes.BROWSER);
-        require (browserModel.isActive (), "Browser model did not enter the active state");
-        final String availableFilterLed = browserMode.getButtonColorID (ButtonID.ROW1_1);
-        require (AbstractFeatureGroup.BUTTON_COLOR_ON.equals (availableFilterLed),
-            "Existing Browser filter column did not advertise its top-row LED");
-
-        final int filterBefore = browserModel.filterCursor (0);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Browser previous filter item");
-        require (browserModel.filterCursor (0) == filterBefore - 1,
-            "Push 1 top row did not select the previous Browser filter item");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Browser next filter item");
-        require (browserModel.filterCursor (0) == filterBefore,
-            "Push 1 bottom row did not select the next Browser filter item");
-
-        // Encoder touch selects a filter column; eight relative detents pass
-        // the production Browser mode's deliberate movement-rate limiter.
-        midi.device ().touchEncoder (0, true);
-        for (int i = 0; i < 8; i++)
-            midi.device ().turnEncoderBy (0, 1);
-        midi.device ().touchEncoder (0, false);
-        require (browserModel.filterCursor (0) > filterBefore,
-            "Touched Browser encoder did not change the selected filter item");
-        final List<String> browserDisplayText = new java.util.ArrayList<> ();
-        final ITextDisplay browserDisplay = (ITextDisplay) Proxy.newProxyInstance (
-            ITextDisplay.class.getClassLoader (), new Class<?> [] { ITextDisplay.class },
-            (proxy, method, displayArgs) -> {
-                if (displayArgs != null)
-                    for (final Object argument: displayArgs)
-                        if (argument instanceof String text)
-                            browserDisplayText.add (text);
-                return method.getReturnType ().isInstance (proxy) ? proxy
-                    : defaultValue (method.getReturnType (), method.getGenericReturnType ());
-            });
-        browserMode.updateDisplay1 (browserDisplay);
-        require (browserDisplayText.stream ().anyMatch (text -> text.startsWith (String.valueOf (Push1Display.SELECT_ARROW))),
-            "Browser selected-column marker was not composed for the Push 1 LCD: " + browserDisplayText);
-
-        // Shift+Left/Right pages browser content types; plain row buttons
-        // navigate filter entries and results rather than the content tabs.
-        final int contentBefore = browserModel.contentTypeIndex ();
-        midi.device ().pressButton (VirtualPush1Device.SHIFT);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.LEFT, "Browser previous content type");
-        require (browserModel.contentTypeIndex () == contentBefore - 1,
-            "Shift+Left did not page to the previous Browser content type");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.RIGHT, "Browser next content type");
-        require (browserModel.contentTypeIndex () == contentBefore,
-            "Shift+Right did not page to the next Browser content type");
-        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
-
-        final int resultBefore = browserModel.resultCursor ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Browser previous result");
-        require (browserModel.resultCursor () == Math.max (0, resultBefore - 1),
-            "Push 1 top-row result button did not select the previous result");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "Browser next result");
-        require (browserModel.resultCursor () == resultBefore,
-            "Push 1 bottom-row result button did not select the next result");
-
-        // The API-17 note input exists before its optional Note Repeat service.
-        // The production mode must tolerate absence and resolve the service if
-        // Bitwig creates it after controller startup.
-        require (midi.input ().getDefaultNoteInput () != null
-                && midi.input ().getDefaultNoteInput ().getNoteRepeat () == null,
-            "Virtual MIDI input should begin without the optional Note Repeat service");
-        require (modes.get (Modes.REPEAT_NOTE) != null, "Note Repeat mode was not registered");
-        modes.setActive (Modes.REPEAT_NOTE);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Note Repeat latch without service");
-        require (!midi.noteRepeat ().isLatchActive (),
-            "Note Repeat attempted to mutate an unavailable service");
-        midi.setNoteRepeatAvailable (true);
-        require (midi.input ().getDefaultNoteInput ().getNoteRepeat () == midi.noteRepeat (),
-            "Late-created Note Repeat service was not exposed by the MIDI input");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Note Repeat latch after service creation");
-        require (midi.noteRepeat ().isLatchActive (), "Late-created Note Repeat service was not resolved by the active mode");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 5, "Note Repeat pressure velocity");
-        require (midi.noteRepeat ().usePressure (), "Note Repeat pressure-velocity state did not toggle");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Note Repeat free running");
-        require (midi.noteRepeat ().isFreeRunning (), "Note Repeat free-running state did not toggle");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Note Repeat shuffle");
-        require (midi.noteRepeat ().isShuffle (), "Note Repeat shuffle state did not toggle");
-        modes.setActive (Modes.TRACK);
-
-        // The Push 1 New override must locate a free slot before stopping the
-        // cursor track, stop only that track, and preserve the Shift+New
-        // no-overdub behavior. The other track is deliberately playing.
-        newClipModel.resetScenario ();
-        newClipModel.setSlotAvailable (1, false);
-        newClipModel.setSlotAvailable (2, false);
-        newClipModel.setSlotAvailable (3, true);
-        newClipModel.setTrackPlaying (true);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.NEW, "New clip with a free slot");
-        require (newClipModel.createCount () == 1 && newClipModel.lastSlotIndex () == 3,
-            "New did not create the clip in the first available slot at/after the selected slot");
-        require (newClipModel.stopCount () == 1 && !newClipModel.isTrackPlaying (),
-            "New did not stop the playing cursor track before creating its clip");
-        require (newClipModel.isOtherTrackPlaying (),
-            "New incorrectly stopped playback on another track");
-        require (newClipModel.lastOverdub (),
-            "Normal New did not enable overdub on the new note clip");
-
-        newClipModel.resetScenario ();
-        newClipModel.setTrackPlaying (false);
-        midi.device ().pressButton (VirtualPush1Device.SHIFT);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.NEW, "Shift+New clip");
-        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
-        require (newClipModel.createCount () == 1 && !newClipModel.lastOverdub (),
-            "Shift+New did not create a clip with overdub disabled");
-
-        newClipModel.resetScenario ();
-        newClipModel.setTrackPlaying (true);
-        for (int slot = 0; slot < 8; slot++)
-            newClipModel.setSlotAvailable (slot, false);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.NEW, "New with no free slot");
-        require (newClipModel.createCount () == 0 && newClipModel.stopCount () == 0
-                && newClipModel.isTrackPlaying (),
-            "New with no free slot changed playback or created a clip");
-
-        modes.setActive (Modes.TRACK);
-
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
         midi.device ().tapButton (VirtualPush1Device.DEVICE);
@@ -460,6 +337,129 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In parameter page");
         requireAction ("parameterPage.selectPreviousPage", "Out must select the previous parameter page");
         requireAction ("parameterPage.selectNextPage", "In must select the next parameter page");
+
+        // Browser mode is exercised against a stateful API-17 IBrowser model:
+        // filter columns, result list, content-type paging and selection state
+        // all change in response to the real Push 1 MIDI bindings.
+        browserModel.setActive (true);
+        modes.setActive (Modes.BROWSER);
+        final DeviceBrowserMode browserMode = (DeviceBrowserMode) modes.get (Modes.BROWSER);
+        require (browserModel.isActive (), "Browser model did not enter the active state");
+        final String availableFilterLed = browserMode.getButtonColorID (ButtonID.ROW1_1);
+        require (AbstractFeatureGroup.BUTTON_COLOR_ON.equals (availableFilterLed),
+            "Existing Browser filter column did not advertise its top-row LED");
+
+        final int filterBefore = browserModel.filterCursor (0);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Browser previous filter item");
+        require (browserModel.filterCursor (0) == filterBefore - 1,
+            "Push 1 top row did not select the previous Browser filter item");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Browser next filter item");
+        require (browserModel.filterCursor (0) == filterBefore,
+            "Push 1 bottom row did not select the next Browser filter item");
+
+        // Encoder touch selects a filter column; eight relative detents pass
+        // the production Browser mode's deliberate movement-rate limiter.
+        midi.device ().touchEncoder (0, true);
+        for (int i = 0; i < 8; i++)
+            midi.device ().turnEncoderBy (0, 1);
+        midi.device ().touchEncoder (0, false);
+        require (browserModel.filterCursor (0) > filterBefore,
+            "Touched Browser encoder did not change the selected filter item");
+        final List<String> browserDisplayText = new java.util.ArrayList<> ();
+        final ITextDisplay browserDisplay = (ITextDisplay) Proxy.newProxyInstance (
+            ITextDisplay.class.getClassLoader (), new Class<?> [] { ITextDisplay.class },
+            (proxy, method, displayArgs) -> {
+                if (displayArgs != null)
+                    for (final Object argument: displayArgs)
+                        if (argument instanceof String text)
+                            browserDisplayText.add (text);
+                return method.getReturnType ().isInstance (proxy) ? proxy
+                    : defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+        browserMode.updateDisplay1 (browserDisplay);
+        require (browserDisplayText.stream ().anyMatch (text -> text.startsWith (String.valueOf (Push1Display.SELECT_ARROW))),
+            "Browser selected-column marker was not composed for the Push 1 LCD: " + browserDisplayText);
+
+        // Shift+Left/Right pages browser content types; plain row buttons
+        // navigate filter entries and results rather than the content tabs.
+        final int contentBefore = browserModel.contentTypeIndex ();
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.LEFT, "Browser previous content type");
+        require (browserModel.contentTypeIndex () == contentBefore - 1,
+            "Shift+Left did not page to the previous Browser content type");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.RIGHT, "Browser next content type");
+        require (browserModel.contentTypeIndex () == contentBefore,
+            "Shift+Right did not page to the next Browser content type");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+
+        final int resultBefore = browserModel.resultCursor ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Browser previous result");
+        require (browserModel.resultCursor () == Math.max (0, resultBefore - 1),
+            "Push 1 top-row result button did not select the previous result");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "Browser next result");
+        require (browserModel.resultCursor () == resultBefore,
+            "Push 1 bottom-row result button did not select the next result");
+
+        // The API-17 note input exists before its optional Note Repeat service.
+        // The production mode must tolerate absence and resolve the service if
+        // Bitwig creates it after controller startup.
+        require (midi.input ().getDefaultNoteInput () != null
+                && midi.input ().getDefaultNoteInput ().getNoteRepeat () == null,
+            "Virtual MIDI input should begin without the optional Note Repeat service");
+        require (modes.get (Modes.REPEAT_NOTE) != null, "Note Repeat mode was not registered");
+        modes.setActive (Modes.REPEAT_NOTE);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Note Repeat latch without service");
+        require (!midi.noteRepeat ().isLatchActive (),
+            "Note Repeat attempted to mutate an unavailable service");
+        midi.setNoteRepeatAvailable (true);
+        require (midi.input ().getDefaultNoteInput ().getNoteRepeat () == midi.noteRepeat (),
+            "Late-created Note Repeat service was not exposed by the MIDI input");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Note Repeat latch after service creation");
+        require (midi.noteRepeat ().isLatchActive (), "Late-created Note Repeat service was not resolved by the active mode");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 5, "Note Repeat pressure velocity");
+        require (midi.noteRepeat ().usePressure (), "Note Repeat pressure-velocity state did not toggle");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Note Repeat free running");
+        require (midi.noteRepeat ().isFreeRunning (), "Note Repeat free-running state did not toggle");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Note Repeat shuffle");
+        require (midi.noteRepeat ().isShuffle (), "Note Repeat shuffle state did not toggle");
+        modes.setActive (Modes.TRACK);
+
+        // The Push 1 New override must locate a free slot before stopping the
+        // cursor track, stop only that track, and preserve the Shift+New
+        // no-overdub behavior. The other track is deliberately playing.
+        newClipModel.resetScenario ();
+        newClipModel.setSlotAvailable (1, false);
+        newClipModel.setSlotAvailable (2, false);
+        newClipModel.setSlotAvailable (3, true);
+        newClipModel.setTrackPlaying (true);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.NEW, "New clip with a free slot");
+        require (newClipModel.createCount () == 1 && newClipModel.lastSlotIndex () == 3,
+            "New did not create the clip in the first available slot at/after the selected slot");
+        require (newClipModel.stopCount () == 1 && !newClipModel.isTrackPlaying (),
+            "New did not stop the playing cursor track before creating its clip");
+        require (newClipModel.isOtherTrackPlaying (),
+            "New incorrectly stopped playback on another track");
+        require (newClipModel.lastOverdub (),
+            "Normal New did not enable overdub on the new note clip");
+
+        newClipModel.resetScenario ();
+        newClipModel.setTrackPlaying (false);
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.NEW, "Shift+New clip");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        require (newClipModel.createCount () == 1 && !newClipModel.lastOverdub (),
+            "Shift+New did not create a clip with overdub disabled");
+
+        newClipModel.resetScenario ();
+        newClipModel.setTrackPlaying (true);
+        for (int slot = 0; slot < 8; slot++)
+            newClipModel.setSlotAvailable (slot, false);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.NEW, "New with no free slot");
+        require (newClipModel.createCount () == 0 && newClipModel.stopCount () == 0
+                && newClipModel.isTrackPlaying (),
+            "New with no free slot changed playback or created a clip");
+
+        modes.setActive (Modes.TRACK);
 
         // DrivenByMoss' own setup test traverses every registered view/mode
         // pair, presses every real bound button (down/long/up), and executes
