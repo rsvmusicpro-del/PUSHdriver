@@ -276,6 +276,7 @@ public final class VirtualPush1RuntimeTest
 
         // Shift changes arrows from one item to one bank page.
         MODEL_ACTIONS.clear ();
+        navigationContext = true;
         midi.device ().pressButton (VirtualPush1Device.SHIFT);
         for (final int arrow: new int [] {
             VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
@@ -286,6 +287,22 @@ public final class VirtualPush1RuntimeTest
         requireAction ("track.selectNextPage", "Shift+Right must select the next track page");
         requireAction ("scene.selectPreviousPage", "Shift+Up must select the previous scene page");
         requireAction ("scene.selectNextPage", "Shift+Down must select the next scene page");
+        navigationContext = false;
+
+        // The same arrow controls must retain their intended behavior in the
+        // Session view rather than launching clips or leaking into another mode.
+        requireButtonMidiDelivery (midi, VirtualPush1Device.SESSION, "Session view");
+        require (Views.isSessionView (surface.getViewManager ().getActiveID ()),
+            "Session button did not activate Session view for directional navigation");
+        MODEL_ACTIONS.clear ();
+        navigationContext = true;
+        for (final int arrow: new int [] {
+            VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
+            VirtualPush1Device.UP, VirtualPush1Device.DOWN })
+            requireButtonMidiDelivery (midi, arrow, "Session arrow " + arrow);
+        requireAction ("scene.scrollBackwards", "Session Up must move one scene backwards");
+        requireAction ("scene.scrollForwards", "Session Down must move one scene forwards");
+        navigationContext = false;
 
         // In/Out are separate from arrows: first navigate devices, then
         // parameter pages, using the actual DeviceParamsMode production path.
