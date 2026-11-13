@@ -109,6 +109,7 @@ public final class VirtualPush1RuntimeTest
         int createdSlotIndex = -1;
         boolean createdWithOverdub;
         boolean noteClipExists;
+        boolean selectedTrackCanHoldNotes = true;
         int stepToggleCount;
         int stepSetCount;
         int stepClearCount;
@@ -224,7 +225,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getCursorDevice" -> cursorDevice;
                                 case "getDrumDevice" -> drumDeviceProxy (state);
                                 case "getCursorTrack" -> cursorTrackProxy (state);
-                                case "canSelectedTrackHoldNotes" -> state.noteClipExists;
+                                case "canSelectedTrackHoldNotes" -> state.selectedTrackCanHoldNotes;
                                 case "getNoteClip" -> noteClipProxy (state);
                                 case "getBrowser" -> browser;
                                 case "createNoteClip" -> {
@@ -794,7 +795,7 @@ public final class VirtualPush1RuntimeTest
             new Class<?> [] { IDrumPad.class }, (proxy, method, args) -> {
                 switch (method.getName ())
                 {
-                    case "doesExist", "isActivated": return true;
+                    case "doesExist", "isActivated": return state.drumPadsExist;
                     case "isSelected": return state.selectedDrumPad == index;
                     case "select":
                         state.selectedDrumPad = index;
