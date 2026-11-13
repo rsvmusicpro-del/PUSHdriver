@@ -122,6 +122,7 @@ public final class VirtualPush1RuntimeTest
         int drumScrollPosition;
         int drumScrollForwardCount;
         int drumScrollBackwardCount;
+        boolean drumPadsExist;
         int drumIndicationOnCount;
         int drumIndicationOffCount;
         boolean deviceCanScrollBackwards;
@@ -611,6 +612,7 @@ public final class VirtualPush1RuntimeTest
         // Drum 4/8: verify pad selection and the sequencer half of the
         // grid writes a note step on release using the selected drum-pad row.
         state.noteClipExists = true;
+        state.drumPadsExist = true;
         state.stepToggleCount = 0;
         state.lastStepNumber = -1;
         state.lastStepNote = -1;
@@ -638,10 +640,12 @@ public final class VirtualPush1RuntimeTest
 
         surface.getViewManager ().setActive (Views.PLAY);
         state.noteClipExists = false;
+        state.drumPadsExist = false;
 
         // Drum 64: verify the 4x4 block traversal across the 8x8 grid
         // and the octave bank scroll contract (16 drum-pad bank steps).
         state.noteClipExists = true;
+        state.drumPadsExist = true;
         state.selectedDrumPad = -1;
         state.drumScrollForwardCount = 0;
         state.drumIndicationOnCount = 0;
@@ -672,6 +676,7 @@ public final class VirtualPush1RuntimeTest
         surface.getViewManager ().setActive (Views.PLAY);
         require (state.drumIndicationOffCount > 0, "Drum64 deactivation must disable drum-pad indication");
         state.noteClipExists = false;
+        state.drumPadsExist = false;
 
         // Browser: exercise both filter-column and result selection, the
         // preset selector, preview chord, and browser content-type paging.
@@ -742,7 +747,7 @@ public final class VirtualPush1RuntimeTest
         return (IDrumDevice) Proxy.newProxyInstance (IDrumDevice.class.getClassLoader (),
             new Class<?> [] { IDrumDevice.class }, (proxy, method, args) -> switch (method.getName ())
             {
-                case "hasDrumPads" -> true;
+                case "hasDrumPads" -> state.drumPadsExist;
                 case "getDrumPadBank" -> drumPadBankProxy (state);
                 case "getPosition" -> 0;
                 default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -1055,7 +1060,7 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getDrumPadBank"))
                     return drumPadBankProxy (state);
                 if (method.getName ().equals ("hasDrumPads"))
-                    return true;
+                    return state.drumPadsExist;
                 if (method.getName ().equals ("isNested"))
                     return false;
                 if (method.getName ().equals ("getPosition"))
