@@ -1168,6 +1168,7 @@ public final class VirtualPush1RuntimeTest
                     case "doesExist":
                         state.clipExistenceQueries++;
                         return state.clipExists;
+                    case "getColor": return de.mossgrabers.framework.controller.color.ColorEx.BLACK;
                     case "getCurrentStep":
                         state.clipCurrentStepQueries++;
                         return state.clipCurrentStep;
