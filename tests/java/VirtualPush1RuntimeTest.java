@@ -30,6 +30,7 @@ import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.daw.data.IDrumDevice;
 import de.mossgrabers.framework.daw.data.IDrumPad;
 import de.mossgrabers.framework.daw.data.ITrack;
+import de.mossgrabers.framework.daw.data.ICursorTrack;
 import de.mossgrabers.framework.daw.data.ILayer;
 import de.mossgrabers.framework.daw.data.bank.ILayerBank;
 import de.mossgrabers.framework.daw.data.bank.IDrumPadBank;
@@ -823,7 +824,7 @@ public final class VirtualPush1RuntimeTest
     }
 
 
-    private static ITrack cursorTrackProxy (final State state)
+    private static ICursorTrack cursorTrackProxy (final State state)
     {
         final ISlotBank slots = (ISlotBank) Proxy.newProxyInstance (
             ISlotBank.class.getClassLoader (), new Class<?> [] { ISlotBank.class },
@@ -840,8 +841,8 @@ public final class VirtualPush1RuntimeTest
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 }
             });
-        return (ITrack) Proxy.newProxyInstance (ITrack.class.getClassLoader (),
-            new Class<?> [] { ITrack.class }, (proxy, method, args) -> {
+        return (ICursorTrack) Proxy.newProxyInstance (ICursorTrack.class.getClassLoader (),
+            new Class<?> [] { ICursorTrack.class }, (proxy, method, args) -> {
                 switch (method.getName ())
                 {
                     case "doesExist": return state.cursorTrackExists;
