@@ -260,7 +260,10 @@ public final class VirtualPush1RuntimeTest
         require (matrixComplete[0], "Production view/mode command matrix did not finish");
         require (state.errors.isEmpty (), "Production mode matrix reported runtime errors: " + state.errors);
 
-        setup.exit ();
+        if (args.length > 0 && "--gui".equals (args[0]))
+            VirtualPush1Simulator.show (midi, setup::exit);
+        else
+            setup.exit ();
         if (!state.errors.isEmpty ())
             throw new AssertionError ("Virtual Bitwig host reported errors: " + state.errors);
         System.out.println ("Virtual Push 1 runtime passed: real PushControllerSetup initialized; "
