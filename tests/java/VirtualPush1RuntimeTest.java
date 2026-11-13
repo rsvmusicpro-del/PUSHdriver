@@ -549,6 +549,19 @@ public final class VirtualPush1RuntimeTest
         surface.getViewManager ().setActive (Views.PLAY);
         setup.flush ();
 
+        // Poly sequencer uses the same note-clip API but its own row mapping.
+        state.noteClipExists = true;
+        final int polyStepsBefore = state.stepToggleCount;
+        surface.getViewManager ().setActive (Views.POLY_SEQUENCER);
+        setup.flush ();
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        require (state.stepToggleCount > polyStepsBefore,
+            "Poly sequencer pad release must edit the active note clip");
+        state.noteClipExists = false;
+        surface.getViewManager ().setActive (Views.PLAY);
+        setup.flush ();
+
         // Drum 4/8: verify pad selection and the sequencer half of the
         // grid writes a note step on release using the selected drum-pad row.
         state.noteClipExists = true;
