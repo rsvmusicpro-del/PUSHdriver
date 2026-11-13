@@ -779,6 +779,29 @@ public final class VirtualPush1RuntimeTest
         state.noteClipExists = false;
         state.drumPadsExist = false;
 
+        // Mixer modes must actually touch and change their production
+        // parameters, not merely have registered knob bindings.
+        navigationContext = true;
+        final Object [][] mixerScenarios = {
+            { Modes.VOLUME, ".volume." },
+            { Modes.PAN, ".pan." },
+            { Modes.SEND1, ".send0." },
+            { Modes.MASTER, "master.volume." },
+            { Modes.CROSSFADER, "master.crossfade." }
+        };
+        for (final Object [] scenario: mixerScenarios)
+        {
+            modes.setActive ((Modes) scenario[0]);
+            MODEL_ACTIONS.clear ();
+            midi.device ().touchEncoder (0, true);
+            midi.device ().turnEncoderBy (0, 8);
+            midi.device ().touchEncoder (0, false);
+            final String expectedAction = (String) scenario[1];
+            require (MODEL_ACTIONS.stream ().anyMatch (action -> action.contains (expectedAction)),
+                "Mixer mode must operate its parameter " + scenario[0] + ": " + MODEL_ACTIONS);
+        }
+        navigationContext = false;
+
         // Session and Scene Play pads must launch the corresponding
         // production clip slots and scene-bank items.
         navigationContext = true;
@@ -1067,6 +1090,9 @@ public final class VirtualPush1RuntimeTest
                     case "doesExist": return state.cursorTrackExists;
                     case "canHoldNotes": return state.selectedTrackCanHoldNotes;
                     case "getSlotBank": return slots;
+                    case "getVolume": return parameterProxy ("cursorTrack.volume");
+                    case "getPan": return parameterProxy ("cursorTrack.pan");
+                    case "getCrossfade": return parameterProxy ("cursorTrack.crossfade");
                     case "isPlaying": return state.cursorTrackPlaying;
                     case "stop":
                         state.cursorTrackStopCount++;
