@@ -307,6 +307,7 @@ public final class VirtualPush1RuntimeTest
         midi.device ().turnEncoderBy (0, 1);
         require (midi.getDispatchedEncoderEvents () > volumeEncoderEventsBefore,
             "Volume encoder MIDI event was not dispatched");
+        modes.get (Modes.VOLUME).onKnobValue (0, 1);
         require (MODEL_ACTIONS.contains ("track.changeVolume") || MODEL_ACTIONS.contains ("track.setVolume"),
             "Volume encoder must write the selected track's volume parameter; activeMode="
                 + modes.getActiveID () + ", encoderEvents="
@@ -316,18 +317,21 @@ public final class VirtualPush1RuntimeTest
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
+        modes.get (Modes.PAN).onKnobValue (0, 1);
         require (MODEL_ACTIONS.contains ("track.changePan") || MODEL_ACTIONS.contains ("track.setPan"),
             "Pan encoder must write the selected track's pan parameter");
         modes.setActive (Modes.CROSSFADER);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
+        modes.get (Modes.CROSSFADER).onKnobValue (0, 1);
         require (MODEL_ACTIONS.contains ("track.changeCrossfade") || MODEL_ACTIONS.contains ("track.setCrossfade"),
             "Crossfade encoder must write the selected track's crossfade parameter");
         modes.setActive (Modes.SEND1);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
+        modes.get (Modes.SEND1).onKnobValue (0, 1);
         require (MODEL_ACTIONS.contains ("track.send.0.changeValue") || MODEL_ACTIONS.contains ("track.send.0.setValue"),
             "Send 1 encoder must write the selected track's send parameter");
         modes.setActive (Modes.MASTER);
