@@ -60,7 +60,7 @@ public final class VirtualPush1Simulator
     private final JLabel selectedPad = new JLabel ("Pad: none");
     private final JLabel status = new JLabel ("Production PushControllerSetup connected");
     private int selectedRow = -1, selectedColumn = -1;
-    private int seenInput, seenOutput, seenRaw;
+    private int seenInput, seenOutput, seenRaw, seenSysex;
     private boolean ribbonTouched;
 
     private VirtualPush1Simulator (final VirtualPush1MidiBench bench, final Runnable onClose)
@@ -304,12 +304,14 @@ public final class VirtualPush1Simulator
         final List<int[]> inputs = bench.capturedDeviceInput ();
         final List<String> outputs = bench.capturedOutput ();
         final List<int[]> raw = bench.capturedRawInputOutput ();
+        final List<String> sysex = bench.capturedDeviceSysex ();
         while (seenInput < inputs.size ())
         {
             final int[] m = inputs.get (seenInput++);
             append ("DEVICE IN  " + hex (m[0]) + " " + hex (m[1]) + " " + hex (m[2]));
         }
         while (seenOutput < outputs.size ()) append ("EXTENSION OUT  " + outputs.get (seenOutput++));
+        while (seenSysex < sysex.size ()) append ("DEVICE SYSEX IN  " + sysex.get (seenSysex++));
         while (seenRaw < raw.size ())
         {
             final int[] m = raw.get (seenRaw++);
@@ -333,7 +335,21 @@ public final class VirtualPush1Simulator
                     visible.append (ch >= 32 && ch <= 126 ? ch : '·');
                 }
                 lcd[module][row].setText (visible.toString ());
+                lcd[module][row].setToolTipText (glyphTooltip (raw));
             }
+    }
+
+    private static String glyphTooltip (final String raw)
+    {
+        final StringBuilder tip = new StringBuilder ("Raw LCD codes / custom 5×8 glyphs");
+        for (int i = 0; i < raw.length (); i++)
+        {
+            final int code = raw.charAt (i);
+            if (Push1DisplayGlyphs.isKnownCustomGlyph (code))
+                tip.append ("\\nColumn ").append (i + 1).append (" — glyph ").append (code)
+                    .append ("\\n").append (Push1DisplayGlyphs.renderAscii (code));
+        }
+        return tip.toString ();
     }
 
     private void append (final String line)
