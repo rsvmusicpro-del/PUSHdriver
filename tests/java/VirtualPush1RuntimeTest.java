@@ -317,6 +317,9 @@ public final class VirtualPush1RuntimeTest
         midi.device ().tapButton (VirtualPush1Device.SESSION);
         require (Views.isSessionView (surface.getViewManager ().getActiveID ()), "Session CC did not select a session view");
         midi.device ().tapButton (VirtualPush1Device.NOTE);
+        require (Views.isNoteView (surface.getViewManager ().getActiveID ()),
+            "Returning from Session did not restore a note view; active view="
+                + surface.getViewManager ().getActiveID ());
 
         // Exercise real pad callbacks, poly-aftertouch, relative encoder,
         // touch-note, ribbon and pitchbend bindings against the active view/modes.
