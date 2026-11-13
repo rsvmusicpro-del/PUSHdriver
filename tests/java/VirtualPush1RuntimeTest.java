@@ -811,6 +811,8 @@ public final class VirtualPush1RuntimeTest
         for (final Object [] scenario: mixerScenarios)
         {
             modes.setActive ((Modes) scenario[0]);
+            setup.flush ();
+            drainScheduled (state, 1);
             MODEL_ACTIONS.clear ();
             midi.device ().touchEncoder (0, true);
             midi.device ().turnEncoderBy (0, 8);
@@ -831,6 +833,8 @@ public final class VirtualPush1RuntimeTest
         for (final Object [] scenario: parameterScenarios)
         {
             modes.setActive ((Modes) scenario[0]);
+            setup.flush ();
+            drainScheduled (state, 1);
             MODEL_ACTIONS.clear ();
             midi.device ().touchEncoder (0, true);
             midi.device ().turnEncoderBy (0, 8);
