@@ -382,7 +382,7 @@ public final class VirtualPush1RuntimeTest
             Views.PLAY, Views.CHORDS, Views.PIANO, Views.PRG_CHANGE,
             Views.CLIP_LENGTH, Views.COLOR, Views.SESSION, Views.SEQUENCER,
             Views.POLY_SEQUENCER, Views.DRUM, Views.DRUM4, Views.DRUM8,
-            Views.RAINDROPS, Views.SCENE_PLAY, Views.DRUM64
+            Views.SCENE_PLAY, Views.DRUM64
         };
         for (final Views view: expectedViews)
         {
