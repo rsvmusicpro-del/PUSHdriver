@@ -53,9 +53,9 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-display-test-") as output:
 
 assembled_display = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push1Display.java"
 display_source = assembled_display.read_text()
-if "Push1DisplayText.fitBlock (value)" not in display_source or "Push1DisplayText.fit (value, 8)" not in display_source:
+if "Push1DisplayLayout.fitBlock (value)" not in display_source or "Push1DisplayLayout.fitCell (value, cell)" not in display_source:
     raise SystemExit("Push 1 LCD cells are not routed through the bounded text-fitting engine")
-if "Push1DisplayText.fit (text, 68)" not in display_source:
+if "Push1DisplayLayout.fitRow (text)" not in display_source:
     raise SystemExit("Push 1 LCD rows must be bounded to 68 cells before SysEx encoding")
 if "Push1DisplayLayout.ROWS" not in display_source or "Push1DisplayLayout.COLUMNS" not in display_source:
     raise SystemExit("Push1Display must use the shared physical four-module LCD geometry")
