@@ -202,6 +202,7 @@ public final class VirtualPush1RuntimeTest
 
         final PushControlSurface surface = setup.getSurface ();
         final var modes = surface.getModeManager ();
+        verifyPush1FeatureInventory (surface);
         require (modes.get (Modes.TRACK) != null, "Track mode was not registered");
         require (modes.get (Modes.DEVICE_PARAMS) != null, "Device parameter mode was not registered");
         require (modes.get (Modes.BROWSER) != null, "Browser mode was not registered");
@@ -407,6 +408,50 @@ public final class VirtualPush1RuntimeTest
         System.out.println ("Virtual Push 1 runtime passed: real PushControllerSetup initialized; "
             + "real mode/view/transport commands, Shift chords, pad aftertouch, encoder/touch/ribbon input and LED/LCD feedback passed.");
     }
+
+    /**
+     * Fail if any part of the production Push 1 view/mode inventory silently
+     * disappears. The generic setup matrix can only test components that were
+     * actually registered, so this independent acceptance list guards its scope.
+     */
+    private static void verifyPush1FeatureInventory (final PushControlSurface surface)
+    {
+        final var modes = surface.getModeManager ();
+        final Modes [] requiredModes = {
+            Modes.TRACK, Modes.TRACK_DETAILS, Modes.VOLUME, Modes.PAN, Modes.CROSSFADER,
+            Modes.MASTER, Modes.MASTER_TEMP,
+            Modes.DEVICE_PARAMS, Modes.DEVICE_CHAINS, Modes.DEVICE_LAYER,
+            Modes.DEVICE_LAYER_VOLUME, Modes.DEVICE_LAYER_PAN, Modes.DEVICE_LAYER_DETAILS,
+            Modes.BROWSER, Modes.CLIP, Modes.NOTE, Modes.FRAME, Modes.GROOVE, Modes.REC_ARM,
+            Modes.ACCENT, Modes.SCALES, Modes.SCALE_LAYOUT, Modes.FIXED, Modes.RIBBON,
+            Modes.VIEW_SELECT, Modes.AUTOMATION, Modes.TRANSPORT, Modes.MARKERS,
+            Modes.USER, Modes.CONFIGURATION, Modes.SESSION, Modes.SESSION_VIEW_SELECT,
+            Modes.REPEAT_NOTE, Modes.ADD_TRACK
+        };
+        for (final Modes mode: requiredModes)
+            require (modes.get (mode) != null, "Required Push 1 mode is not registered: " + mode);
+        for (int index = 0; index < 8; index++)
+        {
+            require (modes.get (Modes.get (Modes.SEND1, index)) != null,
+                "Track Send mode is not registered at index " + index);
+            require (modes.get (Modes.get (Modes.DEVICE_LAYER_SEND1, index)) != null,
+                "Device Layer Send mode is not registered at index " + index);
+        }
+        require (modes.get (Modes.SETUP) == null && modes.get (Modes.INFO) == null,
+            "Push 2-only Setup/Info modes must not be registered by the Push 1 extension");
+
+        final var views = surface.getViewManager ();
+        final Views [] requiredViews = {
+            Views.PLAY, Views.CHORDS, Views.PIANO, Views.PRG_CHANGE, Views.CLIP_LENGTH,
+            Views.COLOR, Views.SESSION, Views.SEQUENCER, Views.POLY_SEQUENCER,
+            Views.DRUM, Views.DRUM4, Views.DRUM8, Views.DRUM64, Views.SCENE_PLAY
+        };
+        for (final Views view: requiredViews)
+            require (views.get (view) != null, "Required Push 1 view is not registered: " + view);
+        require (views.get (Views.RAINDROPS) == null,
+            "The excluded Raindrops view must not leak into the Push 1 extension");
+    }
+
 
     private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters)
     {
