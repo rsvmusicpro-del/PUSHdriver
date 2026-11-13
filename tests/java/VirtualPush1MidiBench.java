@@ -13,6 +13,7 @@ import de.mossgrabers.framework.utils.ButtonEvent;
 
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.function.BiConsumer;
 import java.util.Arrays;
 import java.util.List;
 
@@ -40,6 +41,8 @@ public final class VirtualPush1MidiBench
     private MidiSysExCallback sysexCallback;
     private final IMidiInput input;
     private INoteInput defaultNoteInput;
+    private BiConsumer<Integer, Integer> gridNoteHandler;
+    private BiConsumer<Integer, Integer> aftertouchHandler;
     private final IMidiOutput midiOutput;
     private final VirtualPush1Device device;
 
@@ -118,6 +121,8 @@ public final class VirtualPush1MidiBench
 
     public IMidiInput input () { return this.input; }
     public void setDefaultNoteInput (final INoteInput noteInput) { this.defaultNoteInput = noteInput; }
+    public void setGridNoteHandler (final BiConsumer<Integer, Integer> handler) { this.gridNoteHandler = handler; }
+    public void setAftertouchHandler (final BiConsumer<Integer, Integer> handler) { this.aftertouchHandler = handler; }
     public IMidiOutput output () { return this.midiOutput; }
     public VirtualPush1Device device () { return this.device; }
 
@@ -181,6 +186,13 @@ public final class VirtualPush1MidiBench
                     binding.control ().triggerTouch (pressed);
                     this.dispatchedTouchEvents++;
                 }
+            if (data1 >= 36 && data1 <= 99 && this.gridNoteHandler != null)
+                this.gridNoteHandler.accept (Integer.valueOf (data1), Integer.valueOf (pressed ? data2 : 0));
+        }
+        else if (family == 0xA0)
+        {
+            if (data1 >= 36 && data1 <= 99 && this.aftertouchHandler != null)
+                this.aftertouchHandler.accept (Integer.valueOf (data1), Integer.valueOf (data2));
         }
     }
 
