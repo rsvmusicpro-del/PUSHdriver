@@ -178,3 +178,29 @@ The GitHub Actions workflow's Linux build, Intel macOS validation and
 currently reports `protected: false`; the repository owner still needs to
 configure `quality-gate` as a required branch-protection status check for
 server-enforced merge protection.
+
+
+## Extended virtual hardware and DAW model (2026-11-13)
+
+The stateful API-17 model now represents eight distinct mixer tracks with
+independent volume, pan and four send parameters. Production Volume, Pan and
+Send 1 modes are exercised through all eight main encoders; the suite checks
+relative direction, encoder touch, Delete+touch parameter reset and track mute.
+Transport tests cover metronome toggle, Shift+Metronome tick toggle and the
+configured footswitch behavior.
+
+The current-track bank now exposes eight clip slots per track and a 64-scene
+bank. Production Session and Scene Play views are exercised for clip launch,
+clip duplicate/paste, clip deletion, per-track Stop+pad, scene launch/select
+and Shift+Stop all-clips. The Swing simulator also exposes both footswitch
+CC inputs; Footswitch 2's default Sustain Pedal mapping is checked for CC64
+press/release output.
+
+`docs/VIRTUAL-PUSH1-COVERAGE.md` now distinguishes exhaustive digital MIDI
+protocol value-space coverage from the selected stateful Bitwig API 17
+workflows and physical-only boundaries. Do not advertise a measured 90%
+hardware fidelity score: the project has not defined a complete weighted
+denominator, and no software-only bench can reproduce analog sensor curves,
+USB electrical timing, switch contact bounce or the actual Bitwig 4.3.10
+scheduler. The goal is to keep physical hardware out of routine regression
+work while preserving a small, explicit hardware qualification checklist.
