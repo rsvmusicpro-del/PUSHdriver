@@ -255,6 +255,33 @@ public final class VirtualPush1RuntimeTest
         setup.startup ();
 
         final PushControlSurface surface = setup.getSurface ();
+
+        // A real pad press and poly-aftertouch must pass through the active
+        // production Play view, its key map and the registered MIDI callback.
+        final Views viewBeforePadInput = surface.getViewManager ().getActiveID ();
+        surface.getViewManager ().setActive (Views.PLAY);
+        setup.flush ();
+        drainScheduled (state, 1);
+        drainScheduled (state, 6);
+        final int [] playNoteMap = new int [128];
+        Arrays.fill (playNoteMap, -1);
+        playNoteMap[0] = 60;
+        playNoteMap[36] = 60;
+        surface.getViewManager ().get (Views.PLAY).getKeyManager ().setNoteMatrix (playNoteMap);
+        require (surface.getViewManager ().get (Views.PLAY).getKeyManager ().getMidiNoteFromGrid (36) == 60,
+            "Play view aftertouch fixture must translate the physical pad to a mapped MIDI note");
+        final int rawOutputBeforeAftertouch = midi.capturedRawInputOutput ().size ();
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().pressPadPressure (0, 0, 80);
+        midi.device ().releasePad (0, 0);
+        final List<int []> aftertouchOutput = midi.capturedRawInputOutput ().subList (
+            rawOutputBeforeAftertouch, midi.capturedRawInputOutput ().size ());
+        require (aftertouchOutput.stream ().anyMatch (message ->
+            (message[0] & 0xF0) == 0xA0 && message[1] == 60 && message[2] == 80),
+            "Physical pad pressure must reach the active Play view aftertouch command");
+        surface.getViewManager ().setActive (viewBeforePadInput);
+
+        final var modes = surface.getModeManager ();
         final var modes = surface.getModeManager ();
         verifyPush1FeatureInventory (surface);
         require (modes.get (Modes.TRACK) != null, "Track mode was not registered");
