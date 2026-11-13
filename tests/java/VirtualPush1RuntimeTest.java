@@ -831,6 +831,11 @@ public final class VirtualPush1RuntimeTest
         // remain visible after auto-follow moves beyond page zero.
         state.playing = true;
         musicalModel.setEditPage (0);
+        // Earlier boundary checks deliberately disabled auto-follow through
+        // manual arrows. Selecting the current page restores the live-follow mode.
+        musicalModel.setCurrentStep (5);
+        sequencerView.onGridNote (92, 100);
+        sequencerView.onGridNote (92, 0);
         musicalModel.noteClip ().setStep (new NotePosition (0, 0, 36), 100, 0.25);
         musicalModel.noteClip ().setStep (new NotePosition (0, 1, 36), 100, 0.25);
         musicalModel.setCurrentStep (8);
