@@ -780,6 +780,24 @@ public final class VirtualPush1RuntimeTest
         state.noteClipExists = false;
         state.drumPadsExist = false;
 
+        // Track and scene banks expose their navigation boundaries and
+        // receive the corresponding item/page actions from the real arrows.
+        navigationContext = true;
+        modes.setActive (Modes.TRACK);
+        MODEL_ACTIONS.clear ();
+        midi.device ().tapButton (VirtualPush1Device.LEFT);
+        midi.device ().tapButton (VirtualPush1Device.RIGHT);
+        requireAction ("track.selectPreviousItem", "Track Left must select the previous track");
+        requireAction ("track.selectNextItem", "Track Right must select the next track");
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        midi.device ().tapButton (VirtualPush1Device.LEFT);
+        midi.device ().tapButton (VirtualPush1Device.RIGHT);
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        requireAction ("track.selectPreviousPage", "Shift+Track Left must select the previous track page");
+        requireAction ("track.selectNextPage", "Shift+Track Right must select the next track page");
+        navigationContext = false;
+
         // Mixer modes must actually touch and change their production
         // parameters, not merely have registered knob bindings.
         navigationContext = true;
@@ -1390,6 +1408,8 @@ public final class VirtualPush1RuntimeTest
                     MODEL_ACTIONS.add ("scene." + method.getName ());
                     return null;
                 }
+                if (List.of ("hasPreviousItem", "hasNextItem", "hasPreviousItemPage", "hasNextItemPage").contains (method.getName ()))
+                    return navigationContext;
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getSelectedItem"))
@@ -1424,6 +1444,8 @@ public final class VirtualPush1RuntimeTest
                     MODEL_ACTIONS.add ("track." + method.getName ());
                     return null;
                 }
+                if (List.of ("hasPreviousItem", "hasNextItem", "hasPreviousItemPage", "hasNextItemPage").contains (method.getName ()))
+                    return navigationContext;
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getSelectedItem"))
