@@ -3,6 +3,7 @@
 from pathlib import Path
 import os
 import subprocess
+import sys
 import tempfile
 
 root = Path(__file__).resolve().parents[1]
@@ -26,6 +27,7 @@ test_sources = (
     root / "tests/java/VirtualPush1DeviceTest.java",
     root / "tests/java/VirtualPush1ProtocolExhaustiveTest.java",
     root / "tests/java/VirtualPush1RuntimeTest.java",
+    root / "tests/java/VirtualPush1Simulator.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayGlyphs.java",
@@ -44,7 +46,7 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-extension-test-") as output:
         "VirtualPush1ProtocolExhaustiveTest",
         "VirtualPush1RuntimeTest",
     ):
-        subprocess.run(
-            ["java", "-cp", runtime_classpath, test_class],
-            cwd=root, check=True,
-        )
+        command = ["java", "-cp", runtime_classpath, test_class]
+        if test_class == "VirtualPush1RuntimeTest" and "--gui" in sys.argv:
+            command.append("--gui")
+        subprocess.run(command, cwd=root, check=True)
