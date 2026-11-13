@@ -678,6 +678,36 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releasePad (4, 0);
         midi.device ().releaseButton (VirtualPush1Device.SELECT);
         require (state.selectedDrumPad == 16, "Drum64 upper block must map to pad 16");
+        // Drum64 modifier combinations must reach the selected drum pad,
+        // note clip row, and browser model rather than only changing the UI.
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.MUTE);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        midi.device ().releaseButton (VirtualPush1Device.MUTE);
+        requireAction ("drumPad.toggleMute:0", "Drum64 Mute+pad must mute that drum pad");
+
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.SOLO);
+        midi.device ().pressPad (0, 1, 100);
+        midi.device ().releasePad (0, 1);
+        midi.device ().releaseButton (VirtualPush1Device.SOLO);
+        requireAction ("drumPad.toggleSolo:1", "Drum64 Solo+pad must solo that drum pad");
+
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().pressPad (0, 2, 100);
+        midi.device ().releasePad (0, 2);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        requireAction ("noteClip.clearRow", "Drum64 Delete+pad must clear the corresponding note row");
+
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.BROWSE);
+        midi.device ().pressPad (0, 3, 100);
+        midi.device ().releasePad (0, 3);
+        midi.device ().releaseButton (VirtualPush1Device.BROWSE);
+        requireAction ("browser.replace", "Drum64 Browse+pad must replace the browser target with that drum pad");
+
         drum64.onOctaveUp (ButtonEvent.DOWN);
         require (state.drumScrollForwardCount == 16,
             "Drum64 octave-up must scroll the drum bank by exactly 16 pad positions");
@@ -859,6 +889,10 @@ public final class VirtualPush1RuntimeTest
                         state.stepStates.put (stepKey ((NotePosition) args[0]), StepState.OFF);
                         MODEL_ACTIONS.add ("noteClip.clearStep");
                         return null;
+                    case "clearRow":
+                        state.stepClearCount++;
+                        MODEL_ACTIONS.add ("noteClip.clearRow");
+                        return null;
                     case "scrollStepsPageForward":
                         state.stepPageForwardCount++;
                         MODEL_ACTIONS.add ("noteClip.scrollStepsPageForward");
@@ -965,7 +999,7 @@ public final class VirtualPush1RuntimeTest
                     case "nextContentType": case "previousContentType":
                     case "selectNextResult": case "selectPreviousResult":
                     case "selectNextFilterItem": case "selectPreviousFilterItem":
-                    case "resetFilterColumn": case "stopBrowsing":
+                    case "resetFilterColumn": case "stopBrowsing": case "replace":
                         MODEL_ACTIONS.add ("browser." + method.getName ()
                             + (args == null || args.length == 0 ? "" : ":" + args[0]));
                         return null;
