@@ -233,9 +233,9 @@ public final class VirtualPush1RuntimeTest
         final List<String> browserDisplayText = new java.util.ArrayList<> ();
         final ITextDisplay browserDisplay = (ITextDisplay) Proxy.newProxyInstance (
             ITextDisplay.class.getClassLoader (), new Class<?> [] { ITextDisplay.class },
-            (proxy, method, args) -> {
-                if (args != null)
-                    for (final Object argument: args)
+            (proxy, method, displayArgs) -> {
+                if (displayArgs != null)
+                    for (final Object argument: displayArgs)
                         if (argument instanceof String text)
                             browserDisplayText.add (text);
                 return method.getReturnType ().isInstance (proxy) ? proxy
