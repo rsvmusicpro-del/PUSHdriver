@@ -222,9 +222,9 @@ public final class VirtualPush1RuntimeTest
         midi.device ().touchEncoder (0, false);
         require (browserModel.filterCursor (0) > filterBefore,
             "Touched Browser encoder did not change the selected filter item");
-        setup.flush ();
-        require (midi.device ().getLcdRow (0).contains (String.valueOf (Push1Display.SELECT_ARROW)),
-            "Browser selected-column marker was not rendered on the Push 1 LCD");
+        browserMode.updateDisplay ();
+        require (midi.device ().getLcdRow (0).contains (">Filter"),
+            "Browser selected-column marker was not rendered on the Push 1 LCD: " + midi.device ().getLcdRow (0));
 
         // Shift+Left/Right pages browser content types; plain row buttons
         // navigate filter entries and results rather than the content tabs.
