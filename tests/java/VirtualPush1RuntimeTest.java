@@ -1277,6 +1277,8 @@ public final class VirtualPush1RuntimeTest
                     return true;
                 if (method.getName ().equals ("doesExist"))
                     return true;
+                if (method.getName ().equals ("getParameter"))
+                    return parameterProxy ("layer.send");
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
@@ -1337,6 +1339,10 @@ public final class VirtualPush1RuntimeTest
                     return args != null && args.length > 0 && args[0] instanceof Integer index ? index : 0;
                 if (method.getName ().equals ("hasDevices"))
                     return false;
+                if (method.getName ().equals ("getVolume"))
+                    return parameterProxy ("layer.volume");
+                if (method.getName ().equals ("getPan"))
+                    return parameterProxy ("layer.pan");
                 if (method.getName ().equals ("getSendBank"))
                     return sendBankProxy ();
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -1350,9 +1356,7 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
-                    return Proxy.newProxyInstance (IParameter.class.getClassLoader (),
-                        new Class<?> [] { IParameter.class },
-                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                    return parameterProxy ("device.parameter" + args[0]);
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
