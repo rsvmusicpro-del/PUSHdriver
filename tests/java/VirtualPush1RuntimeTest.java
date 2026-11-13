@@ -1155,9 +1155,10 @@ public final class VirtualPush1RuntimeTest
             VirtualPush1Simulator.show (midi, setup::exit);
         else if (args.length > 0 && "--gui-smoke".equals (args[0]))
             VirtualPush1Simulator.smoke (midi, () -> {
-                // This process is dedicated to a bounded GUI smoke test.
-                // Avoid the host teardown path here: it can wait on Bitwig's
-                // scheduler even though the Swing window has already closed.
+                setup.exit ();
+                // The host test harness may retain non-daemon scheduler
+                // threads after its UI has been disposed; this process is
+                // dedicated to the bounded GUI smoke test.
                 System.exit (0);
             });
         else
