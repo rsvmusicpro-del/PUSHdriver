@@ -9,6 +9,8 @@ package de.mossgrabers.controller.ableton.push.controller;
  *
  * Standard ROM glyphs (including degree, division and arrow symbols) are not
  * duplicated here; the LCD controller owns those glyphs.
+ *
+ * Reverse-engineered bitmap source: https://gist.github.com/eeropic/cf679d65d3b7299668e1281ad0efcf5c
  */
 public final class Push1DisplayGlyphs
 {
