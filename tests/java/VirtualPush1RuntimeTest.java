@@ -54,6 +54,7 @@ import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceBrowserMode;
 import de.mossgrabers.controller.ableton.push.view.SequencerView;
 import de.mossgrabers.controller.ableton.push.view.Drum64View;
+import de.mossgrabers.controller.ableton.push.view.SessionView;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.utils.TestCallback;
@@ -117,6 +118,10 @@ public final class VirtualPush1RuntimeTest
         int drumScrollPosition;
         int drumScrollCount;
         int drumSelectedPad = -1;
+        int sceneLaunchCount;
+        int sceneRemoveCount;
+        int sceneDuplicateCount;
+        int sceneSelectedIndex = -1;
         final List<String> browserActions = new java.util.ArrayList<> ();
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
@@ -200,8 +205,8 @@ public final class VirtualPush1RuntimeTest
                         final Object valueChanger = callArgs[2];
                         final Object colorManager = callArgs[1];
                         final Object scales = callArgs[3];
-                        final ITrackBank trackBank = trackBankProxy ();
-                        final ISceneBank sceneBank = sceneBankProxy ();
+                        final ISceneBank sceneBank = sceneBankProxy (state);
+                        final ITrackBank trackBank = trackBankProxy (state, sceneBank);
                         final IParameterBank parameterBank = parameterBankProxy ();
                         final IDrumPadBank primaryDrumBank = drumPadBankProxy (state);
                         final IDrumPadBank cursorDrumBank = drumPadBankProxy (state);
@@ -253,6 +258,23 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.BROWSER) != null, "Browser mode was not registered");
         require (modes.get (Modes.SESSION) != null, "Session mode was not registered");
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
+
+        // Session scene buttons must launch, delete and duplicate the
+        // selected scene through the production SessionView.
+        final SessionView sessionView = (SessionView) surface.getViewManager ().get (Views.SESSION);
+        sessionView.onButton (ButtonID.SCENE1, ButtonEvent.DOWN, 127);
+        require (state.sceneSelectedIndex == 0 && state.sceneLaunchCount == 1,
+            "Session scene button must select and launch its scene");
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        sessionView.onButton (ButtonID.SCENE2, ButtonEvent.DOWN, 127);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        require (state.sceneRemoveCount == 1,
+            "Delete+Scene must remove the selected scene instead of launching it");
+        midi.device ().pressButton (VirtualPush1Device.DUPLICATE);
+        sessionView.onButton (ButtonID.SCENE3, ButtonEvent.DOWN, 127);
+        midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
+        require (state.sceneDuplicateCount == 1,
+            "Duplicate+Scene must duplicate the selected scene instead of launching it");
 
         // Browser filter columns and preset-result navigation are stateful
         // model interactions, not merely a registered-mode smoke check.
@@ -727,7 +749,32 @@ public final class VirtualPush1RuntimeTest
             });
     }
 
-    private static ISceneBank sceneBankProxy ()
+    private static IScene sceneProxy (final State state, final int index)
+    {
+        return (IScene) Proxy.newProxyInstance (IScene.class.getClassLoader (),
+            new Class<?> [] { IScene.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "doesExist": return true;
+                    case "isSelected": return state.sceneSelectedIndex == index;
+                    case "select":
+                        state.sceneSelectedIndex = index;
+                        return null;
+                    case "launch":
+                        state.sceneLaunchCount++;
+                        return null;
+                    case "remove":
+                        state.sceneRemoveCount++;
+                        return null;
+                    case "duplicate":
+                        state.sceneDuplicateCount++;
+                        return null;
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+    }
+
+    private static ISceneBank sceneBankProxy (final State state)
     {
         return (ISceneBank) Proxy.newProxyInstance (ISceneBank.class.getClassLoader (),
             new Class<?> [] { ISceneBank.class }, (proxy, method, args) -> {
@@ -739,16 +786,14 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getSelectedItem"))
-                    return Optional.empty ();
+                    return state.sceneSelectedIndex < 0 ? Optional.empty () : Optional.of (sceneProxy (state, state.sceneSelectedIndex));
                 if (method.getName ().equals ("getItem"))
-                    return Proxy.newProxyInstance (IScene.class.getClassLoader (),
-                        new Class<?> [] { IScene.class },
-                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                    return sceneProxy (state, (int) args[0]);
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
 
-    private static ITrackBank trackBankProxy ()
+    private static ITrackBank trackBankProxy (final State state, final ISceneBank sceneBank)
     {
         return (ITrackBank) Proxy.newProxyInstance (ITrackBank.class.getClassLoader (),
             new Class<?> [] { ITrackBank.class }, (proxy, method, args) -> {
@@ -762,7 +807,7 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getSelectedItem"))
                     return navigationContext ? Optional.of (trackProxy ()) : Optional.empty ();
                 if (method.getName ().equals ("getSceneBank"))
-                    return sceneBankProxy ();
+                    return sceneBank;
                 if (method.getName ().equals ("getItem"))
                     return trackProxy ();
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
