@@ -26,6 +26,7 @@ import de.mossgrabers.framework.daw.data.IDeviceMetadata;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.daw.data.ITrack;
 import de.mossgrabers.framework.daw.data.ICursorTrack;
+import de.mossgrabers.framework.daw.clip.INoteClip;
 import de.mossgrabers.framework.daw.data.ISlot;
 import de.mossgrabers.framework.daw.data.bank.ISlotBank;
 import de.mossgrabers.framework.daw.data.ISend;
@@ -44,6 +45,7 @@ import de.mossgrabers.framework.command.core.TriggerCommand;
 import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceBrowserMode;
+import de.mossgrabers.controller.ableton.push.view.SequencerView;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.utils.TestCallback;
@@ -93,6 +95,11 @@ public final class VirtualPush1RuntimeTest
         int lastCreatedClipLength = -1;
         boolean lastCreatedClipOverdub;
         boolean browserPreviewEnabled;
+        boolean clipExists;
+        int clipCurrentStep;
+        int clipEditPage;
+        int clipScrollToPageCount;
+        int lastClipPage = -1;
         final List<String> browserActions = new java.util.ArrayList<> ();
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
@@ -175,6 +182,7 @@ public final class VirtualPush1RuntimeTest
                         final IParameterBank parameterBank = parameterBankProxy ();
                         final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank);
                         final IBrowser browser = browserProxy (state);
+                        final INoteClip noteClip = noteClipProxy (state);
                         final ISlotBank slotBank = slotBankProxy (state);
                         final ITrack cursorTrack = cursorTrackProxy (state, slotBank);
                         return Proxy.newProxyInstance (IModel.class.getClassLoader (),
@@ -189,6 +197,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
                                 case "getBrowser" -> browser;
+                                case "getNoteClip" -> noteClip;
                                 case "getCursorTrack" -> cursorTrack;
                                 case "createNoteClip" -> {
                                     state.createdClipCount++;
@@ -245,6 +254,27 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
         require (state.browserPreviewEnabled,
             "Shift+Browser preset row must toggle browser preview");
+
+        // The live sequencer playhead must follow only an existing note clip;
+        // an empty cursor slot must never cause an edit-page scroll.
+        final Views previousView = surface.getViewManager ().getActiveID ();
+        final SequencerView sequencerView = (SequencerView) surface.getViewManager ().get (Views.SEQUENCER);
+        surface.getViewManager ().setActive (Views.SEQUENCER);
+        state.playing = true;
+        state.clipExists = false;
+        state.clipScrollToPageCount = 0;
+        state.lastClipPage = -1;
+        sequencerView.drawGrid ();
+        require (state.clipScrollToPageCount == 0,
+            "Sequencer playhead follow must not scroll an empty note clip");
+        state.clipExists = true;
+        state.clipCurrentStep = 20;
+        state.clipEditPage = 0;
+        sequencerView.drawGrid ();
+        require (state.clipScrollToPageCount == 1 && state.lastClipPage > 0,
+            "Sequencer must follow the playing page when a real note clip exists");
+        state.playing = false;
+        surface.getViewManager ().setActive (previousView);
 
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
@@ -585,6 +615,25 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getItem"))
                     return trackProxy ();
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+    private static INoteClip noteClipProxy (final State state)
+    {
+        return (INoteClip) Proxy.newProxyInstance (INoteClip.class.getClassLoader (),
+            new Class<?> [] { INoteClip.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "doesExist": return state.clipExists;
+                    case "getCurrentStep": return state.clipCurrentStep;
+                    case "getEditPage": return state.clipEditPage;
+                    case "scrollToPage":
+                        state.clipScrollToPageCount++;
+                        state.lastClipPage = (int) args[0];
+                        state.clipEditPage = (int) args[0];
+                        return null;
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
             });
     }
 
