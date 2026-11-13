@@ -311,8 +311,8 @@ public final class VirtualPush1RuntimeTest
         midi.device ().turnEncoderBy (0, 1);
         require (midi.getDispatchedEncoderEvents () > volumeEncoderEventsBefore,
             "Volume encoder MIDI event was not dispatched");
-        modes.get (Modes.VOLUME).onKnobValue (0, 1);
-        require (MODEL_ACTIONS.contains ("track.changeVolume") || MODEL_ACTIONS.contains ("track.setVolume"),
+        require (MODEL_ACTIONS.contains ("track.changeVolume") || MODEL_ACTIONS.contains ("track.setVolume")
+                || MODEL_ACTIONS.contains ("track.volume.changeValue"),
             "Volume encoder must write the selected track's volume parameter; activeMode="
                 + modes.getActiveID () + ", encoderEvents="
                 + (midi.getDispatchedEncoderEvents () - volumeEncoderEventsBefore)
@@ -321,21 +321,20 @@ public final class VirtualPush1RuntimeTest
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        modes.get (Modes.PAN).onKnobValue (0, 1);
-        require (MODEL_ACTIONS.contains ("track.changePan") || MODEL_ACTIONS.contains ("track.setPan"),
+        require (MODEL_ACTIONS.contains ("track.changePan") || MODEL_ACTIONS.contains ("track.setPan")
+                || MODEL_ACTIONS.contains ("track.pan.changeValue"),
             "Pan encoder must write the selected track's pan parameter");
         modes.setActive (Modes.CROSSFADER);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        modes.get (Modes.CROSSFADER).onKnobValue (0, 1);
-        require (MODEL_ACTIONS.contains ("track.changeCrossfade") || MODEL_ACTIONS.contains ("track.setCrossfade"),
+        require (MODEL_ACTIONS.contains ("track.changeCrossfade") || MODEL_ACTIONS.contains ("track.setCrossfade")
+                || MODEL_ACTIONS.contains ("track.crossfade.changeValue"),
             "Crossfade encoder must write the selected track's crossfade parameter");
         modes.setActive (Modes.SEND1);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
-        modes.get (Modes.SEND1).onKnobValue (0, 1);
         require (MODEL_ACTIONS.contains ("track.send.0.changeValue") || MODEL_ACTIONS.contains ("track.send.0.setValue"),
             "Send 1 encoder must write the selected track's send parameter");
         modes.setActive (Modes.MASTER);
@@ -1490,6 +1489,7 @@ public final class VirtualPush1RuntimeTest
     private static <T> T continuousProxy (final Class<T> type, final VirtualPush1MidiBench midi)
     {
         final ContinuousCommand [] command = { null };
+        final IParameter [] parameter = { null };
         final TriggerCommand [] touch = { null };
         final PitchbendCommand [] pitchbend = { null };
         return type.cast (Proxy.newProxyInstance (type.getClassLoader (), new Class<?> [] { type },
@@ -1497,7 +1497,16 @@ public final class VirtualPush1RuntimeTest
                 switch (method.getName ())
                 {
                     case "bind":
-                        if (args[0] instanceof ContinuousCommand continuous) command[0] = continuous;
+                        if (args[0] instanceof ContinuousCommand continuous)
+                        {
+                            command[0] = continuous;
+                            parameter[0] = null;
+                        }
+                        else if (args[0] instanceof IParameter boundParameter)
+                        {
+                            parameter[0] = boundParameter;
+                            command[0] = null;
+                        }
                         else if (args[0] instanceof PitchbendCommand bend) pitchbend[0] = bend;
                         else if (args[0] instanceof IMidiInput input)
                         {
@@ -1525,12 +1534,12 @@ public final class VirtualPush1RuntimeTest
                             touch[0].execute ((boolean) args[0] ? ButtonEvent.DOWN : ButtonEvent.UP, (boolean) args[0] ? 127 : 0);
                         return null;
                     case "handleValue":
+                        final double relative = (double) args[0] * 61.0;
+                        final int steps = (int) (relative > 0 ? Math.ceil (relative) : Math.floor (relative));
                         if (command[0] != null)
-                        {
-                            final double relative = (double) args[0] * 61.0;
-                            final int steps = (int) (relative > 0 ? Math.ceil (relative) : Math.floor (relative));
                             command[0].execute (steps < 0 ? steps + 128 : steps);
-                        }
+                        else if (parameter[0] != null)
+                            parameter[0].changeValue (steps);
                         return null;
                     case "isTouched": case "isLongTouched": case "shouldAdaptSensitivity": return false;
                     case "toString": return "Virtual Push continuous control";
