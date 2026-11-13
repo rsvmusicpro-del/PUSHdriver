@@ -125,6 +125,8 @@ public final class VirtualPush1RuntimeTest
         int slotLaunchCount;
         int slotLaunchImmediatelyCount;
         int slotSelectCount;
+        int slotItemRequests;
+        int trackSlotBankRequests;
         final List<String> browserActions = new java.util.ArrayList<> ();
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
@@ -278,9 +280,20 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
         require (state.sceneDuplicateCount == 1,
             "Duplicate+Scene must duplicate the selected scene instead of launching it");
+        surface.getViewManager ().setActive (Views.SESSION);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        midi.device ().releaseButton (VirtualPush1Device.SELECT);
         sessionView.onGridNote (36, 0);
         require (state.slotLaunchCount == 1,
-            "Session pad release must launch the corresponding clip slot");
+            "Session pad release must launch the corresponding clip slot"
+                + " (slotItems=" + state.slotItemRequests
+                + ", trackSlotBanks=" + state.trackSlotBankRequests
+                + ", launches=" + state.slotLaunchCount
+                + ", deletePressed=" + surface.isDeletePressed ()
+                + ", duplicatePressed=" + surface.isDuplicatePressed ()
+                + ", selectPressed=" + surface.isSelectPressed () + ")");
         midi.device ().pressButton (VirtualPush1Device.SELECT);
         sessionView.onGridNote (36, 100);
         midi.device ().releaseButton (VirtualPush1Device.SELECT);
@@ -930,7 +943,10 @@ public final class VirtualPush1RuntimeTest
                         ? Optional.of (slotProxy (state, Math.max (0, state.selectedSlotIndex))) : Optional.empty ();
                 }
                 if (method.getName ().equals ("getItem"))
+                {
+                    state.slotItemRequests++;
                     return slotProxy (state, (int) args[0]);
+                }
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -975,7 +991,10 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getSceneBank"))
                     return sceneBank;
                 if (method.getName ().equals ("getSlotBank"))
+                {
+                    state.trackSlotBankRequests++;
                     return slotBankProxy (state);
+                }
                 if (method.getName ().equals ("isRecArm"))
                     return false;
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
