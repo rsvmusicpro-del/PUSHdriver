@@ -42,6 +42,7 @@ public final class VirtualPush1MidiBench
     private MidiSysExCallback sysexCallback;
     private final IMidiInput input;
     private final INoteRepeat noteRepeat;
+    private final INoteRepeat [] availableNoteRepeat = new INoteRepeat [1];
     private final INoteInput defaultNoteInput;
     private final IMidiOutput midiOutput;
     private final VirtualPush1Device device;
@@ -55,7 +56,7 @@ public final class VirtualPush1MidiBench
         this.defaultNoteInput = (INoteInput) Proxy.newProxyInstance (
             INoteInput.class.getClassLoader (), new Class<?> [] { INoteInput.class },
             (proxy, method, args) -> method.getName ().equals ("getNoteRepeat")
-                ? this.noteRepeat : defaultValue (method.getReturnType ()));
+                ? this.availableNoteRepeat[0] : defaultValue (method.getReturnType ()));
         this.input = (IMidiInput) Proxy.newProxyInstance (
             IMidiInput.class.getClassLoader (), new Class<?> [] { IMidiInput.class },
             (proxy, method, args) -> {
@@ -129,6 +130,7 @@ public final class VirtualPush1MidiBench
 
     public IMidiInput input () { return this.input; }
     public INoteRepeat noteRepeat () { return this.noteRepeat; }
+    public void setNoteRepeatAvailable (final boolean available) { this.availableNoteRepeat[0] = available ? this.noteRepeat : null; }
     public IMidiOutput output () { return this.midiOutput; }
     public VirtualPush1Device device () { return this.device; }
 
