@@ -28,6 +28,31 @@ The extension and the reverse-engineered Push 1 display protocol agree on these 
 - the device accepts seven-bit character data;
 - one SysEx message updates one complete row.
 
+The four 17-character blocks are not arbitrary text columns: they correspond
+to **four separate physical LCD modules placed side by side**. Each module
+contains four rows × 17 character positions. The full display is therefore
+a 4-module horizontal assembly, with a global coordinate system of row
+0–3 and column 0–67. The virtual display exposes both coordinate systems:
+module 0–3 with local column 0–16, and the combined 68-column row.
+
+The inherited Push 1 display API also exposes eight logical cells per row.
+Their physical character widths alternate **9, 8, 9, 8, 9, 8, 9, 8**.
+Every adjacent pair (9 + 8) exactly fills one 17-character LCD module.
+Thus a block/module maps to two logical cells, not to an independently
+resizable panel. The extension and virtual device now use the same
+`Push1DisplayLayout` constants and coordinate conversion methods, so module
+positions, block widths, cell offsets and row dimensions cannot drift apart
+silently.
+
+The firmware's Push-specific glyph codes are seven-bit character values and
+must be preserved as character codes through the LCD SysEx path. They are
+not Unicode code points or ordinary ASCII substitutions on the physical
+display. The simulator therefore stores and exposes raw character codes,
+including the custom glyph range, rather than replacing them with a guessed
+font. Reverse-engineered 5 × 8 glyph bitmaps may be useful for a future
+pixel-accurate renderer, but the exact physical glass/pixel dimensions and
+module spacing are not established by the current protocol contract.
+
 The original LCD is an **alphanumeric character LCD**, not a pixel-addressable colour display. Reverse-engineered firmware character data indicates 5 × 8 pixel glyph patterns for the character set, but this is not a vendor-published panel resolution. The exact LCD module part number, physical active-area dimensions in millimetres, controller IC revision, and glass technology have not been established from an authoritative Ableton service document. PUSHdriver therefore does not invent those measurements or attempt Push 2-style pixel rendering.
 
 References:
@@ -97,7 +122,7 @@ This deliberately scopes New to the cursor track. PUSHdriver does not automatica
 
 ### Dedicated engine: justified
 
-`Push1DisplayProtocol` is the one additional protocol engine introduced by this change. It owns only the conversion from one logical LCD row to a complete Push 1 SysEx frame. It enforces:
+`Push1DisplayProtocol` owns the conversion from one logical LCD row to a complete Push 1 SysEx frame. `Push1DisplayLayout` is the shared geometry contract for the four physical LCD modules, 17-character blocks and alternating 9/8-character cells; production display composition and the virtual device use the same mapping. It enforces:
 
 1. valid row indexes (0–3);
 2. exactly 68 characters per row;
