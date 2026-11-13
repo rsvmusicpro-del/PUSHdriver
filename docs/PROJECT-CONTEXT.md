@@ -116,13 +116,14 @@ local repository, launch it with:
 python3 scripts/test_push1_extension.py --gui
 ```
 
-The window exposes all 64 pads (mouse press/release, velocity 100), a
-selectable pad aftertouch slider, momentary Push buttons and Shift chords,
+The window exposes all 64 pads (mouse press/release, adjustable velocity 1–127), a
+selectable held-pad aftertouch slider, momentary Push buttons and Shift chords,
 nine main and two small encoders (step controls plus independent touch
 switches), Ribbon touch and 14-bit position, and the eight bottom-row RGB
 controls. It renders the four physical LCD modules as 4 × 17 character
-segments and refreshes pad/button LED feedback from the virtual device. The
-MIDI monitor displays device-to-controller messages, controller output and
+segments and refreshes pad/button LED feedback from the virtual device. Hovering
+LCD rows reveals raw character codes and the extracted custom 5 × 8 glyph
+bitmaps. The MIDI monitor displays device-to-controller messages, controller output and
 host raw MIDI output.
 
 This is a controller-side interactive test surface, not a DAW UI: the runtime
