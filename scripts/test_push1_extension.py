@@ -25,11 +25,15 @@ test_sources = (
     root / "tests/java/VirtualPush1DeviceTest.java",
     root / "tests/java/VirtualPush1DisplayLayoutTest.java",
     root / "tests/java/VirtualPush1ProtocolExhaustiveTest.java",
+    root / "tests/java/VirtualPush1FormattingAndFirmwareTest.java",
     root / "tests/java/VirtualPush1RuntimeTest.java",
     root / "tests/java/VirtualPush1Simulator.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayGlyphs.java",
+    root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayText.java",
+    root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayValueFormatter.java",
+    root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1FirmwareVersion.java",
 )
 with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
     subprocess.run(
@@ -40,4 +44,6 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
     command = ["java", "-cp", runtime_classpath, "VirtualPush1RuntimeTest"]
     if "--gui" in sys.argv:
         command.append("--gui")
+    elif "--gui-smoke" in sys.argv:
+        command.append("--gui-smoke")
     subprocess.run(command, cwd=root, check=True)
