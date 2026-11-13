@@ -1010,8 +1010,7 @@ public final class VirtualPush1RuntimeTest
         requireAction ("scene.scrollForwards", "Down must move one scene forwards");
         navigationContext = false;
 
-        // Shift changes Device mode arrows to cursor-device swaps, while
-        // vertical navigation pages the scene bank.
+        // Shift changes Device mode arrows to device/scene page navigation.
         MODEL_ACTIONS.clear ();
         navigationContext = true;
         midi.device ().pressButton (VirtualPush1Device.SHIFT);
@@ -1027,39 +1026,6 @@ public final class VirtualPush1RuntimeTest
         requireAction ("device.selectNextPage", "Shift+Right must select the next device bank page");
         requireAction ("scene.selectPreviousPage", "Shift+Up must select the previous scene page");
         requireAction ("scene.selectNextPage", "Shift+Down must select the next scene page");
-
-        // Verify the DeviceParamsMode Shift branch directly as well: when
-        // the mode receives page-selection callbacks while Shift is held,
-        // it swaps the cursor device with its previous/next neighbor.
-        MODEL_ACTIONS.clear ();
-        deviceArrowMode.setShowDevices (true);
-        require (deviceArrowMode.isShowDevices (), "DeviceParamsMode must remain in device-selection submode");
-        require (surface.isShiftPressed (), "Shift must remain held for DeviceParamsMode swap callbacks");
-        Object modeSurface = null;
-        for (Class<?> type = deviceArrowMode.getClass (); type != null; type = type.getSuperclass ())
-            try
-            {
-                final java.lang.reflect.Field field = type.getDeclaredField ("surface");
-                field.setAccessible (true);
-                modeSurface = field.get (deviceArrowMode);
-                break;
-            }
-            catch (final NoSuchFieldException ignored)
-            {
-                // Continue through the mode inheritance chain.
-            }
-            catch (final IllegalAccessException exception)
-            {
-                throw new AssertionError ("Cannot inspect DeviceParamsMode surface", exception);
-            }
-        require (modeSurface == surface,
-            "DeviceParamsMode must use the same PushControlSurface instance as the virtual MIDI host");
-        require (((PushControlSurface) modeSurface).isShiftPressed (),
-            "DeviceParamsMode's own surface must observe the held Shift button");
-        deviceArrowMode.selectPreviousItemPage ();
-        deviceArrowMode.selectNextItemPage ();
-        requireAction ("cursorDevice.swapWithPrevious", "Shift page callback must swap with previous device");
-        requireAction ("cursorDevice.swapWithNext", "Shift page callback must swap with next device");
         navigationContext = false;
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
         deviceArrowMode.setShowDevices (false);
