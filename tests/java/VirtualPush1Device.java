@@ -338,7 +338,6 @@ public final class VirtualPush1Device
     public boolean isButtonPressed (final int cc) { return this.pressedButtons[cc]; }
     public boolean isPadPressed (final int row, final int column) { return this.pressedPads[padNote (row, column) - PAD_FIRST_NOTE]; }
     public int getNoteLed (final int note) { return this.noteLeds.getOrDefault (note, 0); }
-    public int [] getPadRgb (final int row, final int column) { return this.padRgb[padNote (row, column) - PAD_FIRST_NOTE].clone (); }
     public int getCCLed (final int cc) { return this.ccLeds.getOrDefault (cc, 0); }
     /** Full logical 68-character row, preserving Push custom glyph codes. */
     public String getLcdRow (final int row) { return checkedLcdRow (row); }
