@@ -56,6 +56,7 @@ public final class VirtualPush1Simulator
     private final Map<Integer, JButton> controlButtons = new HashMap<> ();
     private final JTextArea log = new JTextArea (8, 72);
     private final JSlider pressure = new JSlider (0, 127, 0);
+    private final JCheckBox holdPad = new JCheckBox ("Hold selected pad for aftertouch");
     private final JLabel selectedPad = new JLabel ("Pad: none");
     private final JLabel status = new JLabel ("Production PushControllerSetup connected");
     private int selectedRow = -1, selectedColumn = -1;
@@ -153,9 +154,10 @@ public final class VirtualPush1Simulator
                         selectedPad.setText ("Pad " + (r + 1) + ", " + (c + 1)
                             + " — MIDI note " + VirtualPush1Device.padNote (r, c));
                         pressure.setValue (0);
-                        device.pressPad (r, c, 100);
+                        if (!device.isPadPressed (r, c)) device.pressPad (r, c, 100);
                     }
-                    @Override public void mouseReleased (final MouseEvent event) { device.releasePad (r, c); }
+                    @Override public void mouseReleased (final MouseEvent event)
+                    { if (!holdPad.isSelected ()) device.releasePad (r, c); }
                 });
                 pads[row][column] = pad;
                 grid.add (pad);
@@ -212,6 +214,16 @@ public final class VirtualPush1Simulator
         aftertouch.setLayout (new javax.swing.BoxLayout (aftertouch, javax.swing.BoxLayout.Y_AXIS));
         aftertouch.setBorder (BorderFactory.createTitledBorder ("Pad aftertouch"));
         aftertouch.add (selectedPad);
+        holdPad.addActionListener (event -> {
+            if (selectedRow >= 0)
+            {
+                if (holdPad.isSelected () && !device.isPadPressed (selectedRow, selectedColumn))
+                    device.pressPad (selectedRow, selectedColumn, 100);
+                else if (!holdPad.isSelected () && device.isPadPressed (selectedRow, selectedColumn))
+                    device.releasePad (selectedRow, selectedColumn);
+            }
+        });
+        aftertouch.add (holdPad);
         pressure.setMajorTickSpacing (32);
         pressure.setPaintTicks (true);
         pressure.addChangeListener (event -> {
