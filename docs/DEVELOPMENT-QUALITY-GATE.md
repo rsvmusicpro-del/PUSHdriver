@@ -37,6 +37,6 @@ After saving, verify that GitHub reports the `custom` branch as protected and th
 
 ## Current enforcement status
 
-The workflow itself is configured correctly and runs on every push and pull request to `custom`. However, the repository's branch metadata has reported `protected: false`. The connected GitHub integration cannot read or change the branch-protection endpoint (GitHub returns HTTP 403, and the repository has no active rulesets). Therefore the server-side merge lock is **not yet confirmed and must be enabled by a repository administrator** using the steps above.
+The workflow itself is configured correctly and runs on every push and pull request to `custom`. The repository's branch metadata now reports `protected: true`. However, the connected GitHub integration cannot read the detailed branch-protection endpoint (GitHub returns HTTP 403), so it cannot independently verify that `quality-gate` is required or that administrators and other roles are prevented from bypassing the rule.
 
-Until that setting is enabled, CI reports failures but GitHub may still accept direct pushes or merges that bypass the check. Do not describe the bench as server-enforced mandatory until branch protection is verified.
+A repository administrator should confirm those two settings in GitHub. Until then, describe the workflow as an active CI gate and the branch as protected, but do not claim that every possible merge path is guaranteed to require `quality-gate`.
