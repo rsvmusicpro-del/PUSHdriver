@@ -212,11 +212,6 @@ public final class VirtualPush1RuntimeTest
         setup.startup ();
 
         final PushControlSurface surface = setup.getSurface ();
-        midi.setNoteEventConsumer ((note, velocity) -> {
-            final var activeView = surface.getViewManager ().getActive ();
-            if (activeView != null)
-                activeView.onGridNote (note.intValue (), velocity.intValue ());
-        });
         final var modes = surface.getModeManager ();
         require (modes.get (Modes.TRACK) != null, "Track mode was not registered");
         require (modes.get (Modes.DEVICE_PARAMS) != null, "Device parameter mode was not registered");
@@ -491,8 +486,8 @@ public final class VirtualPush1RuntimeTest
         viewManager.setActive (Views.SEQUENCER);
         drainScheduled (state, 6);
         final SequencerView sequencerView = (SequencerView) viewManager.get (Views.SEQUENCER);
-        midi.device ().pressPad (0, 0, 100);
-        midi.device ().releasePad (0, 0);
+        sequencerView.onGridNote (36, 100);
+        sequencerView.onGridNote (36, 0);
         require (musicalModel.toggleCount () == 1,
             "Sequencer pad MIDI did not toggle a note in the stateful clip model");
         final NotePosition sequencerPosition = musicalModel.lastToggle ();
@@ -510,10 +505,10 @@ public final class VirtualPush1RuntimeTest
         viewManager.setActive (Views.DRUM);
         drainScheduled (state, 6);
         final DrumView drumView = (DrumView) viewManager.get (Views.DRUM);
-        midi.device ().pressPad (0, 0, 96);
-        midi.device ().releasePad (0, 0);
-        midi.device ().pressPad (4, 0, 96);
-        midi.device ().releasePad (4, 0);
+        drumView.onGridNote (36, 96);
+        drumView.onGridNote (36, 0);
+        drumView.onGridNote (68, 96);
+        drumView.onGridNote (68, 0);
         require (musicalModel.toggleCount () == 2 && musicalModel.lastToggle ().getStep () == 24,
             "Drum view did not map its sequencer row to the expected clip step");
         require (musicalModel.lastToggle ().getNote () >= 0 && musicalModel.lastToggle ().getNote () <= 127,
@@ -522,8 +517,8 @@ public final class VirtualPush1RuntimeTest
         viewManager.setActive (Views.DRUM64);
         drainScheduled (state, 6);
         final Drum64View drum64View = (Drum64View) viewManager.get (Views.DRUM64);
-        midi.device ().pressPad (0, 4, 100);
-        midi.device ().releasePad (0, 4);
+        drum64View.onGridNote (40, 100);
+        drum64View.onGridNote (40, 0);
         drum64View.drawGrid ();
         setup.flush ();
         drainScheduled (state, 1);
