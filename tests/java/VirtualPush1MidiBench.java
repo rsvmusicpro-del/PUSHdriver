@@ -129,6 +129,8 @@ public final class VirtualPush1MidiBench
     }
 
     public IMidiInput input () { return this.input; }
+    public List<int []> rawInputOutput ()
+    { return this.rawInputOutput.stream ().map (int []::clone).toList (); }
     public INoteRepeat noteRepeat () { return this.noteRepeat; }
     public void setNoteRepeatAvailable (final boolean available) { this.availableNoteRepeat[0] = available ? this.noteRepeat : null; }
     public IMidiOutput output () { return this.midiOutput; }
