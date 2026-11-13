@@ -524,10 +524,11 @@ public final class VirtualPush1RuntimeTest
         setup.flush ();
         drainScheduled (state, 1);
         hardware.flush ();
-        final int [] selectedDrumPadRgb = midi.device ().getPadRgb (7, 4);
-        final int [] adjacentDrumPadRgb = midi.device ().getPadRgb (7, 3);
-        require (!Arrays.equals (selectedDrumPadRgb, adjacentDrumPadRgb),
-            "Drum64 4x4-block mapping did not distinguish the selected pad LED from its neighbor");
+        final int selectedDrumPadLed = midi.device ().getNoteLed (96);
+        final int adjacentDrumPadLed = midi.device ().getNoteLed (95);
+        require (selectedDrumPadLed != adjacentDrumPadLed,
+            "Drum64 4x4-block mapping did not distinguish the selected pad LED from its neighbor: selected="
+                + selectedDrumPadLed + ", adjacent=" + adjacentDrumPadLed);
         musicalModel.setCanHoldNotes (false);
         viewManager.setActive (Views.PLAY);
 
