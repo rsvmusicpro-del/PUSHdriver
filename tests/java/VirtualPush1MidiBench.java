@@ -17,7 +17,6 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.BiConsumer;
 
 /**
  * API-17-compatible virtual Push 1 MIDI transport.
@@ -41,7 +40,6 @@ public final class VirtualPush1MidiBench
     private int dispatchedPitchbendEvents;
     private MidiShortCallback shortCallback;
     private MidiSysExCallback sysexCallback;
-    private BiConsumer<Integer, Integer> noteEventConsumer;
     private final IMidiInput input;
     private final INoteRepeat noteRepeat;
     private final INoteRepeat [] availableNoteRepeat = new INoteRepeat [1];
@@ -135,7 +133,6 @@ public final class VirtualPush1MidiBench
     public void setNoteRepeatAvailable (final boolean available) { this.availableNoteRepeat[0] = available ? this.noteRepeat : null; }
     public IMidiOutput output () { return this.midiOutput; }
     public VirtualPush1Device device () { return this.device; }
-    public void setNoteEventConsumer (final BiConsumer<Integer, Integer> consumer) { this.noteEventConsumer = consumer; }
 
 
     /** Mutable INoteRepeat state used by production Note Repeat mode tests. */
@@ -227,15 +224,6 @@ public final class VirtualPush1MidiBench
         else if (family == 0x80 || family == 0x90)
         {
             final boolean pressed = family == 0x90 && data2 > 0;
-            // Bitwig's INoteInput delivers pad notes to the active view after
-            // applying the controller's note map. Model that host boundary here;
-            // pad events are not ordinary CC-style button bindings.
-            if (this.noteEventConsumer != null && data1 >= VirtualPush1Device.PAD_FIRST_NOTE
-                    && data1 < VirtualPush1Device.PAD_FIRST_NOTE + VirtualPush1Device.PAD_COUNT)
-            {
-                this.noteEventConsumer.accept (Integer.valueOf (data1), Integer.valueOf (pressed ? data2 : 0));
-                return;
-            }
             for (final ButtonBinding binding: List.copyOf (this.buttonBindings))
                 if (binding.type () == BindType.NOTE && binding.channel () == channel && binding.control () == data1
                         && (binding.value () < 0 || binding.value () == data2))
