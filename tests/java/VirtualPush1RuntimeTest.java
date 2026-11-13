@@ -303,9 +303,15 @@ public final class VirtualPush1RuntimeTest
         modes.setActive (Modes.VOLUME);
         setup.flush ();
         MODEL_ACTIONS.clear ();
+        final int volumeEncoderEventsBefore = midi.getDispatchedEncoderEvents ();
         midi.device ().turnEncoderBy (0, 1);
+        require (midi.getDispatchedEncoderEvents () > volumeEncoderEventsBefore,
+            "Volume encoder MIDI event was not dispatched");
         require (MODEL_ACTIONS.contains ("track.changeVolume") || MODEL_ACTIONS.contains ("track.setVolume"),
-            "Volume encoder must write the selected track's volume parameter");
+            "Volume encoder must write the selected track's volume parameter; activeMode="
+                + modes.getActiveID () + ", encoderEvents="
+                + (midi.getDispatchedEncoderEvents () - volumeEncoderEventsBefore)
+                + ", modelActions=" + MODEL_ACTIONS);
         modes.setActive (Modes.PAN);
         setup.flush ();
         MODEL_ACTIONS.clear ();
