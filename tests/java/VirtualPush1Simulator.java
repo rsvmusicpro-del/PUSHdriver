@@ -263,6 +263,7 @@ public final class VirtualPush1Simulator
     {
         final JButton button = new JButton (label);
         button.setMargin (new java.awt.Insets (3, 5, 3, 5));
+        button.putClientProperty ("baseBackground", button.getBackground ());
         controlButtons.put (cc, button);
         button.addMouseListener (new MouseAdapter () {
             @Override public void mousePressed (final MouseEvent event) { device.pressButton (cc); }
@@ -286,8 +287,9 @@ public final class VirtualPush1Simulator
                 final int [] rgb = device.getPadRgb (row, column);
                 if (rgb[0] + rgb[1] + rgb[2] > 0)
                     pads[row][column].setBackground (new Color (rgb[0], rgb[1], rgb[2]));
-                else if (!device.isPadPressed (row, column))
-                    pads[row][column].setBackground (new Color (55, 58, 62));
+                else
+                    pads[row][column].setBackground (device.isPadPressed (row, column)
+                        ? new Color (90, 90, 90) : new Color (55, 58, 62));
             }
         for (int i = 0; i < 8; i++)
         {
@@ -297,8 +299,9 @@ public final class VirtualPush1Simulator
         for (final Map.Entry<Integer, JButton> entry: controlButtons.entrySet ())
         {
             final int value = device.getCCLed (entry.getKey ());
-            if (value > 0)
-                entry.getValue ().setBackground (new Color (0, Math.min (255, value * 2), 0));
+            entry.getValue ().setBackground (value > 0
+                ? new Color (0, Math.min (255, value * 2), 0)
+                : (Color) entry.getValue ().getClientProperty ("baseBackground"));
         }
 
         final List<int[]> inputs = bench.capturedDeviceInput ();
@@ -346,8 +349,8 @@ public final class VirtualPush1Simulator
         {
             final int code = raw.charAt (i);
             if (Push1DisplayGlyphs.isKnownCustomGlyph (code))
-                tip.append ("\\nColumn ").append (i + 1).append (" — glyph ").append (code)
-                    .append ("\\n").append (Push1DisplayGlyphs.renderAscii (code));
+                tip.append ("\nColumn ").append (i + 1).append (" — glyph ").append (code)
+                    .append ("\n").append (Push1DisplayGlyphs.renderAscii (code));
         }
         return tip.toString ();
     }
