@@ -586,6 +586,148 @@ public final class VirtualPush1RuntimeTest
         state.playing = false;
         surface.getViewManager ().setActive (previousView);
 
+        // Musical editing coverage: the real Sequencer, Poly Sequencer,
+        // Drum 4 and Drum 8 views must edit the virtual note clip through pads.
+        state.canHoldNotes = true;
+        state.clipExists = true;
+        state.stepToggleCount = 0;
+        state.stepPageBackwardCount = 0;
+        state.stepPageForwardCount = 0;
+        surface.getViewManager ().setActive (Views.SEQUENCER);
+        setup.flush ();
+        drainScheduled (state, 1);
+        drainScheduled (state, 6);
+        drainScheduled (state, 100);
+        final SequencerView stepSequencer = (SequencerView) surface.getViewManager ().get (Views.SEQUENCER);
+        stepSequencer.setSequencerActive (true);
+        stepSequencer.getKeyManager ().setNoteMatrix (new int [] { 36, 37, 38, 39, 40 });
+        final int sequencerStepsBefore = state.stepToggleCount;
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        require (state.stepToggleCount > sequencerStepsBefore,
+            "Sequencer pad release must toggle a step in the active note clip");
+        stepSequencer.onLeft (ButtonEvent.DOWN);
+        stepSequencer.onRight (ButtonEvent.DOWN);
+        require (state.stepPageBackwardCount > 0 && state.stepPageForwardCount > 0,
+            "Sequencer page controls must scroll the note clip in both directions");
+
+        surface.getViewManager ().setActive (Views.POLY_SEQUENCER);
+        setup.flush ();
+        drainScheduled (state, 1);
+        drainScheduled (state, 6);
+        drainScheduled (state, 100);
+        final AbstractSequencerView<?, ?> polySequencer =
+            (AbstractSequencerView<?, ?>) surface.getViewManager ().get (Views.POLY_SEQUENCER);
+        polySequencer.setSequencerActive (true);
+        final int [] polyNoteMap = new int [128];
+        Arrays.fill (polyNoteMap, -1);
+        polyNoteMap[36] = 60;
+        polySequencer.getKeyManager ().setNoteMatrix (polyNoteMap);
+        final int polyStepsBefore = state.stepToggleCount;
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        midi.device ().pressPad (4, 0, 100);
+        midi.device ().releasePad (4, 0);
+        require (state.stepToggleCount > polyStepsBefore,
+            "Poly Sequencer pad gestures must add a note and stamp it into a step");
+
+        state.drumPadsExist = true;
+        surface.getViewManager ().setActive (Views.DRUM);
+        setup.flush ();
+        drainScheduled (state, 1);
+        drainScheduled (state, 6);
+        drainScheduled (state, 100);
+        final AbstractDrumView<?, ?> drum4 = (AbstractDrumView<?, ?>) surface.getViewManager ().get (Views.DRUM);
+        drum4.getKeyManager ().setNoteMatrix (new int [] { 36, 37, 38, 39, 40 });
+        midi.device ().pressPad (0, 1, 100);
+        midi.device ().releasePad (0, 1);
+        require (drum4.getSelectedPad () == 1,
+            "Drum 4 pad grid must select the expected pad");
+        surface.getViewManager ().setActive (Views.DRUM);
+        drainScheduled (state, 6);
+        drainScheduled (state, 100);
+        ((AbstractSequencerView<?, ?>) drum4).setSequencerActive (true);
+        drum4.getKeyManager ().setNoteMatrix (new int [] { 36, 37, 38, 39, 40 });
+        final int drumStepsBefore = state.stepToggleCount;
+        midi.device ().pressPad (4, 0, 100);
+        midi.device ().releasePad (4, 0);
+        require (state.stepToggleCount > drumStepsBefore && state.lastStepNote >= 0,
+            "Drum 4 sequencer grid must write a note step on pad release");
+
+        surface.getViewManager ().setActive (Views.DRUM8);
+        setup.flush ();
+        drainScheduled (state, 1);
+        drainScheduled (state, 6);
+        drainScheduled (state, 100);
+        final AbstractDrumView<?, ?> drum8 = (AbstractDrumView<?, ?>) surface.getViewManager ().get (Views.DRUM8);
+        midi.device ().pressPad (0, 2, 100);
+        midi.device ().releasePad (0, 2);
+        require (drum8.getSelectedPad () >= 0,
+            "Drum 8 pad grid must map a valid selected pad");
+
+        // Drum64 covers 4×4 block traversal, pad modifiers, bank alignment
+        // and the 16-position octave-scroll behavior.
+        state.clipExists = true;
+        state.drumScrollPosition = 0;
+        state.drumScrollCount = 0;
+        state.drumScrollForwardCount = 0;
+        state.drumIndicationOnCount = 0;
+        state.drumIndicationOffCount = 0;
+        surface.getViewManager ().setActive (Views.DRUM64);
+        setup.flush ();
+        drainScheduled (state, 1);
+        drainScheduled (state, 6);
+        drainScheduled (state, 100);
+        final Drum64View fullDrum64 = (Drum64View) surface.getViewManager ().get (Views.DRUM64);
+        require (state.drumIndicationOnCount > 0,
+            "Drum64 activation must enable drum-pad indication");
+        final int [] drum64ExpectedPads = { 0, 32, 16 };
+        final int [] drum64Rows = { 0, 0, 4 };
+        final int [] drum64Columns = { 0, 4, 0 };
+        for (int i = 0; i < drum64ExpectedPads.length; i++)
+        {
+            midi.device ().pressButton (VirtualPush1Device.SELECT);
+            midi.device ().pressPad (drum64Rows[i], drum64Columns[i], 100);
+            midi.device ().releasePad (drum64Rows[i], drum64Columns[i]);
+            midi.device ().releaseButton (VirtualPush1Device.SELECT);
+            require (state.drumSelectedPad == drum64ExpectedPads[i],
+                "Drum64 block mapping must select pad " + drum64ExpectedPads[i]
+                    + ", got " + state.drumSelectedPad);
+        }
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.MUTE);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        midi.device ().releaseButton (VirtualPush1Device.MUTE);
+        requireAction ("drumPad.toggleMute:0", "Drum64 Mute+Pad must mute the matching drum pad");
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.SOLO);
+        midi.device ().pressPad (0, 1, 100);
+        midi.device ().releasePad (0, 1);
+        midi.device ().releaseButton (VirtualPush1Device.SOLO);
+        requireAction ("drumPad.toggleSolo:1", "Drum64 Solo+Pad must solo the matching drum pad");
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().pressPad (0, 2, 100);
+        midi.device ().releasePad (0, 2);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        requireAction ("noteClip.clearRow", "Drum64 Delete+Pad must clear the matching note row");
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.BROWSE);
+        midi.device ().pressPad (0, 3, 100);
+        midi.device ().releasePad (0, 3);
+        midi.device ().releaseButton (VirtualPush1Device.BROWSE);
+        requireAction ("browser.replace", "Drum64 Browse+Pad must replace the browser target with that drum pad");
+        fullDrum64.onOctaveUp (ButtonEvent.DOWN);
+        require (state.drumScrollForwardCount == 16,
+            "Drum64 octave-up must scroll the drum bank by 16 positions");
+        surface.getViewManager ().setActive (Views.PLAY);
+        require (state.drumIndicationOffCount > 0,
+            "Drum64 deactivation must disable drum-pad indication");
+        state.canHoldNotes = false;
+        state.clipExists = false;
+        state.drumPadsExist = false;
+
         // Drum64 Select+Pad must align the cursor device's 16-pad bank with
         // the corresponding 16-pad block, then select the matching drum pad.
         final Views viewBeforeDrum = surface.getViewManager ().getActiveID ();
@@ -788,6 +930,8 @@ public final class VirtualPush1RuntimeTest
             "New must stop the playing cursor track before creating its clip");
         require (state.lastCreatedClipOverdub,
             "A normal New press must enable overdub for the new clip");
+        require (state.createdSlotIndex == 5,
+            "New must create the clip in the first free slot returned by the virtual slot bank");
 
         state.cursorTrackPlaying = false;
         state.selectedSlotIndex = -1;
@@ -814,6 +958,15 @@ public final class VirtualPush1RuntimeTest
         state.cursorTrackExists = false;
         state.cursorTrackPlaying = false;
         state.emptySlotAvailable = true;
+        final int clipsBeforeMissingTrack = state.createdClipCount;
+        final int stopsBeforeMissingTrack = state.cursorTrackStopCount;
+        midi.device ().tapButton (VirtualPush1Device.NEW);
+        require (state.createdClipCount == clipsBeforeMissingTrack
+                && state.cursorTrackStopCount == stopsBeforeMissingTrack,
+            "New without a cursor track must neither create a clip nor stop playback");
+        state.cursorTrackExists = true;
+        state.cursorTrackPlaying = false;
+        state.selectedSlotIndex = 3;
 
         // DrivenByMoss' own setup test traverses every registered view/mode
         // pair, presses every real bound button (down/long/up), and executes
