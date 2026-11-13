@@ -482,47 +482,39 @@ public final class VirtualPush1RuntimeTest
         navigationContext = false;
         modes.setActive (modeBeforeParameters);
 
-        // Session scene buttons must launch, delete and duplicate the
-        // selected scene through the production SessionView.
+        // Session scene buttons and clip pads must work through physical MIDI
+        // while the production Session view and mode are active.
         final SessionView sessionView = (SessionView) surface.getViewManager ().get (Views.SESSION);
-        sessionView.onButton (ButtonID.SCENE1, ButtonEvent.DOWN, 127);
+        final Modes modeBeforeSession = modes.getActiveID ();
+        final Views viewBeforeSession = surface.getViewManager ().getActiveID ();
+        modes.setActive (Modes.SESSION);
+        surface.getViewManager ().setActive (Views.SESSION);
+        setup.flush ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Session Scene 1");
         require (state.sceneSelectedIndex == 0 && state.sceneLaunchCount == 1,
             "Session scene button must select and launch its scene");
         midi.device ().pressButton (VirtualPush1Device.DELETE);
-        sessionView.onButton (ButtonID.SCENE2, ButtonEvent.DOWN, 127);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "Delete+Session Scene 2");
         midi.device ().releaseButton (VirtualPush1Device.DELETE);
         require (state.sceneRemoveCount == 1,
             "Delete+Scene must remove the selected scene instead of launching it");
         midi.device ().pressButton (VirtualPush1Device.DUPLICATE);
-        sessionView.onButton (ButtonID.SCENE3, ButtonEvent.DOWN, 127);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2, "Duplicate+Session Scene 3");
         midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
         require (state.sceneDuplicateCount == 1,
             "Duplicate+Scene must duplicate the selected scene instead of launching it");
-        final Views viewBeforeSessionPads = surface.getViewManager ().getActiveID ();
-        midi.device ().tapButton (VirtualPush1Device.SESSION);
-        require (Views.isSessionView (surface.getViewManager ().getActiveID ()),
-            "Session button must activate the Session view before slot tests");
-        midi.device ().releaseButton (VirtualPush1Device.DELETE);
-        midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
-        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
-        midi.device ().releaseButton (VirtualPush1Device.SELECT);
-        sessionView.onGridNote (36, 0);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
         require (state.slotLaunchCount == 1,
-            "Session pad release must launch the corresponding clip slot"
-                + " (slotItems=" + state.slotItemRequests
-                + ", trackSlotBanks=" + state.trackSlotBankRequests
-                + ", launches=" + state.slotLaunchCount
-                + ", deletePressed=" + surface.isDeletePressed ()
-                + ", duplicatePressed=" + surface.isPressed (ButtonID.DUPLICATE)
-                + ", selectPressed=" + surface.isSelectPressed () + ")");
+            "Session pad release must launch the corresponding clip slot");
         midi.device ().pressButton (VirtualPush1Device.SELECT);
-        sessionView.onGridNote (36, 100);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
         midi.device ().releaseButton (VirtualPush1Device.SELECT);
         require (state.slotLaunchImmediatelyCount == 1,
             "Select+Session pad press must launch the clip slot immediately");
-        midi.device ().releaseButton (VirtualPush1Device.SESSION);
-        require (surface.getViewManager ().getActiveID () == viewBeforeSessionPads,
-            "Releasing the temporary Session view must restore the previously active view");
+        modes.setActive (modeBeforeSession);
+        surface.getViewManager ().setActive (viewBeforeSession);
 
         // Browser filter columns and preset-result navigation are stateful
         // model interactions, not merely a registered-mode smoke check.
@@ -724,7 +716,13 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 100);
         final SequencerView stepSequencer = (SequencerView) surface.getViewManager ().get (Views.SEQUENCER);
         stepSequencer.setSequencerActive (true);
+        require (surface.getViewManager ().getActiveID () == Views.SEQUENCER,
+            "Sequencer view must remain active before pad input");
+        require (stepSequencer.isActive () && stepSequencer.getClip ().doesExist (),
+            "Sequencer must activate against the existing virtual note clip");
         stepSequencer.getKeyManager ().setNoteMatrix (new int [] { 36, 37, 38, 39, 40 });
+        require (stepSequencer.getKeyManager ().map (0) == 36,
+            "Sequencer fixture must provide a deterministic note-row map");
         final int sequencerStepsBefore = state.stepToggleCount;
         midi.device ().pressPad (0, 0, 100);
         midi.device ().releasePad (0, 0);
@@ -857,9 +855,10 @@ public final class VirtualPush1RuntimeTest
         surface.getViewManager ().setActive (Views.SCENE_PLAY);
         setup.flush ();
         drainScheduled (state, 1);
-        surface.getViewManager ().get (Views.SCENE_PLAY).onGridNote (36, 100);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
         require (state.sceneLaunchCount == sceneLaunchesBeforeScenePlay + 1,
-            "Scene Play pad must launch the matching scene");
+            "Scene Play pad must launch the matching scene through MIDI input");
 
         // Drum64 Select+Pad must align the cursor device's 16-pad bank with
         // the corresponding 16-pad block, then select the matching drum pad.
@@ -1185,6 +1184,10 @@ public final class VirtualPush1RuntimeTest
             Views.COLOR, Views.SESSION, Views.SEQUENCER, Views.POLY_SEQUENCER,
             Views.DRUM, Views.DRUM4, Views.DRUM8, Views.DRUM64, Views.SCENE_PLAY
         };
+        require (requiredModes.length + 16 == 50,
+            "Push 1 mode inventory must remain complete (34 core modes plus 16 send modes)");
+        require (requiredViews.length == 14,
+            "Push 1 view inventory must remain complete (expected 14, found " + requiredViews.length + ")");
         for (final Views view: requiredViews)
             require (views.get (view) != null, "Required Push 1 view is not registered: " + view);
     }
