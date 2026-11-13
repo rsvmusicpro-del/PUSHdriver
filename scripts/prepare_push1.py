@@ -425,6 +425,10 @@ note_repeat_color = """    /** {@inheritDoc} */
     @Override
     public int getButtonColor (final ButtonID buttonID)
     {
+        this.refreshNoteRepeat ();
+        if (this.noteRepeat == null)
+            return super.getButtonColor (buttonID);
+
         final ColorManager colorManager = this.model.getColorManager ();
         final int offColor = colorManager.getColorIndex (AbstractFeatureGroup.BUTTON_COLOR_OFF);
         final int onColor = colorManager.getColorIndex (AbstractFeatureGroup.BUTTON_COLOR_ON);
@@ -859,24 +863,6 @@ replace_once(note_repeat,
     "        this.refreshNoteRepeat ();\n"
     "        if (this.noteRepeat == null)",
     "NoteRepeatMode graphic-display input refresh")
-replace_once(note_repeat,
-    "    public int getButtonColor (final ButtonID buttonID)\n"
-    "    {\n"
-    "        int index = this.isButtonRow (0, buttonID);\n"
-    "        if (index >= 0)\n"
-    "        {\n"
-    "            final ColorManager colorManager = this.model.getColorManager ();",
-    "    public int getButtonColor (final ButtonID buttonID)\n"
-    "    {\n"
-    "        int index = this.isButtonRow (0, buttonID);\n"
-    "        if (index >= 0)\n"
-    "        {\n"
-    "            this.refreshNoteRepeat ();\n"
-    "            if (this.noteRepeat == null)\n"
-    "                return super.getButtonColor (buttonID);\n\n"
-    "            final ColorManager colorManager = this.model.getColorManager ();",
-    "NoteRepeatMode per-action LED input guards")
-
 replace_once(note_repeat,
     "        return this.noteRepeat == null ? -1 : Resolution.getMatch (this.noteRepeat.getPeriod ());",
     "        return Resolution.getMatch (this.noteRepeat == null ? this.surface.getConfiguration ().getNoteRepeatPeriod ().getValue () : this.noteRepeat.getPeriod ());",
