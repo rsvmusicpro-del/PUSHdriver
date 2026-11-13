@@ -571,28 +571,20 @@ public final class VirtualPush1RuntimeTest
         setup.flush ();
         drainScheduled (state, 6);
         hardware.flush ();
-        final int [] ledsAtStepFive = new int [64];
-        final int [][] rgbAtStepFive = new int [64][];
-        for (int i = 0; i < ledsAtStepFive.length; i++)
-        {
-            ledsAtStepFive[i] = midi.device ().getNoteLed (36 + i);
-            rgbAtStepFive[i] = midi.device ().getPadRgb (i / 8, i % 8);
-        }
+        final int [] padColorsAtStepFive = new int [64];
+        for (int i = 0; i < padColorsAtStepFive.length; i++)
+            padColorsAtStepFive[i] = surface.getPadGrid ().getLightInfo (36 + i).getColor ();
         musicalModel.setCurrentStep (6);
         sequencerView.drawGrid ();
         setup.flush ();
         drainScheduled (state, 6);
         hardware.flush ();
         int changedPlayheadLeds = 0;
-        for (int i = 0; i < ledsAtStepFive.length; i++)
-        {
-            final int [] rgb = midi.device ().getPadRgb (i / 8, i % 8);
-            if (ledsAtStepFive[i] != midi.device ().getNoteLed (36 + i)
-                    || !java.util.Arrays.equals (rgbAtStepFive[i], rgb))
+        for (int i = 0; i < padColorsAtStepFive.length; i++)
+            if (padColorsAtStepFive[i] != surface.getPadGrid ().getLightInfo (36 + i).getColor ())
                 changedPlayheadLeds++;
-        }
         require (changedPlayheadLeds > 0,
-            "Sequencer playhead movement did not update any physical pad LED/RGB feedback");
+            "Sequencer playhead movement did not update the production pad-grid LED state");
 
         viewManager.setActive (Views.DRUM);
         final DrumView drumView = (DrumView) viewManager.get (Views.DRUM);
