@@ -201,7 +201,7 @@ public final class VirtualPush1RuntimeTest
                         final ITrackBank trackBank = trackBankProxy ();
                         final ISceneBank sceneBank = sceneBankProxy ();
                         final IParameterBank parameterBank = parameterBankProxy ();
-                        final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank);
+                        final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank, state);
                         final IBrowser browser = browserProxy ();
                         return Proxy.newProxyInstance (IModel.class.getClassLoader (),
                             new Class<?> [] { IModel.class }, (p, m, a) -> switch (m.getName ())
@@ -589,12 +589,23 @@ public final class VirtualPush1RuntimeTest
         final AbstractDrum64View<?, ?> drum64 =
             (AbstractDrum64View<?, ?>) surface.getViewManager ().get (Views.DRUM64);
         require (state.drumIndicationOnCount > 0, "Drum64 activation must enable drum-pad indication");
-        drum64.onGridNote (36, 100);
-        require (drum64.getSelectedPad () == 0, "Drum64 lower-left pad must map to pad 0");
-        drum64.onGridNote (40, 100);
-        require (drum64.getSelectedPad () == 32, "Drum64 second 4x4 block must map to pad 32");
-        drum64.onGridNote (68, 100);
-        require (drum64.getSelectedPad () == 16, "Drum64 upper block must map to pad 16");
+        midi.device ().pressButton (VirtualPush1Device.SELECT);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        midi.device ().releaseButton (VirtualPush1Device.SELECT);
+        require (state.selectedDrumPad == 0, "Drum64 lower-left pad must map to pad 0");
+
+        midi.device ().pressButton (VirtualPush1Device.SELECT);
+        midi.device ().pressPad (0, 4, 100);
+        midi.device ().releasePad (0, 4);
+        midi.device ().releaseButton (VirtualPush1Device.SELECT);
+        require (state.selectedDrumPad == 32, "Drum64 second 4x4 block must map to pad 32");
+
+        midi.device ().pressButton (VirtualPush1Device.SELECT);
+        midi.device ().pressPad (4, 0, 100);
+        midi.device ().releasePad (4, 0);
+        midi.device ().releaseButton (VirtualPush1Device.SELECT);
+        require (state.selectedDrumPad == 16, "Drum64 upper block must map to pad 16");
         drum64.onOctaveUp (ButtonEvent.DOWN);
         require (state.drumScrollForwardCount == 16,
             "Drum64 octave-up must scroll the drum bank by exactly 16 pad positions");
@@ -929,7 +940,7 @@ public final class VirtualPush1RuntimeTest
     }
 
 
-    private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters)
+    private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters, final State state)
     {
         final IDeviceBank devices = (IDeviceBank) Proxy.newProxyInstance (
             IDeviceBank.class.getClassLoader (), new Class<?> [] { IDeviceBank.class },
@@ -972,6 +983,14 @@ public final class VirtualPush1RuntimeTest
                     return pages;
                 if (method.getName ().equals ("getLayerBank"))
                     return layers;
+                if (method.getName ().equals ("getDrumPadBank"))
+                    return drumPadBankProxy (state);
+                if (method.getName ().equals ("hasDrumPads"))
+                    return true;
+                if (method.getName ().equals ("isNested"))
+                    return false;
+                if (method.getName ().equals ("getPosition"))
+                    return 0;
                 if (method.getName ().equals ("hasLayers"))
                     return true;
                 if (method.getName ().equals ("doesExist"))
