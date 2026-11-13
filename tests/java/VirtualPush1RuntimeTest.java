@@ -1024,11 +1024,22 @@ public final class VirtualPush1RuntimeTest
             requireButtonMidiDelivery (midi, arrow, "Shift arrow " + arrow);
         }
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
-        requireAction ("cursorDevice.swapWithPrevious", "Shift+Left must swap the cursor device with its previous neighbor");
-        requireAction ("cursorDevice.swapWithNext", "Shift+Right must swap the cursor device with its next neighbor");
+        requireAction ("device.selectPreviousPage", "Shift+Left must select the previous device bank page");
+        requireAction ("device.selectNextPage", "Shift+Right must select the next device bank page");
         requireAction ("scene.selectPreviousPage", "Shift+Up must select the previous scene page");
         requireAction ("scene.selectNextPage", "Shift+Down must select the next scene page");
+
+        // Verify the DeviceParamsMode Shift branch directly as well: when
+        // the mode receives page-selection callbacks while Shift is held,
+        // it swaps the cursor device with its previous/next neighbor.
+        MODEL_ACTIONS.clear ();
+        require (surface.isShiftPressed (), "Shift must remain held for DeviceParamsMode swap callbacks");
+        deviceArrowMode.selectPreviousItemPage ();
+        deviceArrowMode.selectNextItemPage ();
+        requireAction ("cursorDevice.swapWithPrevious", "Shift page callback must swap with previous device");
+        requireAction ("cursorDevice.swapWithNext", "Shift page callback must swap with next device");
         navigationContext = false;
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
         deviceArrowMode.setShowDevices (false);
 
         // The same arrow controls must retain their intended behavior in the
