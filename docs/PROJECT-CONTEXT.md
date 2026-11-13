@@ -2,7 +2,8 @@
 
 This is the durable project hand-off for future work. It summarizes the intent,
 compatibility constraints, current architecture and verification boundaries
-established on branch `custom`.
+for the protected `custom` branch. Changes must be proposed through a
+short-lived pull-request branch targeting `custom`; never modify `main`.
 
 ## Project objective
 
@@ -28,8 +29,9 @@ excluded from the packaged extension.
 
 ## Working rules
 
-- Work only on the Git branch `custom`; inspect its history before making
-  changes.
+- Target only the protected Git branch `custom`; inspect its history before
+  making changes and use a short-lived PR branch because direct pushes are
+  blocked. Never modify `main`.
 - Preserve the upstream source pin and API 17 compatibility.
 - Keep production behavior changes separate from test infrastructure.
 - Prefer small, regression-backed changes to production commands and modes.
@@ -57,15 +59,26 @@ The virtual bench has three layers:
    pitch-bend, LEDs, RGB pad SysEx and LCD SysEx.
 2. `VirtualPush1MidiBench` substitutes API-17 `IMidiInput` and
    `IMidiOutput`, dispatching events through registered hardware bindings
-   and routing extension feedback to the virtual device.
+   and routing extension feedback to the virtual device. It can model the
+   optional default MIDI note input as absent, available or late-created.
 3. `VirtualPush1RuntimeTest` boots the assembled production
    `PushControllerSetup` with deterministic API-17 host/model collaborators
    and exercises real registered commands and modes.
 
-The protocol and runtime tests are intended to run in CI without a physical
-controller or a Bitwig process. The host/model collaborators are proxies,
-not a complete reimplementation of Bitwig's internal engine. This proves the
-tested controller-side contract, not every undocumented Bitwig behavior.
+The acceptance inventory covers the complete Push 1 registration surface:
+50 modes × 14 views = 700 production command-matrix combinations. Protocol
+checks exhaust the pad, encoder and ribbon value spaces. Stateful workflow
+assertions additionally cover firmware/display formatting, Browser navigation,
+New clip/overdub, Note Repeat service lifecycle, Drum64 bank selection,
+sequencer playhead safety, Session scene and clip-slot actions, and device
+navigation. Linux CI also opens the Swing simulator under Xvfb and dispatches
+a pad mouse gesture.
+
+The protocol and runtime tests run in CI without a physical controller or a
+Bitwig process. The host/model collaborators are deterministic proxies, not a
+complete reimplementation of Bitwig's internal engine. This proves the tested
+controller-side contract, not undocumented Bitwig scheduler behavior or
+physical USB, sensor and firmware behavior.
 
 ## Push 1 display construction contract
 
@@ -106,8 +119,10 @@ hardware source is found.
 `tests/java/VirtualPush1Simulator.java` provides an optional Swing front end
 for the same `VirtualPush1Device` and `VirtualPush1MidiBench` used by the
 production runtime regression. It is opened from
-`VirtualPush1RuntimeTest` with the `--gui` argument; the normal headless CI
-path does not create a window.
+`VirtualPush1RuntimeTest` with the `--gui` argument. Linux CI uses
+`--gui-smoke` under Xvfb for bounded window, mouse-event, feedback-refresh
+and shutdown verification; the ordinary headless test run does not create a
+window.
 
 After building the extension and ensuring the Bitwig API 17 JAR is in Maven's
 local repository, launch it with:
