@@ -17,6 +17,8 @@ import de.mossgrabers.framework.controller.hardware.IHwSurfaceFactory;
 import de.mossgrabers.framework.daw.IHost;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.ITransport;
+import de.mossgrabers.framework.daw.IBrowser;
+import de.mossgrabers.framework.daw.data.IBrowserColumn;
 import de.mossgrabers.framework.daw.data.bank.ITrackBank;
 import de.mossgrabers.framework.daw.data.bank.IDeviceBank;
 import de.mossgrabers.framework.daw.data.bank.IParameterPageBank;
@@ -41,6 +43,7 @@ import de.mossgrabers.framework.command.core.PitchbendCommand;
 import de.mossgrabers.framework.command.core.TriggerCommand;
 import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
+import de.mossgrabers.controller.ableton.push.mode.device.DeviceBrowserMode;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.utils.TestCallback;
@@ -89,6 +92,8 @@ public final class VirtualPush1RuntimeTest
         int createdClipCount;
         int lastCreatedClipLength = -1;
         boolean lastCreatedClipOverdub;
+        boolean browserPreviewEnabled;
+        final List<String> browserActions = new java.util.ArrayList<> ();
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
     }
@@ -169,6 +174,7 @@ public final class VirtualPush1RuntimeTest
                         final ISceneBank sceneBank = sceneBankProxy ();
                         final IParameterBank parameterBank = parameterBankProxy ();
                         final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank);
+                        final IBrowser browser = browserProxy (state);
                         final ISlotBank slotBank = slotBankProxy (state);
                         final ITrack cursorTrack = cursorTrackProxy (state, slotBank);
                         return Proxy.newProxyInstance (IModel.class.getClassLoader (),
@@ -182,6 +188,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
                                 case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
+                                case "getBrowser" -> browser;
                                 case "getCursorTrack" -> cursorTrack;
                                 case "createNoteClip" -> {
                                     state.createdClipCount++;
@@ -209,6 +216,35 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.BROWSER) != null, "Browser mode was not registered");
         require (modes.get (Modes.SESSION) != null, "Session mode was not registered");
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
+
+        // Browser filter columns and preset-result navigation are stateful
+        // model interactions, not merely a registered-mode smoke check.
+        final DeviceBrowserMode browserMode = (DeviceBrowserMode) modes.get (Modes.BROWSER);
+        state.browserActions.clear ();
+        browserMode.onFirstRow (0, ButtonEvent.DOWN);
+        browserMode.onSecondRow (0, ButtonEvent.DOWN);
+        browserMode.onFirstRow (7, ButtonEvent.DOWN);
+        browserMode.onSecondRow (7, ButtonEvent.DOWN);
+        require (state.browserActions.contains ("filter.previous:0"),
+            "Browser first row must select the previous item in its filter column");
+        require (state.browserActions.contains ("filter.next:0"),
+            "Browser second row must select the next item in its filter column");
+        require (state.browserActions.contains ("result.previous"),
+            "Browser first row preset control must select the previous result");
+        require (state.browserActions.contains ("result.next"),
+            "Browser second row preset control must select the next result");
+
+        browserMode.onKnobTouch (0, true);
+        browserMode.changeSelectedColumnValue (1);
+        browserMode.onKnobTouch (0, false);
+        require (state.browserActions.contains ("filter.next:0"),
+            "Touching a Browser filter encoder must route its value to the selected filter column");
+
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        browserMode.onFirstRow (7, ButtonEvent.DOWN);
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        require (state.browserPreviewEnabled,
+            "Shift+Browser preset row must toggle browser preview");
 
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
@@ -549,6 +585,50 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getItem"))
                     return trackProxy ();
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+    private static IBrowserColumn browserColumnProxy (final int index)
+    {
+        return (IBrowserColumn) Proxy.newProxyInstance (IBrowserColumn.class.getClassLoader (),
+            new Class<?> [] { IBrowserColumn.class }, (proxy, method, args) -> switch (method.getName ())
+            {
+                case "doesExist", "doesCursorExist" -> true;
+                case "getIndex" -> index;
+                case "getName" -> "Filter " + index;
+                case "getCursorName" -> "Selected " + index;
+                case "getWildcard" -> "*";
+                default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+    private static IBrowser browserProxy (final State state)
+    {
+        return (IBrowser) Proxy.newProxyInstance (IBrowser.class.getClassLoader (),
+            new Class<?> [] { IBrowser.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "getFilterColumnCount": return 8;
+                    case "getFilterColumn": return browserColumnProxy ((int) args[0]);
+                    case "selectPreviousFilterItem":
+                        state.browserActions.add ("filter.previous:" + args[0]);
+                        return null;
+                    case "selectNextFilterItem":
+                        state.browserActions.add ("filter.next:" + args[0]);
+                        return null;
+                    case "selectPreviousResult":
+                        state.browserActions.add ("result.previous");
+                        return null;
+                    case "selectNextResult":
+                        state.browserActions.add ("result.next");
+                        return null;
+                    case "togglePreviewEnabled":
+                        state.browserPreviewEnabled = !state.browserPreviewEnabled;
+                        return null;
+                    case "isPreviewEnabled": return state.browserPreviewEnabled;
+                    case "isActive": return true;
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
             });
     }
 
