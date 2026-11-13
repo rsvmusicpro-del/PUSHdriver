@@ -54,6 +54,9 @@ jobs:
       - name: Run unified virtual Push 1 simulation suite
         run: python3 scripts/test_push1_extension.py
 
+      - name: Validate one-command local bench runner
+        run: python3 -m py_compile scripts/run_virtual_push1.py
+
       - name: Prepare Bitwig extension
         run: |
           set -euo pipefail
