@@ -574,12 +574,14 @@ public final class VirtualPush1RuntimeTest
         requireAction ("browser.nextContentType", "Shift+Browser Right must change content type forwards");
         MODEL_ACTIONS.clear ();
         browserMode.onKnobTouch (0, true);
-        browserMode.onKnobValue (0, 8);
+        for (int i = 0; i < 8; i++)
+            browserMode.onKnobValue (0, 8);
         browserMode.onKnobTouch (0, false);
         requireAction ("browser.selectNextFilterItem:0", "Browser filter encoder must navigate the selected column");
         MODEL_ACTIONS.clear ();
         browserMode.onKnobTouch (7, true);
-        browserMode.onKnobValue (7, 8);
+        for (int i = 0; i < 8; i++)
+            browserMode.onKnobValue (7, 8);
         browserMode.onKnobTouch (7, false);
         requireAction ("browser.selectNextResult", "Browser master encoder must navigate preset results");
         MODEL_ACTIONS.clear ();
