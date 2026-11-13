@@ -1101,6 +1101,7 @@ public final class VirtualPush1RuntimeTest
                 switch (method.getName ())
                 {
                     case "doesExist": return true;
+                    case "getColor": return de.mossgrabers.framework.controller.color.ColorEx.BLACK;
                     case "isSelected": return state.sceneSelectedIndex == index;
                     case "select":
                         state.sceneSelectedIndex = index;
