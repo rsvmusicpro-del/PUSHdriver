@@ -90,6 +90,9 @@ public final class VirtualPush1RuntimeTest
     private static int lightsCreated;
     private static int lightsUpdated;
     private static final List<String> MODEL_ACTIONS = new java.util.ArrayList<> ();
+    private static int continuousCommandBinds;
+    private static int continuousParameterBinds;
+    private static int continuousUnboundValueEvents;
     private static boolean navigationContext;
 
     private static final class State
@@ -316,6 +319,9 @@ public final class VirtualPush1RuntimeTest
             "Volume encoder must write the selected track's volume parameter; activeMode="
                 + modes.getActiveID () + ", encoderEvents="
                 + (midi.getDispatchedEncoderEvents () - volumeEncoderEventsBefore)
+                + ", commandBinds=" + continuousCommandBinds
+                + ", parameterBinds=" + continuousParameterBinds
+                + ", unboundValueEvents=" + continuousUnboundValueEvents
                 + ", modelActions=" + MODEL_ACTIONS);
         modes.setActive (Modes.PAN);
         setup.flush ();
@@ -1501,11 +1507,13 @@ public final class VirtualPush1RuntimeTest
                         {
                             command[0] = continuous;
                             parameter[0] = null;
+                            continuousCommandBinds++;
                         }
                         else if (args[0] instanceof IParameter boundParameter)
                         {
                             parameter[0] = boundParameter;
                             command[0] = null;
+                            continuousParameterBinds++;
                         }
                         else if (args[0] instanceof PitchbendCommand bend) pitchbend[0] = bend;
                         else if (args[0] instanceof IMidiInput input)
@@ -1537,9 +1545,20 @@ public final class VirtualPush1RuntimeTest
                         final double relative = (double) args[0] * 61.0;
                         final int steps = (int) (relative > 0 ? Math.ceil (relative) : Math.floor (relative));
                         if (command[0] != null)
+                        {
+                            MODEL_ACTIONS.add ("continuous.handleValue.command");
                             command[0].execute (steps < 0 ? steps + 128 : steps);
+                        }
                         else if (parameter[0] != null)
+                        {
+                            MODEL_ACTIONS.add ("continuous.handleValue.parameter");
                             parameter[0].changeValue (steps);
+                        }
+                        else
+                        {
+                            continuousUnboundValueEvents++;
+                            MODEL_ACTIONS.add ("continuous.handleValue.unbound");
+                        }
                         return null;
                     case "isTouched": case "isLongTouched": case "shouldAdaptSensitivity": return false;
                     case "toString": return "Virtual Push continuous control";
