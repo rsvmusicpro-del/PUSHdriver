@@ -23,6 +23,9 @@ import de.mossgrabers.framework.daw.data.bank.IParameterPageBank;
 import de.mossgrabers.framework.daw.data.IDeviceMetadata;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.daw.data.ITrack;
+import de.mossgrabers.framework.daw.data.ICursorTrack;
+import de.mossgrabers.framework.daw.data.ISlot;
+import de.mossgrabers.framework.daw.data.bank.ISlotBank;
 import de.mossgrabers.framework.daw.data.ISend;
 import de.mossgrabers.framework.daw.data.IScene;
 import de.mossgrabers.framework.daw.data.bank.ISceneBank;
@@ -104,6 +107,7 @@ public final class VirtualPush1RuntimeTest
         lightsUpdated = 0;
         final State state = new State ();
         final BrowserModel browserModel = new BrowserModel ();
+        final NewClipModel newClipModel = new NewClipModel ();
         final VirtualPush1MidiBench midi = new VirtualPush1MidiBench ();
         final IHwSurfaceFactory hardware = surfaceFactory (midi);
         final IHost host = (IHost) Proxy.newProxyInstance (IHost.class.getClassLoader (),
@@ -135,6 +139,7 @@ public final class VirtualPush1RuntimeTest
                     case "isPlaying": return state.playing;
                     case "startRecording": state.recording = true; return null;
                     case "isRecording": return state.recording;
+                    case "getQuartersPerMeasure": return 4;
                     case "isLauncherOverdub": return state.launcherOverdub;
                     case "toggleLauncherOverdub": state.launcherOverdub = !state.launcherOverdub; return null;
                     case "setLauncherOverdub": state.launcherOverdub = (boolean) callArgs[0]; return null;
@@ -175,6 +180,8 @@ public final class VirtualPush1RuntimeTest
                                 case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
                                 case "getBrowser" -> browserModel.browser ();
+                                case "getCursorTrack" -> newClipModel.cursorTrack ();
+                                case "createNoteClip" -> { newClipModel.createNoteClip (a); yield null; }
                                 default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                             });
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -245,6 +252,42 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "Browser next result");
         require (browserModel.resultCursor () == resultBefore,
             "Push 1 bottom-row result button did not select the next result");
+
+        // The Push 1 New override must locate a free slot before stopping the
+        // cursor track, stop only that track, and preserve the Shift+New
+        // no-overdub behavior. The other track is deliberately playing.
+        newClipModel.resetScenario ();
+        newClipModel.setSlotAvailable (1, false);
+        newClipModel.setSlotAvailable (2, false);
+        newClipModel.setSlotAvailable (3, true);
+        newClipModel.setTrackPlaying (true);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.NEW, "New clip with a free slot");
+        require (newClipModel.createCount () == 1 && newClipModel.lastSlotIndex () == 3,
+            "New did not create the clip in the first available slot at/after the selected slot");
+        require (newClipModel.stopCount () == 1 && !newClipModel.isTrackPlaying (),
+            "New did not stop the playing cursor track before creating its clip");
+        require (newClipModel.isOtherTrackPlaying (),
+            "New incorrectly stopped playback on another track");
+        require (newClipModel.lastOverdub (),
+            "Normal New did not enable overdub on the new note clip");
+
+        newClipModel.resetScenario ();
+        newClipModel.setTrackPlaying (false);
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.NEW, "Shift+New clip");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        require (newClipModel.createCount () == 1 && !newClipModel.lastOverdub (),
+            "Shift+New did not create a clip with overdub disabled");
+
+        newClipModel.resetScenario ();
+        newClipModel.setTrackPlaying (true);
+        for (int slot = 0; slot < 8; slot++)
+            newClipModel.setSlotAvailable (slot, false);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.NEW, "New with no free slot");
+        require (newClipModel.createCount () == 0 && newClipModel.stopCount () == 0
+                && newClipModel.isTrackPlaying (),
+            "New with no free slot changed playback or created a clip");
+
         modes.setActive (Modes.TRACK);
 
         // These are the production PushControllerSetup button commands, not
@@ -404,6 +447,112 @@ public final class VirtualPush1RuntimeTest
             + "real mode/view/transport commands, Shift chords, pad aftertouch, encoder/touch/ribbon input and LED/LCD feedback passed.");
     }
 
+
+
+    /**
+     * Stateful cursor-track/slot model for the Push 1 New command integration
+     * tests. Slot search wraps within the visible page, and track playback is
+     * deliberately independent from the selected slot's playback state.
+     */
+    private static final class NewClipModel
+    {
+        private final boolean [] available = new boolean [8];
+        private final int [] selectedSlot = { 1 };
+        private final boolean [] trackPlaying = { true };
+        private final boolean [] otherTrackPlaying = { true };
+        private final int [] stopCount = { 0 };
+        private final int [] createCount = { 0 };
+        private final int [] lastSlotIndex = { -1 };
+        private final int [] lastLength = { -1 };
+        private final boolean [] lastOverdub = { false };
+        private final ISlot [] slots = new ISlot [8];
+        private final ISlotBank slotBank;
+        private final ICursorTrack cursorTrack;
+
+        NewClipModel ()
+        {
+            Arrays.fill (this.available, true);
+            for (int i = 0; i < this.slots.length; i++)
+            {
+                final int index = i;
+                this.slots[i] = (ISlot) Proxy.newProxyInstance (
+                    ISlot.class.getClassLoader (), new Class<?> [] { ISlot.class },
+                    (proxy, method, args) -> switch (method.getName ())
+                    {
+                        case "doesExist" -> true;
+                        case "getIndex", "getPosition" -> index;
+                        case "getName" -> "Clip slot " + index;
+                        case "hasContent" -> !this.available[index];
+                        case "isPlaying", "isRecording", "isPlayingQueued", "isRecordingQueued", "isStopQueued" -> false;
+                        default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                    });
+            }
+            this.slotBank = (ISlotBank) Proxy.newProxyInstance (
+                ISlotBank.class.getClassLoader (), new Class<?> [] { ISlotBank.class },
+                (proxy, method, args) -> {
+                    switch (method.getName ())
+                    {
+                        case "getPageSize", "size": return this.slots.length;
+                        case "getSelectedItem": return Optional.of (this.slots[this.selectedSlot[0]]);
+                        case "getItem": return this.slots[(int) args[0]];
+                        case "getEmptySlot":
+                            final int start = Math.max (0, Math.min (this.slots.length - 1, (int) args[0]));
+                            for (int offset = 0; offset < this.slots.length; offset++)
+                            {
+                                final int index = (start + offset) % this.slots.length;
+                                if (this.available[index])
+                                    return Optional.of (this.slots[index]);
+                            }
+                            return Optional.empty ();
+                        default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                    }
+                });
+            this.cursorTrack = (ICursorTrack) Proxy.newProxyInstance (
+                ICursorTrack.class.getClassLoader (), new Class<?> [] { ICursorTrack.class },
+                (proxy, method, args) -> {
+                    switch (method.getName ())
+                    {
+                        case "doesExist": return true;
+                        case "getSlotBank": return this.slotBank;
+                        case "isPlaying": return this.trackPlaying[0];
+                        case "stop": this.trackPlaying[0] = false; this.stopCount[0]++; return null;
+                        default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                    }
+                });
+        }
+
+        ICursorTrack cursorTrack () { return this.cursorTrack; }
+        void setSlotAvailable (final int index, final boolean value) { this.available[index] = value; }
+        void setTrackPlaying (final boolean value) { this.trackPlaying[0] = value; }
+        boolean isTrackPlaying () { return this.trackPlaying[0]; }
+        boolean isOtherTrackPlaying () { return this.otherTrackPlaying[0]; }
+        int stopCount () { return this.stopCount[0]; }
+        int createCount () { return this.createCount[0]; }
+        int lastSlotIndex () { return this.lastSlotIndex[0]; }
+        boolean lastOverdub () { return this.lastOverdub[0]; }
+
+        void createNoteClip (final Object [] args)
+        {
+            this.createCount[0]++;
+            this.lastSlotIndex[0] = ((ISlot) args[1]).getIndex ();
+            this.lastLength[0] = (int) args[2];
+            this.lastOverdub[0] = (boolean) args[3];
+            this.available[this.lastSlotIndex[0]] = false;
+        }
+
+        void resetScenario ()
+        {
+            Arrays.fill (this.available, true);
+            this.selectedSlot[0] = 1;
+            this.trackPlaying[0] = false;
+            this.otherTrackPlaying[0] = true;
+            this.stopCount[0] = 0;
+            this.createCount[0] = 0;
+            this.lastSlotIndex[0] = -1;
+            this.lastLength[0] = -1;
+            this.lastOverdub[0] = false;
+        }
+    }
 
     /**
      * Deterministic but stateful browser implementation for the API-17 runtime
