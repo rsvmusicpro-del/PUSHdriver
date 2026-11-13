@@ -52,6 +52,7 @@ import de.mossgrabers.framework.command.core.TriggerCommand;
 import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.framework.view.Views;
+import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.utils.TestCallback;
 import de.mossgrabers.framework.observer.IValueObserver;
@@ -522,8 +523,10 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releasePad (0, 0);
         require (state.stepToggleCount > 0,
             "Sequencer pad release must toggle a step in an existing note clip");
-        surface.getViewManager ().get (Views.SEQUENCER).onLeft (ButtonEvent.DOWN);
-        surface.getViewManager ().get (Views.SEQUENCER).onRight (ButtonEvent.DOWN);
+        final AbstractSequencerView<?, ?> sequencer =
+            (AbstractSequencerView<?, ?>) surface.getViewManager ().get (Views.SEQUENCER);
+        sequencer.onLeft (ButtonEvent.DOWN);
+        sequencer.onRight (ButtonEvent.DOWN);
         require (state.stepPageBackwardCount > 0 && state.stepPageForwardCount > 0,
             "Sequencer left/right navigation must page the note clip");
         state.noteClipExists = false;
