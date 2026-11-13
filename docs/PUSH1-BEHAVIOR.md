@@ -6,7 +6,7 @@ This document describes the behavior implemented on branch `custom` at the time 
 
 - Upstream: DrivenByMoss 19.2.2, pinned to commit `013620c1330cdcf896e96ef8fdc8a2123e4fce6a`.
 - Bitwig Extension API: 17; Java target: 17.
-- The extension exposes one MIDI input and one MIDI output and does not claim a USB-HID device.
+- The extension exposes one MIDI input and one MIDI output and does not claim to emulate USB-HID.
 - Push 2 display/HID functionality is excluded from the packaged Push 1 extension.
 
 ## Physical input families
@@ -52,14 +52,22 @@ The virtual bench is split into three layers:
 
 The runtime scenarios cover Device/Track/Volume/Clip modes, Note/Session view selection, Play/Record transport, Shift+Record launcher overdub, simultaneous Shift+navigation, pad note/aftertouch/release, signed relative encoder input, encoder/ribbon touch, ribbon pitch bend, and LED/LCD feedback. It also invokes DrivenByMoss' own setup test matrix for registered view/mode pairs, buttons (down/long/up), continuous controls and pitchbend commands.
 
-`VirtualPush1DeviceTest` independently checks all 64 pad positions, pressure lifecycle, the documented CC groups, two's-complement encoder boundaries, touch-release encoding, LCD framing/decoding and LED state. `VirtualPush1MidiBench` checks API output channels 0 and 15, String and byte-array SysEx, and distinguishes LCD frames from other Push 1 system SysEx. Existing Python regressions cover navigation/Shift semantics, In/Out, New clip workflow, Note Repeat, playhead safety, firmware parsing and package contents.
+The protocol suite now has two levels:
+
+- `VirtualPush1DeviceTest` checks the hardware model's baseline mapping, state transitions, malformed input rejection and feedback decoding.
+- `VirtualPush1ProtocolExhaustiveTest` exhaustively walks all 64 pad addresses and pressure boundaries, every declared Push 1 button CC press/release, all 11 encoder/touch identities and signed movement limits, all 72 RGB output addresses (64 pads + 8 lower-row buttons), every LCD row and all 128 seven-bit character values, plus malformed/out-of-range SysEx and invalid control values.
+- `VirtualPush1MidiBench` checks API output channels 0 and 15, String and byte-array SysEx, and distinguishes LCD frames from other Push 1 system SysEx.
+- `VirtualPush1RuntimeTest` exercises the real controller setup and registered production bindings against deterministic virtual host/model collaborators.
+- Existing Python regressions cover navigation/Shift semantics, In/Out, New clip workflow, Note Repeat, playhead safety, firmware parsing and package contents.
+
+All of these tests run without a physical Push, native MIDI driver or running Bitwig Studio process. This is the required autonomous regression environment; the test doubles model the documented API boundary and the actual production controller setup, rather than claiming to be a full Bitwig host implementation.
 
 ## Compatibility and limits
 
 - Source and tests compile against Bitwig Extension API 17 with Java 17.
 - CI assembles the pinned DrivenByMoss 19.2.2 source, checks reproducibility, runs the test suite, packages the Push 1 extension, and smoke-tests extension discovery on Linux and Intel macOS.
-- The runtime test uses the real controller setup and production commands, but its Bitwig host/model collaborators are deterministic proxies. It is not a running Bitwig Studio 4.3.10 process, does not exercise the host's native MIDI driver/scheduler, and cannot certify USB timing or a physical Push 1. Those remain external integration checks; a claim of zero possible errors would be unjustified.
-- No production controller behavior has been restructured as part of this bench work. The new tests first establish an executable baseline; future behavior changes should add a failing scenario before the production fix and verify it green afterward.
+- The runtime test uses the real controller setup and production commands, but its Bitwig host/model collaborators are deterministic proxies. It is not a running Bitwig Studio 4.3.10 process, does not exercise the host's native MIDI driver/scheduler, and cannot certify USB timing, analog pressure calibration, electrical behavior or firmware-specific quirks. Those are physical properties and cannot be truthfully certified by a software-only simulator.
+- No production controller behavior is restructured by the virtual bench. Future behavior changes should add a failing scenario before the production fix and verify it green afterward.
 
 ## Regression protection
 
