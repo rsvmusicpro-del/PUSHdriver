@@ -999,7 +999,10 @@ public final class VirtualPush1RuntimeTest
                     case "nextContentType": case "previousContentType":
                     case "selectNextResult": case "selectPreviousResult":
                     case "selectNextFilterItem": case "selectPreviousFilterItem":
-                    case "resetFilterColumn": case "stopBrowsing": case "replace":
+                    case "replace":
+                        MODEL_ACTIONS.add ("browser.replace");
+                        return null;
+                    case "resetFilterColumn": case "stopBrowsing":
                         MODEL_ACTIONS.add ("browser." + method.getName ()
                             + (args == null || args.length == 0 ? "" : ":" + args[0]));
                         return null;
