@@ -9,10 +9,14 @@ import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.clip.INoteClip;
+import de.mossgrabers.framework.daw.clip.IStepInfo;
 import de.mossgrabers.framework.daw.clip.NotePosition;
 import de.mossgrabers.framework.utils.ButtonEvent;
+import de.mossgrabers.framework.view.sequencer.AbstractDrumView;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractNoteSequencerView;
+
+import java.util.List;
 
 
 /**
@@ -39,6 +43,30 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     public SequencerView (final PushControlSurface surface, final IModel model)
     {
         super (Views.NAME_SEQUENCER, surface, model, true);
+    }
+
+
+    /**
+     * Render the moving playhead as a continuous dark-orange column across
+     * every note row, including the lowest/root-note row. The shared renderer
+     * otherwise leaves empty pads in their scale color while highlighting
+     * note-bearing pads, which makes the playhead appear interrupted.
+     *
+     * @param stepInfo The information about the step
+     * @param highlight True when this step is the current playhead position
+     * @param channel The MIDI channel
+     * @param step The step in the clip
+     * @param pad The displayed note row
+     * @param note The mapped MIDI note
+     * @param editNotes The currently edited notes
+     * @return The LED color
+     */
+    @Override
+    protected String getStepColor (final IStepInfo stepInfo, final boolean highlight, final int channel, final int step, final int pad, final int note, final List<NotePosition> editNotes)
+    {
+        if (highlight)
+            return AbstractDrumView.COLOR_PAD_MUTED;
+        return super.getStepColor (stepInfo, false, channel, step, pad, note, editNotes);
     }
 
 
