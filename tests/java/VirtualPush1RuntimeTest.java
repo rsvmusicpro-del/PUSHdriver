@@ -205,7 +205,7 @@ public final class VirtualPush1RuntimeTest
                         final Object scales = callArgs[3];
                         scaleModel[0] = (Scales) scales;
                         final ITrackBank trackBank = trackBankProxy (mixerModel);
-                        final ISceneBank sceneBank = sceneBankProxy ();
+                        final ISceneBank sceneBank = mixerModel.sceneBank ();
                         final IParameterBank parameterBank = parameterBankProxy ();
                         final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank);
                         return Proxy.newProxyInstance (IModel.class.getClassLoader (),
@@ -1387,7 +1387,7 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getSelectedItem"))
                     return navigationContext ? Optional.of (mixer.track (Math.floorMod (trackIndex, 8))) : Optional.empty ();
                 if (method.getName ().equals ("getSceneBank"))
-                    return sceneBankProxy ();
+                    return mixer.sceneBank ();
                 if (method.getName ().equals ("getItem"))
                     return mixer.track (Math.max (0, Math.min (7, (int) args[0])));
                 if (method.getName ().equals ("canEditSend"))
@@ -1455,13 +1455,66 @@ public final class VirtualPush1RuntimeTest
         private final ParameterState [] volumes = new ParameterState [8];
         private final ParameterState [] pans = new ParameterState [8];
         private final ParameterState [][] sends = new ParameterState [8][4];
+        private static final class SlotState
+        {
+            boolean hasContent;
+            boolean playing;
+            boolean recording;
+            boolean playingQueued;
+            boolean recordingQueued;
+            boolean stopQueued;
+            boolean launchedImmediately;
+            boolean selected;
+            int launches;
+            int immediateLaunches;
+            int recordings;
+        }
+
         private final boolean [] muted = new boolean [8];
         private final boolean [] solo = new boolean [8];
+        private final boolean [] trackPlaying = new boolean [8];
+        private final boolean [] recArmed = new boolean [8];
         private final ITrack [] tracks = new ITrack [8];
+        private final SlotState [][] slotStates = new SlotState [8][8];
+        private final ISlotBank [] slotBanks = new ISlotBank [8];
+        private final IScene [] scenes = new IScene [64];
+        private final int [] sceneLaunches = new int [64];
+        private final boolean [] sceneExists = new boolean [64];
+        private final ISceneBank sceneBank;
         private int selectedTrack;
+        private int selectedScene = -1;
 
         MixerModel ()
         {
+            for (int scene = 0; scene < this.scenes.length; scene++)
+            {
+                final int sceneIndex = scene;
+                this.scenes[scene] = (IScene) Proxy.newProxyInstance (
+                    IScene.class.getClassLoader (), new Class<?> [] { IScene.class },
+                    (p, m, a) -> switch (m.getName ())
+                    {
+                        case "doesExist" -> true;
+                        case "getIndex", "getPosition" -> sceneIndex;
+                        case "getName" -> a == null || a.length == 0 ? "Scene " + (sceneIndex + 1)
+                            : ("Scene " + (sceneIndex + 1)).substring (0, Math.min (("Scene " + (sceneIndex + 1)).length (), (int) a[0]));
+                        case "getColor" -> ColorEx.BLUE;
+                        case "isSelected" -> this.selectedScene == sceneIndex;
+                        case "select" -> { this.selectedScene = sceneIndex; yield null; }
+                        case "launch" -> { this.selectedScene = sceneIndex; this.sceneLaunches[sceneIndex]++; yield null; }
+                        case "remove" -> { this.sceneExists[sceneIndex] = false; yield null; }
+                        default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                    });
+            }
+            this.sceneBank = (ISceneBank) Proxy.newProxyInstance (
+                ISceneBank.class.getClassLoader (), new Class<?> [] { ISceneBank.class },
+                (p, m, a) -> switch (m.getName ())
+                {
+                    case "getPageSize", "getItemCount", "size" -> 64;
+                    case "getItem" -> this.scenes[Math.max (0, Math.min (63, (int) a[0]))];
+                    case "getSelectedItem" -> this.selectedScene < 0 ? Optional.empty () : Optional.of (this.scenes[this.selectedScene]);
+                    case "stop" -> { this.trackPlayingStopAll (); yield null; }
+                    default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                });
             for (int i = 0; i < this.tracks.length; i++)
             {
                 final int index = i;
@@ -1480,6 +1533,56 @@ public final class VirtualPush1RuntimeTest
                                 m.getName (), a, m.getReturnType (), m.getGenericReturnType ());
                         });
                 }
+                final ISlot [] slotItems = new ISlot [8];
+                for (int slot = 0; slot < slotItems.length; slot++)
+                {
+                    final int slotIndex = slot;
+                    final SlotState slotState = new SlotState ();
+                    this.slotStates[index][slot] = slotState;
+                    slotItems[slot] = (ISlot) Proxy.newProxyInstance (
+                        ISlot.class.getClassLoader (), new Class<?> [] { ISlot.class },
+                        (p, m, a) -> switch (m.getName ())
+                        {
+                            case "doesExist" -> true;
+                            case "getIndex", "getPosition" -> slotIndex;
+                            case "getName" -> "Clip " + (slotIndex + 1);
+                            case "hasContent" -> slotState.hasContent;
+                            case "isPlaying" -> slotState.playing;
+                            case "isRecording" -> slotState.recording;
+                            case "isPlayingQueued" -> slotState.playingQueued;
+                            case "isRecordingQueued" -> slotState.recordingQueued;
+                            case "isStopQueued" -> slotState.stopQueued;
+                            case "getColor" -> ColorEx.BLUE;
+                            case "select" -> { slotState.selected = true; yield null; }
+                            case "launch" -> { slotState.launches++; slotState.playing = true; this.trackPlaying[index] = true; yield null; }
+                            case "launchImmediately" -> { slotState.immediateLaunches++; slotState.launchedImmediately = true; slotState.playing = true; this.trackPlaying[index] = true; yield null; }
+                            case "testAndClearLaunchedImmediately" -> { final boolean value = slotState.launchedImmediately; slotState.launchedImmediately = false; yield value; }
+                            case "startRecording" -> { slotState.recordings++; slotState.recording = true; slotState.hasContent = true; this.trackPlaying[index] = true; yield null; }
+                            case "remove" -> { slotState.hasContent = false; slotState.playing = false; slotState.recording = false; yield null; }
+                            case "duplicate", "paste" -> { slotState.hasContent = true; yield null; }
+                            case "setColor" -> null;
+                            default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                        });
+                }
+                this.slotBanks[index] = (ISlotBank) Proxy.newProxyInstance (
+                    ISlotBank.class.getClassLoader (), new Class<?> [] { ISlotBank.class },
+                    (p, m, a) -> switch (m.getName ())
+                    {
+                        case "getPageSize", "getItemCount", "size" -> 8;
+                        case "getItem" -> slotItems[Math.max (0, Math.min (7, (int) a[0]))];
+                        case "getSelectedItem" -> Optional.of (slotItems[0]);
+                        case "getEmptySlot" -> {
+                            final int start = Math.max (0, Math.min (7, (int) a[0]));
+                            ISlot empty = null;
+                            for (int offset = 0; offset < 8; offset++)
+                            {
+                                final ISlot candidate = slotItems[(start + offset) % 8];
+                                if (!candidate.hasContent ()) { empty = candidate; break; }
+                            }
+                            yield Optional.ofNullable (empty);
+                        }
+                        default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                    });
                 final ISendBank sendBank = (ISendBank) Proxy.newProxyInstance (
                     ISendBank.class.getClassLoader (), new Class<?> [] { ISendBank.class },
                     (p, m, a) -> switch (m.getName ())
@@ -1513,9 +1616,15 @@ public final class VirtualPush1RuntimeTest
                         case "isSolo" -> this.solo[index];
                         case "setSolo" -> { this.solo[index] = (boolean) a[0]; yield null; }
                         case "toggleSolo" -> { this.solo[index] = !this.solo[index]; yield null; }
-                        case "isGroup", "isGroupExpanded", "hasParent", "isRecArm", "isMonitor", "isAutoMonitor", "isPlaying", "hasDrumDevice" -> false;
-                        case "getSceneBank" -> sceneBankProxy ();
-                        case "getSlotBank" -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                        case "isGroup", "isGroupExpanded", "hasParent", "isMonitor", "isAutoMonitor", "hasDrumDevice" -> false;
+                        case "isRecArm" -> this.recArmed[index];
+                        case "setRecArm" -> { this.recArmed[index] = (boolean) a[0]; yield null; }
+                        case "toggleRecArm" -> { this.recArmed[index] = !this.recArmed[index]; yield null; }
+                        case "isPlaying" -> this.trackPlaying[index];
+                        case "stop" -> { this.trackPlaying[index] = false; for (final SlotState slot : this.slotStates[index]) { slot.playing = false; slot.recording = false; } yield null; }
+                        case "returnToArrangement" -> { this.trackPlaying[index] = false; yield null; }
+                        case "getSceneBank" -> this.sceneBank;
+                        case "getSlotBank" -> this.slotBanks[index];
                         case "getVu", "getVuLeft", "getVuRight", "getVuPeakLeft", "getVuPeakRight" -> 0;
                         default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                     });
@@ -1523,6 +1632,18 @@ public final class VirtualPush1RuntimeTest
         }
 
         ITrack track (final int index) { return this.tracks[index]; }
+        ISceneBank sceneBank () { return this.sceneBank; }
+        SlotState slot (final int track, final int index) { return this.slotStates[track][index]; }
+        int sceneLaunchCount (final int index) { return this.sceneLaunches[index]; }
+        private void trackPlayingStopAll ()
+        {
+            for (int track = 0; track < this.trackPlaying.length; track++)
+            {
+                this.trackPlaying[track] = false;
+                for (final SlotState slot : this.slotStates[track])
+                { slot.playing = false; slot.recording = false; }
+            }
+        }
         ParameterState volume (final int index) { return this.volumes[index]; }
         ParameterState pan (final int index) { return this.pans[index]; }
         ParameterState send (final int track, final int index) { return this.sends[track][index]; }
