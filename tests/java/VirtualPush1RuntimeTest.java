@@ -615,6 +615,9 @@ public final class VirtualPush1RuntimeTest
         sequencer.updateControlSurface ();
         require (sequencer.isActive () && sequencer.getClip ().doesExist (),
             "Sequencer must activate against the existing virtual note clip");
+        sequencer.getKeyManager ().setNoteMatrix (new int [] { 36, 37, 38, 39, 40 });
+        require (sequencer.getKeyManager ().map (0) == 36,
+            "Sequencer fixture must provide a valid deterministic note-row map");
         MODEL_ACTIONS.clear ();
         midi.device ().pressPad (0, 0, 100);
         midi.device ().releasePad (0, 0);
@@ -638,6 +641,10 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 1);
         drainScheduled (state, 6);
         drainScheduled (state, 100);
+        final AbstractSequencerView<?, ?> polySequencer =
+            (AbstractSequencerView<?, ?>) surface.getViewManager ().get (Views.POLY_SEQUENCER);
+        polySequencer.updateControlSurface ();
+        polySequencer.getKeyManager ().setNoteMatrix (new int [] { 36, 37, 38, 39, 40 });
         midi.device ().pressPad (0, 0, 100);
         midi.device ().releasePad (0, 0);
         require (state.stepToggleCount > polyStepsBefore,
@@ -659,6 +666,7 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 100);
         final AbstractDrumView<?, ?> drumView =
             (AbstractDrumView<?, ?>) surface.getViewManager ().get (Views.DRUM);
+        drumView.getKeyManager ().setNoteMatrix (new int [] { 36, 37, 38, 39, 40 });
         midi.device ().pressPad (0, 1, 100);
         midi.device ().releasePad (0, 1);
         require (drumView.getSelectedPad () == 1, "Drum 4 pad mapping must select the expected lower-block pad");
