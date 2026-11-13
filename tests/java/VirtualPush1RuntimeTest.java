@@ -1023,7 +1023,6 @@ public final class VirtualPush1RuntimeTest
             require (surface.isShiftPressed (), "Shift state was lost before Device-mode arrow " + arrow);
             requireButtonMidiDelivery (midi, arrow, "Shift arrow " + arrow);
         }
-        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
         requireAction ("device.selectPreviousPage", "Shift+Left must select the previous device bank page");
         requireAction ("device.selectNextPage", "Shift+Right must select the next device bank page");
         requireAction ("scene.selectPreviousPage", "Shift+Up must select the previous scene page");
