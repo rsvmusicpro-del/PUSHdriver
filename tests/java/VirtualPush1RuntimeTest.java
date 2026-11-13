@@ -267,6 +267,7 @@ public final class VirtualPush1RuntimeTest
         surface.getViewManager ().setActive (Views.SEQUENCER);
         require (surface.getViewManager ().isActive (Views.SEQUENCER),
             "Sequencer view did not become active for its playhead test");
+        sequencerView.setSequencerActive (true);
         state.playing = true;
         state.clipExists = false;
         state.clipScrollToPageCount = 0;
