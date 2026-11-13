@@ -424,7 +424,9 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releasePad (0, 1);
         require (duplicateTarget.hasContent && duplicateTarget.pastes == 1,
             "Duplicate+pad did not paste the selected clip into the target slot; pastes="
-                + duplicateTarget.pastes + ", content=" + duplicateTarget.hasContent);
+                + duplicateTarget.pastes + ", totalPastes=" + mixerModel.totalPastes ()
+                + ", content=" + duplicateTarget.hasContent + ", sourceContent=" + sessionSlot.hasContent
+                + ", view=" + surface.getViewManager ().getActiveID ());
         midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
         midi.device ().pressButton (VirtualPush1Device.DELETE);
         midi.device ().pressPad (0, 0, 100);
@@ -1706,6 +1708,14 @@ public final class VirtualPush1RuntimeTest
         SlotState slot (final int track, final int index) { return this.slotStates[track][index]; }
         int sceneLaunchCount (final int index) { return this.sceneLaunches[index]; }
         int selectedScene () { return this.selectedScene; }
+        int totalPastes ()
+        {
+            int count = 0;
+            for (final SlotState [] track : this.slotStates)
+                for (final SlotState slot : track)
+                    count += slot.pastes;
+            return count;
+        }
         private void trackPlayingStopAll ()
         {
             for (int track = 0; track < this.trackPlaying.length; track++)
