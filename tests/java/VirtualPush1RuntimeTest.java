@@ -253,6 +253,23 @@ public final class VirtualPush1RuntimeTest
         require (browserModel.resultCursor () == resultBefore,
             "Push 1 bottom-row result button did not select the next result");
 
+        // Note Repeat is backed by a mutable API-17 INoteRepeat service rather
+        // than a null/default proxy. Exercise the real mode's four state toggles.
+        require (midi.input ().getDefaultNoteInput () != null
+                && midi.input ().getDefaultNoteInput ().getNoteRepeat () == midi.noteRepeat (),
+            "Virtual MIDI input did not expose its Note Repeat service");
+        require (modes.get (Modes.REPEAT_NOTE) != null, "Note Repeat mode was not registered");
+        modes.setActive (Modes.REPEAT_NOTE);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Note Repeat latch");
+        require (midi.noteRepeat ().isLatchActive (), "Note Repeat latch state did not toggle");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 5, "Note Repeat pressure velocity");
+        require (midi.noteRepeat ().usePressure (), "Note Repeat pressure-velocity state did not toggle");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Note Repeat free running");
+        require (midi.noteRepeat ().isFreeRunning (), "Note Repeat free-running state did not toggle");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Note Repeat shuffle");
+        require (midi.noteRepeat ().isShuffle (), "Note Repeat shuffle state did not toggle");
+        modes.setActive (Modes.TRACK);
+
         // The Push 1 New override must locate a free slot before stopping the
         // cursor track, stop only that track, and preserve the Shift+New
         // no-overdub behavior. The other track is deliberately playing.
