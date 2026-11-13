@@ -259,6 +259,7 @@ public final class VirtualPush1RuntimeTest
         // A real pad press and poly-aftertouch must pass through the active
         // production Play view, its key map and the registered MIDI callback.
         final Views viewBeforePadInput = surface.getViewManager ().getActiveID ();
+        state.canHoldNotes = true;
         surface.getViewManager ().setActive (Views.PLAY);
         setup.flush ();
         drainScheduled (state, 1);
@@ -280,6 +281,7 @@ public final class VirtualPush1RuntimeTest
             (message[0] & 0xF0) == 0xA0 && message[1] == 60 && message[2] == 80),
             "Physical pad pressure must reach the active Play view aftertouch command");
         surface.getViewManager ().setActive (viewBeforePadInput);
+        state.canHoldNotes = false;
 
         final var modes = surface.getModeManager ();
         final var modes = surface.getModeManager ();
