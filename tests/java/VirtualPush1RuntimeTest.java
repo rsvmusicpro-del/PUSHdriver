@@ -518,16 +518,24 @@ public final class VirtualPush1RuntimeTest
         drum64View.updateNoteMapping ();
         drainScheduled (state, 6);
         drum64View.updateControlSurface ();
-        drum64View.onGridNote (40, 100);
-        drum64View.onGridNote (40, 0);
+        final java.lang.reflect.Field selectedPadField = drum64View.getClass ().getSuperclass ().getDeclaredField ("selectedPad");
+        selectedPadField.setAccessible (true);
+        for (int note = 36; note < 100; note++)
+        {
+            final int index = note - 36;
+            final int x = index % 8;
+            final int y = index / 8;
+            final int expectedPad = x / 4 * 32 + y / 4 * 16 + y % 4 * 4 + x % 4;
+            drum64View.onGridNote (note, 100);
+            drum64View.onGridNote (note, 0);
+            require (selectedPadField.getInt (drum64View) == expectedPad,
+                "Drum64 pad note " + note + " mapped to " + selectedPadField.getInt (drum64View)
+                    + " instead of " + expectedPad);
+        }
         drum64View.drawGrid ();
         setup.flush ();
         drainScheduled (state, 1);
         hardware.flush ();
-        final java.lang.reflect.Field selectedPadField = drum64View.getClass ().getSuperclass ().getDeclaredField ("selectedPad");
-        selectedPadField.setAccessible (true);
-        require (selectedPadField.getInt (drum64View) == 32,
-            "Drum64 pad note 40 did not map to pad 32 in the second 4x4 block");
         musicalModel.setCanHoldNotes (false);
         viewManager.setActive (Views.PLAY);
 
