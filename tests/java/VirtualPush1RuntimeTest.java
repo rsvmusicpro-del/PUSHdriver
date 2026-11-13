@@ -186,47 +186,6 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.SESSION) != null, "Session mode was not registered");
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
 
-        // Exercise arrows end-to-end: the real MIDI bindings must invoke the
-        // production command and mutate the corresponding Bitwig bank proxy.
-        MODEL_ACTIONS.clear ();
-        for (final int arrow: new int [] {
-            VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
-            VirtualPush1Device.UP, VirtualPush1Device.DOWN })
-            requireButtonMidiDelivery (midi, arrow, "Track arrow " + arrow);
-        requireAction ("track.selectPreviousItem", "Left must move the selected track bank item");
-        requireAction ("track.selectNextItem", "Right must move the selected track bank item");
-        requireAction ("scene.scrollBackwards", "Up must move one scene backwards");
-        requireAction ("scene.scrollForwards", "Down must move one scene forwards");
-
-        // Shift changes arrows from one item to one bank page.
-        MODEL_ACTIONS.clear ();
-        midi.device ().pressButton (VirtualPush1Device.SHIFT);
-        for (final int arrow: new int [] {
-            VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
-            VirtualPush1Device.UP, VirtualPush1Device.DOWN })
-            requireButtonMidiDelivery (midi, arrow, "Shift arrow " + arrow);
-        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
-        requireAction ("track.selectPreviousPage", "Shift+Left must select the previous track page");
-        requireAction ("track.selectNextPage", "Shift+Right must select the next track page");
-        requireAction ("scene.selectPreviousPage", "Shift+Up must select the previous scene page");
-        requireAction ("scene.selectNextPage", "Shift+Down must select the next scene page");
-
-        // In/Out are separate from arrows: first navigate devices, then
-        // parameter pages, using the actual DeviceParamsMode production path.
-        requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Device mode");
-        require (modes.isActive (Modes.DEVICE_PARAMS), "Device button did not activate Device mode for In/Out tests");
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In");
-        requireAction ("device.selectPreviousItem", "Out must select the previous device");
-        requireAction ("device.selectNextItem", "In must select the next device");
-        ((DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS)).setShowDevices (false);
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out parameter page");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In parameter page");
-        requireAction ("parameterPage.selectPreviousPage", "Out must select the previous parameter page");
-        requireAction ("parameterPage.selectNextPage", "In must select the next parameter page");
-
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
         midi.device ().tapButton (VirtualPush1Device.DEVICE);
@@ -299,6 +258,47 @@ public final class VirtualPush1RuntimeTest
                 "Production PushControllerSetup LCD output did not preserve physical module " + module);
         require (midi.capturedOutput ().stream ().anyMatch (message -> message.startsWith ("sendSysex ")),
             "Production setup did not emit any Push 1 SysEx feedback");
+
+        // Exercise arrows end-to-end: the real MIDI bindings must invoke the
+        // production command and mutate the corresponding Bitwig bank proxy.
+        MODEL_ACTIONS.clear ();
+        for (final int arrow: new int [] {
+            VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
+            VirtualPush1Device.UP, VirtualPush1Device.DOWN })
+            requireButtonMidiDelivery (midi, arrow, "Track arrow " + arrow);
+        requireAction ("track.selectPreviousItem", "Left must move the selected track bank item");
+        requireAction ("track.selectNextItem", "Right must move the selected track bank item");
+        requireAction ("scene.scrollBackwards", "Up must move one scene backwards");
+        requireAction ("scene.scrollForwards", "Down must move one scene forwards");
+
+        // Shift changes arrows from one item to one bank page.
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        for (final int arrow: new int [] {
+            VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
+            VirtualPush1Device.UP, VirtualPush1Device.DOWN })
+            requireButtonMidiDelivery (midi, arrow, "Shift arrow " + arrow);
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        requireAction ("track.selectPreviousPage", "Shift+Left must select the previous track page");
+        requireAction ("track.selectNextPage", "Shift+Right must select the next track page");
+        requireAction ("scene.selectPreviousPage", "Shift+Up must select the previous scene page");
+        requireAction ("scene.selectNextPage", "Shift+Down must select the next scene page");
+
+        // In/Out are separate from arrows: first navigate devices, then
+        // parameter pages, using the actual DeviceParamsMode production path.
+        requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Device mode");
+        require (modes.isActive (Modes.DEVICE_PARAMS), "Device button did not activate Device mode for In/Out tests");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In");
+        requireAction ("device.selectPreviousItem", "Out must select the previous device");
+        requireAction ("device.selectNextItem", "In must select the next device");
+        ((DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS)).setShowDevices (false);
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out parameter page");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In parameter page");
+        requireAction ("parameterPage.selectPreviousPage", "Out must select the previous parameter page");
+        requireAction ("parameterPage.selectNextPage", "In must select the next parameter page");
 
         // DrivenByMoss' own setup test traverses every registered view/mode
         // pair, presses every real bound button (down/long/up), and executes
