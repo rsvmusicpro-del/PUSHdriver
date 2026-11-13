@@ -53,6 +53,7 @@ public final class VirtualPush1MidiBench
         this.noteRepeat = (INoteRepeat) Proxy.newProxyInstance (
             INoteRepeat.class.getClassLoader (), new Class<?> [] { INoteRepeat.class },
             (proxy, method, args) -> repeatState.invoke (method.getName (), args));
+        this.availableNoteRepeat[0] = this.noteRepeat;
         this.defaultNoteInput = (INoteInput) Proxy.newProxyInstance (
             INoteInput.class.getClassLoader (), new Class<?> [] { INoteInput.class },
             (proxy, method, args) -> method.getName ().equals ("getNoteRepeat")
