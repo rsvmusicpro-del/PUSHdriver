@@ -1035,6 +1035,23 @@ public final class VirtualPush1RuntimeTest
         deviceArrowMode.setShowDevices (true);
         require (deviceArrowMode.isShowDevices (), "DeviceParamsMode must remain in device-selection submode");
         require (surface.isShiftPressed (), "Shift must remain held for DeviceParamsMode swap callbacks");
+        Object modeSurface = null;
+        for (Class<?> type = deviceArrowMode.getClass (); type != null; type = type.getSuperclass ())
+            try
+            {
+                final java.lang.reflect.Field field = type.getDeclaredField ("surface");
+                field.setAccessible (true);
+                modeSurface = field.get (deviceArrowMode);
+                break;
+            }
+            catch (final NoSuchFieldException ignored)
+            {
+                // Continue through the mode inheritance chain.
+            }
+        require (modeSurface == surface,
+            "DeviceParamsMode must use the same PushControlSurface instance as the virtual MIDI host");
+        require (((PushControlSurface) modeSurface).isShiftPressed (),
+            "DeviceParamsMode's own surface must observe the held Shift button");
         deviceArrowMode.selectPreviousItemPage ();
         deviceArrowMode.selectNextItemPage ();
         requireAction ("cursorDevice.swapWithPrevious", "Shift page callback must swap with previous device");
