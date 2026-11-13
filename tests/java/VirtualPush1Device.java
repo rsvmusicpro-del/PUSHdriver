@@ -63,6 +63,10 @@ public final class VirtualPush1Device
     public static final int VOLUME = 114;
     public static final int PAN_SEND = 115;
     public static final int TOP_ROW_FIRST = 20;
+    // Scene buttons are addressed in reverse physical order by PushControllerSetup.
+    public static final int SCENE1 = 43;
+    public static final int SCENE2 = 42;
+    public static final int SCENE3 = 41;
     public static final int MASTER = 28;
     public static final int STOP = 29;
     public static final int BOTTOM_ROW_FIRST = 102;
