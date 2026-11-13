@@ -7,6 +7,7 @@ import de.mossgrabers.framework.controller.ContinuousID;
 import de.mossgrabers.framework.controller.ISetupFactory;
 import de.mossgrabers.framework.controller.display.ITextDisplay;
 import de.mossgrabers.framework.controller.color.ColorManager;
+import de.mossgrabers.framework.controller.color.ColorEx;
 import de.mossgrabers.framework.controller.hardware.BindType;
 import de.mossgrabers.framework.controller.hardware.IHwButton;
 import de.mossgrabers.framework.controller.hardware.IHwContinuousControl;
@@ -554,6 +555,7 @@ public final class VirtualPush1RuntimeTest
                     {
                         case "doesExist": return true;
                         case "getSlotBank": return this.slotBank;
+                        case "getColor": return ColorEx.BLUE;
                         case "isPlaying": return this.trackPlaying[0];
                         case "stop": this.trackPlaying[0] = false; this.stopCount[0]++; return null;
                         default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
