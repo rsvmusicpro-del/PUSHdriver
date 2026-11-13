@@ -70,6 +70,7 @@ public final class VirtualPush1RuntimeTest
     private static int lightsCreated;
     private static int lightsUpdated;
     private static final List<String> MODEL_ACTIONS = new java.util.ArrayList<> ();
+    private static boolean navigationContext;
 
     private static final class State
     {
@@ -262,6 +263,7 @@ public final class VirtualPush1RuntimeTest
         // Exercise arrows end-to-end: the real MIDI bindings must invoke the
         // production command and mutate the corresponding Bitwig bank proxy.
         MODEL_ACTIONS.clear ();
+        navigationContext = true;
         for (final int arrow: new int [] {
             VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
             VirtualPush1Device.UP, VirtualPush1Device.DOWN })
@@ -270,6 +272,7 @@ public final class VirtualPush1RuntimeTest
         requireAction ("track.selectNextItem", "Right must move the selected track bank item");
         requireAction ("scene.scrollBackwards", "Up must move one scene backwards");
         requireAction ("scene.scrollForwards", "Down must move one scene forwards");
+        navigationContext = false;
 
         // Shift changes arrows from one item to one bank page.
         MODEL_ACTIONS.clear ();
@@ -413,7 +416,7 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getSelectedItem"))
-                    return Optional.empty ();
+                    return navigationContext ? Optional.of (trackProxy ()) : Optional.empty ();
                 if (method.getName ().equals ("getSceneBank"))
                     return sceneBankProxy ();
                 if (method.getName ().equals ("getItem"))
