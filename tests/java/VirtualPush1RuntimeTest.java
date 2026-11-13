@@ -1,6 +1,8 @@
 import de.mossgrabers.controller.ableton.push.PushControllerSetup;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
+import de.mossgrabers.controller.ableton.push.controller.PushColorManager;
+import de.mossgrabers.controller.ableton.push.mode.NoteRepeatMode;
 import de.mossgrabers.framework.configuration.ISettingsUI;
 import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.controller.ContinuousID;
@@ -39,6 +41,8 @@ import de.mossgrabers.framework.daw.midi.ArpeggiatorMode;
 import de.mossgrabers.framework.daw.midi.IMidiAccess;
 import de.mossgrabers.framework.daw.midi.IMidiInput;
 import de.mossgrabers.framework.daw.midi.IMidiOutput;
+import de.mossgrabers.framework.daw.midi.INoteInput;
+import de.mossgrabers.framework.daw.midi.INoteRepeat;
 import de.mossgrabers.framework.command.core.ContinuousCommand;
 import de.mossgrabers.framework.command.core.PitchbendCommand;
 import de.mossgrabers.framework.command.core.TriggerCommand;
@@ -95,6 +99,7 @@ public final class VirtualPush1RuntimeTest
         int lastCreatedClipLength = -1;
         boolean lastCreatedClipOverdub;
         boolean browserPreviewEnabled;
+        final List<String> noteRepeatActions = new java.util.ArrayList<> ();
         boolean clipExists;
         int clipCurrentStep;
         int clipEditPage;
@@ -259,6 +264,40 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
         require (state.browserPreviewEnabled,
             "Shift+Browser preset row must toggle browser preview");
+
+        // Verify both optional Note Repeat service states. The production
+        // setup has no default note input in this bench; it must remain safe.
+        final NoteRepeatMode unavailableNoteRepeat = (NoteRepeatMode) modes.get (Modes.REPEAT_NOTE);
+        unavailableNoteRepeat.onFirstRow (4, ButtonEvent.UP);
+        require (state.noteRepeatActions.isEmpty (),
+            "Note Repeat controls must remain inert when the optional service is absent");
+
+        final INoteRepeat noteRepeat = (INoteRepeat) Proxy.newProxyInstance (
+            INoteRepeat.class.getClassLoader (), new Class<?> [] { INoteRepeat.class },
+            (proxy, method, args) -> {
+                if (method.getName ().startsWith ("toggle") || method.getName ().startsWith ("set"))
+                    state.noteRepeatActions.add (method.getName ());
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+        final INoteInput noteInput = (INoteInput) Proxy.newProxyInstance (
+            INoteInput.class.getClassLoader (), new Class<?> [] { INoteInput.class },
+            (proxy, method, args) -> method.getName ().equals ("getNoteRepeat")
+                ? noteRepeat : defaultValue (method.getReturnType (), method.getGenericReturnType ()));
+        final IMidiInput repeatInput = (IMidiInput) Proxy.newProxyInstance (
+            IMidiInput.class.getClassLoader (), new Class<?> [] { IMidiInput.class },
+            (proxy, method, args) -> method.getName ().equals ("getDefaultNoteInput")
+                ? noteInput : defaultValue (method.getReturnType (), method.getGenericReturnType ()));
+        final PushControlSurface repeatSurface = new PushControlSurface (
+            host, new PushColorManager (false), surface.getConfiguration (), midi.output (), repeatInput);
+        final NoteRepeatMode availableNoteRepeat = new NoteRepeatMode (repeatSurface, setup.getModel ());
+        availableNoteRepeat.onFirstRow (4, ButtonEvent.UP);
+        availableNoteRepeat.onFirstRow (5, ButtonEvent.UP);
+        availableNoteRepeat.onFirstRow (6, ButtonEvent.UP);
+        availableNoteRepeat.onFirstRow (7, ButtonEvent.UP);
+        for (final String action: List.of (
+            "toggleLatchActive", "toggleUsePressure", "toggleIsFreeRunning", "toggleShuffle"))
+            require (state.noteRepeatActions.contains (action),
+                "Available Note Repeat service did not receive " + action);
 
         // The live sequencer playhead must follow only an existing note clip;
         // an empty cursor slot must never cause an edit-page scroll.
