@@ -104,6 +104,22 @@ public final class VirtualPush1DisplayLayoutTest
         check (Push1DisplayLayout.fitCell ("short", 0).length () == 9, "left cell fitter width");
         check (Push1DisplayLayout.fitCell ("short", 1).length () == 8, "right cell fitter width");
 
+        final String simulatorLine = Push1DisplayLayout.separateModulesForSimulator (
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345");
+        check (simulatorLine.length () == 71, "simulator row includes exactly three module separators");
+        for (int module = 0; module < Push1DisplayLayout.MODULE_COUNT; module++)
+        {
+            final int simulatorStart = module * (Push1DisplayLayout.MODULE_COLUMNS + 1);
+            final int physicalStart = module * Push1DisplayLayout.MODULE_COLUMNS;
+            check (simulatorLine.substring (simulatorStart, simulatorStart + 17)
+                .equals ("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345"
+                    .substring (physicalStart, physicalStart + 17)),
+                "simulator module segment " + module);
+            if (module + 1 < Push1DisplayLayout.MODULE_COUNT)
+                check (simulatorLine.charAt (simulatorStart + 17) == ' ',
+                    "simulator module separator " + module);
+        }
+
         expectInvalid (() -> Push1DisplayLayout.cellWidth (8));
         expectInvalid (() -> Push1DisplayLayout.cellStartColumn (-1));
         expectInvalid (() -> Push1DisplayLayout.firstCellForBlock (4));
