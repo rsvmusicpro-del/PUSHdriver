@@ -362,7 +362,7 @@ public final class VirtualPush1RuntimeTest
         state.drumSelectedPad = -1;
         surface.getViewManager ().setActive (Views.DRUM64);
         midi.device ().pressButton (VirtualPush1Device.SELECT);
-        drum64View.onGridNote (36 + 19, 100);
+        drum64View.onGridNote (36 + 35, 100);
         midi.device ().releaseButton (VirtualPush1Device.SELECT);
         require (state.drumScrollCount == 1 && state.drumScrollPosition == 16,
             "Drum64 Select+Pad must align the cursor drum bank to the matching 16-pad page");
