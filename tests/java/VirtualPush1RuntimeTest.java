@@ -23,6 +23,8 @@ import de.mossgrabers.framework.daw.data.bank.IParameterPageBank;
 import de.mossgrabers.framework.daw.data.IDeviceMetadata;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.daw.data.ITrack;
+import de.mossgrabers.framework.daw.data.ISlot;
+import de.mossgrabers.framework.daw.data.bank.ISlotBank;
 import de.mossgrabers.framework.daw.data.ISend;
 import de.mossgrabers.framework.daw.data.IScene;
 import de.mossgrabers.framework.daw.data.bank.ISceneBank;
@@ -77,6 +79,15 @@ public final class VirtualPush1RuntimeTest
         boolean playing;
         boolean recording;
         boolean launcherOverdub;
+        boolean cursorTrackExists;
+        boolean cursorTrackPlaying;
+        boolean emptySlotAvailable = true;
+        int selectedSlotIndex = 3;
+        int lastEmptySearchStart = -1;
+        int cursorTrackStopCount;
+        int createdClipCount;
+        int lastCreatedClipLength = -1;
+        boolean lastCreatedClipOverdub;
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
     }
@@ -157,6 +168,8 @@ public final class VirtualPush1RuntimeTest
                         final ISceneBank sceneBank = sceneBankProxy ();
                         final IParameterBank parameterBank = parameterBankProxy ();
                         final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank);
+                        final ISlotBank slotBank = slotBankProxy (state);
+                        final ITrack cursorTrack = cursorTrackProxy (state, slotBank);
                         return Proxy.newProxyInstance (IModel.class.getClassLoader (),
                             new Class<?> [] { IModel.class }, (p, m, a) -> switch (m.getName ())
                             {
@@ -168,6 +181,13 @@ public final class VirtualPush1RuntimeTest
                                 case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
                                 case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
+                                case "getCursorTrack" -> cursorTrack;
+                                case "createNoteClip" -> {
+                                    state.createdClipCount++;
+                                    state.lastCreatedClipLength = (int) a[2];
+                                    state.lastCreatedClipOverdub = (boolean) a[3];
+                                    yield null;
+                                }
                                 default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                             });
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -323,6 +343,49 @@ public final class VirtualPush1RuntimeTest
         requireAction ("parameterPage.selectPreviousPage", "Out must select the previous parameter page");
         requireAction ("parameterPage.selectNextPage", "In must select the next parameter page");
 
+        // Exercise the Push 1 New workflow against a stateful cursor-track and
+        // slot model. The test asserts side effects, not just command dispatch.
+        state.cursorTrackExists = true;
+        state.cursorTrackPlaying = true;
+        state.emptySlotAvailable = true;
+        state.selectedSlotIndex = 3;
+        int createdBefore = state.createdClipCount;
+        midi.device ().tapButton (VirtualPush1Device.NEW);
+        require (state.createdClipCount == createdBefore + 1,
+            "New must create one note clip when a free cursor-track slot exists");
+        require (state.lastEmptySearchStart == 3,
+            "New must search for an empty slot at the selected slot index");
+        require (state.cursorTrackStopCount == 1 && !state.cursorTrackPlaying,
+            "New must stop the playing cursor track before creating its clip");
+        require (state.lastCreatedClipOverdub,
+            "A normal New press must enable overdub for the new clip");
+
+        state.cursorTrackPlaying = false;
+        state.selectedSlotIndex = -1;
+        createdBefore = state.createdClipCount;
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        midi.device ().tapButton (VirtualPush1Device.NEW);
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        require (state.createdClipCount == createdBefore + 1,
+            "Shift+New must still create a note clip in an available slot");
+        require (!state.lastCreatedClipOverdub,
+            "Shift+New must create the clip without enabling overdub");
+        require (state.cursorTrackStopCount == 1,
+            "New must not stop a cursor track that is not playing");
+
+        state.cursorTrackPlaying = true;
+        state.emptySlotAvailable = false;
+        createdBefore = state.createdClipCount;
+        midi.device ().tapButton (VirtualPush1Device.NEW);
+        require (state.createdClipCount == createdBefore,
+            "New must not create a clip when the cursor track has no free slot");
+        require (state.cursorTrackPlaying && state.cursorTrackStopCount == 1,
+            "A failed free-slot search must not stop playback");
+
+        state.cursorTrackExists = false;
+        state.cursorTrackPlaying = false;
+        state.emptySlotAvailable = true;
+
         // DrivenByMoss' own setup test traverses every registered view/mode
         // pair, presses every real bound button (down/long/up), and executes
         // each bound continuous and pitchbend command.
@@ -442,6 +505,54 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getItem"))
                     return trackProxy ();
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+    private static ISlot slotProxy (final int index)
+    {
+        return (ISlot) Proxy.newProxyInstance (ISlot.class.getClassLoader (),
+            new Class<?> [] { ISlot.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getIndex"))
+                    return index;
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+    private static ISlotBank slotBankProxy (final State state)
+    {
+        final ISlot selected = slotProxy (state.selectedSlotIndex < 0 ? 0 : state.selectedSlotIndex);
+        final ISlot empty = slotProxy (state.selectedSlotIndex < 0 ? 0 : state.selectedSlotIndex);
+        return (ISlotBank) Proxy.newProxyInstance (ISlotBank.class.getClassLoader (),
+            new Class<?> [] { ISlotBank.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getSelectedItem"))
+                    return state.selectedSlotIndex < 0 ? Optional.empty () : Optional.of (selected);
+                if (method.getName ().equals ("getEmptySlot"))
+                {
+                    state.lastEmptySearchStart = (int) args[0];
+                    return state.emptySlotAvailable ? Optional.of (empty) : Optional.empty ();
+                }
+                if (method.getName ().equals ("getPageSize"))
+                    return 8;
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+    private static ITrack cursorTrackProxy (final State state, final ISlotBank slotBank)
+    {
+        return (ITrack) Proxy.newProxyInstance (ITrack.class.getClassLoader (),
+            new Class<?> [] { ITrack.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "doesExist": return state.cursorTrackExists;
+                    case "isPlaying": return state.cursorTrackPlaying;
+                    case "getSlotBank": return slotBank;
+                    case "stop":
+                        state.cursorTrackStopCount++;
+                        state.cursorTrackPlaying = false;
+                        return null;
+                    default:
+                        return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
             });
     }
 
