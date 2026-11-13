@@ -91,7 +91,7 @@ The software-only bench can be called functionally complete when:
 1. Every registered view/mode pair and every bound control remains covered by the production command-dispatch matrix.
 2. Each user-visible workflow in Sections 2 and 3 has stateful host-model assertions for its normal path, boundary cases, unavailable services and context changes.
 3. The firmware, display, protocol, adapter, package and reproducibility regressions run from one documented CI entry point.
-4. The Swing GUI has an automated display-backed smoke test, or is explicitly marked as a manual diagnostic tool rather than an automated CI acceptance test.
+4. The Swing GUI smoke test runs under Xvfb in Linux CI; visual appearance and interactive exploratory use remain manual diagnostics.
 5. Linux and Intel macOS CI both pass on the resulting commit.
 
 No software-only test can turn criterion 5 into a physical hardware certification; the limits in Section 5 remain explicit.
