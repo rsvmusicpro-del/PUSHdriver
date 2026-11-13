@@ -489,6 +489,8 @@ replace_section(
 
 # Apply the small, reviewed Push 1 protocol override maintained by this project.
 shutil.copytree(root / "overrides/java", root / "src/main/java", dirs_exist_ok=True)
+# DeviceParamsMode is replaced by a project override above; reapply its row policy after that copy.
+enable_menu_row_inversion("DeviceParamsMode", "mode/device/DeviceParamsMode.java")
 
 push_display = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push1Display.java"
 replace_once(push_display,
