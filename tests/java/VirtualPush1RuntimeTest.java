@@ -599,6 +599,9 @@ public final class VirtualPush1RuntimeTest
                 + surface.getViewManager ().getActiveID () + ", gridEvents=" + MODEL_ACTIONS);
         final AbstractSequencerView<?, ?> sequencer =
             (AbstractSequencerView<?, ?>) surface.getViewManager ().get (Views.SEQUENCER);
+        sequencer.updateControlSurface ();
+        require (sequencer.isActive () && sequencer.getClip ().doesExist (),
+            "Sequencer must activate against the existing virtual note clip");
         sequencer.onLeft (ButtonEvent.DOWN);
         sequencer.onRight (ButtonEvent.DOWN);
         require (state.stepPageBackwardCount > 0 && state.stepPageForwardCount > 0,
