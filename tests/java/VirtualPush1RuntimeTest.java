@@ -1403,7 +1403,7 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getSelectedItem"))
-                    return navigationContext ? Optional.of (trackProxy ()) : Optional.empty ();
+                    return navigationContext ? Optional.of (trackProxy ("track0")) : Optional.empty ();
                 if (method.getName ().equals ("getSceneBank"))
                     return sceneBankProxy ();
                 if (method.getName ().equals ("getItem"))
