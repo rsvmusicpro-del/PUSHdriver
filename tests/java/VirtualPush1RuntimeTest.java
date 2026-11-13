@@ -397,6 +397,25 @@ public final class VirtualPush1RuntimeTest
         require (midi.capturedOutput ().stream ().anyMatch (message -> message.startsWith ("sendSysex ")),
             "Production setup did not emit any Push 1 SysEx feedback");
 
+        // Session pads must launch the selected track/slot through the real
+        // SessionView, while Scene Play pads launch and select their scene.
+        final MixerModel.SlotState sessionSlot = mixerModel.slot (0, 0);
+        sessionSlot.hasContent = true;
+        surface.getViewManager ().setActive (Views.SESSION);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        require (sessionSlot.launches == 1 && sessionSlot.playing,
+            "Session pad release did not launch the corresponding virtual clip slot");
+        surface.getViewManager ().setActive (Views.SCENE_PLAY);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        require (mixerModel.sceneLaunchCount (0) == 1 && mixerModel.selectedScene () == 0,
+            "Scene Play pad did not launch and select the corresponding scene");
+        surface.getViewManager ().setActive (Views.SESSION);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.STOP, "Stop all Session clips");
+        require (!sessionSlot.playing, "Stop button did not stop the playing Session clip");
+        surface.getViewManager ().setActive (Views.PLAY);
+
         // Exercise arrows end-to-end in Device mode, where horizontal
         // navigation selects devices and vertical navigation scrolls scenes.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Device mode for arrows");
@@ -1384,6 +1403,8 @@ public final class VirtualPush1RuntimeTest
                 }
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
+                if (method.getName ().equals ("stop"))
+                { mixer.stopAll (); return null; }
                 if (method.getName ().equals ("getSelectedItem"))
                     return navigationContext ? Optional.of (mixer.track (Math.floorMod (trackIndex, 8))) : Optional.empty ();
                 if (method.getName ().equals ("getSceneBank"))
@@ -1635,6 +1656,7 @@ public final class VirtualPush1RuntimeTest
         ISceneBank sceneBank () { return this.sceneBank; }
         SlotState slot (final int track, final int index) { return this.slotStates[track][index]; }
         int sceneLaunchCount (final int index) { return this.sceneLaunches[index]; }
+        int selectedScene () { return this.selectedScene; }
         private void trackPlayingStopAll ()
         {
             for (int track = 0; track < this.trackPlaying.length; track++)
@@ -1648,6 +1670,7 @@ public final class VirtualPush1RuntimeTest
         ParameterState pan (final int index) { return this.pans[index]; }
         ParameterState send (final int track, final int index) { return this.sends[track][index]; }
         boolean isMuted (final int index) { return this.muted[index]; }
+        void stopAll () { this.trackPlayingStopAll (); }
     }
 
     private static IDeviceMetadata deviceMetadata (final String name)
