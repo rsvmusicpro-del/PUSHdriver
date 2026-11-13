@@ -15,24 +15,42 @@ This is the acceptance checklist for the software-only Push 1 bench. It distingu
 | LCD | Four independent 77-byte row SysEx frames | All 4 rows × 68 columns; all 128 seven-bit character values; four 17-character modules; 9/8 logical cells; custom glyph preservation | Exhaustive logical character space |
 | Malformed protocol input | MIDI and SysEx validation | Invalid ranges, invalid row/address, malformed frames and invalid pad state transitions | Boundary cases |
 | Extension output adapter | API 17 MIDI input/output doubles | CC/note/aftertouch/pitch-bend/SysEx routing, channels 0 and 15, String and byte-array SysEx | Adapter contract |
-| Production controller wiring | Real assembled PushControllerSetup and production bindings | Startup, registered view/mode binding matrix, transport, Shift+Record, Note/Session/Track/Clip/Device modes, Device arrows, Session arrows, In/Out device and parameter-page actions, pad/encoder/touch/ribbon input, LED/LCD feedback | Integration scenarios |\n| Browser semantics | Stateful API-17 IBrowser/filter/result model | Production MIDI bindings for top/bottom filter navigation, encoder touch/selection, Shift+Left/Right content-type paging, result navigation, LCD marker composition and filter LED availability | Stateful integration scenarios |\n| New clip workflow | Stateful cursor-track/slot-bank model | Free-slot search, stop only the cursor track after a slot is found, preserve other-track playback, Shift+New overdub disabled, no-slot fallback without stopping playback | Stateful integration scenarios |\n| Note Repeat lifecycle | Optional API-17 INoteRepeat service model | Controller startup with no service, safe mode entry while absent, late service creation, latch/pressure/free-running/shuffle controls | Lifecycle integration scenarios |
+| Production controller wiring | Real assembled PushControllerSetup and production bindings | Startup, registered view/mode binding matrix, transport, Shift+Record, Note/Session/Track/Clip/Device modes, Device arrows, Session arrows, In/Out device and parameter-page actions, pad/encoder/touch/ribbon input, LED/LCD feedback | Integration scenarios |
+| Browser semantics | Stateful API-17 IBrowser/filter/result model | Production MIDI bindings for top/bottom filter navigation, encoder touch/selection, Shift+Left/Right content-type paging, result navigation, LCD marker composition and filter LED availability | Stateful integration scenarios |
+| Note Repeat lifecycle | Optional API-17 INoteRepeat service model | Controller startup with no service, safe mode entry while absent, late service creation, latch/pressure/free-running/shuffle controls | Lifecycle integration scenarios |
 | Packaged extension | Built JAR | Push 1-only entry point, API 17, Java 17 bytecode, required classes/resources, forbidden Push 2/foreign code, dependency resolution | Package gate |
 | Build reproducibility | Generated source assembly | Repeated assembly hash comparison | Deterministic assembly |
 
 The exhaustive protocol checks are part of VirtualPush1RuntimeTest, which is the single entry point called by scripts/test_push1_extension.py in CI. The runtime entry point invokes the device, display-layout, protocol-exhaustive and MIDI-bench checks before booting the production controller setup. The Browser, New and Note Repeat lifecycle scenarios use stateful API-17 collaborators and production Push 1 MIDI bindings.
 
-## Run the bench locally\n\nFrom the repository root, install a JDK 17, Python 3 and Apache Maven, then run:\n\n```bash\npython3 scripts/run_virtual_push1.py\n```\n\nTo open the interactive Swing Push 1 after the automated tests pass:\n\n```bash\npython3 scripts/run_virtual_push1.py --gui\n```\n\nOn Windows, use `py -3 scripts/run_virtual_push1.py` (add `--gui` for the\ninteractive window). The runner assembles the pinned source, builds the\nextension, verifies the package and executes the automated virtual bench.\n## Areas that are not yet fully proven by the virtual bench
+## Run the bench locally
+
+From the repository root, install a JDK 17, Python 3 and Apache Maven, then run:
+
+```bash
+python3 scripts/run_virtual_push1.py
+```
+
+To open the interactive Swing Push 1 after the automated tests pass:
+
+```bash
+python3 scripts/run_virtual_push1.py --gui
+```
+
+On Windows, use `py -3 scripts/run_virtual_push1.py` (add `--gui` for the
+interactive window). The runner assembles the pinned source, builds the
+extension, verifies the package and executes the automated virtual bench.
+
+## Areas that are not yet fully proven by the virtual bench
 
 These are not silently treated as passed merely because the general command binding matrix succeeds.
 
 | Area | Current evidence | Remaining work for stronger coverage |
 |---|---|---|
-| Browser mode semantics | Stateful API-17 IBrowser model driven through production MIDI bindings | Top/bottom row filter and result selection, touched-encoder filter navigation, Shift+Left/Right content-type paging, LCD selection marker and filter-button LED availability |
-| New clip workflow | Stateful API-17 cursor-track/slot-bank model driven through the production New binding | Free-slot search from selected slot, stop only the playing cursor track after a slot is found, preserve other-track playback, Shift+New overdub disabled, and no-slot fallback without stopping playback |
-| Note Repeat | Source guards optional MIDI-input / Note Repeat service absence; package verifier checks the null-safe LED path | Model absent, late-created and available INoteRepeat; exercise mode entry, controls, ribbon and feedback in each state |
 | Drum / Drum64 / sequencer musical semantics | Production view/mode registrations and generic binding matrix are exercised | Add note/step/clip/scene state models and assert pad-to-note mapping, selected-step behavior, playhead follow, drum layout and LED feedback in representative modes |
 | Browser, mixer, track, device and clip edge cases | Some Device/Session/transport scenarios are asserted directly | Add stateful model assertions for empty banks, first/last item boundaries, unavailable actions and context switching |
 | Swing desktop UI | Compiled as part of the virtual test sources; optional --gui launch path | Add a display-backed smoke test (for example under Xvfb) for window construction, event dispatch and clean release on close |
+
 
 ## Explicit limits (not software regressions)
 
