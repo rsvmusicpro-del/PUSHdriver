@@ -30,6 +30,7 @@ import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.daw.data.IDrumDevice;
 import de.mossgrabers.framework.daw.data.IDrumPad;
 import de.mossgrabers.framework.daw.data.ITrack;
+import de.mossgrabers.framework.daw.data.IMasterTrack;
 import de.mossgrabers.framework.daw.data.ICursorTrack;
 import de.mossgrabers.framework.daw.data.ILayer;
 import de.mossgrabers.framework.daw.data.bank.ILayerBank;
@@ -222,7 +223,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getScales" -> scales;
                                 case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
                                 case "getSceneBank" -> sceneBank;
-                                case "getMasterTrack" -> trackProxy ("master");
+                                case "getMasterTrack" -> masterTrackProxy ();
                                 case "getUserParameterBank" -> parameterBankProxy ();
                                 case "getCursorDevice" -> cursorDevice;
                                 case "getDrumDevice" -> drumDeviceProxy (state);
@@ -1437,6 +1438,16 @@ public final class VirtualPush1RuntimeTest
 
     private static ITrack trackProxy (final String label)
     {
+        return (ITrack) createTrackProxy (label, ITrack.class);
+    }
+
+    private static IMasterTrack masterTrackProxy ()
+    {
+        return (IMasterTrack) createTrackProxy ("master", IMasterTrack.class);
+    }
+
+    private static Object createTrackProxy (final String label, final Class<?> trackType)
+    {
         final ISendBank sendBank = (ISendBank) Proxy.newProxyInstance (ISendBank.class.getClassLoader (),
             new Class<?> [] { ISendBank.class }, (proxy, method, args) -> {
                 if (method.getName ().equals ("getPageSize"))
@@ -1453,8 +1464,8 @@ public final class VirtualPush1RuntimeTest
                 }
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
-        return (ITrack) Proxy.newProxyInstance (ITrack.class.getClassLoader (),
-            new Class<?> [] { ITrack.class }, (proxy, method, args) -> {
+        return Proxy.newProxyInstance (trackType.getClassLoader (),
+            new Class<?> [] { trackType }, (proxy, method, args) -> {
                 switch (method.getName ())
                 {
                     case "getSendBank": return sendBank;
