@@ -825,6 +825,7 @@ public final class VirtualPush1RuntimeTest
                     {
                         case "doesExist": return true;
                         case "getName": return "Virtual Push note clip";
+                        case "getColor": return ColorEx.BLUE;
                         case "getNumRows", "getNumSteps": return 128;
                         case "getCurrentStep": return this.currentStep[0];
                         case "getStepLength": return this.stepLength[0];
