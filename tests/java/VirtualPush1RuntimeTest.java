@@ -17,6 +17,8 @@ import de.mossgrabers.framework.controller.hardware.IHwSurfaceFactory;
 import de.mossgrabers.framework.daw.IHost;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.ITransport;
+import de.mossgrabers.framework.daw.midi.INoteInput;
+import de.mossgrabers.framework.daw.midi.INoteRepeat;
 import de.mossgrabers.framework.daw.IBrowser;
 import de.mossgrabers.framework.daw.data.IBrowserColumn;
 import de.mossgrabers.framework.daw.data.IBrowserColumnItem;
@@ -401,6 +403,50 @@ public final class VirtualPush1RuntimeTest
             }
             setup.flush ();
         }
+
+        // Note Repeat must tolerate no default MIDI input, then bind a
+        // service that appears later, and tolerate its subsequent removal.
+        modes.setActive (Modes.REPEAT_NOTE);
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().touchEncoder (5, true);
+        midi.device ().touchEncoder (5, false);
+        midi.device ().touchEncoder (6, true);
+        midi.device ().touchEncoder (6, false);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        midi.device ().tapButton (VirtualPush1Device.TOP_ROW_FIRST + 4);
+        midi.device ().tapButton (VirtualPush1Device.BOTTOM_ROW_FIRST + 7);
+
+        final INoteRepeat noteRepeat = (INoteRepeat) Proxy.newProxyInstance (
+            INoteRepeat.class.getClassLoader (), new Class<?> [] { INoteRepeat.class },
+            (proxy, method, args) -> {
+                if (method.getName ().startsWith ("set") || method.getName ().startsWith ("toggle"))
+                    MODEL_ACTIONS.add ("noteRepeat." + method.getName ());
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+        final INoteInput noteInput = (INoteInput) Proxy.newProxyInstance (
+            INoteInput.class.getClassLoader (), new Class<?> [] { INoteInput.class },
+            (proxy, method, args) -> method.getName ().equals ("getNoteRepeat")
+                ? noteRepeat : defaultValue (method.getReturnType (), method.getGenericReturnType ()));
+        midi.setDefaultNoteInput (noteInput);
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().touchEncoder (5, true);
+        midi.device ().touchEncoder (5, false);
+        midi.device ().touchEncoder (6, true);
+        midi.device ().touchEncoder (6, false);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        midi.device ().tapButton (VirtualPush1Device.TOP_ROW_FIRST + 4);
+        require (MODEL_ACTIONS.contains ("noteRepeat.setMode")
+            && MODEL_ACTIONS.contains ("noteRepeat.setOctaves")
+            && MODEL_ACTIONS.contains ("noteRepeat.toggleLatchActive"),
+            "Late-created Note Repeat service was not refreshed and exercised");
+
+        midi.setDefaultNoteInput (null);
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().touchEncoder (5, true);
+        midi.device ().touchEncoder (5, false);
+        midi.device ().touchEncoder (6, true);
+        midi.device ().touchEncoder (6, false);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
 
         // New clip workflow: free-slot discovery precedes stopping only the
         // cursor track, and the inherited Shift+New overdub distinction stays intact.
