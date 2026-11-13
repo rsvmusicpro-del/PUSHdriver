@@ -778,6 +778,24 @@ public final class VirtualPush1RuntimeTest
         state.noteClipExists = false;
         state.drumPadsExist = false;
 
+        // Session and Scene Play pads must launch the corresponding
+        // production clip slots and scene-bank items.
+        navigationContext = true;
+        surface.getViewManager ().setActive (Views.SESSION);
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        require (MODEL_ACTIONS.stream ().anyMatch (action -> action.startsWith ("slot.launch:")),
+            "Session pad input must launch a clip slot: " + MODEL_ACTIONS);
+
+        surface.getViewManager ().setActive (Views.SCENE_PLAY);
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        require (MODEL_ACTIONS.stream ().anyMatch (action -> action.startsWith ("scene.launch:")),
+            "Scene Play pad input must launch a scene: " + MODEL_ACTIONS);
+        navigationContext = false;
+
         // Browser: exercise both filter-column and result selection, the
         // preset selector, preview chord, and browser content-type paging.
         modes.setActive (Modes.BROWSER);
