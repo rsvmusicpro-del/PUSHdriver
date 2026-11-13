@@ -314,7 +314,7 @@ public final class VirtualPush1RuntimeTest
         musicalModel.setCanHoldNotes (true);
         midi.device ().tapButton (VirtualPush1Device.NOTE);
         require (Views.isNoteView (surface.getViewManager ().getActiveID ()), "Note CC did not select a note view");
-        surface.getViewManager ().setPreferredView (newClipModel.cursorTrack ().getPosition (), Views.NOTE);
+        surface.getViewManager ().setPreferredView (newClipModel.cursorTrack ().getPosition (), Views.PLAY);
         midi.device ().tapButton (VirtualPush1Device.SESSION);
         require (Views.isSessionView (surface.getViewManager ().getActiveID ()), "Session CC did not select a session view");
         midi.device ().tapButton (VirtualPush1Device.NOTE);
