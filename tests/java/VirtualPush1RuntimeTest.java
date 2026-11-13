@@ -284,7 +284,6 @@ public final class VirtualPush1RuntimeTest
         state.canHoldNotes = false;
 
         final var modes = surface.getModeManager ();
-        final var modes = surface.getModeManager ();
         verifyPush1FeatureInventory (surface);
         require (modes.get (Modes.TRACK) != null, "Track mode was not registered");
         require (modes.get (Modes.DEVICE_PARAMS) != null, "Device parameter mode was not registered");
