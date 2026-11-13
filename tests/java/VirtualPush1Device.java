@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
+
 /**
  * Hardware-independent Ableton Push 1 endpoint emulator.
  *
@@ -336,8 +338,56 @@ public final class VirtualPush1Device
     public boolean isPadPressed (final int row, final int column) { return this.pressedPads[padNote (row, column) - PAD_FIRST_NOTE]; }
     public int getNoteLed (final int note) { return this.noteLeds.getOrDefault (note, 0); }
     public int getCCLed (final int cc) { return this.ccLeds.getOrDefault (cc, 0); }
-    public String getLcdRow (final int row) { return this.lcd[row]; }
+    /** Full logical 68-character row, preserving Push custom glyph codes. */
+    public String getLcdRow (final int row) { return checkedLcdRow (row); }
+
+    /** One of the four physical 17-character LCD modules, left to right. */
+    public String getLcdModuleRow (final int row, final int module)
+    {
+        final String line = checkedLcdRow (row);
+        final int start = Push1DisplayLayout.blockStartColumn (module);
+        return line.substring (start, start + Push1DisplayLayout.MODULE_COLUMNS);
+    }
+
+    /** Four rows of one physical LCD module, returned as a defensive snapshot. */
+    public String [] getLcdModuleSnapshot (final int module)
+    {
+        Push1DisplayLayout.blockStartColumn (module);
+        final String [] result = new String [Push1DisplayLayout.MODULE_ROWS];
+        for (int row = 0; row < result.length; row++)
+            result[row] = getLcdModuleRow (row, module);
+        return result;
+    }
+
+    /** One 17-character logical display block (one physical LCD module). */
+    public String getLcdBlock (final int row, final int block)
+    {
+        return getLcdModuleRow (row, block);
+    }
+
+    /** One logical parameter cell; physical widths alternate 9 and 8 characters. */
+    public String getLcdCell (final int row, final int cell)
+    {
+        final String line = checkedLcdRow (row);
+        final int start = Push1DisplayLayout.cellStartColumn (cell);
+        return line.substring (start, start + Push1DisplayLayout.cellWidth (cell));
+    }
+
+    /** Raw seven-bit character code at a global LCD column. */
+    public int getLcdCharacter (final int row, final int column)
+    {
+        final String moduleRow = getLcdModuleRow (row, Push1DisplayLayout.moduleForColumn (column));
+        return moduleRow.charAt (Push1DisplayLayout.moduleColumn (column));
+    }
+
     public String [] getLcdSnapshot () { return this.lcd.clone (); }
+
+    private String checkedLcdRow (final int row)
+    {
+        if (row < 0 || row >= Push1DisplayLayout.ROWS)
+            throw new IllegalArgumentException ("Push 1 LCD row must be in [0,3]");
+        return this.lcd[row];
+    }
     public Map<Integer, Integer> getNoteLedSnapshot () { return Collections.unmodifiableMap (new HashMap<> (this.noteLeds)); }
     public Map<Integer, Integer> getCCLedSnapshot () { return Collections.unmodifiableMap (new HashMap<> (this.ccLeds)); }
 
