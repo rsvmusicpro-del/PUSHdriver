@@ -398,7 +398,7 @@ replace_once(push_display,
     "        super (host, output, Push1DisplayLayout.ROWS, Push1DisplayLayout.CELLS_PER_ROW, Push1DisplayLayout.COLUMNS);",
     "Push 1 physical LCD geometry")
 replace_once(push_display,
-    "        this.cells[row * 8 + column] = column % 2 == 0 ? \"         \" : \"        \";",
+    "        this.cells[row * this.noOfCells + column] = column % 2 == 0 ? \"         \" : \"        \";",
     "        this.cells[Push1DisplayLayout.cellIndex (row, column)] = \" \".repeat (Push1DisplayLayout.cellWidth (column));",
     "Push 1 alternating LCD cell widths")
 replace_once(push_display,
