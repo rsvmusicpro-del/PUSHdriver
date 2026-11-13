@@ -421,6 +421,20 @@ public final class VirtualPush1RuntimeTest
         require (browserModel.resultCursor () == resultBefore,
             "Push 1 bottom-row result button did not select the next result");
 
+        // Navigation must clamp at the first/last filter and result entries.
+        browserModel.setFilterCursor (0, 0);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Browser filter lower boundary");
+        require (browserModel.filterCursor (0) == 0, "Browser filter cursor moved below its first item");
+        browserModel.setFilterCursor (0, 15);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Browser filter upper boundary");
+        require (browserModel.filterCursor (0) == 15, "Browser filter cursor moved beyond its last item");
+        browserModel.setResultCursor (0);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Browser result lower boundary");
+        require (browserModel.resultCursor () == 0, "Browser result cursor moved below its first item");
+        browserModel.setResultCursor (15);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "Browser result upper boundary");
+        require (browserModel.resultCursor () == 15, "Browser result cursor moved beyond its last item");
+
         // The API-17 note input exists before its optional Note Repeat service.
         // The production mode must tolerate absence and resolve the service if
         // Bitwig creates it after controller startup.
@@ -479,6 +493,18 @@ public final class VirtualPush1RuntimeTest
         require (newClipModel.createCount () == 0 && newClipModel.stopCount () == 0
                 && newClipModel.isTrackPlaying (),
             "New with no free slot changed playback or created a clip");
+
+        // Slot search wraps from the selected slot to the start of the page.
+        newClipModel.resetScenario ();
+        newClipModel.setSelectedSlot (6);
+        for (int slot = 6; slot < 8; slot++)
+            newClipModel.setSlotAvailable (slot, false);
+        newClipModel.setSlotAvailable (0, true);
+        for (int slot = 1; slot < 6; slot++)
+            newClipModel.setSlotAvailable (slot, false);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.NEW, "New clip wrap-around search");
+        require (newClipModel.createCount () == 1 && newClipModel.lastSlotIndex () == 0,
+            "New did not wrap its free-slot search to the first slot");
 
         newClipModel.setTrackExists (false);
         modes.setActive (Modes.TRACK);
@@ -888,6 +914,7 @@ public final class VirtualPush1RuntimeTest
 
         ICursorTrack cursorTrack () { return this.cursorTrack; }
         void setSlotAvailable (final int index, final boolean value) { this.available[index] = value; }
+        void setSelectedSlot (final int index) { this.selectedSlot[0] = Math.max (0, Math.min (this.slots.length - 1, index)); }
         void setTrackPlaying (final boolean value) { this.trackPlaying[0] = value; }
         void setTrackExists (final boolean value) { this.trackExists[0] = value; }
         boolean isTrackPlaying () { return this.trackPlaying[0]; }
@@ -1040,6 +1067,8 @@ public final class VirtualPush1RuntimeTest
         int filterCursor (final int column) { return this.filterCursors[column]; }
         int resultCursor () { return this.resultCursor[0]; }
         int contentTypeIndex () { return this.contentType[0]; }
+        void setFilterCursor (final int column, final int value) { this.filterCursors[column] = Math.max (0, Math.min (15, value)); }
+        void setResultCursor (final int value) { this.resultCursor[0] = Math.max (0, Math.min (15, value)); }
 
         private IBrowserColumnItem filterItem (final int column, final int item)
         {
