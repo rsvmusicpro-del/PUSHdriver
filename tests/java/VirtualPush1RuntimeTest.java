@@ -246,7 +246,10 @@ public final class VirtualPush1RuntimeTest
         final int volumeChanges = volume.changes;
         midi.device ().turnEncoderBy (0, 1);
         require (volume.changes == volumeChanges + 1 && volume.lastControl == 1,
-            "Volume mode encoder did not update the bound track volume parameter");
+            "Volume mode encoder did not update the bound track volume parameter; changes="
+                + volume.changes + ", lastControl=" + volume.lastControl
+                + ", active=" + modes.isActive (Modes.VOLUME)
+                + ", encoderEvents=" + midi.getDispatchedEncoderEvents ());
         midi.device ().touchEncoder (0, true);
         require (volume.touched, "Volume encoder touch did not reach the bound parameter");
         midi.device ().touchEncoder (0, false);
