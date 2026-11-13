@@ -40,10 +40,11 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-display-test-") as output:
     )
 
     layout = root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java"
+    glyphs = root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayGlyphs.java"
     virtual_device = root / "tests/java/VirtualPush1Device.java"
     layout_test = root / "tests/java/VirtualPush1DisplayLayoutTest.java"
     subprocess.run(
-        ["javac", "-cp", output, "-d", output, str(layout), str(virtual_device), str(layout_test)],
+        ["javac", "-cp", output, "-d", output, str(layout), str(glyphs), str(virtual_device), str(layout_test)],
         cwd=root, check=True,
     )
     subprocess.run(
