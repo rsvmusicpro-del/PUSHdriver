@@ -802,6 +802,25 @@ public final class VirtualPush1RuntimeTest
         }
         navigationContext = false;
 
+        final Object [][] parameterScenarios = {
+            { Modes.DEVICE_PARAMS, "device.parameter" },
+            { Modes.DEVICE_LAYER_VOLUME, "layer.volume." },
+            { Modes.DEVICE_LAYER_PAN, "layer.pan." },
+            { Modes.DEVICE_LAYER_SEND1, "layer.send" },
+            { Modes.USER, "device.parameter" }
+        };
+        for (final Object [] scenario: parameterScenarios)
+        {
+            modes.setActive ((Modes) scenario[0]);
+            MODEL_ACTIONS.clear ();
+            midi.device ().touchEncoder (0, true);
+            midi.device ().turnEncoderBy (0, 8);
+            midi.device ().touchEncoder (0, false);
+            final String expectedAction = (String) scenario[1];
+            require (MODEL_ACTIONS.stream ().anyMatch (action -> action.contains (expectedAction)),
+                "Device/User parameter mode must operate its parameter " + scenario[0] + ": " + MODEL_ACTIONS);
+        }
+
         // Session and Scene Play pads must launch the corresponding
         // production clip slots and scene-bank items.
         navigationContext = true;
