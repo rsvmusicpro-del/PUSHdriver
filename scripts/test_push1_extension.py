@@ -23,6 +23,7 @@ test_sources = (
     root / "tests/java/VirtualPush1MidiBench.java",
     root / "tests/java/VirtualPush1Device.java",
     root / "tests/java/VirtualPush1DeviceTest.java",
+    root / "tests/java/VirtualPush1ProtocolExhaustiveTest.java",
     root / "tests/java/VirtualPush1RuntimeTest.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
 )
@@ -32,19 +33,14 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-extension-test-") as output:
         cwd=root, check=True,
     )
     runtime_classpath = os.pathsep.join((classpath, output))
-    subprocess.run(
-        ["java", "-cp", runtime_classpath, "PushdriverExtensionDiscoveryTest"],
-        cwd=root, check=True,
-    )
-    subprocess.run(
-        ["java", "-cp", runtime_classpath, "VirtualPush1MidiBench"],
-        cwd=root, check=True,
-    )
-    subprocess.run(
-        ["java", "-cp", runtime_classpath, "VirtualPush1DeviceTest"],
-        cwd=root, check=True,
-    )
-    subprocess.run(
-        ["java", "-cp", runtime_classpath, "VirtualPush1RuntimeTest"],
-        cwd=root, check=True,
-    )
+    for test_class in (
+        "PushdriverExtensionDiscoveryTest",
+        "VirtualPush1MidiBench",
+        "VirtualPush1DeviceTest",
+        "VirtualPush1ProtocolExhaustiveTest",
+        "VirtualPush1RuntimeTest",
+    ):
+        subprocess.run(
+            ["java", "-cp", runtime_classpath, test_class],
+            cwd=root, check=True,
+        )
