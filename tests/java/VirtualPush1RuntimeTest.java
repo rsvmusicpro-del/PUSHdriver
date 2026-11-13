@@ -1310,6 +1310,8 @@ public final class VirtualPush1RuntimeTest
                     return true;
                 if (method.getName ().equals ("getSendBank"))
                     return sendBank;
+                if (method.getName ().equals ("getColor"))
+                    return de.mossgrabers.framework.controller.color.ColorEx.BLACK;
                 if (method.getName ().equals ("getVolumeParameter"))
                     return parameterProxy ("track.volume");
                 if (method.getName ().equals ("getPanParameter"))
