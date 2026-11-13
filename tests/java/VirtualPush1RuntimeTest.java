@@ -805,11 +805,11 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getSelectedItem"))
-                    return navigationContext ? Optional.of (trackProxy ()) : Optional.empty ();
+                    return navigationContext ? Optional.of (trackProxy (state, sceneBank)) : Optional.empty ();
                 if (method.getName ().equals ("getSceneBank"))
                     return sceneBank;
                 if (method.getName ().equals ("getItem"))
-                    return trackProxy ();
+                    return trackProxy (state, sceneBank);
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
@@ -929,7 +929,7 @@ public final class VirtualPush1RuntimeTest
             });
     }
 
-    private static ITrack trackProxy ()
+    private static ITrack trackProxy (final State state, final ISceneBank sceneBank)
     {
         final ISendBank sendBank = (ISendBank) Proxy.newProxyInstance (ISendBank.class.getClassLoader (),
             new Class<?> [] { ISendBank.class }, (proxy, method, args) -> {
@@ -946,7 +946,7 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getSendBank"))
                     return sendBank;
                 if (method.getName ().equals ("getSceneBank"))
-                    return sceneBankProxy ();
+                    return sceneBank;
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
