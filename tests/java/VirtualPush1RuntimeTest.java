@@ -124,6 +124,10 @@ public final class VirtualPush1RuntimeTest
         int drumScrollBackwardCount;
         int drumIndicationOnCount;
         int drumIndicationOffCount;
+        boolean deviceCanScrollBackwards;
+        boolean deviceCanScrollForwards;
+        boolean deviceCanScrollPageBackwards;
+        boolean deviceCanScrollPageForwards;
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
     }
@@ -436,6 +440,28 @@ public final class VirtualPush1RuntimeTest
             }
             setup.flush ();
         }
+
+        // Device bank boundaries: arrow availability must follow the
+        // host bank's first/last-item and first/last-page state.
+        final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS);
+        deviceParamsMode.setShowDevices (true);
+        state.deviceCanScrollBackwards = false;
+        state.deviceCanScrollForwards = true;
+        state.deviceCanScrollPageBackwards = false;
+        state.deviceCanScrollPageForwards = true;
+        require (!deviceParamsMode.hasPreviousItem () && deviceParamsMode.hasNextItem (),
+            "Device item navigation must disable Left at the first item and enable Right");
+        require (!deviceParamsMode.hasPreviousItemPage () && deviceParamsMode.hasNextItemPage (),
+            "Device page navigation must disable Shift+Left at the first page and enable Shift+Right");
+        state.deviceCanScrollBackwards = true;
+        state.deviceCanScrollForwards = false;
+        state.deviceCanScrollPageBackwards = true;
+        state.deviceCanScrollPageForwards = false;
+        require (deviceParamsMode.hasPreviousItem () && !deviceParamsMode.hasNextItem (),
+            "Device item navigation must disable Right at the last item and enable Left");
+        require (deviceParamsMode.hasPreviousItemPage () && !deviceParamsMode.hasNextItemPage (),
+            "Device page navigation must disable Shift+Right at the last page and enable Shift+Left");
+        deviceParamsMode.setShowDevices (false);
 
         // Note Repeat must tolerate no default MIDI input, then bind a
         // service that appears later, and tolerate its subsequent removal.
@@ -961,6 +987,14 @@ public final class VirtualPush1RuntimeTest
             (proxy, method, args) -> {
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
+                if (method.getName ().equals ("canScrollBackwards"))
+                    return state.deviceCanScrollBackwards;
+                if (method.getName ().equals ("canScrollForwards"))
+                    return state.deviceCanScrollForwards;
+                if (method.getName ().equals ("canScrollPageBackwards"))
+                    return state.deviceCanScrollPageBackwards;
+                if (method.getName ().equals ("canScrollPageForwards"))
+                    return state.deviceCanScrollPageForwards;
                 if (method.getName ().equals ("getItem"))
                     return Proxy.newProxyInstance (de.mossgrabers.framework.daw.data.IDevice.class.getClassLoader (),
                         new Class<?> [] { de.mossgrabers.framework.daw.data.IDevice.class },
