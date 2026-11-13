@@ -204,3 +204,17 @@ denominator, and no software-only bench can reproduce analog sensor curves,
 USB electrical timing, switch contact bounce or the actual Bitwig 4.3.10
 scheduler. The goal is to keep physical hardware out of routine regression
 work while preserving a small, explicit hardware qualification checklist.
+
+
+## Mandatory regression policy
+
+Every push to `custom` and every pull request targeting `custom` runs
+`.github/workflows/build-pushdriver.yml` without path filters. The `quality-gate`
+job is the aggregate result and requires both Linux build/virtual simulation and
+Intel macOS build/virtual simulation to succeed. The local equivalent is
+`python3 scripts/run_virtual_push1.py`. See
+`docs/DEVELOPMENT-QUALITY-GATE.md` for the required repository settings and
+verification procedure. Important: GitHub still reports `custom` as unprotected;
+the connected integration cannot modify branch protection (HTTP 403). A
+repository administrator must require `quality-gate` and PRs in GitHub Settings
+before the server enforces the rule against bypasses or direct pushes.
