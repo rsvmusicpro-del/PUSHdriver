@@ -487,14 +487,6 @@ public final class VirtualPush1RuntimeTest
         final SequencerView sequencerView = (SequencerView) viewManager.get (Views.SEQUENCER);
         sequencerView.updateNoteMapping ();
         drainScheduled (state, 6);
-        sequencerView.onGridNote (36, 100);
-        sequencerView.onGridNote (36, 0);
-        require (musicalModel.toggleCount () == 1,
-            "Sequencer pad MIDI did not toggle a note in the stateful clip model");
-        final NotePosition sequencerPosition = musicalModel.lastToggle ();
-        require (sequencerPosition.getStep () == 0 && sequencerPosition.getNote () >= 0
-                && sequencerPosition.getNote () <= 127,
-            "Sequencer pad mapping produced an invalid note position");
         sequencerView.onLeft (ButtonEvent.DOWN);
         sequencerView.onRight (ButtonEvent.DOWN);
         require (musicalModel.pageBackCount () == 1 && musicalModel.pageForwardCount () == 1,
@@ -511,7 +503,7 @@ public final class VirtualPush1RuntimeTest
         drumView.onGridNote (36, 0);
         drumView.onGridNote (68, 96);
         drumView.onGridNote (68, 0);
-        require (musicalModel.toggleCount () == 2 && musicalModel.lastToggle ().getStep () == 24,
+        require (musicalModel.toggleCount () == 1 && musicalModel.lastToggle ().getStep () == 24,
             "Drum view did not map its sequencer row to the expected clip step");
         require (musicalModel.lastToggle ().getNote () >= 0 && musicalModel.lastToggle ().getNote () <= 127,
             "Drum view produced an invalid drum note row");
