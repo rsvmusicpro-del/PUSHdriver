@@ -56,6 +56,8 @@ public final class VirtualPush1Simulator
     private final JButton [] bottom = new JButton [8];
     private final Map<Integer, JButton> controlButtons = new HashMap<> ();
     private final JTextArea log = new JTextArea (8, 72);
+    private JFrame frame;
+    private Timer feedbackTimer;
     private final JSlider pressure = new JSlider (0, 127, 0);
     private final JSlider velocity = new JSlider (1, 127, 100);
     private final JCheckBox holdPad = new JCheckBox ("Hold selected pad for aftertouch");
@@ -78,26 +80,57 @@ public final class VirtualPush1Simulator
         SwingUtilities.invokeLater (() -> new VirtualPush1Simulator (bench, onClose).open ());
     }
 
+    /**
+     * Open the real Swing simulator, dispatch one pad mouse gesture, and close
+     * it automatically. Used by Linux CI under Xvfb to smoke-test construction,
+     * event delivery, feedback refresh and orderly window shutdown.
+     */
+    public static void smoke (final VirtualPush1MidiBench bench, final Runnable onClose)
+    {
+        SwingUtilities.invokeLater (() -> {
+            final VirtualPush1Simulator simulator = new VirtualPush1Simulator (bench, onClose);
+            simulator.open ();
+            final JButton pad = simulator.pads[0][0];
+            final long now = System.currentTimeMillis ();
+            pad.dispatchEvent (new MouseEvent (pad, MouseEvent.MOUSE_PRESSED, now, 0, 5, 5, 1, false, MouseEvent.BUTTON1));
+            pad.dispatchEvent (new MouseEvent (pad, MouseEvent.MOUSE_RELEASED, now + 1, 0, 5, 5, 1, false, MouseEvent.BUTTON1));
+            final Timer closeTimer = new Timer (600, event -> {
+                ((Timer) event.getSource ()).stop ();
+                if (simulator.frame != null)
+                    simulator.frame.dispose ();
+            });
+            closeTimer.setRepeats (false);
+            closeTimer.start ();
+        });
+    }
+
     private void open ()
     {
         try { UIManager.setLookAndFeel (UIManager.getSystemLookAndFeelClassName ()); }
         catch (final Exception ignored) { }
-        final JFrame frame = new JFrame ("PUSHdriver — Push 1 virtual simulator");
-        frame.setDefaultCloseOperation (JFrame.DISPOSE_ON_CLOSE);
-        frame.setLayout (new BorderLayout (8, 8));
-        frame.add (createDisplay (), BorderLayout.NORTH);
-        frame.add (createPads (), BorderLayout.CENTER);
-        frame.add (createMonitor (), BorderLayout.SOUTH);
-        frame.add (createControls (), BorderLayout.EAST);
-        frame.setMinimumSize (new Dimension (1180, 780));
-        frame.pack ();
-        frame.setLocationByPlatform (true);
-        frame.addWindowListener (new WindowAdapter () {
+        this.frame = new JFrame ("PUSHdriver — Push 1 virtual simulator");
+        this.frame.setDefaultCloseOperation (JFrame.DISPOSE_ON_CLOSE);
+        this.frame.setLayout (new BorderLayout (8, 8));
+        this.frame.add (createDisplay (), BorderLayout.NORTH);
+        this.frame.add (createPads (), BorderLayout.CENTER);
+        this.frame.add (createMonitor (), BorderLayout.SOUTH);
+        this.frame.add (createControls (), BorderLayout.EAST);
+        this.frame.setMinimumSize (new Dimension (1180, 780));
+        this.frame.pack ();
+        this.frame.setLocationByPlatform (true);
+        this.frame.addWindowListener (new WindowAdapter () {
             @Override public void windowClosed (final WindowEvent event)
-            { releaseAll (); if (onClose != null) onClose.run (); }
+            {
+                if (feedbackTimer != null)
+                    feedbackTimer.stop ();
+                releaseAll ();
+                if (onClose != null)
+                    onClose.run ();
+            }
         });
-        frame.setVisible (true);
-        new Timer (150, event -> refreshFeedback ()).start ();
+        this.frame.setVisible (true);
+        this.feedbackTimer = new Timer (150, event -> refreshFeedback ());
+        this.feedbackTimer.start ();
     }
 
     private JPanel createDisplay ()
