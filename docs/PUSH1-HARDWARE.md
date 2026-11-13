@@ -47,11 +47,18 @@ silently.
 The firmware's Push-specific glyph codes are seven-bit character values and
 must be preserved as character codes through the LCD SysEx path. They are
 not Unicode code points or ordinary ASCII substitutions on the physical
-display. The simulator therefore stores and exposes raw character codes,
-including the custom glyph range, rather than replacing them with a guessed
-font. Reverse-engineered 5 × 8 glyph bitmaps may be useful for a future
-pixel-accurate renderer, but the exact physical glass/pixel dimensions and
-module spacing are not established by the current protocol contract.
+display. The simulator therefore stores and exposes raw character codes.
+
+The reverse-engineered firmware data also provides the exact eight
+programmable custom glyphs as **5 × 8 dot matrices** (five right-aligned bits
+in each of eight row bytes): codes 0–7 are up arrow, down arrow, three rows,
+slider-left, slider-right, slider-center, slider-empty and folder. These
+bitmaps are now represented in `Push1DisplayGlyphs` and exposed by the
+virtual device for pixel-level tests. Standard ROM glyphs (for example the
+degree and division symbols) remain firmware-owned and are not guessed or
+recreated by the project. The 5 × 8 dot matrix is a character-glyph size, not
+a measurement of the LCD glass or its physical active area. Exact module
+spacing, panel part number and physical dimensions remain unverified.
 
 The original LCD is an **alphanumeric character LCD**, not a pixel-addressable colour display. Reverse-engineered firmware character data indicates 5 × 8 pixel glyph patterns for the character set, but this is not a vendor-published panel resolution. The exact LCD module part number, physical active-area dimensions in millimetres, controller IC revision, and glass technology have not been established from an authoritative Ableton service document. PUSHdriver therefore does not invent those measurements or attempt Push 2-style pixel rendering.
 
