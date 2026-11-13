@@ -1,3 +1,4 @@
+import de.mossgrabers.controller.ableton.push.view.ChordStrummingEngineTest;
 import de.mossgrabers.controller.ableton.push.PushControllerSetup;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
@@ -129,6 +130,7 @@ public final class VirtualPush1RuntimeTest
         VirtualPush1FirmwareVersionTest.main (new String [0]);
         VirtualPush1DisplayValueFormatterTest.main (new String [0]);
         VirtualPush1DisplayTextTest.main (new String [0]);
+        ChordStrummingEngineTest.main (new String [0]);
 
         lightsCreated = 0;
         lightsUpdated = 0;
