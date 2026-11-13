@@ -492,35 +492,6 @@ replace_once(push_display,
 # Delete+touchstrip resets the active parameter, including the last-touched target.
 # DrivenByMoss 19.2.2 already implements Delete+touchstrip reset.
 
-# Resolve the optional Note Repeat service lazily. Bitwig may expose the
-# default note input before its INoteRepeat service has been created; a mode
-# constructed during startup must not permanently capture that initial null.
-note_repeat_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteRepeatMode.java"
-replace_once(note_repeat_mode,
-    "import java.util.List;\n",
-    "import java.lang.reflect.Proxy;\n"
-    "import java.util.List;\n",
-    "Lazy Note Repeat service proxy import")
-replace_once(note_repeat_mode,
-    "        final INoteInput defaultNoteInput = surface.getMidiInput ().getDefaultNoteInput ();\n"
-    "        this.noteRepeat = defaultNoteInput == null ? null : defaultNoteInput.getNoteRepeat ();",
-    "        this.noteRepeat = (INoteRepeat) Proxy.newProxyInstance (\n"
-    "            INoteRepeat.class.getClassLoader (), new Class<?> [] { INoteRepeat.class },\n"
-    "            (proxy, method, args) -> {\n"
-    "                final INoteInput noteInput = this.surface.getMidiInput ().getDefaultNoteInput ();\n"
-    "                final INoteRepeat available = noteInput == null ? null : noteInput.getNoteRepeat ();\n"
-    "                if (available != null)\n"
-    "                    return method.invoke (available, args);\n"
-    "                final Class<?> returnType = method.getReturnType ();\n"
-    "                if (returnType == boolean.class) return false;\n"
-    "                if (returnType == int.class) return 0;\n"
-    "                if (returnType == double.class) return 0.0;\n"
-    "                if (returnType == float.class) return 0.0F;\n"
-    "                if (returnType.isEnum ()) return ArpeggiatorMode.UP;\n"
-    "                return null;\n"
-    "            });",
-    "Late-created Note Repeat service lookup")
-
 touchstrip = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/pitchbend/TouchstripCommand.java"
 replace_once(touchstrip,
     "import de.mossgrabers.framework.command.core.AbstractPitchbendCommand;\n",
