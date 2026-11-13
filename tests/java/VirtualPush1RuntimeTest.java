@@ -1259,7 +1259,11 @@ public final class VirtualPush1RuntimeTest
                     {
                         case "isActive": return this.active[0];
                         case "addActiveObserver":
-                            ((IValueObserver<Boolean>) args[0]).update (Boolean.valueOf (this.active[0]));
+                            // Bitwig declares this argument as IValueObserver<Boolean>;
+                            // the dynamic proxy erases that generic type to Object.
+                            @SuppressWarnings ("unchecked")
+                            final IValueObserver<Boolean> observer = (IValueObserver<Boolean>) args[0];
+                            observer.update (Boolean.valueOf (this.active[0]));
                             return null;
                         case "getSelectedContentTypeIndex": return this.contentType[0];
                         case "getSelectedContentType": return CONTENT_TYPES[this.contentType[0]];
