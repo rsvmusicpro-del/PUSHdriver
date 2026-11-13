@@ -80,9 +80,12 @@ four physical LCD modules arranged horizontally:
 - Each 17-character module/block corresponds to two adjacent logical cells.
 - LCD output is one 77-byte SysEx frame per row, with row selectors
   `18` through `1B`, 68 seven-bit character bytes and `F7`.
-- Push-specific glyph values must remain intact as raw seven-bit character
+ - Push-specific glyph values must remain intact as raw seven-bit character
   codes; converting them to ordinary ASCII is only suitable for a text
   diagnostic view, not for the hardware output.
+- The eight programmable glyphs at character codes 0–7 have extracted 5 × 8
+  dot-matrix data in `Push1DisplayGlyphs`; the virtual device exposes those
+  bitmaps for pixel-level assertions. Standard ROM glyphs remain firmware-owned.
 
 `Push1DisplayLayout` is the single source of truth for module count,
 dimensions, global and module-local columns, block positions, logical cell
