@@ -1527,8 +1527,8 @@ public final class VirtualPush1RuntimeTest
                         state.clipExistenceQueries++;
                         return state.clipExists;
                     case "getColor": return de.mossgrabers.framework.controller.color.ColorEx.BLACK;
-                    case "getNumSteps": return 16;
-                    case "getNumRows": return 128;
+                    case "getNumSteps": return state.clipExists ? 16 : 0;
+                    case "getNumRows": return state.clipExists ? 128 : 0;
                     case "getStepLength": return 0.25;
                     case "getLoopStart": return 0.0;
                     case "getLoopLength": return 16.0;
@@ -1635,7 +1635,10 @@ public final class VirtualPush1RuntimeTest
                         MODEL_ACTIONS.add ("browser.resetFilterColumn:" + args[0]);
                         return null;
                     case "isPreviewEnabled": return state.browserPreviewEnabled;
-                    case "replace": state.browserActions.add ("browser.replace"); return null;
+                    case "replace":
+                        state.browserActions.add ("browser.replace");
+                        MODEL_ACTIONS.add ("browser.replace");
+                        return null;
                     case "isActive": return true;
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 }
