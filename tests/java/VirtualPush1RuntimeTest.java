@@ -1197,6 +1197,7 @@ public final class VirtualPush1RuntimeTest
                 switch (method.getName ())
                 {
                     case "doesExist": case "isActivated": return state.drumPadsExist;
+                    case "getColor": return de.mossgrabers.framework.controller.color.ColorEx.BLACK;
                     case "isSelected": return state.drumSelectedPad == index;
                     case "toggleMute": MODEL_ACTIONS.add ("drumPad.toggleMute:" + index); return null;
                     case "toggleSolo": MODEL_ACTIONS.add ("drumPad.toggleSolo:" + index); return null;
