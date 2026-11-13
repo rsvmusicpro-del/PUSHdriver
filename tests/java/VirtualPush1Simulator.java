@@ -56,6 +56,7 @@ public final class VirtualPush1Simulator
     private final Map<Integer, JButton> controlButtons = new HashMap<> ();
     private final JTextArea log = new JTextArea (8, 72);
     private final JSlider pressure = new JSlider (0, 127, 0);
+    private final JSlider velocity = new JSlider (1, 127, 100);
     private final JCheckBox holdPad = new JCheckBox ("Hold selected pad for aftertouch");
     private final JCheckBox [] encoderTouch = new JCheckBox [11];
     private final JLabel selectedPad = new JLabel ("Pad: none");
@@ -158,7 +159,7 @@ public final class VirtualPush1Simulator
                         selectedPad.setText ("Pad " + (r + 1) + ", " + (c + 1)
                             + " — MIDI note " + VirtualPush1Device.padNote (r, c));
                         pressure.setValue (0);
-                        if (!device.isPadPressed (r, c)) device.pressPad (r, c, 100);
+                        if (!device.isPadPressed (r, c)) device.pressPad (r, c, velocity.getValue ());
                     }
                     @Override public void mouseReleased (final MouseEvent event)
                     { if (!holdPad.isSelected ()) device.releasePad (r, c); }
@@ -219,11 +220,15 @@ public final class VirtualPush1Simulator
         aftertouch.setLayout (new javax.swing.BoxLayout (aftertouch, javax.swing.BoxLayout.Y_AXIS));
         aftertouch.setBorder (BorderFactory.createTitledBorder ("Pad aftertouch"));
         aftertouch.add (selectedPad);
+        aftertouch.add (new JLabel ("Strike velocity"));
+        velocity.setMajorTickSpacing (32);
+        velocity.setPaintTicks (true);
+        aftertouch.add (velocity);
         holdPad.addActionListener (event -> {
             if (selectedRow >= 0)
             {
                 if (holdPad.isSelected () && !device.isPadPressed (selectedRow, selectedColumn))
-                    device.pressPad (selectedRow, selectedColumn, 100);
+                    device.pressPad (selectedRow, selectedColumn, velocity.getValue ());
                 else if (!holdPad.isSelected () && device.isPadPressed (selectedRow, selectedColumn))
                     device.releasePad (selectedRow, selectedColumn);
             }
