@@ -32,6 +32,10 @@ import de.mossgrabers.framework.daw.data.ILayer;
 import de.mossgrabers.framework.daw.data.bank.ILayerBank;
 import de.mossgrabers.framework.daw.data.ISend;
 import de.mossgrabers.framework.daw.data.ISlot;
+import de.mossgrabers.framework.daw.clip.INoteClip;
+import de.mossgrabers.framework.daw.clip.IStepInfo;
+import de.mossgrabers.framework.daw.clip.NotePosition;
+import de.mossgrabers.framework.daw.clip.StepState;
 import de.mossgrabers.framework.daw.data.IScene;
 import de.mossgrabers.framework.daw.data.bank.ISceneBank;
 import de.mossgrabers.framework.daw.data.bank.ISendBank;
@@ -96,6 +100,14 @@ public final class VirtualPush1RuntimeTest
         int noteClipCreateCount;
         int createdSlotIndex = -1;
         boolean createdWithOverdub;
+        boolean noteClipExists;
+        int stepToggleCount;
+        int stepSetCount;
+        int stepClearCount;
+        int stepPageForwardCount;
+        int stepPageBackwardCount;
+        int stepLengthChangeCount;
+        final Map<String, StepState> stepStates = new HashMap<> ();
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
     }
@@ -189,6 +201,8 @@ public final class VirtualPush1RuntimeTest
                                 case "getUserParameterBank" -> parameterBankProxy ();
                                 case "getCursorDevice" -> cursorDevice;
                                 case "getCursorTrack" -> cursorTrackProxy (state);
+                                case "canSelectedTrackHoldNotes" -> state.noteClipExists;
+                                case "getNoteClip" -> noteClipProxy (state);
                                 case "getBrowser" -> browser;
                                 case "createNoteClip" -> {
                                     state.noteClipCreateCount++;
@@ -496,6 +510,26 @@ public final class VirtualPush1RuntimeTest
         state.cursorTrackExists = true;
         state.cursorTrackPlaying = false;
 
+        // A real note clip turns the Sequencer view on. Pad release must
+        // toggle a step, and the page controls must call the clip paging API.
+        state.noteClipExists = true;
+        state.stepToggleCount = 0;
+        state.stepPageForwardCount = 0;
+        state.stepPageBackwardCount = 0;
+        surface.getViewManager ().setActive (Views.SEQUENCER);
+        setup.flush ();
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        require (state.stepToggleCount > 0,
+            "Sequencer pad release must toggle a step in an existing note clip");
+        surface.getViewManager ().get (Views.SEQUENCER).onLeft (ButtonEvent.DOWN);
+        surface.getViewManager ().get (Views.SEQUENCER).onRight (ButtonEvent.DOWN);
+        require (state.stepPageBackwardCount > 0 && state.stepPageForwardCount > 0,
+            "Sequencer left/right navigation must page the note clip");
+        state.noteClipExists = false;
+        surface.getViewManager ().setActive (Views.PLAY);
+        setup.flush ();
+
         // Browser: exercise both filter-column and result selection, the
         // preset selector, preview chord, and browser content-type paging.
         modes.setActive (Modes.BROWSER);
@@ -558,6 +592,79 @@ public final class VirtualPush1RuntimeTest
         System.out.println ("Virtual Push 1 runtime passed: real PushControllerSetup initialized; "
             + "real mode/view/transport commands, Shift chords, pad aftertouch, encoder/touch/ribbon input and LED/LCD feedback passed.");
     }
+
+    private static INoteClip noteClipProxy (final State state)
+    {
+        return (INoteClip) Proxy.newProxyInstance (INoteClip.class.getClassLoader (),
+            new Class<?> [] { INoteClip.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "doesExist": return state.noteClipExists;
+                    case "getNumSteps": return 16;
+                    case "getNumRows": return 128;
+                    case "getCurrentStep": return 0;
+                    case "getEditPage": return 0;
+                    case "getStepLength": return 0.25;
+                    case "getLoopStart": return 0.0;
+                    case "getLoopLength": return 16.0;
+                    case "getStep":
+                        final NotePosition position = (NotePosition) args[0];
+                        return stepInfoProxy (state, position);
+                    case "toggleStep":
+                        final NotePosition toggled = (NotePosition) args[0];
+                        final String toggleKey = stepKey (toggled);
+                        final StepState oldState = state.stepStates.getOrDefault (toggleKey, StepState.OFF);
+                        state.stepStates.put (toggleKey, oldState == StepState.OFF ? StepState.START : StepState.OFF);
+                        state.stepToggleCount++;
+                        MODEL_ACTIONS.add ("noteClip.toggleStep");
+                        return null;
+                    case "setStep":
+                        state.stepSetCount++;
+                        state.stepStates.put (stepKey ((NotePosition) args[0]), StepState.START);
+                        MODEL_ACTIONS.add ("noteClip.setStep");
+                        return null;
+                    case "clearStep":
+                        state.stepClearCount++;
+                        state.stepStates.put (stepKey ((NotePosition) args[0]), StepState.OFF);
+                        MODEL_ACTIONS.add ("noteClip.clearStep");
+                        return null;
+                    case "scrollStepsPageForward":
+                        state.stepPageForwardCount++;
+                        MODEL_ACTIONS.add ("noteClip.scrollStepsPageForward");
+                        return null;
+                    case "scrollStepsPageBackwards":
+                        state.stepPageBackwardCount++;
+                        MODEL_ACTIONS.add ("noteClip.scrollStepsPageBackwards");
+                        return null;
+                    case "setStepLength":
+                        state.stepLengthChangeCount++;
+                        MODEL_ACTIONS.add ("noteClip.setStepLength");
+                        return null;
+                    default:
+                        return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+    }
+
+
+    private static IStepInfo stepInfoProxy (final State state, final NotePosition position)
+    {
+        return (IStepInfo) Proxy.newProxyInstance (IStepInfo.class.getClassLoader (),
+            new Class<?> [] { IStepInfo.class }, (proxy, method, args) -> switch (method.getName ())
+            {
+                case "getState" -> state.stepStates.getOrDefault (stepKey (position), StepState.OFF);
+                case "isMuted", "isRepeatEnabled" -> false;
+                case "getRepeatCount" -> 0;
+                default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+
+    private static String stepKey (final NotePosition position)
+    {
+        return position.getChannel () + ":" + position.getStep () + ":" + position.getNote ();
+    }
+
 
     private static ITrack cursorTrackProxy (final State state)
     {
