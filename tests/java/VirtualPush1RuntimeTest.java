@@ -294,11 +294,11 @@ public final class VirtualPush1RuntimeTest
             });
         final INoteInput noteInput = (INoteInput) Proxy.newProxyInstance (
             INoteInput.class.getClassLoader (), new Class<?> [] { INoteInput.class },
-            (proxy, method, args) -> method.getName ().equals ("getNoteRepeat")
+            (proxy, method, callArgs) -> method.getName ().equals ("getNoteRepeat")
                 ? noteRepeat : defaultValue (method.getReturnType (), method.getGenericReturnType ()));
         final IMidiInput repeatInput = (IMidiInput) Proxy.newProxyInstance (
             IMidiInput.class.getClassLoader (), new Class<?> [] { IMidiInput.class },
-            (proxy, method, args) -> method.getName ().equals ("getDefaultNoteInput")
+            (proxy, method, callArgs) -> method.getName ().equals ("getDefaultNoteInput")
                 ? noteInput : defaultValue (method.getReturnType (), method.getGenericReturnType ()));
         final PushControlSurface repeatSurface = new PushControlSurface (
             host, new PushColorManager (false), surface.getConfiguration (), midi.output (), repeatInput);
