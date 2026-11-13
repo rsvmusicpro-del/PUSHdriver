@@ -1060,6 +1060,20 @@ public final class VirtualPush1RuntimeTest
     }
 
 
+    private static ISlotBank slotBankProxy ()
+    {
+        return (ISlotBank) Proxy.newProxyInstance (ISlotBank.class.getClassLoader (),
+            new Class<?> [] { ISlotBank.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getPageSize"))
+                    return 8;
+                if (method.getName ().equals ("getItem"))
+                    return slotProxy ((int) args[0]);
+                if (method.getName ().equals ("getSelectedItem"))
+                    return Optional.empty ();
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
     private static ISlot slotProxy (final int index)
     {
         return (ISlot) Proxy.newProxyInstance (ISlot.class.getClassLoader (),
@@ -1068,6 +1082,16 @@ public final class VirtualPush1RuntimeTest
                     return index;
                 if (method.getName ().equals ("doesExist"))
                     return true;
+                if (method.getName ().equals ("launch"))
+                {
+                    MODEL_ACTIONS.add ("slot.launch:" + index);
+                    return null;
+                }
+                if (method.getName ().equals ("stop"))
+                {
+                    MODEL_ACTIONS.add ("slot.stop:" + index);
+                    return null;
+                }
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
@@ -1302,9 +1326,22 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getSelectedItem"))
                     return Optional.empty ();
                 if (method.getName ().equals ("getItem"))
+                {
+                    final int sceneIndex = (int) args[0];
                     return Proxy.newProxyInstance (IScene.class.getClassLoader (),
-                        new Class<?> [] { IScene.class },
-                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                        new Class<?> [] { IScene.class }, (p, m, a) -> {
+                            if (m.getName ().equals ("getIndex"))
+                                return sceneIndex;
+                            if (m.getName ().equals ("doesExist"))
+                                return true;
+                            if (m.getName ().equals ("launch"))
+                            {
+                                MODEL_ACTIONS.add ("scene.launch:" + sceneIndex);
+                                return null;
+                            }
+                            return defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                        });
+                }
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
@@ -1348,6 +1385,8 @@ public final class VirtualPush1RuntimeTest
                     return sendBank;
                 if (method.getName ().equals ("getSceneBank"))
                     return sceneBankProxy ();
+                if (method.getName ().equals ("getSlotBank"))
+                    return slotBankProxy ();
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
