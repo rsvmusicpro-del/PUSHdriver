@@ -613,6 +613,8 @@ public final class VirtualPush1RuntimeTest
 
         if (args.length > 0 && "--gui".equals (args[0]))
             VirtualPush1Simulator.show (midi, setup::exit);
+        else if (args.length > 0 && "--gui-smoke".equals (args[0]))
+            VirtualPush1Simulator.smoke (midi, setup::exit);
         else
             setup.exit ();
         if (!state.errors.isEmpty ())
