@@ -262,6 +262,35 @@ replace_once(piano_helper,
     "                else if (row % 2 == 0)",
     "PianoViewHelper root notes follow selected track color")
 
+# Align Push 1 physical selector rows with the LCD option rows in these two menus.
+for mode_name in ("FixedMode", "NoteMode"):
+    mode_path = root / ("src/main/java/de/mossgrabers/controller/ableton/push/mode/" + mode_name + ".java")
+    marker = "    /** {@inheritDoc} */\n    @Override\n    public void onFirstRow (final int index, final ButtonEvent event)"
+    row_dispatch = (
+        "    /** Route physical selectors to the option row directly above them. */\n"
+        "    @Override\n"
+        "    public void onButton (final int row, final int index, final ButtonEvent event)\n"
+        "    {\n"
+        "        super.onButton (1 - row, index, event);\n"
+        "    }\n\n"
+    )
+    replace_once(mode_path, marker, row_dispatch + marker,
+                 mode_name + " physical selector row alignment")
+    if mode_name == "FixedMode":
+        replace_once(mode_path, "this.isButtonRow (0, buttonID)",
+                     "this.isButtonRow (1, buttonID)",
+                     "FixedMode selected-length LED row alignment")
+    else:
+        replace_once(mode_path, "this.isButtonRow (0, buttonID)",
+                     "this.isButtonRow (ROW_SWAP_TEMP, buttonID)",
+                     "NoteMode option LED row alignment")
+        replace_once(mode_path, "this.isButtonRow (1, buttonID)",
+                     "this.isButtonRow (0, buttonID)",
+                     "NoteMode page LED row alignment")
+        replace_once(mode_path, "this.isButtonRow (ROW_SWAP_TEMP, buttonID)",
+                     "this.isButtonRow (1, buttonID)",
+                     "NoteMode option LED row alignment completion")
+
 # Apply the small, reviewed Push 1 protocol override maintained by this project.
 shutil.copytree(root / "overrides/java", root / "src/main/java", dirs_exist_ok=True)
 
