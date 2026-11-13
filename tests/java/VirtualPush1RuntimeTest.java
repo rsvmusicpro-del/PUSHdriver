@@ -99,6 +99,9 @@ public final class VirtualPush1RuntimeTest
     private static int sceneIndex = 4;
     private static int trackIndex = 4;
     private static int parameterPageIndex = 1;
+    private static boolean cursorDeviceExists;
+    private static boolean deviceSlotExists;
+    private static boolean deviceCapabilitiesSupported = true;
 
     private static final class State
     {
@@ -144,7 +147,7 @@ public final class VirtualPush1RuntimeTest
                 {
                     case "createSurfaceFactory": return hardware;
                     case "getName": return "Virtual Bitwig API 17";
-                    case "supports": return Boolean.TRUE;
+                    case "supports": return Boolean.valueOf (deviceCapabilitiesSupported);
                     case "scheduleTask": state.scheduled.add (new ScheduledTask (((Number) callArgs[1]).longValue (), (Runnable) callArgs[0])); return null;
                     case "error":
                         if (state.errors.size () < 30)
@@ -581,6 +584,41 @@ public final class VirtualPush1RuntimeTest
         parameterPageIndex = 3;
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page upper boundary");
         require (parameterPageIndex == 3, "Parameter page moved beyond its last page");
+
+        // DeviceParamsMode must ignore empty device slots and must not call
+        // API methods whose capabilities are unavailable on the host.
+        final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS);
+        cursorDeviceExists = true;
+        deviceSlotExists = false;
+        deviceCapabilitiesSupported = false;
+        deviceParamsMode.setShowDevices (true);
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (1, ButtonEvent.UP);
+        deviceParamsMode.onSecondRow (1, ButtonEvent.DOWN);
+        deviceParamsMode.onSecondRow (3, ButtonEvent.DOWN);
+        deviceParamsMode.onSecondRow (5, ButtonEvent.DOWN);
+        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1));
+        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3));
+        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 5));
+        require (MODEL_ACTIONS.isEmpty (),
+            "DeviceParamsMode acted on an empty device row or an unsupported host capability");
+        require (modes.isActive (Modes.DEVICE_PARAMS),
+            "Unsupported slot-chain capability unexpectedly activated Device Chains");
+
+        deviceCapabilitiesSupported = true;
+        deviceSlotExists = true;
+        deviceIndex = 4;
+        deviceParamsMode.onFirstRow (1, ButtonEvent.UP);
+        requireAction ("device.select", "Selecting an existing device row must select that device");
+        deviceParamsMode.onSecondRow (1, ButtonEvent.DOWN);
+        deviceParamsMode.onSecondRow (5, ButtonEvent.DOWN);
+        requireAction ("cursorDevice.toggleParameterPageSectionVisible",
+            "Supported parameter-page-section capability must remain actionable");
+        requireAction ("cursorDevice.togglePinned",
+            "Supported pinning capability must remain actionable");
+        cursorDeviceExists = false;
+        deviceSlotExists = false;
+        deviceCapabilitiesSupported = true;
 
         // Browser mode is exercised against a stateful API-17 IBrowser model:
         // filter columns, result list, content-type paging and selection state
@@ -1421,7 +1459,12 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getItem"))
                     return Proxy.newProxyInstance (de.mossgrabers.framework.daw.data.IDevice.class.getClassLoader (),
                         new Class<?> [] { de.mossgrabers.framework.daw.data.IDevice.class },
-                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                        (p, m, a) -> switch (m.getName ())
+                        {
+                            case "doesExist" -> Boolean.valueOf (deviceSlotExists);
+                            case "select" -> { MODEL_ACTIONS.add ("device.select"); yield null; }
+                            default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                        });
                 if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("device." + method.getName ());
@@ -1455,13 +1498,34 @@ public final class VirtualPush1RuntimeTest
             });
         return (ICursorDevice) Proxy.newProxyInstance (ICursorDevice.class.getClassLoader (),
             new Class<?> [] { ICursorDevice.class }, (proxy, method, args) -> {
-                if (method.getName ().equals ("getParameterBank"))
-                    return parameters;
-                if (method.getName ().equals ("getDeviceBank"))
-                    return devices;
-                if (method.getName ().equals ("getParameterPageBank"))
-                    return pages;
-                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                switch (method.getName ())
+                {
+                    case "doesExist": return Boolean.valueOf (cursorDeviceExists);
+                    case "getIndex": return Integer.valueOf (deviceIndex);
+                    case "getParameterBank": return parameters;
+                    case "getDeviceBank": return devices;
+                    case "getParameterPageBank": return pages;
+                    case "toggleParameterPageSectionVisible":
+                        if (!deviceCapabilitiesSupported)
+                            throw new AssertionError ("Unsupported parameter-page-section capability was invoked");
+                        MODEL_ACTIONS.add ("cursorDevice.toggleParameterPageSectionVisible");
+                        return null;
+                    case "isParameterPageSectionVisible":
+                        if (!deviceCapabilitiesSupported)
+                            throw new AssertionError ("Unsupported parameter-page-section state was read");
+                        return Boolean.TRUE;
+                    case "togglePinned":
+                        if (!deviceCapabilitiesSupported)
+                            throw new AssertionError ("Unsupported pinning capability was invoked");
+                        MODEL_ACTIONS.add ("cursorDevice.togglePinned");
+                        return null;
+                    case "isPinned":
+                        if (!deviceCapabilitiesSupported)
+                            throw new AssertionError ("Unsupported pinning state was read");
+                        return Boolean.TRUE;
+                    default:
+                        return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
             });
     }
 
