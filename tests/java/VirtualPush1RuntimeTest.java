@@ -504,16 +504,16 @@ public final class VirtualPush1RuntimeTest
         modes.setActive (Modes.SESSION);
         surface.getViewManager ().setActive (Views.SESSION);
         setup.flush ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Session Scene 1");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.SCENE1, "Session Scene 1");
         require (state.sceneSelectedIndex == 0 && state.sceneLaunchCount == 1,
             "Session scene button must select and launch its scene");
         midi.device ().pressButton (VirtualPush1Device.DELETE);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "Delete+Session Scene 2");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.SCENE2, "Delete+Session Scene 2");
         midi.device ().releaseButton (VirtualPush1Device.DELETE);
         require (state.sceneRemoveCount == 1,
             "Delete+Scene must remove the selected scene instead of launching it");
         midi.device ().pressButton (VirtualPush1Device.DUPLICATE);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2, "Duplicate+Session Scene 3");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.SCENE3, "Duplicate+Session Scene 3");
         midi.device ().releaseButton (VirtualPush1Device.DUPLICATE);
         require (state.sceneDuplicateCount == 1,
             "Duplicate+Scene must duplicate the selected scene instead of launching it");
