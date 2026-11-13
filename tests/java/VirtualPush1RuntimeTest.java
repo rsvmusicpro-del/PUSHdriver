@@ -484,7 +484,7 @@ public final class VirtualPush1RuntimeTest
         musicalModel.setCanHoldNotes (true);
         final var viewManager = surface.getViewManager ();
         viewManager.setActive (Views.SEQUENCER);
-        drainScheduled (state, 10);
+        drainScheduled (state, 6);
         final SequencerView sequencerView = (SequencerView) viewManager.get (Views.SEQUENCER);
         midi.device ().pressPad (0, 0, 100);
         midi.device ().releasePad (0, 0);
@@ -503,7 +503,7 @@ public final class VirtualPush1RuntimeTest
             "Sequencer resolution selection did not update the clip step length");
 
         viewManager.setActive (Views.DRUM);
-        drainScheduled (state, 10);
+        drainScheduled (state, 6);
         final DrumView drumView = (DrumView) viewManager.get (Views.DRUM);
         midi.device ().pressPad (0, 0, 96);
         midi.device ().releasePad (0, 0);
@@ -515,7 +515,7 @@ public final class VirtualPush1RuntimeTest
             "Drum view produced an invalid drum note row");
 
         viewManager.setActive (Views.DRUM64);
-        drainScheduled (state, 10);
+        drainScheduled (state, 6);
         final Drum64View drum64View = (Drum64View) viewManager.get (Views.DRUM64);
         midi.device ().pressPad (0, 4, 100);
         midi.device ().releasePad (0, 4);
