@@ -102,6 +102,9 @@ public final class VirtualPush1DisplayLayoutTest
 
         check (Push1DisplayGlyphs.WIDTH == 5 && Push1DisplayGlyphs.HEIGHT == 8,
             "firmware custom glyph pixel dimensions");
+        check (Push1DisplayLayout.GLYPH_PIXEL_WIDTH == Push1DisplayGlyphs.WIDTH
+            && Push1DisplayLayout.GLYPH_PIXEL_HEIGHT == Push1DisplayGlyphs.HEIGHT,
+            "layout and custom glyph pixel dimensions share one contract");
         final int [][] expectedGlyphs = {
             { 0x00, 0x04, 0x0E, 0x15, 0x04, 0x04, 0x00, 0x00 },
             { 0x00, 0x04, 0x04, 0x15, 0x0E, 0x04, 0x00, 0x00 },
