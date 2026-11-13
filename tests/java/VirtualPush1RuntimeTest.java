@@ -461,6 +461,7 @@ public final class VirtualPush1RuntimeTest
                 && newClipModel.isTrackPlaying (),
             "New with no free slot changed playback or created a clip");
 
+        newClipModel.setTrackExists (false);
         modes.setActive (Modes.TRACK);
 
         // DrivenByMoss' own setup test traverses every registered view/mode
@@ -497,6 +498,7 @@ public final class VirtualPush1RuntimeTest
         private final boolean [] available = new boolean [8];
         private final int [] selectedSlot = { 1 };
         private final boolean [] trackPlaying = { true };
+        private final boolean [] trackExists = { false };
         private final boolean [] otherTrackPlaying = { true };
         private final int [] stopCount = { 0 };
         private final int [] createCount = { 0 };
@@ -550,7 +552,7 @@ public final class VirtualPush1RuntimeTest
                 (proxy, method, args) -> {
                     switch (method.getName ())
                     {
-                        case "doesExist": return true;
+                        case "doesExist": return this.trackExists[0];
                         case "getSlotBank": return this.slotBank;
                         case "getColor": return ColorEx.BLUE;
                         case "isPlaying": return this.trackPlaying[0];
@@ -563,6 +565,7 @@ public final class VirtualPush1RuntimeTest
         ICursorTrack cursorTrack () { return this.cursorTrack; }
         void setSlotAvailable (final int index, final boolean value) { this.available[index] = value; }
         void setTrackPlaying (final boolean value) { this.trackPlaying[0] = value; }
+        void setTrackExists (final boolean value) { this.trackExists[0] = value; }
         boolean isTrackPlaying () { return this.trackPlaying[0]; }
         boolean isOtherTrackPlaying () { return this.otherTrackPlaying[0]; }
         int stopCount () { return this.stopCount[0]; }
@@ -583,6 +586,7 @@ public final class VirtualPush1RuntimeTest
         {
             Arrays.fill (this.available, true);
             this.selectedSlot[0] = 1;
+            this.trackExists[0] = true;
             this.trackPlaying[0] = false;
             this.otherTrackPlaying[0] = true;
             this.stopCount[0] = 0;
