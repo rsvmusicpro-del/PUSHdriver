@@ -212,6 +212,11 @@ public final class VirtualPush1RuntimeTest
         setup.startup ();
 
         final PushControlSurface surface = setup.getSurface ();
+        midi.setNoteEventConsumer ((note, velocity) -> {
+            final var activeView = surface.getViewManager ().getActive ();
+            if (activeView != null)
+                activeView.onGridNote (note.intValue (), velocity.intValue ());
+        });
         final var modes = surface.getModeManager ();
         require (modes.get (Modes.TRACK) != null, "Track mode was not registered");
         require (modes.get (Modes.DEVICE_PARAMS) != null, "Device parameter mode was not registered");
