@@ -1118,7 +1118,7 @@ public final class VirtualPush1RuntimeTest
 
     private static IBrowserColumnItem [] browserItems ()
     {
-        final IBrowserColumnItem [] items = new IBrowserColumnItem [16];
+        final IBrowserColumnItem [] items = new IBrowserColumnItem [48];
         for (int i = 0; i < items.length; i++)
         {
             final int index = i;
