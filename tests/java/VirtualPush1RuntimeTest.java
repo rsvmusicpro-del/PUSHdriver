@@ -1326,26 +1326,134 @@ public final class VirtualPush1RuntimeTest
             });
     }
 
-    private static ITrack trackProxy ()
+    /** Stateful track/channel/parameter bank used by real Push mixer modes. */
+    private static final class MixerModel
     {
-        final ISendBank sendBank = (ISendBank) Proxy.newProxyInstance (ISendBank.class.getClassLoader (),
-            new Class<?> [] { ISendBank.class }, (proxy, method, args) -> {
-                if (method.getName ().equals ("getPageSize"))
-                    return 8;
-                if (method.getName ().equals ("getItem"))
-                    return Proxy.newProxyInstance (ISend.class.getClassLoader (),
-                        new Class<?> [] { ISend.class },
-                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
-                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
-            });
-        return (ITrack) Proxy.newProxyInstance (ITrack.class.getClassLoader (),
-            new Class<?> [] { ITrack.class }, (proxy, method, args) -> {
-                if (method.getName ().equals ("getSendBank"))
-                    return sendBank;
-                if (method.getName ().equals ("getSceneBank"))
-                    return sceneBankProxy ();
-                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
-            });
+        private static final class ParameterState
+        {
+            int value = 64;
+            int changes;
+            int lastControl = -1;
+            boolean touched;
+            final IParameter parameter;
+
+            ParameterState (final String name)
+            {
+                this.parameter = (IParameter) Proxy.newProxyInstance (
+                    IParameter.class.getClassLoader (), new Class<?> [] { IParameter.class },
+                    (proxy, method, args) -> this.invoke (name, method.getName (), args,
+                        method.getReturnType (), method.getGenericReturnType ()));
+            }
+
+            Object invoke (final String name, final String method, final Object [] args,
+                final Class<?> returnType, final Type genericType)
+            {
+                switch (method)
+                {
+                    case "doesExist": return true;
+                    case "getName": return args != null && args.length > 0
+                        ? name.substring (0, Math.min (name.length (), (int) args[0])) : name;
+                    case "getValue": case "getModulatedValue": return this.value;
+                    case "getDisplayedValue": return Integer.toString (this.value);
+                    case "getIndex": case "getPosition": return 0;
+                    case "getColor": return ColorEx.BLUE;
+                    case "touchValue": this.touched = (boolean) args[0]; return null;
+                    case "changeValue":
+                    {
+                        final int encoded = ((Number) args[args.length - 1]).intValue ();
+                        final int delta = encoded > 64 ? encoded - 128 : encoded;
+                        this.lastControl = encoded;
+                        this.changes++;
+                        this.value = Math.max (0, Math.min (127, this.value + delta));
+                        return null;
+                    }
+                    case "setValue": case "setValueImmediatly":
+                        this.value = Math.max (0, Math.min (127, ((Number) args[args.length - 1]).intValue ())); return null;
+                    case "setNormalizedValue":
+                        this.value = Math.max (0, Math.min (127, (int) Math.round (((Number) args[0]).doubleValue () * 127))); return null;
+                    case "inc":
+                        this.value = Math.max (0, Math.min (127, this.value + (int) Math.round (((Number) args[0]).doubleValue () * 127))); return null;
+                    case "resetValue": this.value = 64; return null;
+                    case "isSelected": return false;
+                    default: return defaultValue (returnType, genericType);
+                }
+            }
+        }
+
+        private final ParameterState [] volumes = new ParameterState [8];
+        private final ParameterState [] pans = new ParameterState [8];
+        private final ParameterState [][] sends = new ParameterState [8][4];
+        private final boolean [] muted = new boolean [8];
+        private final boolean [] solo = new boolean [8];
+        private final ITrack [] tracks = new ITrack [8];
+        private int selectedTrack;
+
+        MixerModel ()
+        {
+            for (int i = 0; i < this.tracks.length; i++)
+            {
+                final int index = i;
+                this.volumes[i] = new ParameterState ("Track " + (i + 1) + " Volume");
+                this.pans[i] = new ParameterState ("Track " + (i + 1) + " Pan");
+                for (int send = 0; send < 4; send++)
+                    this.sends[i][send] = new ParameterState ("Send " + (send + 1));
+                final ISend [] sendItems = new ISend [4];
+                for (int send = 0; send < sendItems.length; send++)
+                {
+                    final int sendIndex = send;
+                    sendItems[send] = (ISend) Proxy.newProxyInstance (ISend.class.getClassLoader (),
+                        new Class<?> [] { ISend.class }, (p, m, a) -> {
+                            if (m.getName ().equals ("getColor")) return ColorEx.BLUE;
+                            return this.sends[index][sendIndex].invoke ("Send " + (sendIndex + 1),
+                                m.getName (), a, m.getReturnType (), m.getGenericReturnType ());
+                        });
+                }
+                final ISendBank sendBank = (ISendBank) Proxy.newProxyInstance (
+                    ISendBank.class.getClassLoader (), new Class<?> [] { ISendBank.class },
+                    (p, m, a) -> switch (m.getName ())
+                    {
+                        case "getPageSize", "getItemCount", "size" -> 4;
+                        case "getItem" -> sendItems[Math.max (0, Math.min (3, (int) a[0]))];
+                        case "getSelectedItem" -> Optional.of (sendItems[0]);
+                        default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                    });
+                this.tracks[i] = (ITrack) Proxy.newProxyInstance (
+                    ITrack.class.getClassLoader (), new Class<?> [] { ITrack.class },
+                    (p, m, a) -> switch (m.getName ())
+                    {
+                        case "doesExist", "isActivated", "canHoldNotes", "canHoldAudioData" -> true;
+                        case "getIndex", "getPosition" -> index;
+                        case "getName" -> a == null || a.length == 0 ? "Virtual Track " + (index + 1)
+                            : ("Virtual Track " + (index + 1)).substring (0, Math.min ("Virtual Track " + (index + 1).length (), (int) a[0]));
+                        case "isSelected" -> this.selectedTrack == index;
+                        case "select" -> { this.selectedTrack = index; yield null; }
+                        case "getVolumeParameter" -> this.volumes[index].parameter;
+                        case "getPanParameter" -> this.pans[index].parameter;
+                        case "getVolume", "getModulatedVolume" -> this.volumes[index].value;
+                        case "getPan", "getModulatedPan" -> this.pans[index].value;
+                        case "getVolumeStr" -> Integer.toString (this.volumes[index].value);
+                        case "getPanStr" -> Integer.toString (this.pans[index].value);
+                        case "getSendBank" -> sendBank;
+                        case "getColor" -> ColorEx.BLUE;
+                        case "isMute" -> this.muted[index];
+                        case "setMute" -> { this.muted[index] = (boolean) a[0]; yield null; }
+                        case "toggleMute" -> { this.muted[index] = !this.muted[index]; yield null; }
+                        case "isSolo" -> this.solo[index];
+                        case "setSolo" -> { this.solo[index] = (boolean) a[0]; yield null; }
+                        case "toggleSolo" -> { this.solo[index] = !this.solo[index]; yield null; }
+                        case "isGroup", "isGroupExpanded", "hasParent", "isRecArm", "isMonitor", "isAutoMonitor", "isPlaying", "hasDrumDevice" -> false;
+                        case "getSceneBank" -> sceneBankProxy ();
+                        case "getSlotBank" -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                        case "getVu", "getVuLeft", "getVuRight", "getVuPeakLeft", "getVuPeakRight" -> 0;
+                        default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                    });
+            }
+        }
+
+        ITrack track (final int index) { return this.tracks[index]; }
+        ParameterState volume (final int index) { return this.volumes[index]; }
+        ParameterState pan (final int index) { return this.pans[index]; }
+        boolean isMuted (final int index) { return this.muted[index]; }
     }
 
     private static IDeviceMetadata deviceMetadata (final String name)
