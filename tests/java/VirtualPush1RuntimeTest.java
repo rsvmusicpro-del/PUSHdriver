@@ -556,6 +556,190 @@ public final class VirtualPush1RuntimeTest
      * tests. Slot search wraps within the visible page, and track playback is
      * deliberately independent from the selected slot's playback state.
      */
+
+    /**
+     * Stateful API-17 musical host model for the production Sequencer, Drum
+     * and Drum64 views. Notes, step length, clip paging and drum-pad selection
+     * are retained across real Push 1 MIDI events.
+     */
+    private static final class MusicalModel
+    {
+        private final Map<String, StepState> steps = new java.util.HashMap<> ();
+        private final Map<String, Boolean> muted = new java.util.HashMap<> ();
+        private final Map<String, Double> durations = new java.util.HashMap<> ();
+        private final boolean [] canHold = { false };
+        private final int [] currentStep = { 5 };
+        private final int [] editPage = { 0 };
+        private final int [] pageBack = { 0 };
+        private final int [] pageForward = { 0 };
+        private final int [] selectedPad = { 0 };
+        private final int [] scrollPosition = { 0 };
+        private final boolean [] indication = { false };
+        private final double [] stepLength = { 0.25 };
+        private final double [] loopStart = { 0.0 };
+        private final double [] loopLength = { 16.0 };
+        private final int [] toggleCount = { 0 };
+        private final int [] transpose = { 0 };
+        private NotePosition lastToggle;
+        private final INoteClip noteClip;
+        private final IDrumPad [] drumPads = new IDrumPad [64];
+        private final IDrumPadBank drumPadBank;
+        private final IDrumDevice drumDevice;
+
+        MusicalModel ()
+        {
+            this.noteClip = (INoteClip) Proxy.newProxyInstance (
+                INoteClip.class.getClassLoader (), new Class<?> [] { INoteClip.class },
+                (proxy, method, args) -> {
+                    switch (method.getName ())
+                    {
+                        case "doesExist": return true;
+                        case "getName": return "Virtual Push note clip";
+                        case "getNumRows", "getNumSteps": return 128;
+                        case "getCurrentStep": return this.currentStep[0];
+                        case "getStepLength": return this.stepLength[0];
+                        case "setStepLength": this.stepLength[0] = ((Number) args[0]).doubleValue (); return null;
+                        case "getLoopStart": return this.loopStart[0];
+                        case "setLoopStart": this.loopStart[0] = ((Number) args[0]).doubleValue (); return null;
+                        case "getLoopLength": return this.loopLength[0];
+                        case "setLoopLength": this.loopLength[0] = ((Number) args[0]).doubleValue (); return null;
+                        case "getEditPage": return this.editPage[0];
+                        case "scrollToPage": this.editPage[0] = (int) args[0]; return null;
+                        case "scrollStepsPageBackwards": this.pageBack[0]++; return null;
+                        case "scrollStepsPageForward": this.pageForward[0]++; return null;
+                        case "getStep": return this.stepInfo ((NotePosition) args[0]);
+                        case "toggleStep":
+                        {
+                            final NotePosition position = (NotePosition) args[0];
+                            final String key = this.key (position);
+                            final StepState previous = this.steps.getOrDefault (key, StepState.OFF);
+                            this.steps.put (key, previous == StepState.OFF ? StepState.START : StepState.OFF);
+                            this.lastToggle = new NotePosition (position);
+                            this.toggleCount[0]++;
+                            return null;
+                        }
+                        case "setStep":
+                        {
+                            final NotePosition position = (NotePosition) args[0];
+                            this.steps.put (this.key (position), StepState.START);
+                            this.lastToggle = new NotePosition (position);
+                            return null;
+                        }
+                        case "clearStep":
+                            this.steps.remove (this.key ((NotePosition) args[0]));
+                            return null;
+                        case "updateStepMuteState":
+                            this.muted.put (this.key ((NotePosition) args[0]), (boolean) args[1]);
+                            return null;
+                        case "updateStepDuration":
+                            this.durations.put (this.key ((NotePosition) args[0]), ((Number) args[1]).doubleValue ());
+                            return null;
+                        case "clearRow":
+                        {
+                            final int note = (int) args[1];
+                            this.steps.keySet ().removeIf (key -> key.endsWith (":" + note));
+                            return null;
+                        }
+                        case "transpose": this.transpose[0] += (int) args[0]; return null;
+                        case "setPlayRange": return null;
+                        case "getLoopEnd": return this.loopStart[0] + this.loopLength[0];
+                        case "getLength": return 32.0;
+                        case "getStart": return 0.0;
+                        default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                    }
+                });
+
+            for (int i = 0; i < this.drumPads.length; i++)
+            {
+                final int index = i;
+                this.drumPads[i] = (IDrumPad) Proxy.newProxyInstance (
+                    IDrumPad.class.getClassLoader (), new Class<?> [] { IDrumPad.class },
+                    (proxy, method, args) -> {
+                        switch (method.getName ())
+                        {
+                            case "doesExist", "isActivated": return true;
+                            case "isMute", "isSolo", "isPlaying": return false;
+                            case "isSelected": return this.selectedPad[0] == index;
+                            case "getColor": return ColorEx.BLUE;
+                            case "getIndex", "getPosition": return index;
+                            case "getName": return "Drum pad " + index;
+                            case "getVolume": return 1.0;
+                            case "select": this.selectedPad[0] = index; return null;
+                            default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                        }
+                    });
+            }
+
+            this.drumPadBank = (IDrumPadBank) Proxy.newProxyInstance (
+                IDrumPadBank.class.getClassLoader (), new Class<?> [] { IDrumPadBank.class },
+                (proxy, method, args) -> {
+                    switch (method.getName ())
+                    {
+                        case "getItem": return this.drumPads[Math.max (0, Math.min (63, (int) args[0]))];
+                        case "getPageSize": return 16;
+                        case "getItemCount", "size": return this.drumPads.length;
+                        case "getScrollPosition": return this.scrollPosition[0];
+                        case "scrollTo": this.scrollPosition[0] = (int) args[0]; return null;
+                        case "scrollForwards": this.scrollPosition[0]++; return null;
+                        case "scrollBackwards": this.scrollPosition[0] = Math.max (0, this.scrollPosition[0] - 1); return null;
+                        case "getSelectedItem": return Optional.of (this.drumPads[this.selectedPad[0]]);
+                        case "hasSoloedPads", "hasMutedPads": return false;
+                        case "setIndication": this.indication[0] = (boolean) args[0]; return null;
+                        case "clearMute", "clearSolo": return null;
+                        default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                    }
+                });
+            this.drumDevice = (IDrumDevice) Proxy.newProxyInstance (
+                IDrumDevice.class.getClassLoader (), new Class<?> [] { IDrumDevice.class },
+                (proxy, method, args) -> switch (method.getName ())
+                {
+                    case "doesExist", "hasDrumPads": yield true;
+                    case "getDrumPadBank": yield this.drumPadBank;
+                    case "getPosition": yield 0;
+                    case "getName": yield "Virtual Drum Machine";
+                    default: yield defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                });
+        }
+
+        private IStepInfo stepInfo (final NotePosition position)
+        {
+            final String key = this.key (position);
+            return (IStepInfo) Proxy.newProxyInstance (
+                IStepInfo.class.getClassLoader (), new Class<?> [] { IStepInfo.class },
+                (proxy, method, args) -> switch (method.getName ())
+                {
+                    case "getState" -> this.steps.getOrDefault (key, StepState.OFF);
+                    case "isMuted" -> this.muted.getOrDefault (key, false);
+                    case "getDuration" -> this.durations.getOrDefault (key, 0.25);
+                    case "getVelocity" -> 100.0;
+                    case "getVelocitySpread", "getReleaseVelocity", "getPressure", "getTimbre", "getPan",
+                         "getTranspose", "getGain", "getChance", "getRepeatCurve", "getRepeatVelocityCurve",
+                         "getRepeatVelocityEnd" -> 0.0;
+                    case "isChanceEnabled", "isOccurrenceEnabled", "isRecurrenceEnabled", "isRepeatEnabled" -> false;
+                    case "getRecurrenceLength" -> 1;
+                    case "getRecurrenceMask", "getRepeatCount" -> 0;
+                    case "getFormattedRepeatCount" -> "0";
+                    case "createCopy" -> this.stepInfo (position);
+                    default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                });
+        }
+
+        private String key (final NotePosition position)
+        {
+            return position.getChannel () + ":" + position.getStep () + ":" + position.getNote ();
+        }
+
+        INoteClip noteClip () { return this.noteClip; }
+        IDrumDevice drumDevice () { return this.drumDevice; }
+        void setCanHoldNotes (final boolean value) { this.canHold[0] = value; }
+        boolean canHoldNotes () { return this.canHold[0]; }
+        int toggleCount () { return this.toggleCount[0]; }
+        NotePosition lastToggle () { return this.lastToggle == null ? new NotePosition () : new NotePosition (this.lastToggle); }
+        int pageBackCount () { return this.pageBack[0]; }
+        int pageForwardCount () { return this.pageForward[0]; }
+        double stepLength () { return this.stepLength[0]; }
+    }
+
     private static final class NewClipModel
     {
         private final boolean [] available = new boolean [8];
