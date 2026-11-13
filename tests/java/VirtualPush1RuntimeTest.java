@@ -414,8 +414,10 @@ public final class VirtualPush1RuntimeTest
         require (mixerModel.sceneLaunchCount (0) == 1 && mixerModel.selectedScene () == 0,
             "Scene Play pad did not launch and select the corresponding scene");
         surface.getViewManager ().setActive (Views.SESSION);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.STOP, "Stop all Session clips");
-        require (!sessionSlot.playing, "Stop button did not stop the playing Session clip");
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.STOP, "Shift+Stop all Session clips");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        require (!sessionSlot.playing, "Shift+Stop did not stop the playing Session clip");
         surface.getViewManager ().setActive (Views.PLAY);
 
         // Exercise arrows end-to-end in Device mode, where horizontal
