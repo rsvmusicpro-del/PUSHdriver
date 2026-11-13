@@ -39,12 +39,30 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-display-test-") as output:
         cwd=root, check=True,
     )
 
+    layout = root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java"
+    virtual_device = root / "tests/java/VirtualPush1Device.java"
+    layout_test = root / "tests/java/VirtualPush1DisplayLayoutTest.java"
+    subprocess.run(
+        ["javac", "-cp", output, "-d", output, str(layout), str(virtual_device), str(layout_test)],
+        cwd=root, check=True,
+    )
+    subprocess.run(
+        ["java", "-cp", output, "VirtualPush1DisplayLayoutTest"],
+        cwd=root, check=True,
+    )
+
 assembled_display = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push1Display.java"
 display_source = assembled_display.read_text()
 if "Push1DisplayText.fitBlock (value)" not in display_source or "Push1DisplayText.fit (value, 8)" not in display_source:
     raise SystemExit("Push 1 LCD cells are not routed through the bounded text-fitting engine")
 if "Push1DisplayText.fit (text, 68)" not in display_source:
     raise SystemExit("Push 1 LCD rows must be bounded to 68 cells before SysEx encoding")
+if "Push1DisplayLayout.ROWS" not in display_source or "Push1DisplayLayout.COLUMNS" not in display_source:
+    raise SystemExit("Push1Display must use the shared physical four-module LCD geometry")
+if "Push1DisplayLayout.firstCellForBlock" not in display_source or "Push1DisplayLayout.fitCell" not in display_source:
+    raise SystemExit("Push1Display logical blocks/cells are not routed through the shared geometry")
+if "Push1DisplayLayout.MODULE_COUNT" not in display_source or "Push1DisplayLayout.MODULE_COLUMNS" not in display_source:
+    raise SystemExit("Push1Display simulator view is not segmented into four 17-character modules")
 if "Push1DisplayValueFormatter.formatValue" not in display_source or "Push1DisplayValueFormatter.formatModulatedValue" not in display_source:
     raise SystemExit("Push 1 LCD value bars are not routed through the bounded value formatter")
 if "Push1DisplayValueFormatter.formatPan" not in display_source:
