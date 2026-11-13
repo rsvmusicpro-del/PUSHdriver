@@ -112,6 +112,7 @@ public final class VirtualPush1RuntimeTest
         int clipCurrentStepQueries;
         int transportPlayingQueries;
         int lastClipPage = -1;
+        int featureMatrixPairs;
         boolean canHoldNotes;
         int drumScrollPosition;
         int drumScrollCount;
@@ -153,7 +154,11 @@ public final class VirtualPush1RuntimeTest
                             state.errors.add (String.valueOf (callArgs[0])
                                 + (callArgs.length > 1 && callArgs[1] instanceof Throwable error ? ": " + error : ""));
                         return null;
-                    case "println": case "showNotification": case "releaseUsbDevices": return null;
+                    case "println":
+                        if (callArgs.length > 0 && String.valueOf (callArgs[0]).startsWith ("- View "))
+                            state.featureMatrixPairs++;
+                        return null;
+                    case "showNotification": case "releaseUsbDevices": return null;
                     case "getInstrumentMetadata": return List.of (deviceMetadata ("Virtual Instrument"));
                     case "getAudioEffectMetadata": return List.of (deviceMetadata ("Virtual Effect"));
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -555,6 +560,9 @@ public final class VirtualPush1RuntimeTest
         });
         drainScheduled (state, 100);
         require (matrixComplete[0], "Production view/mode command matrix did not finish");
+        require (state.featureMatrixPairs == 700,
+            "Expected the complete 50-mode × 14-view command matrix (700 pairs), got "
+                + state.featureMatrixPairs);
         require (state.errors.isEmpty (), "Production mode matrix reported runtime errors: " + state.errors);
 
         if (args.length > 0 && "--gui".equals (args[0]))
