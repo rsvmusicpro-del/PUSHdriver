@@ -497,8 +497,6 @@ public final class VirtualPush1RuntimeTest
                     return args != null && args.length > 0 && args[0] instanceof Integer index ? index : 0;
                 if (method.getName ().equals ("hasDevices"))
                     return false;
-                if (method.getName ().equals ("getSendBank"))
-                    return sendBankProxy ();
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
