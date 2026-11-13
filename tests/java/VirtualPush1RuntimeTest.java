@@ -306,7 +306,7 @@ public final class VirtualPush1RuntimeTest
         midi.device ().turnEncoderBy (0, 1);
         require (MODEL_ACTIONS.contains ("track.pan.setValue"),
             "Pan encoder must write the selected track's pan parameter");
-        modes.setActive (Modes.CROSSFADE);
+        modes.setActive (Modes.CROSSFADER);
         setup.flush ();
         MODEL_ACTIONS.clear ();
         midi.device ().turnEncoderBy (0, 1);
