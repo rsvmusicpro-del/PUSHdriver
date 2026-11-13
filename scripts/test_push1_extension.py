@@ -44,4 +44,6 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
     command = ["java", "-cp", runtime_classpath, "VirtualPush1RuntimeTest"]
     if "--gui" in sys.argv:
         command.append("--gui")
+    elif "--gui-smoke" in sys.argv:
+        command.append("--gui-smoke")
     subprocess.run(command, cwd=root, check=True)
