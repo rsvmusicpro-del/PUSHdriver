@@ -31,7 +31,9 @@ import de.mossgrabers.framework.daw.data.IMasterTrack;
 import de.mossgrabers.framework.daw.data.ICursorTrack;
 import de.mossgrabers.framework.daw.data.IDrumDevice;
 import de.mossgrabers.framework.daw.data.IDrumPad;
+import de.mossgrabers.framework.daw.data.ILayer;
 import de.mossgrabers.framework.daw.data.bank.IDrumPadBank;
+import de.mossgrabers.framework.daw.data.bank.ILayerBank;
 import de.mossgrabers.framework.daw.clip.INoteClip;
 import de.mossgrabers.framework.daw.data.ISlot;
 import de.mossgrabers.framework.daw.data.bank.ISlotBank;
@@ -119,6 +121,7 @@ public final class VirtualPush1RuntimeTest
         int drumScrollPosition;
         int drumScrollCount;
         int drumSelectedPad = -1;
+        int lastLayerPage = -1;
         int sceneLaunchCount;
         int sceneRemoveCount;
         int sceneDuplicateCount;
@@ -216,7 +219,8 @@ public final class VirtualPush1RuntimeTest
                         final IParameterBank parameterBank = parameterBankProxy ();
                         final IDrumPadBank primaryDrumBank = drumPadBankProxy (state);
                         final IDrumPadBank cursorDrumBank = drumPadBankProxy (state);
-                        final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank, state, cursorDrumBank);
+                        final ILayerBank layerBank = layerBankProxy (state);
+                        final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank, state, cursorDrumBank, layerBank);
                         final IDrumDevice drumDevice = drumDeviceProxy (primaryDrumBank);
                         final IMasterTrack masterTrack = masterTrackProxy ();
                         final IProject project = projectProxy ();
@@ -342,6 +346,39 @@ public final class VirtualPush1RuntimeTest
                 && List.of ("inc", "changeValue", "setValue", "setNormalizedValue", "setValueImmediatly")
                     .stream ().anyMatch (action::endsWith)),
             "Master encoder must write the master volume parameter");
+        modes.setActive (Modes.DEVICE_LAYER_VOLUME);
+        setup.flush ();
+        MODEL_ACTIONS.clear ();
+        midi.device ().turnEncoderBy (0, 1);
+        require (MODEL_ACTIONS.stream ().anyMatch (action -> action.startsWith ("layer.volume.0.")
+                && List.of ("inc", "changeValue", "setValue", "setNormalizedValue", "setValueImmediatly")
+                    .stream ().anyMatch (action::endsWith)),
+            "Device Layer Volume encoder must write the selected layer volume parameter");
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().touchEncoder (0, true);
+        midi.device ().touchEncoder (0, false);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        require (MODEL_ACTIONS.contains ("layer.0.resetVolume") && MODEL_ACTIONS.contains ("layer.0.touchVolume"),
+            "Delete+Layer Volume touch must reset the layer and report automation touch");
+        modes.setActive (Modes.DEVICE_LAYER_PAN);
+        setup.flush ();
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().touchEncoder (0, true);
+        midi.device ().touchEncoder (0, false);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        require (MODEL_ACTIONS.contains ("layer.0.resetPan") && MODEL_ACTIONS.contains ("layer.0.touchPan"),
+            "Delete+Layer Pan touch must reset the layer and report automation touch");
+        modes.setActive (Modes.get (Modes.DEVICE_LAYER_SEND1, 0));
+        setup.flush ();
+        MODEL_ACTIONS.clear ();
+        midi.device ().pressButton (VirtualPush1Device.DELETE);
+        midi.device ().touchEncoder (0, true);
+        midi.device ().touchEncoder (0, false);
+        midi.device ().releaseButton (VirtualPush1Device.DELETE);
+        require (MODEL_ACTIONS.contains ("layer.0.send.0.resetValue")
+                && MODEL_ACTIONS.contains ("layer.0.send.0.touchValue"),
+            "Delete+Layer Send touch must reset the send and report automation touch");
         modes.setActive (Modes.DEVICE_PARAMS);
         setup.flush ();
         MODEL_ACTIONS.clear ();
@@ -843,6 +880,54 @@ public final class VirtualPush1RuntimeTest
             });
     }
 
+    private static ILayer layerProxy (final int index)
+    {
+        final ISendBank sendBank = (ISendBank) Proxy.newProxyInstance (ISendBank.class.getClassLoader (),
+            new Class<?> [] { ISendBank.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getPageSize"))
+                    return 8;
+                if (method.getName ().equals ("getItem"))
+                    return sendProxy ("layer." + index + ".send." + args[0]);
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+        return (ILayer) Proxy.newProxyInstance (ILayer.class.getClassLoader (),
+            new Class<?> [] { ILayer.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "doesExist": return true;
+                    case "getVolumeParameter": return parameterProxy ("layer.volume." + index);
+                    case "getPanParameter": return parameterProxy ("layer.pan." + index);
+                    case "getSendBank": return sendBank;
+                    case "getVolume": case "getPan": return 64;
+                    case "getVolumeStr": case "getPanStr": return "64";
+                    case "getName": return "Layer " + index;
+                    case "setVolume": case "changeVolume": case "resetVolume": case "touchVolume":
+                    case "setPan": case "changePan": case "resetPan": case "touchPan":
+                        MODEL_ACTIONS.add ("layer." + index + "." + method.getName ());
+                        return null;
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+    }
+
+    private static ILayerBank layerBankProxy (final State state)
+    {
+        return (ILayerBank) Proxy.newProxyInstance (ILayerBank.class.getClassLoader (),
+            new Class<?> [] { ILayerBank.class }, (proxy, method, args) -> {
+                switch (method.getName ())
+                {
+                    case "getPageSize": return 8;
+                    case "hasExistingItems": return true;
+                    case "getItem": return layerProxy ((int) args[0]);
+                    case "getSelectedItem": return Optional.of (layerProxy (0));
+                    case "scrollTo":
+                        state.lastLayerPage = (int) args[0];
+                        return null;
+                    default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+                }
+            });
+    }
+
     private static IDrumDevice drumDeviceProxy (final IDrumPadBank drumPadBank)
     {
         return (IDrumDevice) Proxy.newProxyInstance (IDrumDevice.class.getClassLoader (),
@@ -856,7 +941,7 @@ public final class VirtualPush1RuntimeTest
     }
 
     private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters,
-        final State state, final IDrumPadBank drumPadBank)
+        final State state, final IDrumPadBank drumPadBank, final ILayerBank layerBank)
     {
         final IDeviceBank devices = (IDeviceBank) Proxy.newProxyInstance (
             IDeviceBank.class.getClassLoader (), new Class<?> [] { IDeviceBank.class },
@@ -892,6 +977,12 @@ public final class VirtualPush1RuntimeTest
             new Class<?> [] { ICursorDevice.class }, (proxy, method, args) -> {
                 if (method.getName ().equals ("getDrumPadBank"))
                     return drumPadBank;
+                if (method.getName ().equals ("getLayerBank"))
+                    return layerBank;
+                if (method.getName ().equals ("hasLayers"))
+                    return true;
+                if (method.getName ().equals ("hasDrumPads"))
+                    return false;
                 if (method.getName ().equals ("isNested"))
                     return false;
                 if (method.getName ().equals ("getPosition"))
