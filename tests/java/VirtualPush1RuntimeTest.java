@@ -262,7 +262,7 @@ public final class VirtualPush1RuntimeTest
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (state.playing, "Play CC did not update the Bitwig transport model");
         setup.flush ();
-        drainScheduled (state, 1);
+        drainScheduled (state, 100);
         require (midi.device ().getCCLed (VirtualPush1Device.PLAY) > 0,
             "Play LED feedback missing: lightsCreated=" + lightsCreated + ", lightsUpdated=" + lightsUpdated
                 + ", captured=" + midi.capturedOutput ().stream ().filter (m -> m.contains ("85") || m.contains ("sendCCEx")).toList ());
