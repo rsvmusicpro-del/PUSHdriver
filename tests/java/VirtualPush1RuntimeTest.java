@@ -912,6 +912,7 @@ public final class VirtualPush1RuntimeTest
                 switch (method.getName ())
                 {
                     case "doesExist": return state.cursorTrackExists;
+                    case "canHoldNotes": return state.selectedTrackCanHoldNotes;
                     case "getSlotBank": return slots;
                     case "isPlaying": return state.cursorTrackPlaying;
                     case "stop":
