@@ -23,6 +23,8 @@ import de.mossgrabers.framework.daw.data.bank.IParameterPageBank;
 import de.mossgrabers.framework.daw.data.IDeviceMetadata;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.daw.data.ITrack;
+import de.mossgrabers.framework.daw.data.ILayer;
+import de.mossgrabers.framework.daw.data.bank.ILayerBank;
 import de.mossgrabers.framework.daw.data.ISend;
 import de.mossgrabers.framework.daw.data.IScene;
 import de.mossgrabers.framework.daw.data.bank.ISceneBank;
@@ -446,6 +448,7 @@ public final class VirtualPush1RuntimeTest
                 }
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
+        final ILayerBank layers = layerBankProxy ();
         return (ICursorDevice) Proxy.newProxyInstance (ICursorDevice.class.getClassLoader (),
             new Class<?> [] { ICursorDevice.class }, (proxy, method, args) -> {
                 if (method.getName ().equals ("getParameterBank"))
@@ -454,6 +457,48 @@ public final class VirtualPush1RuntimeTest
                     return devices;
                 if (method.getName ().equals ("getParameterPageBank"))
                     return pages;
+                if (method.getName ().equals ("getLayerBank"))
+                    return layers;
+                if (method.getName ().equals ("hasLayers"))
+                    return true;
+                if (method.getName ().equals ("doesExist"))
+                    return true;
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+
+    private static ILayerBank layerBankProxy ()
+    {
+        return (ILayerBank) Proxy.newProxyInstance (ILayerBank.class.getClassLoader (),
+            new Class<?> [] { ILayerBank.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("getPageSize"))
+                    return 8;
+                if (method.getName ().equals ("hasExistingItems"))
+                    return true;
+                if (method.getName ().equals ("getSelectedItem"))
+                    return Optional.of (layerProxy ());
+                if (method.getName ().equals ("getSelectedItemIndex"))
+                    return 0;
+                if (method.getName ().equals ("getItem"))
+                    return layerProxy ();
+                return defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+    }
+
+
+    private static ILayer layerProxy ()
+    {
+        return (ILayer) Proxy.newProxyInstance (ILayer.class.getClassLoader (),
+            new Class<?> [] { ILayer.class }, (proxy, method, args) -> {
+                if (method.getName ().equals ("doesExist") || method.getName ().equals ("isSelected"))
+                    return true;
+                if (method.getName ().equals ("getIndex"))
+                    return args != null && args.length > 0 && args[0] instanceof Integer index ? index : 0;
+                if (method.getName ().equals ("hasDevices"))
+                    return false;
+                if (method.getName ().equals ("getSendBank"))
+                    return sendBankProxy ();
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
