@@ -4,6 +4,8 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
@@ -71,6 +73,42 @@ public final class VirtualPush1Simulator
         this.bench = bench;
         this.device = bench.device ();
         this.onClose = onClose;
+    }
+
+    /**
+     * Headless smoke test for the complete Swing component tree. It constructs,
+     * lays out, refreshes and paints the simulator without opening a window.
+     */
+    public static void smoke (final VirtualPush1MidiBench bench)
+    {
+        try
+        {
+            SwingUtilities.invokeAndWait (() -> {
+                final VirtualPush1Simulator simulator = new VirtualPush1Simulator (bench, null);
+                final JPanel root = new JPanel (new BorderLayout (8, 8));
+                root.add (simulator.createDisplay (), BorderLayout.NORTH);
+                root.add (simulator.createPads (), BorderLayout.CENTER);
+                root.add (simulator.createMonitor (), BorderLayout.SOUTH);
+                root.add (simulator.createControls (), BorderLayout.EAST);
+                root.setSize (1500, 1000);
+                root.doLayout ();
+                root.validate ();
+                simulator.refreshFeedback ();
+                if (simulator.controlButtons.size () != CCS.length
+                        || simulator.lcd[3][3] == null || simulator.pads[7][7] == null
+                        || simulator.bottom[7] == null)
+                    throw new AssertionError ("Swing simulator component tree is incomplete");
+                final BufferedImage image = new BufferedImage (1500, 1000, BufferedImage.TYPE_INT_ARGB);
+                final Graphics2D graphics = image.createGraphics ();
+                try { root.paint (graphics); }
+                finally { graphics.dispose (); }
+                simulator.releaseAll ();
+            });
+        }
+        catch (final Exception error)
+        {
+            throw new IllegalStateException ("Virtual Push 1 Swing smoke test failed", error);
+        }
     }
 
     public static void show (final VirtualPush1MidiBench bench, final Runnable onClose)
