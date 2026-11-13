@@ -99,6 +99,25 @@ public final class Push1DisplayLayout
         return Push1DisplayText.fit (value, COLUMNS);
     }
 
+    /**
+     * Format the combined LCD row for the four-module Bitwig simulator view.
+     * A single separator is inserted between adjacent 17-character modules;
+     * the physical MIDI row itself remains exactly 68 characters.
+     */
+    public static String separateModulesForSimulator (final String row)
+    {
+        final String fitted = fitRow (row);
+        final StringBuilder result = new StringBuilder (COLUMNS + MODULE_COUNT - 1);
+        for (int module = 0; module < MODULE_COUNT; module++)
+        {
+            final int start = blockStartColumn (module);
+            result.append (fitted, start, start + MODULE_COLUMNS);
+            if (module + 1 < MODULE_COUNT)
+                result.append (' ');
+        }
+        return result.toString ();
+    }
+
     private static void checkRow (final int row)
     {
         if (row < 0 || row >= ROWS)
