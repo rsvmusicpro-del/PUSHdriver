@@ -498,13 +498,16 @@ public final class VirtualPush1RuntimeTest
         viewManager.setActive (Views.DRUM);
         final DrumView drumView = (DrumView) viewManager.get (Views.DRUM);
         drumView.updateNoteMapping ();
+        require (drumView.isActive () && musicalModel.canHoldNotes (), "Drum view or note-capable track was not active");
         drainScheduled (state, 6);
         drumView.onGridNote (36, 96);
         drumView.onGridNote (36, 0);
         drumView.onGridNote (68, 96);
         drumView.onGridNote (68, 0);
         require (musicalModel.toggleCount () == 1 && musicalModel.lastToggle ().getStep () == 24,
-            "Drum view did not map its sequencer row to the expected clip step");
+            "Drum view did not map its sequencer row to the expected clip step: toggles="
+                + musicalModel.toggleCount () + ", last=" + musicalModel.lastToggle ().getStep ()
+                + ", note=" + musicalModel.lastToggle ().getNote ());
         require (musicalModel.lastToggle ().getNote () >= 0 && musicalModel.lastToggle ().getNote () <= 127,
             "Drum view produced an invalid drum note row");
 
