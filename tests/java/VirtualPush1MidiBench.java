@@ -1,5 +1,6 @@
 import de.mossgrabers.framework.daw.midi.IMidiInput;
 import de.mossgrabers.framework.daw.midi.IMidiOutput;
+import de.mossgrabers.framework.daw.midi.INoteInput;
 import de.mossgrabers.framework.daw.midi.MidiShortCallback;
 import de.mossgrabers.framework.daw.midi.MidiSysExCallback;
 import de.mossgrabers.framework.controller.hardware.BindType;
@@ -38,6 +39,7 @@ public final class VirtualPush1MidiBench
     private MidiShortCallback shortCallback;
     private MidiSysExCallback sysexCallback;
     private final IMidiInput input;
+    private INoteInput defaultNoteInput;
     private final IMidiOutput midiOutput;
     private final VirtualPush1Device device;
 
@@ -49,6 +51,7 @@ public final class VirtualPush1MidiBench
                 switch (method.getName ())
                 {
                     case "setMidiCallback" -> this.shortCallback = (MidiShortCallback) args[0];
+                    case "getDefaultNoteInput" -> { return this.defaultNoteInput; }
                     case "setSysexCallback" -> this.sysexCallback = (MidiSysExCallback) args[0];
                     case "sendRawMidiEvent" -> this.rawInputOutput.add (new int [] {
                         (int) args[0], (int) args[1], (int) args[2] });
@@ -114,6 +117,7 @@ public final class VirtualPush1MidiBench
     }
 
     public IMidiInput input () { return this.input; }
+    public void setDefaultNoteInput (final INoteInput noteInput) { this.defaultNoteInput = noteInput; }
     public IMidiOutput output () { return this.midiOutput; }
     public VirtualPush1Device device () { return this.device; }
 
