@@ -190,12 +190,13 @@ public final class VirtualPush1RuntimeTest
                                 case "getCursorDevice" -> cursorDevice;
                                 case "getCursorTrack" -> cursorTrackProxy (state);
                                 case "getBrowser" -> browser;
-                                case "createNoteClip":
+                                case "createNoteClip" -> {
                                     state.noteClipCreateCount++;
                                     state.createdSlotIndex = ((ISlot) a[1]).getIndex ();
                                     state.createdWithOverdub = (boolean) a[3];
                                     MODEL_ACTIONS.add ("model.createNoteClip");
                                     yield null;
+                                }
                                 default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                             });
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
@@ -419,14 +420,14 @@ public final class VirtualPush1RuntimeTest
 
         final INoteRepeat noteRepeat = (INoteRepeat) Proxy.newProxyInstance (
             INoteRepeat.class.getClassLoader (), new Class<?> [] { INoteRepeat.class },
-            (proxy, method, args) -> {
+            (proxy, method, callArgs) -> {
                 if (method.getName ().startsWith ("set") || method.getName ().startsWith ("toggle"))
                     MODEL_ACTIONS.add ("noteRepeat." + method.getName ());
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
         final INoteInput noteInput = (INoteInput) Proxy.newProxyInstance (
             INoteInput.class.getClassLoader (), new Class<?> [] { INoteInput.class },
-            (proxy, method, args) -> method.getName ().equals ("getNoteRepeat")
+            (proxy, method, callArgs) -> method.getName ().equals ("getNoteRepeat")
                 ? noteRepeat : defaultValue (method.getReturnType (), method.getGenericReturnType ()));
         midi.setDefaultNoteInput (noteInput);
         midi.device ().pressButton (VirtualPush1Device.DELETE);
