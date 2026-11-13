@@ -42,12 +42,12 @@ public final class VirtualPush1Simulator
         "Add FX", "Add Track", "Oct -", "Oct +", "Repeat", "Accent", "Scales", "User", "Mute",
         "Solo", "In", "Out", "Device", "Browse", "Track", "Clip", "Volume", "Pan/Send",
         "Master", "Stop", "Play", "Record", "New", "Duplicate", "Automation", "Fixed Len",
-        "Quantize", "Double", "Delete", "Undo"
+        "Quantize", "Double", "Delete", "Undo", "Footswitch 1", "Footswitch 2"
     };
     private static final int [] CCS = {
         3, 9, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 49, 50, 51, 52, 53,
         54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 110, 111, 112, 113, 114, 115,
-        28, 29, 85, 86, 87, 88, 89, 90, 116, 117, 118, 119
+        28, 29, 85, 86, 87, 88, 89, 90, 116, 117, 118, 119, 64, 69
     };
 
     private final VirtualPush1MidiBench bench;
