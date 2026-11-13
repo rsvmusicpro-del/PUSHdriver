@@ -38,6 +38,8 @@ The Push 1 view inventory registered by the production setup is:
 - Drum 64
 - Scene Play
 
+An independent acceptance assertion now checks that all 50 expected Push 1 modes and all 14 expected Push 1 views are registered, and that Push 2-only Setup/Info modes and the excluded Raindrops view are absent. This prevents the generic matrix from passing after an entire view or mode has silently disappeared.
+
 The Push 1 mode inventory registered by the production setup is:
 
 - Track, Track Details, Volume, Pan, Crossfader, Send 1–8
@@ -60,14 +62,14 @@ The following behaviors are implemented in the production adaptation. The labels
 | LCD geometry, glyphs and framing | Shared production geometry/protocol and exhaustive logical character tests | Formatting helpers and firmware parser are included in the unified runtime suite |
 | Navigation and Shift paging | Production `PushCursorCommand`, page commands; Device and Session actions asserted | Exercise first/last boundaries, empty banks, all view-specific contexts and LED/action parity |
 | In/Out | Production Device/Browser context handling; Device item and parameter-page actions asserted | Stateful Browser filter-column selection, marker movement, empty columns and LED availability |
-| New clip | Production `PushNewCommand` wrapper preserves upstream clip length/overdub behavior and selected-track safety | Stateful cursor-track/slot/clip model: free-slot search, playing-clip stop, no-slot fallback, Shift+New and isolation of other tracks |
+| New clip | Production `PushNewCommand` wrapper | Unified runtime now uses a stateful cursor-track/slot model to assert selected-slot search, stop-before-create on the cursor track, normal overdub, Shift+New without overdub, no-slot fallback without stopping playback |
 | Note Repeat | Production mode and null-safe optional service handling; package verifier checks safe LED path | Available, absent and late-created service states; mode entry, repeat controls, ribbon and feedback |
 | Drum / Drum4 / Drum8 / Drum64 | Production views and modes are registered and traversed by the complete command-dispatch matrix | Stateful drum-note/pad map, selected drum pad, note assignment, layout transitions and LED feedback |
 | Sequencer / Poly Sequencer | Production views are registered and traversed by the complete command-dispatch matrix; Push-specific playhead safety is implemented | Stateful clip/step/note model: step editing, selected step, page changes, playhead follow, empty clip and boundary behavior |
 | Track, mixer, sends, master, device and clip modes | Production modes and command matrix are exercised | Stateful bank models for first/last items, empty banks, unavailable actions, selection changes and context transitions |
 | Swing simulator | GUI can be launched from the same virtual device and MIDI bench | Display-backed CI smoke test for construction, event dispatch, repaint and clean close is not yet automated |
 
-The firmware/display regression tests are part of the same unified suite and are compiled and invoked by `scripts/test_push1_extension.py`. This closes a previous gap where the production formatter and firmware parser were not explicitly invoked by the automated test entry point.
+The firmware/display regression tests and New-clip stateful scenarios are part of the same unified suite and are compiled and invoked by `scripts/test_push1_extension.py`. The inventory assertions also make the complete 50-mode / 14-view Push 1 registration scope explicit.
 
 ## 4. Build, package and CI contract
 
