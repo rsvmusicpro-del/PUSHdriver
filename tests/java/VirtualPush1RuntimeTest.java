@@ -635,7 +635,13 @@ public final class VirtualPush1RuntimeTest
         if (args.length > 0 && "--gui".equals (args[0]))
             VirtualPush1Simulator.show (midi, setup::exit);
         else if (args.length > 0 && "--gui-smoke".equals (args[0]))
-            VirtualPush1Simulator.smoke (midi, setup::exit);
+            VirtualPush1Simulator.smoke (midi, () -> {
+                setup.exit ();
+                // The host test harness may retain non-daemon scheduler
+                // threads after its UI has been disposed; this process is
+                // dedicated to the bounded GUI smoke test.
+                System.exit (0);
+            });
         else
             setup.exit ();
         if (!state.errors.isEmpty ())
