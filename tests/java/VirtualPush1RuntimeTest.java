@@ -783,7 +783,7 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Browser previous filter item");
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Browser next filter item");
-        requireAction ("browser.selectPreviousFilterItem:0", "Browser top row must move to the previous filter item");
+        requireAction ("browser.replace", "Browser top row must load the selected filter item into the browser target");
         requireAction ("browser.selectNextFilterItem:0", "Browser bottom row must move to the next filter item");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Browser previous result");
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "Browser next result");
