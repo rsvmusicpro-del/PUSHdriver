@@ -49,6 +49,8 @@ import de.mossgrabers.framework.daw.midi.ArpeggiatorMode;
 import de.mossgrabers.framework.daw.midi.IMidiAccess;
 import de.mossgrabers.framework.daw.midi.IMidiInput;
 import de.mossgrabers.framework.daw.midi.IMidiOutput;
+import de.mossgrabers.framework.scale.Scale;
+import de.mossgrabers.framework.scale.Scales;
 import de.mossgrabers.framework.command.core.ContinuousCommand;
 import de.mossgrabers.framework.command.core.PitchbendCommand;
 import de.mossgrabers.framework.command.core.TriggerCommand;
@@ -122,6 +124,7 @@ public final class VirtualPush1RuntimeTest
         final BrowserModel browserModel = new BrowserModel ();
         final NewClipModel newClipModel = new NewClipModel ();
         final MusicalModel musicalModel = new MusicalModel ();
+        final Scales [] scaleModel = new Scales [1];
         final VirtualPush1MidiBench midi = new VirtualPush1MidiBench ();
         final IHwSurfaceFactory hardware = surfaceFactory (midi);
         final IHost host = (IHost) Proxy.newProxyInstance (IHost.class.getClassLoader (),
@@ -178,6 +181,7 @@ public final class VirtualPush1RuntimeTest
                         final Object valueChanger = callArgs[2];
                         final Object colorManager = callArgs[1];
                         final Object scales = callArgs[3];
+                        scaleModel[0] = (Scales) scales;
                         final ITrackBank trackBank = trackBankProxy ();
                         final ISceneBank sceneBank = sceneBankProxy ();
                         final IParameterBank parameterBank = parameterBankProxy ();
@@ -496,6 +500,66 @@ public final class VirtualPush1RuntimeTest
         require (Math.abs (musicalModel.stepLength () - Resolution.values ()[4].getValue ()) < 0.000001,
             "Sequencer resolution selection did not update the clip step length");
 
+        // Assert the actual production sequencer's row-to-MIDI mapping against
+        // independent musical expectations, including root, scale and octave.
+        require (scaleModel[0] != null, "Production Scales model was not wired into the runtime");
+        scaleModel[0].setChromatic (false);
+        scaleModel[0].setScale (Scale.MAJOR);
+        scaleModel[0].setScaleOffsetByName ("D");
+        sequencerView.updateNoteMapping ();
+        drainScheduled (state, 6);
+        assertSequencerNotes (sequencerView, musicalModel,
+            new int [] { 38, 40, 42, 43, 45, 47, 49 }, "D major");
+
+        scaleModel[0].setScale (Scale.MINOR_PENTATONIC);
+        scaleModel[0].setScaleOffsetByName ("G");
+        sequencerView.updateNoteMapping ();
+        drainScheduled (state, 6);
+        assertSequencerNotes (sequencerView, musicalModel,
+            new int [] { 43, 46, 48, 50, 53, 55, 58 }, "G minor pentatonic");
+
+        scaleModel[0].setScale (Scale.MAJOR);
+        scaleModel[0].setScaleOffsetByName ("C");
+        final java.lang.reflect.Method updateOctave = sequencerView.getClass ().getSuperclass ()
+            .getDeclaredMethod ("updateOctave", int.class);
+        updateOctave.setAccessible (true);
+        updateOctave.invoke (sequencerView, 48);
+        drainScheduled (state, 6);
+        assertSequencerNotes (sequencerView, musicalModel,
+            new int [] { 48, 50, 52, 53, 55, 57, 59 }, "C major octave-up");
+
+        updateOctave.invoke (sequencerView, 36);
+        scaleModel[0].setChromatic (true);
+        sequencerView.updateNoteMapping ();
+        drainScheduled (state, 6);
+        assertSequencerNotes (sequencerView, musicalModel,
+            new int [] { 36, 37, 38, 39, 40, 41, 42 }, "chromatic");
+
+        // A moving playhead must alter the production pad-grid feedback, not
+        // merely update an internal clip cursor.
+        scaleModel[0].setChromatic (false);
+        sequencerView.updateNoteMapping ();
+        drainScheduled (state, 6);
+        musicalModel.setCurrentStep (5);
+        sequencerView.drawGrid ();
+        setup.flush ();
+        drainScheduled (state, 6);
+        hardware.flush ();
+        final int [] ledsAtStepFive = new int [64];
+        for (int i = 0; i < ledsAtStepFive.length; i++)
+            ledsAtStepFive[i] = midi.device ().getNoteLed (36 + i);
+        musicalModel.setCurrentStep (6);
+        sequencerView.drawGrid ();
+        setup.flush ();
+        drainScheduled (state, 6);
+        hardware.flush ();
+        int changedPlayheadLeds = 0;
+        for (int i = 0; i < ledsAtStepFive.length; i++)
+            if (ledsAtStepFive[i] != midi.device ().getNoteLed (36 + i))
+                changedPlayheadLeds++;
+        require (changedPlayheadLeds > 0,
+            "Sequencer playhead movement did not update any physical pad LED");
+
         viewManager.setActive (Views.DRUM);
         final DrumView drumView = (DrumView) viewManager.get (Views.DRUM);
         drumView.updateNoteMapping ();
@@ -750,6 +814,7 @@ public final class VirtualPush1RuntimeTest
         int pageBackCount () { return this.pageBack[0]; }
         int pageForwardCount () { return this.pageForward[0]; }
         double stepLength () { return this.stepLength[0]; }
+        void setCurrentStep (final int value) { this.currentStep[0] = value; }
     }
 
     private static final class NewClipModel
@@ -1407,6 +1472,20 @@ public final class VirtualPush1RuntimeTest
     private static void requireAction (final String action, final String message)
     {
         require (MODEL_ACTIONS.contains (action), message + "; observed model calls: " + MODEL_ACTIONS);
+    }
+
+    private static void assertSequencerNotes (final SequencerView view, final MusicalModel model,
+        final int [] expected, final String label)
+    {
+        for (int row = 0; row < expected.length; row++)
+        {
+            final int padNote = 36 + row * 8;
+            view.onGridNote (padNote, 100);
+            view.onGridNote (padNote, 0);
+            require (model.lastToggle ().getNote () == expected[row],
+                label + " row " + row + " mapped to MIDI note " + model.lastToggle ().getNote ()
+                    + " instead of " + expected[row]);
+        }
     }
 
     private static void requireButtonMidiDelivery (final VirtualPush1MidiBench midi,
