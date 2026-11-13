@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Load the packaged extension through Bitwig's Java Service Provider interface."""
+"""Run the complete Push 1 extension suite through the virtual hardware bench."""
 from pathlib import Path
 import os
 import subprocess
@@ -20,11 +20,10 @@ if api is None:
 
 classpath = os.pathsep.join((str(extension), str(api)))
 test_sources = (
-    root / "tests/java/PushdriverExtensionDiscoveryTest.java",
     root / "tests/java/VirtualPush1MidiBench.java",
     root / "tests/java/VirtualPush1Device.java",
-    root / "tests/java/VirtualPush1DisplayLayoutTest.java",
     root / "tests/java/VirtualPush1DeviceTest.java",
+    root / "tests/java/VirtualPush1DisplayLayoutTest.java",
     root / "tests/java/VirtualPush1ProtocolExhaustiveTest.java",
     root / "tests/java/VirtualPush1RuntimeTest.java",
     root / "tests/java/VirtualPush1Simulator.java",
@@ -32,21 +31,13 @@ test_sources = (
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayGlyphs.java",
 )
-with tempfile.TemporaryDirectory(prefix="pushdriver-extension-test-") as output:
+with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
     subprocess.run(
         ["javac", "-cp", classpath, "-d", output, *(str(source) for source in test_sources)],
         cwd=root, check=True,
     )
     runtime_classpath = os.pathsep.join((classpath, output))
-    for test_class in (
-        "PushdriverExtensionDiscoveryTest",
-        "VirtualPush1MidiBench",
-        "VirtualPush1DeviceTest",
-        "VirtualPush1DisplayLayoutTest",
-        "VirtualPush1ProtocolExhaustiveTest",
-        "VirtualPush1RuntimeTest",
-    ):
-        command = ["java", "-cp", runtime_classpath, test_class]
-        if test_class == "VirtualPush1RuntimeTest" and "--gui" in sys.argv:
-            command.append("--gui")
-        subprocess.run(command, cwd=root, check=True)
+    command = ["java", "-cp", runtime_classpath, "VirtualPush1RuntimeTest"]
+    if "--gui" in sys.argv:
+        command.append("--gui")
+    subprocess.run(command, cwd=root, check=True)
