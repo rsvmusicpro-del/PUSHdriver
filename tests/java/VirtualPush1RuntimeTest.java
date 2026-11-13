@@ -248,8 +248,10 @@ public final class VirtualPush1RuntimeTest
         setup.startup ();
 
         final PushControlSurface surface = setup.getSurface ();
-        midi.setGridNoteHandler ((note, velocity) ->
-            surface.getViewManager ().get (surface.getViewManager ().getActiveID ()).onGridNote (note.intValue (), velocity.intValue ()));
+        midi.setGridNoteHandler ((note, velocity) -> {
+            MODEL_ACTIONS.add ("grid:" + note + ":" + velocity);
+            surface.getViewManager ().get (surface.getViewManager ().getActiveID ()).onGridNote (note.intValue (), velocity.intValue ());
+        });
         midi.setAftertouchHandler ((note, value) ->
             surface.getViewManager ().get (surface.getViewManager ().getActiveID ()).executeAftertouchCommand (note.intValue (), value.intValue ()));
         final var modes = surface.getModeManager ();
@@ -587,10 +589,14 @@ public final class VirtualPush1RuntimeTest
         surface.getViewManager ().setActive (Views.SEQUENCER);
         setup.flush ();
         drainScheduled (state, 1);
+        require (surface.getViewManager ().getActiveID () == Views.SEQUENCER,
+            "Sequencer view did not remain active before pad input");
+        MODEL_ACTIONS.clear ();
         midi.device ().pressPad (0, 0, 100);
         midi.device ().releasePad (0, 0);
         require (state.stepToggleCount > 0,
-            "Sequencer pad release must toggle a step in an existing note clip");
+            "Sequencer pad release must toggle a step in an existing note clip; activeView="
+                + surface.getViewManager ().getActiveID () + ", gridEvents=" + MODEL_ACTIONS);
         final AbstractSequencerView<?, ?> sequencer =
             (AbstractSequencerView<?, ?>) surface.getViewManager ().get (Views.SEQUENCER);
         sequencer.onLeft (ButtonEvent.DOWN);
