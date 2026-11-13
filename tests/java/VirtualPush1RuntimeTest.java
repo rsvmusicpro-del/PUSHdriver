@@ -1032,6 +1032,8 @@ public final class VirtualPush1RuntimeTest
         // the mode receives page-selection callbacks while Shift is held,
         // it swaps the cursor device with its previous/next neighbor.
         MODEL_ACTIONS.clear ();
+        deviceArrowMode.setShowDevices (true);
+        require (deviceArrowMode.isShowDevices (), "DeviceParamsMode must remain in device-selection submode");
         require (surface.isShiftPressed (), "Shift must remain held for DeviceParamsMode swap callbacks");
         deviceArrowMode.selectPreviousItemPage ();
         deviceArrowMode.selectNextItemPage ();
