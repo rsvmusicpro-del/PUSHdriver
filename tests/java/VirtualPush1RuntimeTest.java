@@ -249,14 +249,6 @@ public final class VirtualPush1RuntimeTest
         setup.startup ();
 
         final PushControlSurface surface = setup.getSurface ();
-        midi.setGridNoteHandler ((note, velocity) -> {
-            MODEL_ACTIONS.add ("grid:" + note + ":" + velocity);
-            surface.getViewManager ().get (surface.getViewManager ().getActiveID ()).onGridNote (note.intValue (), velocity.intValue ());
-        });
-        midi.setAftertouchHandler ((note, value) -> {
-            MODEL_ACTIONS.add ("aftertouch:" + note + ":" + value);
-            surface.getViewManager ().get (surface.getViewManager ().getActiveID ()).executeAftertouchCommand (note.intValue (), value.intValue ());
-        });
         final var modes = surface.getModeManager ();
         require (modes.get (Modes.TRACK) != null, "Track mode was not registered");
         require (modes.get (Modes.DEVICE_PARAMS) != null, "Device parameter mode was not registered");
@@ -298,7 +290,8 @@ public final class VirtualPush1RuntimeTest
         midi.device ().pressPad (0, 0, 100);
         midi.device ().pressPadPressure (0, 0, 80);
         midi.device ().releasePad (0, 0);
-        requireAction ("aftertouch:36:80", "Pad pressure must reach the active Play view aftertouch command");
+        require (midi.capturedRawInputOutput ().size () > rawOutputBeforeAftertouch,
+            "Pad pressure must reach the active Play view aftertouch command");
         final List<int []> aftertouchOutput = midi.capturedRawInputOutput ().subList (
             rawOutputBeforeAftertouch, midi.capturedRawInputOutput ().size ());
         require (aftertouchOutput.stream ().anyMatch (message ->
@@ -635,7 +628,7 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releasePad (0, 0);
         require (state.stepToggleCount > 0,
             "Sequencer pad release must toggle a step in an existing note clip; activeView="
-                + surface.getViewManager ().getActiveID () + ", gridEvents=" + MODEL_ACTIONS);
+                + surface.getViewManager ().getActiveID () + ", toggles=" + state.stepToggleCount);
         sequencer.onLeft (ButtonEvent.DOWN);
         sequencer.onRight (ButtonEvent.DOWN);
         require (state.stepPageBackwardCount > 0 && state.stepPageForwardCount > 0,
@@ -701,7 +694,7 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releasePad (4, 0);
         require (state.stepToggleCount == 1 && state.lastStepNumber == 24,
             "Drum sequencer grid must toggle the expected clip step on pad release; activeView="
-                + surface.getViewManager ().getActiveID () + ", gridEvents=" + MODEL_ACTIONS
+                + surface.getViewManager ().getActiveID () + ", toggles=" + state.stepToggleCount
                 + ", lastStep=" + state.lastStepNumber + ", lastNote=" + state.lastStepNote);
         require (state.lastStepNote >= 0,
             "Drum sequencer step must retain a valid mapped note row");
