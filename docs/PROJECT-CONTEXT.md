@@ -66,19 +66,34 @@ The virtual bench has three layers:
    and exercises real registered commands and modes.
 
 The acceptance inventory covers the complete Push 1 registration surface:
-50 modes × 14 views = 700 production command-matrix combinations. Protocol
-checks exhaust the pad, encoder and ribbon value spaces. Stateful workflow
-assertions additionally cover firmware/display formatting, Browser navigation,
-New clip/overdub, Note Repeat service lifecycle, Drum64 bank selection,
-sequencer playhead safety, Session scene and clip-slot actions, and device
-navigation. Linux CI also opens the Swing simulator under Xvfb and dispatches
-a pad mouse gesture.
+50 modes × 14 views = 700 production command-matrix combinations. The all-view
+pad matrix exercises 1,792 note-on/note-off events. Protocol checks exhaust
+pad velocity/pressure, relative encoder steps and all 16,384 ribbon positions.
+Stateful workflow assertions cover firmware/display formatting, Play LED and
+poly-aftertouch, Browser filter/result/content-type navigation, New clip slot
+selection and overdub boundaries, Note Repeat absent/available/late-created/
+removed service states, Session scene and clip-slot launch, Scene Play,
+Drum4/Drum8/Drum64 pad mapping and modifiers, mono/poly sequencer step editing
+and playhead follow, Track/Device navigation boundaries, all eight Track Sends
+and all eight Device Layer Sends, mixer, master and device parameters. Linux CI
+opens the Swing simulator under Xvfb, dispatches a pointer event and verifies
+bounded shutdown.
 
 The protocol and runtime tests run in CI without a physical controller or a
 Bitwig process. The host/model collaborators are deterministic proxies, not a
 complete reimplementation of Bitwig's internal engine. This proves the tested
 controller-side contract, not undocumented Bitwig scheduler behavior or
 physical USB, sensor and firmware behavior.
+
+## Current verified virtual bench
+
+The unified regression entry point is `scripts/test_push1_extension.py`. It
+assembles the pinned production source, compiles against Java 17 and Bitwig
+Extension API 17, verifies the Push 1-only package, runs the protocol and
+runtime suites, and is required to pass on Linux and Intel macOS. The
+`quality-gate` aggregates both platform jobs. The virtual bench does not
+replace Bitwig Studio 4.3.10 or a physical Push 1; those limitations remain
+explicitly documented in `VIRTUAL-PUSH1-COVERAGE.md`.
 
 ## Push 1 display construction contract
 
