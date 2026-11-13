@@ -357,8 +357,6 @@ public final class VirtualPush1RuntimeTest
         // the null reference captured during startup.
         final Modes modeBeforeNoteRepeat = modes.getActiveID ();
         modes.setActive (Modes.REPEAT_NOTE);
-        setup.flush ();
-        drainScheduled (state, 1);
         midi.setDefaultNoteInput (noteInput);
         midi.device ().pressButton (VirtualPush1Device.DELETE);
         midi.device ().touchEncoder (5, true);
