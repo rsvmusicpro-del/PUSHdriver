@@ -290,15 +290,16 @@ public final class VirtualPush1RuntimeTest
         require (surface.getViewManager ().get (Views.PLAY).getKeyManager ().getMidiNoteFromGrid (36) == 60,
             "Play view aftertouch fixture must translate the physical pad to a mapped MIDI note");
         MODEL_ACTIONS.clear ();
-        final int outputBeforeAftertouch = midi.capturedOutput ().size ();
+        final int rawOutputBeforeAftertouch = midi.capturedRawInputOutput ().size ();
         midi.device ().pressPad (0, 0, 100);
         midi.device ().pressPadPressure (0, 0, 80);
         midi.device ().releasePad (0, 0);
         requireAction ("aftertouch:36:80", "Pad pressure must reach the active Play view aftertouch command");
-        final List<String> aftertouchOutput = midi.capturedOutput ().subList (
-            outputBeforeAftertouch, midi.capturedOutput ().size ());
-        require (aftertouchOutput.stream ().anyMatch (message -> message.startsWith ("sendCC") && message.contains (", 80]")),
-            "Play view aftertouch conversion must produce MIDI output: " + aftertouchOutput);
+        final List<int []> aftertouchOutput = midi.capturedRawInputOutput ().subList (
+            rawOutputBeforeAftertouch, midi.capturedRawInputOutput ().size ());
+        require (aftertouchOutput.stream ().anyMatch (message ->
+            (message[0] & 0xF0) == 0xB0 && message[1] == 0 && message[2] == 80),
+            "Play view aftertouch conversion must produce a MIDI CC message");
 
         midi.device ().tapButton (VirtualPush1Device.PLAY);
         require (!state.playing, "Second Play CC did not stop the Bitwig transport");
