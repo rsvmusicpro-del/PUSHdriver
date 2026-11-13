@@ -566,6 +566,10 @@ public final class VirtualPush1RuntimeTest
         scaleModel[0].setChromatic (false);
         sequencerView.updateNoteMapping ();
         drainScheduled (state, 6);
+        // The production sequencer highlights an occupied step; create the
+        // same note on adjacent steps so the playhead has visible feedback to follow.
+        musicalModel.noteClip ().setStep (new NotePosition (0, 5, 36));
+        musicalModel.noteClip ().setStep (new NotePosition (0, 6, 36));
         musicalModel.setCurrentStep (5);
         sequencerView.drawGrid ();
         setup.flush ();
