@@ -572,8 +572,12 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 6);
         hardware.flush ();
         final int [] ledsAtStepFive = new int [64];
+        final int [][] rgbAtStepFive = new int [64][];
         for (int i = 0; i < ledsAtStepFive.length; i++)
+        {
             ledsAtStepFive[i] = midi.device ().getNoteLed (36 + i);
+            rgbAtStepFive[i] = midi.device ().getPadRgb (i / 8, i % 8);
+        }
         musicalModel.setCurrentStep (6);
         sequencerView.drawGrid ();
         setup.flush ();
@@ -581,10 +585,14 @@ public final class VirtualPush1RuntimeTest
         hardware.flush ();
         int changedPlayheadLeds = 0;
         for (int i = 0; i < ledsAtStepFive.length; i++)
-            if (ledsAtStepFive[i] != midi.device ().getNoteLed (36 + i))
+        {
+            final int [] rgb = midi.device ().getPadRgb (i / 8, i % 8);
+            if (ledsAtStepFive[i] != midi.device ().getNoteLed (36 + i)
+                    || !java.util.Arrays.equals (rgbAtStepFive[i], rgb))
                 changedPlayheadLeds++;
+        }
         require (changedPlayheadLeds > 0,
-            "Sequencer playhead movement did not update any physical pad LED");
+            "Sequencer playhead movement did not update any physical pad LED/RGB feedback");
 
         viewManager.setActive (Views.DRUM);
         final DrumView drumView = (DrumView) viewManager.get (Views.DRUM);
