@@ -385,6 +385,12 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In");
         requireAction ("device.selectPreviousItem", "In must select the previous device");
         requireAction ("device.selectNextItem", "Out must select the next device");
+        deviceIndex = 0;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device page lower boundary");
+        require (deviceIndex == 0, "In moved before the first device");
+        deviceIndex = 15;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device page upper boundary");
+        require (deviceIndex == 15, "Out moved beyond the last device");
         ((DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS)).setShowDevices (false);
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out parameter page");
