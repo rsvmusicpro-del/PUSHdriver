@@ -31,14 +31,18 @@ public final class VirtualPush1ProtocolExhaustiveTest
             }, null);
 
         testAllPads (device, input);
+        testAllPadVelocityAndPressureRanges (device, input);
         testAllButtons (device, input);
         testAllEncoders (device, input);
+        testAllRelativeEncoderSteps (device, input);
+        testAllPitchBendValues (device, input);
         testAllRgbAddresses (device);
         testAllLcdRowsAndCharacters (device);
         testMalformedFrames (device);
 
         System.out.println ("Virtual Push 1 exhaustive protocol contract passed: "
             + "64 pads, " + BUTTON_CCS.length + " buttons, 11 encoders, "
+            + "all pad velocity/pressure values, all relative encoder steps, all 16,384 ribbon positions, "
             + "72 RGB addresses, 4x68 LCD and malformed-frame boundaries.");
     }
 
@@ -58,6 +62,28 @@ public final class VirtualPush1ProtocolExhaustiveTest
             requireLast (input, 0x80, note, 0, "pad note-off");
             if (device.isPadPressed (row, col) || device.getPadPressure (row, col) != 0)
                 throw new AssertionError ("Pad state did not reset at note " + note);
+        }
+    }
+
+    /** Exercise every valid velocity and poly-aftertouch value on every physical pad. */
+    private static void testAllPadVelocityAndPressureRanges (final VirtualPush1Device device, final List<int[]> input)
+    {
+        for (int note = 36; note <= 99; note++)
+        {
+            final int row = (note - 36) / 8;
+            final int col = (note - 36) % 8;
+            for (int velocity = 1; velocity <= 127; velocity++)
+            {
+                device.pressPad (row, col, velocity);
+                requireLast (input, 0x90, note, velocity, "pad velocity range");
+            }
+            for (int pressure = 0; pressure <= 127; pressure++)
+            {
+                device.pressPadPressure (row, col, pressure);
+                requireLast (input, 0xA0, note, pressure, "pad pressure range");
+            }
+            device.releasePad (row, col);
+            requireLast (input, 0x80, note, 0, "pad release after full expression range");
         }
     }
 
@@ -112,6 +138,39 @@ public final class VirtualPush1ProtocolExhaustiveTest
         requireLast (input, 0xE0, 127, 127, "maximum pitch bend");
         device.touchRibbon (false);
         requireLast (input, 0x90, 12, 0, "ribbon release");
+    }
+
+    /** Walk the complete signed relative-step domain on all eleven encoders. */
+    private static void testAllRelativeEncoderSteps (final VirtualPush1Device device, final List<int[]> input)
+    {
+        for (int encoder = 0; encoder < 11; encoder++)
+            for (int steps = -63; steps <= 63; steps++)
+            {
+                final int before = input.size ();
+                if (encoder < 9)
+                    device.turnEncoderBy (encoder, steps);
+                else
+                    device.turnSmallEncoderBy (encoder - 9, steps);
+                if (steps == 0)
+                {
+                    if (input.size () != before)
+                        throw new AssertionError ("Zero encoder movement emitted MIDI");
+                }
+                else
+                    requireLast (input, 0xB0, encoder < 9 ? 71 + encoder : 14 + encoder - 9,
+                        steps < 0 ? 128 + steps : steps, "complete relative encoder range");
+            }
+    }
+
+    /** Verify every representable 14-bit ribbon/pitch-bend position. */
+    private static void testAllPitchBendValues (final VirtualPush1Device device, final List<int[]> input)
+    {
+        for (int value = 0; value <= 16383; value++)
+        {
+            device.moveRibbon (value);
+            requireLast (input, 0xE0, value & 0x7F, (value >>> 7) & 0x7F,
+                "complete 14-bit ribbon range");
+        }
     }
 
     private static void testAllRgbAddresses (final VirtualPush1Device device)
