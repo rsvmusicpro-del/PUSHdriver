@@ -1,5 +1,8 @@
 import de.mossgrabers.framework.daw.midi.IMidiInput;
 import de.mossgrabers.framework.daw.midi.IMidiOutput;
+import de.mossgrabers.framework.daw.midi.INoteInput;
+import de.mossgrabers.framework.daw.midi.INoteRepeat;
+import de.mossgrabers.framework.daw.midi.ArpeggiatorMode;
 import de.mossgrabers.framework.daw.midi.MidiShortCallback;
 import de.mossgrabers.framework.daw.midi.MidiSysExCallback;
 import de.mossgrabers.framework.controller.hardware.BindType;
@@ -38,11 +41,21 @@ public final class VirtualPush1MidiBench
     private MidiShortCallback shortCallback;
     private MidiSysExCallback sysexCallback;
     private final IMidiInput input;
+    private final INoteRepeat noteRepeat;
+    private final INoteInput defaultNoteInput;
     private final IMidiOutput midiOutput;
     private final VirtualPush1Device device;
 
     public VirtualPush1MidiBench ()
     {
+        final NoteRepeatState repeatState = new NoteRepeatState ();
+        this.noteRepeat = (INoteRepeat) Proxy.newProxyInstance (
+            INoteRepeat.class.getClassLoader (), new Class<?> [] { INoteRepeat.class },
+            (proxy, method, args) -> repeatState.invoke (method.getName (), args));
+        this.defaultNoteInput = (INoteInput) Proxy.newProxyInstance (
+            INoteInput.class.getClassLoader (), new Class<?> [] { INoteInput.class },
+            (proxy, method, args) -> method.getName ().equals ("getNoteRepeat")
+                ? this.noteRepeat : defaultValue (method.getReturnType ()));
         this.input = (IMidiInput) Proxy.newProxyInstance (
             IMidiInput.class.getClassLoader (), new Class<?> [] { IMidiInput.class },
             (proxy, method, args) -> {
@@ -50,6 +63,7 @@ public final class VirtualPush1MidiBench
                 {
                     case "setMidiCallback" -> this.shortCallback = (MidiShortCallback) args[0];
                     case "setSysexCallback" -> this.sysexCallback = (MidiSysExCallback) args[0];
+                    case "getDefaultNoteInput" -> { return this.defaultNoteInput; }
                     case "sendRawMidiEvent" -> this.rawInputOutput.add (new int [] {
                         (int) args[0], (int) args[1], (int) args[2] });
                     case "bind" -> {
@@ -114,8 +128,52 @@ public final class VirtualPush1MidiBench
     }
 
     public IMidiInput input () { return this.input; }
+    public INoteRepeat noteRepeat () { return this.noteRepeat; }
     public IMidiOutput output () { return this.midiOutput; }
     public VirtualPush1Device device () { return this.device; }
+
+
+    /** Mutable INoteRepeat state used by production Note Repeat mode tests. */
+    private static final class NoteRepeatState
+    {
+        private boolean active;
+        private boolean shuffle;
+        private boolean pressure;
+        private boolean freeRunning;
+        private boolean latch;
+        private double period = 0.25;
+        private double noteLength = 0.25;
+        private int octaves = 1;
+        private ArpeggiatorMode mode = ArpeggiatorMode.UP;
+
+        Object invoke (final String method, final Object [] args)
+        {
+            switch (method)
+            {
+                case "toggleActive": this.active = !this.active; return null;
+                case "isActive": return this.active;
+                case "setActive": this.active = (boolean) args[0]; return null;
+                case "setPeriod": this.period = (double) args[0]; return null;
+                case "getPeriod": return this.period;
+                case "setNoteLength": this.noteLength = (double) args[0]; return null;
+                case "getNoteLength": return this.noteLength;
+                case "isShuffle": return this.shuffle;
+                case "toggleShuffle": this.shuffle = !this.shuffle; return null;
+                case "usePressure": return this.pressure;
+                case "toggleUsePressure": this.pressure = !this.pressure; return null;
+                case "getOctaves": return this.octaves;
+                case "setOctaves": this.octaves = Math.max (0, Math.min (8, (int) args[0])); return null;
+                case "getMode": return this.mode;
+                case "setMode": this.mode = (ArpeggiatorMode) args[0]; return null;
+                case "isFreeRunning": return this.freeRunning;
+                case "toggleIsFreeRunning": this.freeRunning = !this.freeRunning; return null;
+                case "toggleLatchActive": this.latch = !this.latch; return null;
+                case "isLatchActive": return this.latch;
+                case "setLatchActive": this.latch = (boolean) args[0]; return null;
+                default: return null;
+            }
+        }
+    }
 
     private record ButtonBinding (IHwButton button, BindType type, int channel, int control, int value) { }
     private record ContinuousBinding (IHwContinuousControl control, BindType type, int channel, int controlNumber) { }
