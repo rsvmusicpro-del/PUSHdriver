@@ -34,6 +34,10 @@ import de.mossgrabers.framework.daw.clip.NotePosition;
 import de.mossgrabers.framework.daw.clip.StepState;
 import de.mossgrabers.framework.daw.constants.Resolution;
 import de.mossgrabers.controller.ableton.push.view.SequencerView;
+import de.mossgrabers.controller.ableton.push.view.PolySequencerView;
+import de.mossgrabers.framework.featuregroup.AbstractView;
+import de.mossgrabers.framework.scale.Scales;
+import de.mossgrabers.framework.view.sequencer.AbstractPolySequencerView;
 import de.mossgrabers.controller.ableton.push.view.DrumView;
 import de.mossgrabers.controller.ableton.push.view.Drum64View;
 import de.mossgrabers.framework.daw.data.ICursorTrack;
@@ -801,6 +805,109 @@ public final class VirtualPush1RuntimeTest
         sequencerView.setResolutionIndex (4);
         require (Math.abs (musicalModel.stepLength () - Resolution.values ()[4].getValue ()) < 0.000001,
             "Sequencer resolution selection did not update the clip step length");
+
+        // Exercise the production Poly Sequencer's persistent note-selection,
+        // additive step programming, per-note removal, Scale mapping and both
+        // whole-step and individual-note duration gestures.
+        viewManager.setActive (Views.POLY_SEQUENCER);
+        final PolySequencerView polySequencerView = (PolySequencerView) viewManager.get (Views.POLY_SEQUENCER);
+        scaleModel[0].setChromatic (true);
+        scaleModel[0].setScaleOffsetByName ("C");
+        polySequencerView.updateNoteMapping ();
+        drainScheduled (state, 6);
+        polySequencerView.updateControlSurface ();
+
+        final ITrack rootTrack = newClipModel.cursorTrack ();
+        final int mappedRoot = polySequencerView.getKeyManager ().map (36);
+        require (mappedRoot >= 0 && Math.floorMod (mappedRoot, 12) == scaleModel[0].getScaleOffset (),
+            "Poly Sequencer lower grid did not map its root note from the active Scale");
+        final java.lang.reflect.Method polyGridColor = AbstractPolySequencerView.class.getDeclaredMethod (
+            "getGridColor", boolean.class, boolean.class, ITrack.class, int.class);
+        polyGridColor.setAccessible (true);
+        final String rootColor = (String) polyGridColor.invoke (polySequencerView, true, false, rootTrack, 36);
+        final String expectedRootColor = AbstractView.replaceOctaveColorWithTrackColor (rootTrack, Scales.SCALE_COLOR_OCTAVE);
+        require (expectedRootColor.equals (rootColor),
+            "Poly Sequencer fundamental did not retain the selected track color");
+
+        for (int note = 36; note <= 39; note++)
+        {
+            polySequencerView.onGridNote (note, 100);
+            polySequencerView.onGridNote (note, 0);
+        }
+        // Hardware pad 92 is the first step (step zero) in the upper grid.
+        polySequencerView.onGridNote (92, 100);
+        polySequencerView.onGridNote (92, 0);
+        for (int note = 36; note <= 39; note++)
+            require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
+                "Poly Sequencer did not write selected MIDI note " + note + " to the first step");
+
+        // A second step tap must add notes without toggling existing notes off.
+        polySequencerView.onGridNote (92, 100);
+        polySequencerView.onGridNote (92, 0);
+        for (int note = 36; note <= 39; note++)
+            require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
+                "Poly Sequencer erased an existing note while adding to an occupied step");
+
+        polySequencerView.onGridNoteLongPress (92);
+        polySequencerView.onGridNote (92, 0);
+        polySequencerView.onGridNote (36, 100);
+        polySequencerView.onGridNote (36, 0);
+        require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, 36)).getState () == StepState.OFF,
+            "Poly Sequencer did not remove the tapped note from the edited step");
+        for (int note = 37; note <= 39; note++)
+            require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
+                "Poly Sequencer removed a neighbouring note while editing one pitch");
+
+        // Select notes on both sides of a delay longer than the former
+        // 500 ms note-memory timeout. All four pitches must remain selected.
+        Thread.sleep (550);
+
+        // Seed the selected-note target to isolate the individual-duration
+        // path; the virtual button proxy models the held source-step gesture.
+        final java.lang.reflect.Field durationEditNote = PolySequencerView.class.getDeclaredField ("durationEditNote");
+        durationEditNote.setAccessible (true);
+        final java.lang.reflect.Method changePolyLength = AbstractPolySequencerView.class.getDeclaredMethod (
+            "changeLengthOfNotes", INoteClip.class, NotePosition.class);
+        changePolyLength.setAccessible (true);
+        final IHwButton sourceStepButton = surface.getButton (ButtonID.get (ButtonID.PAD1, 56));
+        sourceStepButton.trigger (ButtonEvent.DOWN);
+        sourceStepButton.trigger (ButtonEvent.LONG);
+        // Long-press opens the step editor and initializes its note selection;
+        // choose the individual pitch after that edit context is established.
+        durationEditNote.setInt (polySequencerView, 37);
+        changePolyLength.invoke (polySequencerView, musicalModel.noteClip (), new NotePosition (0, 2, 0));
+        sourceStepButton.trigger (ButtonEvent.UP);
+        final double individualDuration = 3 * Resolution.getValueAt (polySequencerView.getResolutionIndex ());
+        require (Math.abs (musicalModel.noteClip ().getStep (new NotePosition (0, 0, 37)).getDuration () - individualDuration) < 0.000001,
+            "Poly Sequencer did not resize the selected note's duration");
+        require (Math.abs (musicalModel.noteClip ().getStep (new NotePosition (0, 0, 38)).getDuration () - 0.25) < 0.000001,
+            "Poly Sequencer individual-note resize changed a neighbouring note");
+
+        // With no individual note selected, the existing whole-step duration
+        // gesture must continue to resize every note in the source step.
+        durationEditNote.setInt (polySequencerView, -1);
+        sourceStepButton.trigger (ButtonEvent.DOWN);
+        sourceStepButton.trigger (ButtonEvent.LONG);
+        changePolyLength.invoke (polySequencerView, musicalModel.noteClip (), new NotePosition (0, 3, 0));
+        sourceStepButton.trigger (ButtonEvent.UP);
+        final double wholeStepDuration = 4 * Resolution.getValueAt (polySequencerView.getResolutionIndex ());
+        for (int note = 37; note <= 39; note++)
+            require (Math.abs (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getDuration () - wholeStepDuration) < 0.000001,
+                "Poly Sequencer whole-step length gesture did not resize every note");
+
+        // Changing the active Scale changes the keyboard mapping, not notes
+        // already committed to the clip (including pitches outside the Scale).
+        scaleModel[0].setChromatic (false);
+        scaleModel[0].setScale (Scale.MAJOR);
+        scaleModel[0].setScaleOffsetByName ("D");
+        polySequencerView.updateNoteMapping ();
+        drainScheduled (state, 6);
+        require (polySequencerView.getKeyManager ().map (36) == 38
+                && polySequencerView.getKeyManager ().map (37) == 40,
+            "Poly Sequencer's 32-note keyboard did not follow the newly selected D-major Scale");
+        require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, 39)).getState () == StepState.START,
+            "Changing Poly Sequencer Scale deleted a previously programmed out-of-scale note");
+        viewManager.setActive (Views.SEQUENCER);
 
         // Assert the actual production sequencer's row-to-MIDI mapping against
         // independent musical expectations, including root, scale and octave.
@@ -2005,6 +2112,7 @@ public final class VirtualPush1RuntimeTest
     {
         final TriggerCommand [] command = { null };
         final boolean [] pressed = { false };
+        final boolean [] longPressed = { false };
         final int [] velocity = { 0 };
         final IHwLight [] light = { null };
         final IHwButton [] self = new IHwButton [1];
@@ -2029,12 +2137,13 @@ public final class VirtualPush1RuntimeTest
                         final ButtonEvent event = args == null || args.length == 0 ? ButtonEvent.DOWN : (ButtonEvent) args[0];
                         final double amount = args != null && args.length > 1 ? (double) args[1] : 1.0;
                         pressed[0] = event == ButtonEvent.DOWN || event == ButtonEvent.LONG;
+                        longPressed[0] = event == ButtonEvent.LONG;
                         velocity[0] = (int) (amount * 127.0);
                         if (command[0] != null) command[0].execute (event, velocity[0]);
                         return null;
                     case "getCommand": return command[0];
                     case "isPressed": return pressed[0];
-                    case "isLongPressed": return false;
+                    case "isLongPressed": return longPressed[0];
                     case "getPressedVelocity": return velocity[0];
                     case "addLight": light[0] = (IHwLight) args[0]; return null;
                     case "getLight": return light[0];
