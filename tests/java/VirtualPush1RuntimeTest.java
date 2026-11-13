@@ -186,6 +186,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getScales" -> scales;
                                 case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
                                 case "getSceneBank" -> sceneBank;
+                                case "getUserParameterBank" -> parameterBankProxy ();
                                 case "getCursorDevice" -> cursorDevice;
                                 case "getCursorTrack" -> cursorTrackProxy (state);
                                 case "getBrowser" -> browser;
