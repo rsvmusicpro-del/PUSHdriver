@@ -24,8 +24,11 @@ has a corresponding compiled class in `PUSHdriver.bwextension`, and that only
 the Push 1 Bitwig extension entry point is registered.
 
 Project-maintained Java overrides live under `overrides/java/` and are copied
-into the generated source tree after the upstream selection. The Push 1 LCD
-SysEx framing is isolated in `Push1DisplayProtocol`; its standalone Java
-regression tests run before the Maven build. See [the Push 1 hardware and
-protocol profile](docs/PUSH1-HARDWARE.md) for the evidence and architecture
-boundaries used by this implementation.
+into the generated source tree after the upstream selection. The Push 1 LCD SysEx framing is isolated in `Push1DisplayProtocol`, while
+`Push1DisplayLayout` is the shared physical geometry contract: four LCD
+modules side by side, each four rows by 17 characters, with eight logical
+cells per row of alternating 9/8-character widths. The production display
+and virtual hardware simulator share that geometry and test every module,
+cell and character coordinate. Their standalone Java regression tests run
+before the Maven build. See [the Push 1 hardware and protocol profile](docs/PUSH1-HARDWARE.md)
+for the evidence and architecture boundaries used by this implementation.
