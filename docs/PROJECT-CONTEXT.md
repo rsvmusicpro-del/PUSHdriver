@@ -148,3 +148,33 @@ Bitwig scheduler/model in full, test native MIDI port discovery on every
 machine, or measure physical pad/pressure/USB timing. Those are explicit
 limits, not reasons to make physical hardware a dependency of ordinary
 development and regression testing.
+
+
+## Virtual bench completion record (2026-11-13)
+
+The Push 1 software bench now checks the production SequencerView against independent
+musical expectations for D major, G minor pentatonic, octave-up C major and
+chromatic mapping. It also seeds occupied adjacent clip steps and asserts that
+the production pad-grid LED cache follows the moving playhead. Sequencer clip
+page limits are checked at both ends.
+
+The API-17 runtime scenarios now include first/last Browser filter and result
+items, New Clip free-slot wrap-around and no-slot behavior, device and scene
+navigation limits, Session track-bank page limits, and parameter-page limits.
+The Swing simulator's complete component tree is constructed, refreshed and
+painted headlessly during CI; the optional visible desktop window remains
+available through `python3 scripts/run_virtual_push1.py --gui`. Its refresh
+timer is stopped when the window closes.
+
+`docs/VIRTUAL-PUSH1-COVERAGE.md` is the authoritative detailed acceptance
+matrix. Keep the distinction between the software bench and the remaining
+external qualification explicit: CI uses deterministic Bitwig API 17 proxies,
+not a live Bitwig Studio 4.3.10 process, and it cannot certify physical
+USB-MIDI discovery, analog pressure calibration, firmware timing or LCD glass
+appearance.
+
+The GitHub Actions workflow's Linux build, Intel macOS validation and
+`quality-gate` must all pass on the final `custom` head. The branch metadata
+currently reports `protected: false`; the repository owner still needs to
+configure `quality-gate` as a required branch-protection status check for
+server-enforced merge protection.
