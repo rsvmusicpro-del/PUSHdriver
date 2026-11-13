@@ -54,6 +54,9 @@ jobs:
       - name: Run unified virtual Push 1 simulation suite
         run: python3 scripts/test_push1_extension.py
 
+      - name: Smoke-test Swing simulator under Xvfb
+        run: xvfb-run -a python3 scripts/test_push1_extension.py --gui-smoke
+
       - name: Prepare Bitwig extension
         run: |
           set -euo pipefail
