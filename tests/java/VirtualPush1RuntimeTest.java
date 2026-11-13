@@ -689,11 +689,20 @@ public final class VirtualPush1RuntimeTest
         midi.device ().pressPad (0, 1, 100);
         midi.device ().releasePad (0, 1);
         require (drumView.getSelectedPad () == 1, "Drum 4 pad mapping must select the expected lower-block pad");
+        // Pad selection can change the active mode/view in host configurations;
+        // explicitly reactivate Drum before asserting its sequencer half.
+        surface.getViewManager ().setActive (Views.DRUM);
+        drainScheduled (state, 6);
+        drainScheduled (state, 100);
         ((AbstractSequencerView<?, ?>) drumView).setSequencerActive (true);
+        drumView.getKeyManager ().setNoteMatrix (new int [] { 36, 37, 38, 39, 40 });
+        MODEL_ACTIONS.clear ();
         midi.device ().pressPad (4, 0, 100);
         midi.device ().releasePad (4, 0);
         require (state.stepToggleCount == 1 && state.lastStepNumber == 24,
-            "Drum sequencer grid must toggle the expected clip step on pad release");
+            "Drum sequencer grid must toggle the expected clip step on pad release; activeView="
+                + surface.getViewManager ().getActiveID () + ", gridEvents=" + MODEL_ACTIONS
+                + ", lastStep=" + state.lastStepNumber + ", lastNote=" + state.lastStepNote);
         require (state.lastStepNote >= 0,
             "Drum sequencer step must retain a valid mapped note row");
 
