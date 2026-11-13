@@ -1,5 +1,6 @@
 import de.mossgrabers.controller.ableton.push.PushControllerSetup;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
+import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
 import de.mossgrabers.framework.configuration.ISettingsUI;
 import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.controller.ContinuousID;
@@ -241,6 +242,9 @@ public final class VirtualPush1RuntimeTest
             "Pad polyphonic aftertouch was not emitted");
         require (midi.device ().getLcdRow (0).length () == 68,
             "Push 1 LCD feedback was not decoded into the virtual screen");
+        for (int module = 0; module < Push1DisplayLayout.MODULE_COUNT; module++)
+            require (midi.device ().getLcdModuleRow (0, module).length () == Push1DisplayLayout.MODULE_COLUMNS,
+                "Production PushControllerSetup LCD output did not preserve physical module " + module);
         require (midi.capturedOutput ().stream ().anyMatch (message -> message.startsWith ("sendSysex ")),
             "Production setup did not emit any Push 1 SysEx feedback");
 
