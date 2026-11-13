@@ -58,6 +58,7 @@ public final class VirtualPush1Simulator
     private final JTextArea log = new JTextArea (8, 72);
     private JFrame frame;
     private Timer feedbackTimer;
+    private boolean closed;
     private final JSlider pressure = new JSlider (0, 127, 0);
     private final JSlider velocity = new JSlider (1, 127, 100);
     private final JCheckBox holdPad = new JCheckBox ("Hold selected pad for aftertouch");
@@ -96,8 +97,15 @@ public final class VirtualPush1Simulator
             pad.dispatchEvent (new MouseEvent (pad, MouseEvent.MOUSE_RELEASED, now + 1, 0, 5, 5, 1, false, MouseEvent.BUTTON1));
             final Timer closeTimer = new Timer (600, event -> {
                 ((Timer) event.getSource ()).stop ();
-                if (simulator.frame != null)
-                    simulator.frame.dispose ();
+                try
+                {
+                    if (simulator.frame != null)
+                        simulator.frame.dispose ();
+                }
+                finally
+                {
+                    simulator.close ();
+                }
             });
             closeTimer.setRepeats (false);
             closeTimer.start ();
@@ -120,17 +128,29 @@ public final class VirtualPush1Simulator
         this.frame.setLocationByPlatform (true);
         this.frame.addWindowListener (new WindowAdapter () {
             @Override public void windowClosed (final WindowEvent event)
-            {
-                if (feedbackTimer != null)
-                    feedbackTimer.stop ();
-                releaseAll ();
-                if (onClose != null)
-                    onClose.run ();
-            }
+            { close (); }
         });
         this.frame.setVisible (true);
         this.feedbackTimer = new Timer (150, event -> refreshFeedback ());
         this.feedbackTimer.start ();
+    }
+
+    private void close ()
+    {
+        if (this.closed)
+            return;
+        this.closed = true;
+        if (this.feedbackTimer != null)
+            this.feedbackTimer.stop ();
+        try
+        {
+            releaseAll ();
+        }
+        finally
+        {
+            if (this.onClose != null)
+                this.onClose.run ();
+        }
     }
 
     private JPanel createDisplay ()
