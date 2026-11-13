@@ -487,6 +487,7 @@ public final class VirtualPush1RuntimeTest
         final SequencerView sequencerView = (SequencerView) viewManager.get (Views.SEQUENCER);
         sequencerView.updateNoteMapping ();
         drainScheduled (state, 6);
+        sequencerView.updateControlSurface ();
         sequencerView.onLeft (ButtonEvent.DOWN);
         sequencerView.onRight (ButtonEvent.DOWN);
         require (musicalModel.pageBackCount () == 1 && musicalModel.pageForwardCount () == 1,
@@ -498,8 +499,9 @@ public final class VirtualPush1RuntimeTest
         viewManager.setActive (Views.DRUM);
         final DrumView drumView = (DrumView) viewManager.get (Views.DRUM);
         drumView.updateNoteMapping ();
-        require (drumView.isActive () && musicalModel.canHoldNotes (), "Drum view or note-capable track was not active");
         drainScheduled (state, 6);
+        drumView.updateControlSurface ();
+        require (drumView.isActive () && musicalModel.canHoldNotes (), "Drum view or note-capable track was not active");
         drumView.onGridNote (36, 96);
         drumView.onGridNote (36, 0);
         drumView.onGridNote (68, 96);
@@ -515,6 +517,7 @@ public final class VirtualPush1RuntimeTest
         final Drum64View drum64View = (Drum64View) viewManager.get (Views.DRUM64);
         drum64View.updateNoteMapping ();
         drainScheduled (state, 6);
+        drum64View.updateControlSurface ();
         drum64View.onGridNote (40, 100);
         drum64View.onGridNote (40, 0);
         drum64View.drawGrid ();
