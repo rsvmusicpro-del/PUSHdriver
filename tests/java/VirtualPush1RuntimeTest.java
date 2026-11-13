@@ -260,6 +260,8 @@ public final class VirtualPush1RuntimeTest
         final Views previousView = surface.getViewManager ().getActiveID ();
         final SequencerView sequencerView = (SequencerView) surface.getViewManager ().get (Views.SEQUENCER);
         surface.getViewManager ().setActive (Views.SEQUENCER);
+        require (surface.getViewManager ().isActive (Views.SEQUENCER),
+            "Sequencer view did not become active for its playhead test");
         state.playing = true;
         state.clipExists = false;
         state.clipScrollToPageCount = 0;
@@ -272,7 +274,12 @@ public final class VirtualPush1RuntimeTest
         state.clipEditPage = 0;
         sequencerView.drawGrid ();
         require (state.clipScrollToPageCount == 1 && state.lastClipPage > 0,
-            "Sequencer must follow the playing page when a real note clip exists");
+            "Sequencer must follow the playing page when a real note clip exists"
+                + " (scrolls=" + state.clipScrollToPageCount
+                + ", page=" + state.lastClipPage
+                + ", currentStep=" + state.clipCurrentStep
+                + ", editPage=" + state.clipEditPage
+                + ", transportPlaying=" + state.playing + ")");
         state.playing = false;
         surface.getViewManager ().setActive (previousView);
 
