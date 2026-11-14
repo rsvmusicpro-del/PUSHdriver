@@ -258,6 +258,28 @@ public final class VirtualPush1RuntimeTest
         setup.init ();
         setup.startup ();
 
+        // Match DrivenByMoss AbstractHwButton's 300 ms long-press contract.
+        // A short tap must never be upgraded to LONG after the release.
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        advanceButtonTime (state, 299);
+        require (!midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Push button entered LONG before the 300 ms threshold");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        advanceButtonTime (state, 1);
+        require (!midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Released short tap was incorrectly delivered as a long press");
+
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        advanceButtonTime (state, 299);
+        require (!midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Push button entered LONG before 300 ms");
+        advanceButtonTime (state, 1);
+        require (midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Push button did not enter LONG at the 300 ms threshold");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        require (!midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Push button remained in LONG after release");
+
         final PushControlSurface surface = setup.getSurface ();
         final var modes = surface.getModeManager ();
         require (modes.get (Modes.TRACK) != null, "Track mode was not registered");
