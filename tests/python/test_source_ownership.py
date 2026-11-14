@@ -134,6 +134,10 @@ class Push1SequencerPlayheadTests(unittest.TestCase):
             view,
         )
         self.assertIn(
+            "this.model.hasRecordingState () ? AbstractSequencerView.COLOR_STEP_HILITE_RECORD",
+            view,
+        )
+        self.assertIn(
             "gridPad.lightEx (playheadColumn, this.numDisplayRows - 1 - row, color);",
             view,
         )
