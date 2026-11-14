@@ -8,6 +8,7 @@ Every evolution intended for `custom` must pass the complete virtual Push 1 benc
 
 The required aggregate check is the `quality-gate` job. It depends on both platform jobs and fails unless both are successful:
 
+- Both platform jobs first run `scripts/check_push1_led_safety.py`, an independent source-level invariant check that rejects RGB/blink color IDs on the Push 1 static CC row in Device, Device Chains and Browser.
 - `build`: assembles the pinned Push 1 source, checks deterministic assembly, builds and verifies the extension, runs the unified virtual simulation suite, validates the local runner and publishes the `.bwextension` artifact.
 - `macos-intel-validation`: builds, package-verifies and runs the same virtual simulation suite on Intel macOS.
 - `quality-gate`: succeeds only when both jobs succeed.
@@ -19,6 +20,8 @@ python3 scripts/run_virtual_push1.py
 ```
 
 Do not weaken, skip or replace `python3 scripts/test_push1_extension.py` with a compile-only check. A change to the virtual model or its tests must itself pass the complete suite.
+
+The Device/Browser LED contract is checked twice: the Java runtime suite validates every selector index and exercises Device Chains through production MIDI bindings; the independent Python guard prevents color-2/RGB blink identifiers from entering static CC-row color logic. A test must assert the hardware-safe palette, not merely repeat the implementation's current choice.
 
 ## Required GitHub repository setting
 

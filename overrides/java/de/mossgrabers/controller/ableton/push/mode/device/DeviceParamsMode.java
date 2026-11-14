@@ -131,76 +131,35 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     @Override
     public void onFirstRow (final int index, final ButtonEvent event)
     {
-        if (event == ButtonEvent.DOWN)
-            return;
-
-        if (event == ButtonEvent.UP)
+        if (event != ButtonEvent.DOWN) return;
+        final ICursorDevice device = this.model.getCursorDevice ();
+        final ModeManager modeManager = this.surface.getModeManager ();
+        switch (index)
         {
-            final ICursorDevice cd = this.model.getCursorDevice ();
-            if (!cd.doesExist ())
-                return;
-
-            // Select parameter bank if parameter banks are visible
-            if (!this.showDevices)
-            {
-                cd.getParameterPageBank ().selectPage (index);
-                return;
-            }
-
-            // Duplicate device
-            if (this.isButtonCombination (ButtonID.DUPLICATE))
-            {
-                cd.duplicate ();
-                return;
-            }
-
-            final IDevice targetDevice = cd.getDeviceBank ().getItem (index);
-            if (!targetDevice.doesExist ())
-                return;
-
-            // Delete device
-            if (this.isButtonCombination (ButtonID.DELETE))
-            {
-                targetDevice.remove ();
-                return;
-            }
-
-            // Disable/Enable device
-            if (this.isButtonCombination (ButtonID.MUTE))
-            {
-                targetDevice.toggleEnabledState ();
-                return;
-            }
-
-            // Select device
-            if (cd.getIndex () != index)
-            {
-                targetDevice.select ();
-                return;
-            }
-
-            // No layers, show devices
-            final ModeManager modeManager = this.surface.getModeManager ();
-            if (!cd.hasLayers ())
-            {
-                ((DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS)).setShowDevices (false);
-                return;
-            }
-
-            // If there are layers, make sure one is selected
-            final Optional<?> layer = cd.getLayerBank ().getSelectedItem ();
-            if (layer.isEmpty ())
-                cd.getLayerBank ().getItem (0).select ();
-            modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
-
-            return;
+            case 0: if (device.doesExist ()) device.toggleEnabledState (); break;
+            case 1:
+                if (!this.model.getHost ().supports (Capability.HAS_PARAMETER_PAGE_SECTION)) return;
+                if (device.doesExist ()) device.toggleParameterPageSectionVisible ();
+                break;
+            case 2: if (device.doesExist ()) device.toggleExpanded (); break;
+            case 3:
+                if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS)) return;
+                modeManager.setActive (modeManager.isActive (Modes.DEVICE_CHAINS) ? Modes.DEVICE_PARAMS : Modes.DEVICE_CHAINS);
+                break;
+            case 4:
+                if (!device.doesExist ()) return;
+                if (!modeManager.isActive (Modes.DEVICE_PARAMS)) modeManager.setActive (Modes.DEVICE_PARAMS);
+                this.setShowDevices (!this.showDevices);
+                break;
+            case 5:
+                if (!this.model.getHost ().supports (Capability.HAS_PINNING)) return;
+                if (device.doesExist ()) device.togglePinned ();
+                break;
+            case 6: if (device.doesExist ()) device.toggleWindowOpen (); break;
+            case 7: this.moveUp (); break;
+            default: break;
         }
-
-        // LONG press - move upwards
-        this.surface.setTriggerConsumed (ButtonID.get (ButtonID.ROW1_1, index));
-        this.moveUp ();
     }
-
 
     /**
      * Move up the hierarchy.
@@ -258,136 +217,110 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     public int getButtonColor (final ButtonID buttonID)
     {
         final ICursorDevice cd = this.model.getCursorDevice ();
-
         int index = this.isButtonRow (0, buttonID);
         if (index >= 0)
         {
-            final int unavailable = PushColorManager.PUSH1_COLOR2_GREY_LO;
+            // ROW1 / CC20-27: eight distinct RGB Device actions.
             if (!cd.doesExist ())
-                return unavailable;
-
-            if (this.showDevices)
+                return index == 7 ? PushColorManager.PUSH1_COLOR2_RED_HI : PushColorManager.PUSH1_COLOR2_GREY_LO;
+            final int on;
+            final int off;
+            switch (index)
             {
-                final IDeviceBank bank = cd.getDeviceBank ();
-                if (!bank.getItem (index).doesExist ())
-                    return unavailable;
-                return index == cd.getIndex ()
-                    ? PushColorManager.PUSH1_COLOR2_GREEN_HI
-                    : PushColorManager.PUSH1_COLOR2_GREEN_LO;
+                case 0: on = PushColorManager.PUSH1_COLOR2_GREEN_HI; off = PushColorManager.PUSH1_COLOR2_GREEN_LO; break;
+                case 1: on = PushColorManager.PUSH1_COLOR2_CYAN_HI; off = PushColorManager.PUSH1_COLOR2_CYAN_LO; break;
+                case 2: on = PushColorManager.PUSH1_COLOR2_BLUE_HI; off = PushColorManager.PUSH1_COLOR2_BLUE_LO; break;
+                case 3: on = PushColorManager.PUSH1_COLOR2_ORCHID_HI; off = PushColorManager.PUSH1_COLOR2_ORCHID_LO; break;
+                case 4: on = PushColorManager.PUSH1_COLOR2_YELLOW_HI; off = PushColorManager.PUSH1_COLOR2_YELLOW_LO; break;
+                case 5: on = PushColorManager.PUSH1_COLOR2_MAGENTA_HI; off = PushColorManager.PUSH1_COLOR2_MAGENTA_LO; break;
+                case 6: on = PushColorManager.PUSH1_COLOR2_WHITE; off = PushColorManager.PUSH1_COLOR2_WHITE; break;
+                default: return PushColorManager.PUSH1_COLOR2_RED_HI;
             }
-
-            final IParameterPageBank bank = cd.getParameterPageBank ();
-            if (bank.getItem (index).isEmpty ())
-                return unavailable;
-            return index == bank.getSelectedItemIndex ()
-                ? PushColorManager.PUSH1_COLOR2_GREEN_HI
-                : PushColorManager.PUSH1_COLOR2_GREEN_LO;
+            switch (index)
+            {
+                case 0: return cd.isEnabled () ? on : off;
+                case 1:
+                    if (!this.model.getHost ().supports (Capability.HAS_PARAMETER_PAGE_SECTION)) return PushColorManager.PUSH1_COLOR2_GREY_LO;
+                    return cd.isParameterPageSectionVisible () ? on : off;
+                case 2: return cd.isExpanded () ? on : off;
+                case 3:
+                    if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS)) return PushColorManager.PUSH1_COLOR2_GREY_LO;
+                    return this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS) ? on : off;
+                case 4: return this.showDevices ? off : on;
+                case 5:
+                    if (!this.model.getHost ().supports (Capability.HAS_PINNING)) return PushColorManager.PUSH1_COLOR2_GREY_LO;
+                    return cd.isPinned () ? on : off;
+                case 6: return cd.isWindowOpen () ? on : off;
+                default: return PushColorManager.PUSH1_COLOR2_RED_HI;
+            }
         }
-
         index = this.isButtonRow (1, buttonID);
         if (index >= 0)
         {
-            final int unavailable = PushColorManager.PUSH1_COLOR2_GREY_LO;
-            final int actionOn = PushColorManager.PUSH1_COLOR2_AMBER_HI;
-            final int actionOff = PushColorManager.PUSH1_COLOR2_AMBER_LO;
-            final int hierarchyOn = PushColorManager.PUSH1_COLOR2_ORCHID_HI;
-            final int hierarchyOff = PushColorManager.PUSH1_COLOR2_ORCHID_LO;
-            final int navigationOn = PushColorManager.PUSH1_COLOR2_BLUE_HI;
-            final int navigationOff = PushColorManager.PUSH1_COLOR2_BLUE_LO;
-
-            if (!cd.doesExist ())
-                return index == 7 ? hierarchyOn : unavailable;
-
-            switch (index)
+            // ROW2 / CC102-109: static CC palette only, for device/page selection.
+            if (!cd.doesExist ()) return PushColorManager.PUSH1_COLOR_BLACK;
+            if (this.showDevices)
             {
-                case 0:
-                    return cd.isEnabled () ? actionOn : actionOff;
-                case 1:
-                    if (!this.model.getHost ().supports (Capability.HAS_PARAMETER_PAGE_SECTION))
-                        return unavailable;
-                    return cd.isParameterPageSectionVisible () ? actionOn : actionOff;
-                case 2:
-                    return cd.isExpanded () ? actionOn : actionOff;
-                case 3:
-                    if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
-                        return unavailable;
-                    return this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS) ? hierarchyOn : hierarchyOff;
-                case 4:
-                    return this.showDevices ? navigationOff : navigationOn;
-                case 5:
-                    if (!this.model.getHost ().supports (Capability.HAS_PINNING))
-                        return unavailable;
-                    return cd.isPinned () ? actionOn : actionOff;
-                case 6:
-                    return cd.isWindowOpen () ? actionOn : actionOff;
-                default:
-                case 7:
-                    return hierarchyOn;
+                if (!cd.getDeviceBank ().getItem (index).doesExist ()) return PushColorManager.PUSH1_COLOR_BLACK;
+                return index == cd.getIndex () ? PushColorManager.PUSH1_COLOR_GREEN_HI : PushColorManager.PUSH1_COLOR_GREEN_LO;
             }
+            final IParameterPageBank bank = cd.getParameterPageBank ();
+            if (bank.getItem (index).isEmpty ()) return PushColorManager.PUSH1_COLOR_BLACK;
+            return index == bank.getSelectedItemIndex () ? PushColorManager.PUSH1_COLOR_GREEN_HI : PushColorManager.PUSH1_COLOR_GREEN_LO;
         }
-
         return super.getButtonColor (buttonID);
     }
-
 
     /** {@inheritDoc} */
     @Override
     public void onSecondRow (final int index, final ButtonEvent event)
     {
-        if (event != ButtonEvent.DOWN)
-            return;
-        final ICursorDevice device = this.model.getCursorDevice ();
-        final ModeManager modeManager = this.surface.getModeManager ();
-        switch (index)
+        if (event == ButtonEvent.DOWN) return;
+        if (event == ButtonEvent.UP)
         {
-            case 0:
-                if (device.doesExist ())
-                    device.toggleEnabledState ();
-                break;
-            case 1:
-                if (!this.model.getHost ().supports (Capability.HAS_PARAMETER_PAGE_SECTION))
-                    return;
-                if (device.doesExist ())
-                    device.toggleParameterPageSectionVisible ();
-                break;
-            case 2:
-                if (device.doesExist ())
-                    device.toggleExpanded ();
-                break;
-            case 3:
-                if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
-                    return;
-                if (modeManager.isActive (Modes.DEVICE_CHAINS))
-                    modeManager.setActive (Modes.DEVICE_PARAMS);
-                else
-                    modeManager.setActive (Modes.DEVICE_CHAINS);
-                break;
-            case 4:
-                if (!device.doesExist ())
-                    return;
-                if (!modeManager.isActive (Modes.DEVICE_PARAMS))
-                    modeManager.setActive (Modes.DEVICE_PARAMS);
-                this.setShowDevices (!this.showDevices);
-                break;
-            case 5:
-                if (!this.model.getHost ().supports (Capability.HAS_PINNING))
-                    return;
-                if (device.doesExist ())
-                    device.togglePinned ();
-                break;
-            case 6:
-                if (device.doesExist ())
-                    device.toggleWindowOpen ();
-                break;
-            case 7:
-                this.moveUp ();
-                break;
-            default:
-                // Not used
-                break;
+            final ICursorDevice cd = this.model.getCursorDevice ();
+            if (!cd.doesExist ()) return;
+            if (!this.showDevices)
+            {
+                cd.getParameterPageBank ().selectPage (index);
+                return;
+            }
+            if (this.isButtonCombination (ButtonID.DUPLICATE))
+            {
+                cd.duplicate ();
+                return;
+            }
+            final IDevice targetDevice = cd.getDeviceBank ().getItem (index);
+            if (!targetDevice.doesExist ()) return;
+            if (this.isButtonCombination (ButtonID.DELETE))
+            {
+                targetDevice.remove ();
+                return;
+            }
+            if (this.isButtonCombination (ButtonID.MUTE))
+            {
+                targetDevice.toggleEnabledState ();
+                return;
+            }
+            if (cd.getIndex () != index)
+            {
+                targetDevice.select ();
+                return;
+            }
+            final ModeManager modeManager = this.surface.getModeManager ();
+            if (!cd.hasLayers ())
+            {
+                ((DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS)).setShowDevices (false);
+                return;
+            }
+            final Optional<?> layer = cd.getLayerBank ().getSelectedItem ();
+            if (layer.isEmpty ()) cd.getLayerBank ().getItem (0).select ();
+            modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
+            return;
         }
+        this.surface.setTriggerConsumed (ButtonID.get (ButtonID.ROW2_1, index));
+        this.moveUp ();
     }
-
 
     /** {@inheritDoc} */
     @Override
@@ -397,47 +330,50 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         if (!this.checkExists1 (display, cd))
             return;
 
-        // Row 1 & 2
-        final IParameterBank parameterBank = cd.getParameterBank ();
-        for (int i = 0; i < 8; i++)
-        {
-            final IParameter param = parameterBank.getItem (i);
-            display.setCell (0, i, param.doesExist () ? StringUtils.fixASCII (param.getName ()) : "").setCell (1, i, StringUtils.fixASCII (param.getDisplayedValue (8)));
-        }
-
-        // Row 3
-        display.setBlock (2, 0, "Selected Device:").setBlock (2, 1, cd.getName ());
-
-        // Row 4
+        // LCD row 1 now labels the selector row above the display (ROW2).
         if (this.showDevices)
         {
             final IDeviceBank deviceBank = cd.getDeviceBank ();
             for (int i = 0; i < 8; i++)
             {
                 final IDevice device = deviceBank.getItem (i);
-                final StringBuilder sb = new StringBuilder ();
+                final StringBuilder label = new StringBuilder ();
                 if (device.doesExist ())
                 {
                     if (i == cd.getIndex ())
-                        sb.append (Push1Display.SELECT_ARROW);
+                        label.append (Push1Display.SELECT_ARROW);
                     if (!device.isEnabled ())
-                        sb.append (Push1Display.DIVISION);
-                    sb.append (device.getName ());
+                        label.append (Push1Display.DIVISION);
+                    label.append (device.getName ());
                 }
-                display.setCell (3, i, sb.toString ());
+                display.setCell (0, i, label.toString ());
             }
-            return;
         }
-        final IParameterPageBank bank = cd.getParameterPageBank ();
-        final int selectedItemIndex = bank.getSelectedItemIndex ();
-        for (int i = 0; i < bank.getPageSize (); i++)
+        else
         {
-            final String item = bank.getItem (i);
-            final String selectedStr = i == selectedItemIndex ? Push1Display.SELECT_ARROW : "";
-            display.setCell (3, i, item.isEmpty () ? "" : selectedStr + item);
+            final IParameterPageBank bank = cd.getParameterPageBank ();
+            final int selected = bank.getSelectedItemIndex ();
+            for (int i = 0; i < 8; i++)
+            {
+                final String page = bank.getItem (i);
+                display.setCell (0, i, page.isEmpty () ? "" : (i == selected ? Push1Display.SELECT_ARROW : "") + page);
+            }
         }
-    }
 
+        // Keep parameter names and values together in the two middle rows.
+        final IParameterBank parameterBank = cd.getParameterBank ();
+        for (int i = 0; i < 8; i++)
+        {
+            final IParameter param = parameterBank.getItem (i);
+            display.setCell (1, i, param.doesExist () ? StringUtils.fixASCII (param.getName ()) : "")
+                .setCell (2, i, StringUtils.fixASCII (param.getDisplayedValue (8)));
+        }
+
+        // The eight action labels now align with the action row below the LCD.
+        final String [] actionLabels = { "On", "Params", "Expand", "Chains", "Banks", "Pin", "Window", "Up" };
+        for (int i = 0; i < actionLabels.length; i++)
+            display.setCell (3, i, actionLabels[i]);
+    }
 
     /** {@inheritDoc} */
     @Override

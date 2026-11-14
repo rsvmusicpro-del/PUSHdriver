@@ -19,6 +19,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Enforce Push 1 static-row LED safety
+        run: python3 scripts/check_push1_led_safety.py
+
       - name: Assemble Push 1-only source tree
         run: python3 scripts/prepare_push1.py
 
@@ -82,6 +85,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Enforce Push 1 static-row LED safety
+        run: python3 scripts/check_push1_led_safety.py
 
       - name: Assemble Push 1-only source tree
         run: python3 scripts/prepare_push1.py

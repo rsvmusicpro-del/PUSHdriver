@@ -41,6 +41,7 @@ def main() -> int:
             "This bench is validated with Java 17. Detected Java output:\n" + java_version
         )
 
+    run([sys.executable, "scripts/check_push1_led_safety.py"])
     run([sys.executable, "scripts/prepare_push1.py"])
     run(["mvn", "--batch-mode", "--no-transfer-progress", "clean", "package"])
     run([sys.executable, "scripts/verify_push1.py"])
