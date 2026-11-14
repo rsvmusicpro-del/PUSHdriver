@@ -40,8 +40,8 @@ public final class VirtualPush1DeviceTest
         // Full hardware button groups follow the independent Push 1 CC map.
         for (int i = 0; i < 8; i++)
         {
-            device.tapButton (VirtualPush1Device.TOP_ROW_FIRST + i);
-            device.tapButton (VirtualPush1Device.BOTTOM_ROW_FIRST + i);
+            device.tapButton (VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST + i);
+            device.tapButton (VirtualPush1Device.ABOVE_DISPLAY_ROW_FIRST + i);
             device.tapButton (VirtualPush1Device.REPEAT_BUTTON_FIRST + i);
         }
         // Button matrix, Shift chord and transport button are actual CC events.
@@ -60,7 +60,7 @@ public final class VirtualPush1DeviceTest
             if (VirtualPush1Device.TOP_ROW_FIRST + i != 20 + i
                     || VirtualPush1Device.REPEAT_BUTTON_FIRST + i != 36 + i
                     || VirtualPush1Device.BOTTOM_ROW_FIRST + i != 102 + i)
-                throw new AssertionError ("Push 1 row/repeat CC mapping regression");
+                throw new AssertionError ("Push 1 below/above-display row and repeat CC mapping regression");
         }
         if (VirtualPush1Device.MASTER != 28 || VirtualPush1Device.STOP != 29
                 || VirtualPush1Device.SELECT != 48 || VirtualPush1Device.NOTE != 50
