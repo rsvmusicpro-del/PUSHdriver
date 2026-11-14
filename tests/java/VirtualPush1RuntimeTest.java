@@ -1238,6 +1238,38 @@ public final class VirtualPush1RuntimeTest
         setup.flush ();
         drainScheduled (state, 1);
         hardware.flush ();
+        // Render every Push 1 view through the production ViewManager and
+        // LCD output path. The setup command matrix below executes bindings;
+        // this pass additionally forces each view to compose its live display.
+        final Views [] allPushViews =
+        {
+            Views.PLAY,
+            Views.CHORDS,
+            Views.PIANO,
+            Views.PRG_CHANGE,
+            Views.CLIP_LENGTH,
+            Views.COLOR,
+            Views.SESSION,
+            Views.SEQUENCER,
+            Views.POLY_SEQUENCER,
+            Views.DRUM,
+            Views.DRUM4,
+            Views.DRUM8,
+            Views.RAINDROPS,
+            Views.SCENE_PLAY,
+            Views.DRUM64
+        };
+        for (final Views viewID: allPushViews)
+        {
+            require (viewManager.get (viewID) != null, "Registered Push view is missing: " + viewID);
+            viewManager.setActive (viewID);
+            drainScheduled (state, 8);
+            setup.flush ();
+            hardware.flush ();
+            for (int row = 0; row < 4; row++)
+                require (midi.device ().getLcdRow (row).length () == Push1DisplayLayout.DISPLAY_COLUMNS,
+                    "View " + viewID + " did not produce a complete Push 1 LCD row " + row);
+        }
         musicalModel.setCanHoldNotes (false);
         viewManager.setActive (Views.PLAY);
 
