@@ -29,30 +29,15 @@ device = DEVICE.read_text(encoding="utf-8")
 chains = CHAINS.read_text(encoding="utf-8")
 browser = BROWSER.read_text(encoding="utf-8")
 
-reject_rgb(
-    device,
-    "// ROW2 / CC102-109: static CC palette only",
-    "return super.getButtonColor (buttonID);",
-    "DeviceParamsMode",
-)
-reject_rgb(
-    chains,
-    "final int index = this.isButtonRow (1, buttonID);",
-    "return super.getButtonColor (buttonID);",
-    "DeviceChainsMode",
-)
-reject_rgb(
-    browser,
-    "index = this.isButtonRow (1, buttonID);",
-    "return super.getButtonColor (buttonID);",
-    "DeviceBrowserMode",
-)
-browser_ids = section(
-    browser,
-    "// ROW2 uses the static CC palette",
-    "return AbstractFeatureGroup.BUTTON_COLOR_OFF;",
-    "DeviceBrowserMode color identifiers",
-)
+reject_rgb(device, "// ROW2 / CC102-109: static CC palette only",
+           "return super.getButtonColor (buttonID);", "DeviceParamsMode")
+reject_rgb(chains, "final int index = this.isButtonRow (1, buttonID);",
+           "return super.getButtonColor (buttonID);", "DeviceChainsMode")
+reject_rgb(browser, "index = this.isButtonRow (1, buttonID);",
+           "return super.getButtonColor (buttonID);", "DeviceBrowserMode")
+browser_ids = section(browser, "// ROW2 uses the static CC palette",
+                      "return AbstractFeatureGroup.BUTTON_COLOR_OFF;",
+                      "DeviceBrowserMode color identifiers")
 if "BUTTON_COLOR2_ON" in browser_ids or "BUTTON_COLOR2_OFF" in browser_ids:
     raise SystemExit("DeviceBrowserMode: static ROW2 exposes a color-2/blink identifier")
 
