@@ -55,7 +55,8 @@ public final class VirtualPush1Simulator
     private final Runnable onClose;
     private final JLabel [][] lcd = new JLabel [4][4];
     private final JButton [][] pads = new JButton [8][8];
-    private final JButton [] bottom = new JButton [8];
+    private final JButton [] aboveDisplay = new JButton [8];
+    private final JButton [] belowDisplay = new JButton [8];
     private final Map<Integer, JButton> controlButtons = new HashMap<> ();
     private final JTextArea log = new JTextArea (8, 72);
     private final JSlider pressure = new JSlider (0, 127, 0);
@@ -96,7 +97,7 @@ public final class VirtualPush1Simulator
                 simulator.refreshFeedback ();
                 if (simulator.controlButtons.size () < CCS.length
                         || simulator.lcd[3][3] == null || simulator.pads[7][7] == null
-                        || simulator.bottom[7] == null)
+                        || simulator.aboveDisplay[7] == null || simulator.belowDisplay[7] == null)
                     throw new AssertionError ("Swing simulator component tree is incomplete");
                 final BufferedImage image = new BufferedImage (1500, 1000, BufferedImage.TYPE_INT_ARGB);
                 final Graphics2D graphics = image.createGraphics ();
@@ -142,8 +143,10 @@ public final class VirtualPush1Simulator
     private JPanel createDisplay ()
     {
         final JPanel root = panel ();
-        root.setLayout (new GridLayout (1, 4, 5, 0));
-        root.setBorder (BorderFactory.createTitledBorder ("LCD — 4 modules × 4 rows × 17 characters"));
+        root.setLayout (new java.awt.BorderLayout (3, 3));
+        final JPanel lcdPanel = panel ();
+        lcdPanel.setLayout (new GridLayout (1, 4, 5, 0));
+        lcdPanel.setBorder (BorderFactory.createTitledBorder ("LCD — 4 modules × 4 rows × 17 characters"));
         for (int module = 0; module < 4; module++)
         {
             final JPanel block = panel ();
@@ -160,8 +163,17 @@ public final class VirtualPush1Simulator
                 lcd[module][row] = cell;
                 block.add (cell);
             }
-            root.add (block);
+            lcdPanel.add (block);
         }
+        final JPanel upper = panel ();
+        upper.setLayout (new FlowLayout (FlowLayout.CENTER, 4, 2));
+        for (int i = 0; i < 8; i++)
+        {
+            aboveDisplay[i] = makeButton ("Above " + (i + 1), VirtualPush1Device.ABOVE_DISPLAY_ROW_FIRST + i);
+            upper.add (aboveDisplay[i]);
+        }
+        root.add (upper, BorderLayout.NORTH);
+        root.add (lcdPanel, BorderLayout.CENTER);
         refreshLcd ();
         return root;
     }
@@ -172,7 +184,13 @@ public final class VirtualPush1Simulator
         root.setLayout (new java.awt.BorderLayout (3, 3));
         final JPanel top = panel ();
         top.setLayout (new FlowLayout (FlowLayout.CENTER, 4, 2));
-        for (int cc = 20; cc <= 27; cc++) top.add (makeButton ("Top " + (cc - 19), cc));
+        for (int i = 0; i < 8; i++)
+        {
+            final int cc = VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST + i;
+            belowDisplay[i] = makeButton ("Below " + (i + 1), cc);
+            controlButtons.remove (cc);
+            top.add (belowDisplay[i]);
+        }
         top.add (makeButton ("Master", VirtualPush1Device.MASTER));
         root.add (top, BorderLayout.NORTH);
 
@@ -208,15 +226,6 @@ public final class VirtualPush1Simulator
                 grid.add (pad);
             }
         root.add (grid, BorderLayout.CENTER);
-        final JPanel lower = panel ();
-        lower.setLayout (new FlowLayout (FlowLayout.CENTER, 5, 2));
-        for (int i = 0; i < 8; i++)
-        {
-            bottom[i] = makeButton ("Bottom " + (i + 1), 102 + i);
-            lower.add (bottom[i]);
-        }
-        lower.add (makeButton ("Stop", VirtualPush1Device.STOP));
-        root.add (lower, BorderLayout.SOUTH);
         return root;
     }
 
@@ -358,7 +367,7 @@ public final class VirtualPush1Simulator
         for (int i = 0; i < 8; i++)
         {
             final int [] rgb = device.getBottomRowRgb (i);
-            bottom[i].setBackground (new Color (rgb[0], rgb[1], rgb[2]));
+            belowDisplay[i].setBackground (new Color (rgb[0], rgb[1], rgb[2]));
         }
         for (final Map.Entry<Integer, JButton> entry: controlButtons.entrySet ())
         {
