@@ -107,6 +107,7 @@ public final class VirtualPush1RuntimeTest
     private static boolean cursorDeviceExists;
     private static boolean deviceSlotExists;
     private static boolean deviceCapabilitiesSupported = true;
+    private static boolean parameterPagesExist;
 
     private static final class State
     {
@@ -605,8 +606,11 @@ public final class VirtualPush1RuntimeTest
         deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1));
         deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3));
         deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 5));
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
-            "Unavailable device slots must use the neutral unavailable LED color");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "Unavailable first-row device slots must stay off rather than reuse a second-row color index");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 0)) != PushColorManager.PUSH1_COLOR_GREEN_LO_SBLINK
+                && deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 0)) != PushColorManager.PUSH1_COLOR_GREEN_LO_FBLINK,
+            "Available first-row device buttons must use a steady, non-blinking color");
         require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
             "Unsupported hierarchy navigation must use the neutral unavailable LED color");
         require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 7)) == PushColorManager.PUSH1_COLOR2_ORCHID_HI,
@@ -619,8 +623,25 @@ public final class VirtualPush1RuntimeTest
         deviceCapabilitiesSupported = true;
         deviceSlotExists = true;
         deviceIndex = 4;
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 4)) == PushColorManager.PUSH1_COLOR2_GREEN_HI,
-            "The selected device must use the strong selection green");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 4)) == PushColorManager.PUSH1_COLOR_GREEN_HI,
+            "The selected device must use the steady first-row selection green");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 0)) == PushColorManager.PUSH1_COLOR_GREEN_LO,
+            "Unselected available devices must use steady low-intensity first-row green");
+        final DeviceParamsMode deviceChainsMode = (DeviceParamsMode) modes.get (Modes.DEVICE_CHAINS);
+        require (deviceChainsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 0)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "Empty Device Chains first-row slots must not use second-row LED indices");
+
+        // Parameter-page selection reuses the same physical first row. Its
+        // feedback must stay steady just like the device-selection state.
+        parameterPagesExist = true;
+        deviceParamsMode.setShowDevices (false);
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 0)) == PushColorManager.PUSH1_COLOR_GREEN_HI,
+            "Selected parameter page must use steady first-row selection green");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1)) == PushColorManager.PUSH1_COLOR_GREEN_LO,
+            "Unselected parameter pages must use steady first-row green");
+        parameterPagesExist = false;
+        deviceParamsMode.setShowDevices (true);
+
         deviceParamsMode.onFirstRow (1, ButtonEvent.UP);
         requireAction ("device.select", "Selecting an existing device row must select that device");
         deviceParamsMode.onSecondRow (1, ButtonEvent.DOWN);
@@ -1606,7 +1627,7 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
-                    return "";
+                    return parameterPagesExist ? "Page " + args[0] : "";
                 if (List.of ("selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("parameterPage." + method.getName ());

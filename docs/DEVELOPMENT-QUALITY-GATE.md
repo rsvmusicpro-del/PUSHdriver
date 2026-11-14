@@ -18,6 +18,8 @@ The single local command for the same main test suite is:
 python3 scripts/run_virtual_push1.py
 ```
 
+The virtual suite also runs `scripts/check_push1_cross_regressions.py` against every overridden mode. It compares first-row LED values with the Push 1 blink-command IDs, catching cross-row palette aliases in shared states such as Device and parameter-page selection before the runtime simulation starts.
+
 Do not weaken, skip or replace `python3 scripts/test_push1_extension.py` with a compile-only check. A change to the virtual model or its tests must itself pass the complete suite.
 
 ## Required GitHub repository setting

@@ -18,6 +18,13 @@ if not extension.is_file() or extension.stat().st_size == 0:
 if api is None:
     raise SystemExit("Bitwig Extension API 17 JAR was not found in Maven's local repositories")
 
+# Static cross-mode checks catch protocol values that alias Push 1 blink commands
+# before the stateful virtual MIDI bench is compiled and executed.
+subprocess.run(
+    [sys.executable, str(root / "scripts/check_push1_cross_regressions.py")],
+    cwd=root, check=True,
+)
+
 classpath = os.pathsep.join((str(extension), str(api)))
 test_sources = (
     root / "tests/java/VirtualPush1MidiBench.java",
