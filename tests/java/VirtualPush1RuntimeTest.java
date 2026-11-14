@@ -716,6 +716,27 @@ public final class VirtualPush1RuntimeTest
         deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
         require (MODEL_ACTIONS.isEmpty () && !modes.isActive (Modes.DEVICE_CHAINS),
             "Unsupported slot-chain capability was still invoked");
+
+        // Exercise a stale/restored Chains mode directly: its input, LEDs and
+        // both display renderers must also tolerate the missing API capability.
+        final de.mossgrabers.controller.ableton.push.mode.device.DeviceChainsMode unavailableChainsMode =
+            (de.mossgrabers.controller.ableton.push.mode.device.DeviceChainsMode) modes.get (Modes.DEVICE_CHAINS);
+        modes.setActive (Modes.DEVICE_CHAINS);
+        final ITextDisplay unavailableTextDisplay = (ITextDisplay) Proxy.newProxyInstance (
+            ITextDisplay.class.getClassLoader (), new Class<?> [] { ITextDisplay.class },
+            (p, m, a) -> m.getReturnType ().isInstance (p) ? p : defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+        final IGraphicDisplay unavailableGraphicDisplay = (IGraphicDisplay) Proxy.newProxyInstance (
+            IGraphicDisplay.class.getClassLoader (), new Class<?> [] { IGraphicDisplay.class },
+            (p, m, a) -> m.getReturnType ().isInstance (p) ? p : defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+        MODEL_ACTIONS.clear ();
+        unavailableChainsMode.onSecondRow (0, ButtonEvent.UP);
+        require (unavailableChainsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 0)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "Unsupported Chains selectors must be dark");
+        unavailableChainsMode.updateDisplay1 (unavailableTextDisplay);
+        unavailableChainsMode.updateDisplay2 (unavailableGraphicDisplay);
+        require (MODEL_ACTIONS.isEmpty (),
+            "A stale Chains mode queried or invoked an unsupported slot-chain API");
+        modes.setActive (Modes.DEVICE_PARAMS);
         SUPPORTED_CAPABILITIES.add (Capability.HAS_SLOT_CHAINS);
 
         SUPPORTED_CAPABILITIES.remove (Capability.HAS_PINNING);
