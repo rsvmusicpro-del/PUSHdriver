@@ -338,14 +338,10 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             // 300 ms delay can run against the child or a newer selection. Wait
             // for the cursor identity to change and cancel if another UI action
             // or mode transition supersedes this request.
-            final String childName = cd.getName ();
-            final int childPosition = cd.getPosition ();
-            final boolean childNested = cd.isNested ();
-            final boolean childHasLayers = cd.hasLayers ();
+            final String childState = this.getCursorStateFingerprint (cd);
             this.releaseAllTouchedParameters ();
             cd.selectParent ();
-            this.awaitParentCursor (cd, modeManager, deviceParamsMode, childName, childPosition,
-                childNested, childHasLayers, transition, 0);
+            this.awaitParentCursor (cd, modeManager, deviceParamsMode, childState, transition, 0);
             return;
         }
 
@@ -364,33 +360,84 @@ public class DeviceParamsMode extends BaseMode<IParameter>
      * @param cd The cursor device
      * @param chainName The selected slot-chain name
      */
-    protected void selectSlotChainAndAwaitCursor (final ICursorDevice cd, final String chainName)
+    /**
+     * Build a structural snapshot of the cursor target. API 17 does not expose a
+     * stable ID through DrivenByMoss' ICursorDevice (getID() is empty for this
+     * implementation), so include the observable hierarchy and bank contents.
+     * This distinguishes same-name devices at the same position when their
+     * sibling/page/slot structure differs.
+     *
+     * @param cd The cursor device
+     * @return A stable snapshot until Bitwig publishes a cursor update
+     */
+    private String getCursorStateFingerprint (final ICursorDevice cd)
     {
-        final long transition = ++this.hierarchyTransitionGeneration;
-        final String previousName = cd.getName ();
-        final int previousPosition = cd.getPosition ();
-        final boolean previousNested = cd.isNested ();
-        final boolean previousHasLayers = cd.hasLayers ();
-        cd.selectSlotChain (chainName);
-        this.awaitSelectedChainCursor (cd, previousName, previousPosition, previousNested, previousHasLayers, transition, 0);
+        final StringBuilder state = new StringBuilder (256);
+        state.append (String.valueOf (cd.getName ())).append ('|')
+            .append (cd.getPosition ()).append ('|')
+            .append (cd.isNested ()).append ('|')
+            .append (cd.hasLayers ()).append ('|')
+            .append (cd.hasSlots ()).append ('|');
+
+        if (this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+        {
+            final String [] chains = cd.getSlotChains ();
+            if (chains != null)
+                for (final String chain: chains)
+                    state.append (String.valueOf (chain)).append (';');
+        }
+        state.append ('|');
+
+        final IDeviceBank devices = cd.getDeviceBank ();
+        if (devices != null)
+            for (int i = 0; i < devices.getPageSize (); i++)
+            {
+                final IDevice device = devices.getItem (i);
+                if (device == null || !device.doesExist ())
+                    state.append ("-;");
+                else
+                    state.append (String.valueOf (device.getName ())).append ('@')
+                        .append (device.getPosition ()).append (';');
+            }
+        state.append ('|');
+
+        final IParameterPageBank pages = cd.getParameterPageBank ();
+        if (pages != null)
+        {
+            state.append (pages.getSelectedItemIndex ()).append (':');
+            for (int i = 0; i < pages.getPageSize (); i++)
+                state.append (String.valueOf (pages.getItem (i))).append (';');
+        }
+        return state.toString ();
     }
 
 
-    private void awaitSelectedChainCursor (final ICursorDevice cd, final String previousName, final int previousPosition,
-        final boolean previousNested, final boolean previousHasLayers, final long transition, final int attempt)
+    protected void selectSlotChainAndAwaitCursor (final ICursorDevice cd, final String chainName)
     {
-        if (transition != this.hierarchyTransitionGeneration || !cd.doesExist ())
+        final long transition = ++this.hierarchyTransitionGeneration;
+        final String previousState = this.getCursorStateFingerprint (cd);
+        cd.selectSlotChain (chainName);
+        this.awaitSelectedChainCursor (cd, previousState, transition, 0);
+    }
+
+
+    private void awaitSelectedChainCursor (final ICursorDevice cd, final String previousState,
+        final long transition, final int attempt)
+    {
+        if (transition != this.hierarchyTransitionGeneration)
             return;
 
-        final boolean cursorUnchanged = previousName.equals (cd.getName ())
-            && previousPosition == cd.getPosition ()
-            && previousNested == cd.isNested ()
-            && previousHasLayers == cd.hasLayers ();
-        if (cursorUnchanged)
+        if (!cd.doesExist () || previousState.equals (this.getCursorStateFingerprint (cd)))
         {
             if (attempt < 40)
-                this.model.getHost ().scheduleTask (() -> this.awaitSelectedChainCursor (cd, previousName, previousPosition,
-                    previousNested, previousHasLayers, transition, attempt + 1), 73);
+                this.model.getHost ().scheduleTask (() -> this.awaitSelectedChainCursor (cd, previousState,
+                    transition, attempt + 1), 73);
+            else
+                // Do not strand the controller in CHAINS if Bitwig rejected the
+                // selection or did not publish the cursor update in time. The
+                // cursor remains authoritative and will refresh the device view
+                // if Bitwig completes the selection later.
+                this.setSelectorContext (SelectorContext.DEVICES);
             return;
         }
 
@@ -399,23 +446,21 @@ public class DeviceParamsMode extends BaseMode<IParameter>
 
 
     private void awaitParentCursor (final ICursorDevice cd, final ModeManager modeManager,
-        final DeviceParamsMode deviceParamsMode, final String childName, final int childPosition,
-        final boolean childNested, final boolean childHasLayers, final long transition, final int attempt)
+        final DeviceParamsMode deviceParamsMode, final String childState, final long transition, final int attempt)
     {
-        if (transition != this.hierarchyTransitionGeneration || !cd.doesExist ())
+        if (transition != this.hierarchyTransitionGeneration)
             return;
 
-        final boolean cursorStillOnChild = childName.equals (cd.getName ())
-            && childPosition == cd.getPosition ()
-            && childNested == cd.isNested ()
-            && childHasLayers == cd.hasLayers ();
-        if (cursorStillOnChild)
+        if (!cd.doesExist () || childState.equals (this.getCursorStateFingerprint (cd)))
         {
-            // Bound the wait: an unsupported/failed host transition must not
-            // leave a permanent task loop or later act on an unrelated device.
             if (attempt < 40)
                 this.model.getHost ().scheduleTask (() -> this.awaitParentCursor (cd, modeManager, deviceParamsMode,
-                    childName, childPosition, childNested, childHasLayers, transition, attempt + 1), 73);
+                    childState, transition, attempt + 1), 73);
+            else
+                // Recover the selector context without issuing a channel
+                // selection against a cursor whose parent transition was not
+                // confirmed. A late Bitwig update will still refresh the view.
+                this.setSelectorContext (SelectorContext.DEVICES);
             return;
         }
 

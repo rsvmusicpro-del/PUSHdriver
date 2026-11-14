@@ -121,6 +121,8 @@ public final class VirtualPush1RuntimeTest
     private static boolean virtualCursorDeviceHasLayers;
     private static boolean virtualDeviceParametersExist;
     private static String [] virtualSlotChains = { "Chain 1", "Chain 2" };
+    private static String [] virtualDeviceBankNames = { "Device 0", "Device 1", "Device 2", "Device 3", "Device 4", "Device 5", "Device 6", "Device 7" };
+    private static boolean virtualParentNestedAfterSelect;
     private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
     // Model API capabilities independently; Bitwig hosts may support one feature but not another.
     private static final EnumSet<Capability> SUPPORTED_CAPABILITIES = EnumSet.allOf (Capability.class);
@@ -836,6 +838,8 @@ public final class VirtualPush1RuntimeTest
         virtualCursorDevicePosition = 3;
         virtualCursorDeviceNested = true;
         virtualCursorDeviceHasLayers = false;
+        virtualDeviceBankNames = new String [] { "Child sibling 0", "Child sibling 1", "Child sibling 2", "Child sibling 3", "Child sibling 4", "Child sibling 5", "Child sibling 6", "Child sibling 7" };
+        virtualParentNestedAfterSelect = true;
         virtualDeviceParametersExist = true;
         MODEL_ACTIONS.clear ();
         deviceParamsMode.onKnobTouch (0, true);
@@ -851,6 +855,20 @@ public final class VirtualPush1RuntimeTest
         requireAction ("cursorDevice.selectChannel", "The confirmed parent must select its hosting channel");
         require (!deviceParamsMode.isShowDevices (),
             "A confirmed parent transition must leave the selector on its parameter pages");
+        require (virtualCursorDeviceNested,
+            "Ascending one level from a deeply nested child must preserve the parent's nested state");
+
+        // Up first returns from parameter pages to devices, then ascends one
+        // additional hierarchy level on the next press.
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        require (deviceParamsMode.isShowDevices (), "Up from parent pages must return to device selectors");
+        virtualParentNestedAfterSelect = false;
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        drainScheduled (state, 73);
+        requireAction ("cursorDevice.selectParent", "A second Up must ascend from the nested parent");
+        require (!virtualCursorDeviceNested,
+            "A second parent transition must reach the outer device level");
 
         // A later device selection invalidates the pending parent callback.
         deviceParamsMode.setShowDevices (true);
@@ -982,6 +1000,7 @@ public final class VirtualPush1RuntimeTest
         virtualCursorDevicePosition = 4;
         virtualCursorDeviceNested = false;
         virtualCursorDeviceHasLayers = false;
+        virtualDeviceBankNames = new String [] { "Device 0", "Device 1", "Device 2", "Device 3", "Device 4", "Device 5", "Device 6", "Device 7" };
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Device Chains action");
         require (modes.isActive (Modes.DEVICE_CHAINS), "ROW1 Chains action did not activate Device Chains");
@@ -2446,6 +2465,8 @@ public final class VirtualPush1RuntimeTest
                         (p, m, a) -> switch (m.getName ())
                         {
                             case "doesExist" -> Boolean.valueOf (deviceSlotExists);
+                            case "getName" -> virtualDeviceBankNames[targetIndex % virtualDeviceBankNames.length];
+                            case "getPosition" -> Integer.valueOf (targetIndex);
                             case "select" -> {
                                 MODEL_ACTIONS.add ("device.select");
                                 MODEL_ACTIONS.add ("device.select:" + targetIndex);
@@ -2508,10 +2529,13 @@ public final class VirtualPush1RuntimeTest
                     case "selectParent":
                         MODEL_ACTIONS.add ("cursorDevice.selectParent");
                         state.scheduled.add (new ScheduledTask (73, () -> {
-                            virtualCursorDeviceName = "Virtual Parent";
+                            virtualCursorDeviceName = virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
                             virtualCursorDevicePosition = Math.max (0, virtualCursorDevicePosition - 1);
-                            virtualCursorDeviceNested = false;
+                            virtualCursorDeviceNested = virtualParentNestedAfterSelect;
                             virtualCursorDeviceHasLayers = false;
+                            virtualDeviceBankNames = virtualParentNestedAfterSelect
+                                ? new String [] { "Nested sibling 0", "Nested sibling 1", "Nested sibling 2", "Nested sibling 3", "Nested sibling 4", "Nested sibling 5", "Nested sibling 6", "Nested sibling 7" }
+                                : new String [] { "Outer sibling 0", "Outer sibling 1", "Outer sibling 2", "Outer sibling 3", "Outer sibling 4", "Outer sibling 5", "Outer sibling 6", "Outer sibling 7" };
                         }));
                         return null;
                     case "selectChannel":
@@ -2529,10 +2553,10 @@ public final class VirtualPush1RuntimeTest
                             throw new AssertionError ("Unsupported slot-chain capability was invoked");
                         MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
                         state.scheduled.add (new ScheduledTask (73, () -> {
-                            virtualCursorDeviceName = "Device in " + args[0];
-                            virtualCursorDevicePosition = 0;
-                            virtualCursorDeviceNested = false;
-                            virtualCursorDeviceHasLayers = false;
+                            // Simulate a chain child whose name, position and
+                            // nesting flags match the previous cursor. The
+                            // sibling-bank contents still identify the change.
+                            virtualDeviceBankNames = new String [] { "Slot child 0", "Slot child 1", "Slot child 2", "Slot child 3", "Slot child 4", "Slot child 5", "Slot child 6", "Slot child 7" };
                         }));
                         return null;
                     case "toggleEnabledState":
