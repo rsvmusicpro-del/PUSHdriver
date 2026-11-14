@@ -88,6 +88,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Iterator;
 import java.util.Set;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.io.IOException;
 import java.util.function.IntSupplier;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
@@ -1431,14 +1434,46 @@ public final class VirtualPush1RuntimeTest
         };
         final long fuzzBaseSeed = 0x505553483146555AL;
         final String replaySeedProperty = System.getProperty ("push1.fuzz.seed");
-        final int fuzzSeedCount = replaySeedProperty == null ? 4 : 1;
+        final List<Long> fuzzSeeds = new java.util.ArrayList<> ();
+        if (replaySeedProperty != null)
+            fuzzSeeds.add (Long.decode (replaySeedProperty));
+        else
+        {
+            // Keep four broad deterministic exploration seeds, then append every
+            // historical failure promoted into the checked-in regression corpus.
+            for (int seedIndex = 0; seedIndex < 4; seedIndex++)
+                fuzzSeeds.add (fuzzBaseSeed + seedIndex * 0x9E3779B97F4A7C15L);
+            final Path regressionCorpus = Path.of ("tests/scenarios/fuzz-seeds.txt");
+            try
+            {
+                int lineNumber = 0;
+                for (final String line: Files.readAllLines (regressionCorpus))
+                {
+                    lineNumber++;
+                    final String value = line.split ("#", 2)[0].trim ();
+                    if (value.isEmpty ())
+                        continue;
+                    final long seed;
+                    try { seed = Long.decode (value); }
+                    catch (final NumberFormatException error)
+                    {
+                        throw new IllegalStateException ("Invalid Push 1 regression seed at "
+                            + regressionCorpus + ":" + lineNumber + ": " + value, error);
+                    }
+                    if (!fuzzSeeds.contains (seed))
+                        fuzzSeeds.add (seed);
+                }
+            }
+            catch (final IOException error)
+            {
+                throw new IllegalStateException ("Cannot read Push 1 regression corpus: "
+                    + regressionCorpus, error);
+            }
+        }
         int fuzzedScenarios = 0;
         int fuzzedActions = 0;
-        for (int seedIndex = 0; seedIndex < fuzzSeedCount; seedIndex++)
+        for (final long seed: fuzzSeeds)
         {
-            final long seed = replaySeedProperty == null
-                ? fuzzBaseSeed + seedIndex * 0x9E3779B97F4A7C15L
-                : Long.decode (replaySeedProperty);
             final long [] randomState = { seed };
             for (final Views fuzzView: allPushViews)
             {
@@ -1564,8 +1599,8 @@ public final class VirtualPush1RuntimeTest
                                 require (midi.device ().getLcdRow (lcdRow).length () == Push1DisplayLayout.COLUMNS,
                                     "Fuzzer corrupted LCD row " + lcdRow + " in " + fuzzView);
                         }
-                        if (trace.size () > 32)
-                            trace.remove (0);
+                        // Preserve the complete 64-action trace so a failing
+                        // generated sequence can be promoted without reconstruction.
                     }
                     for (int cc: fuzzButtonCCs)
                         require (!midi.device ().isButtonPressed (cc),
@@ -1589,10 +1624,13 @@ public final class VirtualPush1RuntimeTest
                 }
             }
         }
-        require (fuzzedScenarios == 4 * allPushViews.length,
+        require (fuzzedScenarios == fuzzSeeds.size () * allPushViews.length,
             "Generated scenario matrix did not cover every view and seed");
+        require (fuzzedActions == fuzzedScenarios * 64,
+            "Generated scenario matrix did not execute 64 actions per view/seed scenario");
         System.out.println ("Generated Push 1 interaction scenarios passed: " + fuzzedScenarios
-            + " view/seed combinations, " + fuzzedActions + " mixed actions, reproducible seed corpus.");
+            + " view/seed combinations across " + fuzzSeeds.size () + " seeds, "
+            + fuzzedActions + " mixed actions (including the permanent regression corpus).");
 
         musicalModel.setCanHoldNotes (false);
         viewManager.setActive (Views.PLAY);
