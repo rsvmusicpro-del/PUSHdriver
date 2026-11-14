@@ -711,8 +711,8 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page Out");
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Parameter page In");
-        requireAction ("parameterPage.scrollBackwards", "Out did not use upstream parameter-bank navigation");
-        requireAction ("parameterPage.scrollForwards", "In did not use upstream parameter-bank navigation");
+        requireAction ("parameterBank.selectPreviousPage", "Out did not use upstream parameter-bank page navigation");
+        requireAction ("parameterBank.selectNextPage", "In did not use upstream parameter-bank page navigation");
         deviceParamsMode.setShowDevices (true);
 
         // Device Chains is an upstream submode: top row selects a chain and
@@ -2247,7 +2247,7 @@ public final class VirtualPush1RuntimeTest
                 }
                 if (List.of ("selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
-                    MODEL_ACTIONS.add ("parameterPage." + method.getName ());
+                    MODEL_ACTIONS.add ("parameterBank." + method.getName ());
                     parameterPageIndex = method.getName ().equals ("selectPreviousPage")
                         ? Math.max (0, parameterPageIndex - 1) : Math.min (3, parameterPageIndex + 1);
                     return null;
