@@ -123,6 +123,8 @@ public final class VirtualPush1RuntimeTest
     private static String [] virtualSlotChains = { "Chain 1", "Chain 2" };
     private static String [] virtualDeviceBankNames = { "Device 0", "Device 1", "Device 2", "Device 3", "Device 4", "Device 5", "Device 6", "Device 7" };
     private static boolean virtualParentNestedAfterSelect;
+    private static boolean virtualSuppressParentCursorUpdate;
+    private static boolean virtualSuppressChainCursorUpdate;
     private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
     // Model API capabilities independently; Bitwig hosts may support one feature but not another.
     private static final EnumSet<Capability> SUPPORTED_CAPABILITIES = EnumSet.allOf (Capability.class);
@@ -750,8 +752,52 @@ public final class VirtualPush1RuntimeTest
         require (MODEL_ACTIONS.isEmpty (), "Unsupported pinning capability was still invoked");
         SUPPORTED_CAPABILITIES.add (Capability.HAS_PINNING);
 
+        // Exhaust all 2^3 combinations of the optional API-17 Device
+        // capabilities. Each feature must depend only on its own flag.
+        for (int mask = 0; mask < 8; mask++)
+        {
+            SUPPORTED_CAPABILITIES.clear ();
+            if ((mask & 1) != 0) SUPPORTED_CAPABILITIES.add (Capability.HAS_PARAMETER_PAGE_SECTION);
+            if ((mask & 2) != 0) SUPPORTED_CAPABILITIES.add (Capability.HAS_SLOT_CHAINS);
+            if ((mask & 4) != 0) SUPPORTED_CAPABILITIES.add (Capability.HAS_PINNING);
+            modes.setActive (Modes.DEVICE_PARAMS);
+            deviceParamsMode.setShowDevices (true);
+            MODEL_ACTIONS.clear ();
+
+            final boolean parameterSection = (mask & 1) != 0;
+            final boolean slotChains = (mask & 2) != 0;
+            final boolean pinning = (mask & 4) != 0;
+            final int parameterColor = deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1));
+            final int chainsColor = deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 3));
+            final int pinColor = deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 5));
+            require (parameterSection
+                    ? parameterColor != PushColorManager.PUSH1_COLOR2_GREY_LO
+                    : parameterColor == PushColorManager.PUSH1_COLOR2_GREY_LO,
+                "Parameter-section LED did not follow capability combination " + mask);
+            require (slotChains
+                    ? chainsColor != PushColorManager.PUSH1_COLOR2_GREY_LO
+                    : chainsColor == PushColorManager.PUSH1_COLOR2_GREY_LO,
+                "Chains LED did not follow capability combination " + mask);
+            require (pinning
+                    ? pinColor != PushColorManager.PUSH1_COLOR2_GREY_LO
+                    : pinColor == PushColorManager.PUSH1_COLOR2_GREY_LO,
+                "Pin LED did not follow capability combination " + mask);
+
+            deviceParamsMode.onFirstRow (1, ButtonEvent.DOWN);
+            deviceParamsMode.onFirstRow (5, ButtonEvent.DOWN);
+            deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
+            require (MODEL_ACTIONS.contains ("cursorDevice.toggleParameterPageSectionVisible") == parameterSection,
+                "Parameter-section dispatch was not isolated in capability combination " + mask);
+            require (MODEL_ACTIONS.contains ("cursorDevice.togglePinned") == pinning,
+                "Pin dispatch was not isolated in capability combination " + mask);
+            require (modes.isActive (Modes.DEVICE_CHAINS) == slotChains,
+                "Chains activation was not isolated in capability combination " + mask);
+        }
+
         SUPPORTED_CAPABILITIES.clear ();
         SUPPORTED_CAPABILITIES.addAll (previousSupportedCapabilities);
+        modes.setActive (Modes.DEVICE_PARAMS);
+        deviceParamsMode.setShowDevices (true);
         deviceSlotExists = true;
         deviceIndex = 4;
         require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 4)) == PushColorManager.PUSH1_COLOR_GREEN_HI,
@@ -883,6 +929,24 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 73);
         require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
             "A stale parent callback must not select the channel of a newer cursor device");
+
+        // A parent cursor that never updates must stop polling and recover the
+        // Devices selector rather than leave navigation pending forever.
+        virtualCursorDeviceName = "Stalled Child";
+        virtualCursorDevicePosition = 2;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceHasLayers = false;
+        virtualSuppressParentCursorUpdate = true;
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        drainScheduled (state, 73);
+        requireAction ("cursorDevice.selectParent", "A stalled parent test must dispatch selectParent once");
+        require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
+            "A parent timeout must not select a channel before cursor confirmation");
+        require (deviceParamsMode.isShowDevices () && modes.isActive (Modes.DEVICE_PARAMS),
+            "A parent timeout must recover to the Devices selector");
+        virtualSuppressParentCursorUpdate = false;
+
         virtualCursorDeviceName = "Virtual Device";
         virtualCursorDevicePosition = 4;
         virtualCursorDeviceNested = false;
@@ -1023,6 +1087,21 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 73);
         require (modes.isActive (Modes.DEVICE_PARAMS),
             "Selecting a Device Chain did not return to Device parameters");
+
+        // A chain command whose cursor never changes must recover from CHAINS
+        // after the bounded wait instead of stranding the user in that context.
+        modes.setActive (Modes.DEVICE_CHAINS);
+        virtualSuppressChainCursorUpdate = true;
+        MODEL_ACTIONS.clear ();
+        chainsMode.onSecondRow (1, ButtonEvent.UP);
+        require (modes.isActive (Modes.DEVICE_CHAINS),
+            "A pending chain selection must keep the Chains context until timeout");
+        drainScheduled (state, 73);
+        require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
+            "A chain-selection timeout must recover to the Devices selector");
+        require (MODEL_ACTIONS.stream ().filter (action -> action.equals ("device.selectSlotChain:Chain 2")).count () == 1,
+            "A timed-out chain selection must dispatch exactly once");
+        virtualSuppressChainCursorUpdate = false;
 
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Device Up action");
         require (modes.isActive (Modes.TRACK), "ROW1 Up action did not return to Track mode");
@@ -2528,15 +2607,16 @@ public final class VirtualPush1RuntimeTest
                     case "hasLayers": return Boolean.valueOf (virtualCursorDeviceHasLayers);
                     case "selectParent":
                         MODEL_ACTIONS.add ("cursorDevice.selectParent");
-                        state.scheduled.add (new ScheduledTask (73, () -> {
-                            virtualCursorDeviceName = virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
-                            virtualCursorDevicePosition = Math.max (0, virtualCursorDevicePosition - 1);
-                            virtualCursorDeviceNested = virtualParentNestedAfterSelect;
-                            virtualCursorDeviceHasLayers = false;
-                            virtualDeviceBankNames = virtualParentNestedAfterSelect
-                                ? new String [] { "Nested sibling 0", "Nested sibling 1", "Nested sibling 2", "Nested sibling 3", "Nested sibling 4", "Nested sibling 5", "Nested sibling 6", "Nested sibling 7" }
-                                : new String [] { "Outer sibling 0", "Outer sibling 1", "Outer sibling 2", "Outer sibling 3", "Outer sibling 4", "Outer sibling 5", "Outer sibling 6", "Outer sibling 7" };
-                        }));
+                        if (!virtualSuppressParentCursorUpdate)
+                            state.scheduled.add (new ScheduledTask (73, () -> {
+                                virtualCursorDeviceName = virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
+                                virtualCursorDevicePosition = Math.max (0, virtualCursorDevicePosition - 1);
+                                virtualCursorDeviceNested = virtualParentNestedAfterSelect;
+                                virtualCursorDeviceHasLayers = false;
+                                virtualDeviceBankNames = virtualParentNestedAfterSelect
+                                    ? new String [] { "Nested sibling 0", "Nested sibling 1", "Nested sibling 2", "Nested sibling 3", "Nested sibling 4", "Nested sibling 5", "Nested sibling 6", "Nested sibling 7" }
+                                    : new String [] { "Outer sibling 0", "Outer sibling 1", "Outer sibling 2", "Outer sibling 3", "Outer sibling 4", "Outer sibling 5", "Outer sibling 6", "Outer sibling 7" };
+                            }));
                         return null;
                     case "selectChannel":
                         MODEL_ACTIONS.add ("cursorDevice.selectChannel");
@@ -2552,12 +2632,13 @@ public final class VirtualPush1RuntimeTest
                         if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
                             throw new AssertionError ("Unsupported slot-chain capability was invoked");
                         MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
-                        state.scheduled.add (new ScheduledTask (73, () -> {
-                            // Simulate a chain child whose name, position and
-                            // nesting flags match the previous cursor. The
-                            // sibling-bank contents still identify the change.
-                            virtualDeviceBankNames = new String [] { "Slot child 0", "Slot child 1", "Slot child 2", "Slot child 3", "Slot child 4", "Slot child 5", "Slot child 6", "Slot child 7" };
-                        }));
+                        if (!virtualSuppressChainCursorUpdate)
+                            state.scheduled.add (new ScheduledTask (73, () -> {
+                                // Simulate a chain child whose name, position and
+                                // nesting flags match the previous cursor. The
+                                // sibling-bank contents still identify the change.
+                                virtualDeviceBankNames = new String [] { "Slot child 0", "Slot child 1", "Slot child 2", "Slot child 3", "Slot child 4", "Slot child 5", "Slot child 6", "Slot child 7" };
+                            }));
                         return null;
                     case "toggleEnabledState":
                         MODEL_ACTIONS.add ("cursorDevice.toggleEnabledState");

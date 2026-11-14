@@ -354,13 +354,6 @@ public class DeviceParamsMode extends BaseMode<IParameter>
 
 
     /**
-     * Select a slot chain and keep the Chains selector active until Bitwig's
-     * FOLLOW_SELECTION cursor reports the newly selected device.
-     *
-     * @param cd The cursor device
-     * @param chainName The selected slot-chain name
-     */
-    /**
      * Build a structural snapshot of the cursor target. API 17 does not expose a
      * stable ID through DrivenByMoss' ICursorDevice (getID() is empty for this
      * implementation), so include the observable hierarchy and bank contents.
