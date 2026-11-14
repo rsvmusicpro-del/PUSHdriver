@@ -26,3 +26,16 @@ class SourceOwnershipTests(unittest.TestCase):
   s='device_mode = root / "src/main/java/example/mode/DeviceMode.java"\nreplace_once(device_mode, "a", "b", "test")\n'
   self.assertEqual(MODULE.patch_targets(s),{"example/mode/DeviceMode.java"})
 if __name__=="__main__": unittest.main()
+
+
+    def test_reassigned_patch_variable_tracks_both_targets(self):
+        source = (
+            'target = root / "src/main/java/example/First.java"\n'
+            'replace_once(target, "a", "b", "first")\n'
+            'target = root / "src/main/java/example/Second.java"\n'
+            'replace_once(target, "c", "d", "second")\n'
+        )
+        self.assertEqual(
+            MODULE.patch_targets(source),
+            {"example/First.java", "example/Second.java"},
+        )

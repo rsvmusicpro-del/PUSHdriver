@@ -52,9 +52,16 @@ def java_types(path):
  if not p: raise ValueError(f"Java package declaration missing: {path}")
  return {f"{p.group(1)}.{n}" for n in re.findall(r"^public\s+(?:(?:abstract|final|sealed)\s+)*(?:class|interface|enum|record)\s+(\w+)",s,re.M)}
 def patch_targets(source):
- variables={m.group(1):m.group(2) for m in re.finditer(r'^(\w+)\s*=\s*root\s*/\s*"src/main/java/([^"]+)"',source,re.M)}
- used={m.group(1) for m in re.finditer(r"replace_once\s*\(\s*(\w+)",source)}
- return {variables[n] for n in used if n in variables}
+ targets=set()
+ current={}
+ for line in source.splitlines():
+  assignment=re.match(r'^\s*(\w+)\s*=\s*root\s*/\s*"src/main/java/([^"]+)"',line)
+  if assignment:
+   current[assignment.group(1)]=assignment.group(2)
+  call=re.search(r"replace_once\s*\(\s*(\w+)",line)
+  if call and call.group(1) in current:
+   targets.add(current[call.group(1)])
+ return targets
 def validate_override_inventory(actual):
  errors=[f"Unreviewed project override: {p}" for p in sorted(actual-OVERRIDE_ALLOWLIST)]
  errors += [f"Override inventory entry is missing: {p}" for p in sorted(OVERRIDE_ALLOWLIST-actual)]
