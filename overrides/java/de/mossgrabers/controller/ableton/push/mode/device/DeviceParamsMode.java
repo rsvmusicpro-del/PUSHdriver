@@ -233,7 +233,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 case 3: on = PushColorManager.PUSH1_COLOR2_ORCHID_HI; off = PushColorManager.PUSH1_COLOR2_ORCHID_LO; break;
                 case 4: on = PushColorManager.PUSH1_COLOR2_YELLOW_HI; off = PushColorManager.PUSH1_COLOR2_YELLOW_LO; break;
                 case 5: on = PushColorManager.PUSH1_COLOR2_MAGENTA_HI; off = PushColorManager.PUSH1_COLOR2_MAGENTA_LO; break;
-                case 6: on = PushColorManager.PUSH1_COLOR2_WHITE_HI; off = PushColorManager.PUSH1_COLOR2_WHITE_LO; break;
+                case 6: on = PushColorManager.PUSH1_COLOR2_PINK_HI; off = PushColorManager.PUSH1_COLOR2_PINK_LO; break;
                 default: return PushColorManager.PUSH1_COLOR2_RED_HI;
             }
             switch (index)
@@ -330,47 +330,50 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         if (!this.checkExists1 (display, cd))
             return;
 
-        // Row 1 & 2
-        final IParameterBank parameterBank = cd.getParameterBank ();
-        for (int i = 0; i < 8; i++)
-        {
-            final IParameter param = parameterBank.getItem (i);
-            display.setCell (0, i, param.doesExist () ? StringUtils.fixASCII (param.getName ()) : "").setCell (1, i, StringUtils.fixASCII (param.getDisplayedValue (8)));
-        }
-
-        // Row 3
-        display.setBlock (2, 0, "Selected Device:").setBlock (2, 1, cd.getName ());
-
-        // Row 4
+        // LCD row 1 now labels the selector row above the display (ROW2).
         if (this.showDevices)
         {
             final IDeviceBank deviceBank = cd.getDeviceBank ();
             for (int i = 0; i < 8; i++)
             {
                 final IDevice device = deviceBank.getItem (i);
-                final StringBuilder sb = new StringBuilder ();
+                final StringBuilder label = new StringBuilder ();
                 if (device.doesExist ())
                 {
                     if (i == cd.getIndex ())
-                        sb.append (Push1Display.SELECT_ARROW);
+                        label.append (Push1Display.SELECT_ARROW);
                     if (!device.isEnabled ())
-                        sb.append (Push1Display.DIVISION);
-                    sb.append (device.getName ());
+                        label.append (Push1Display.DIVISION);
+                    label.append (device.getName ());
                 }
-                display.setCell (3, i, sb.toString ());
+                display.setCell (0, i, label.toString ());
             }
-            return;
         }
-        final IParameterPageBank bank = cd.getParameterPageBank ();
-        final int selectedItemIndex = bank.getSelectedItemIndex ();
-        for (int i = 0; i < bank.getPageSize (); i++)
+        else
         {
-            final String item = bank.getItem (i);
-            final String selectedStr = i == selectedItemIndex ? Push1Display.SELECT_ARROW : "";
-            display.setCell (3, i, item.isEmpty () ? "" : selectedStr + item);
+            final IParameterPageBank bank = cd.getParameterPageBank ();
+            final int selected = bank.getSelectedItemIndex ();
+            for (int i = 0; i < 8; i++)
+            {
+                final String page = bank.getItem (i);
+                display.setCell (0, i, page.isEmpty () ? "" : (i == selected ? Push1Display.SELECT_ARROW : "") + page);
+            }
         }
-    }
 
+        // Keep parameter names and values together in the two middle rows.
+        final IParameterBank parameterBank = cd.getParameterBank ();
+        for (int i = 0; i < 8; i++)
+        {
+            final IParameter param = parameterBank.getItem (i);
+            display.setCell (1, i, param.doesExist () ? StringUtils.fixASCII (param.getName ()) : "")
+                .setCell (2, i, StringUtils.fixASCII (param.getDisplayedValue (8)));
+        }
+
+        // The eight action labels now align with the action row below the LCD.
+        final String [] actionLabels = { "On", "Params", "Expand", "Chains", "Banks", "Pin", "Window", "Up" };
+        for (int i = 0; i < actionLabels.length; i++)
+            display.setCell (3, i, actionLabels[i]);
+    }
 
     /** {@inheritDoc} */
     @Override
