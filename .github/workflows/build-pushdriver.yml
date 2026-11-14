@@ -22,6 +22,9 @@ jobs:
       - name: Enforce Push 1 static-row LED safety
         run: python3 scripts/check_push1_led_safety.py
 
+      - name: Test permanent regression-corpus promotion
+        run: python3 -m unittest discover -s tests/python -v
+
       - name: Assemble Push 1-only source tree
         run: python3 scripts/prepare_push1.py
 
