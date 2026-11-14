@@ -1380,6 +1380,185 @@ public final class VirtualPush1RuntimeTest
             }
             viewIndex++;
         }
+
+        // Seeded state-machine exploration: unlike the hand-authored examples
+        // above, these scenarios mix real MIDI controls in different orders,
+        // hold modifiers across pad actions, advance virtual button time, and
+        // exercise every packaged view. Each seed is printed on failure so the
+        // exact sequence can be replayed and minimized.
+        final int [] fuzzButtonCCs = {
+            3, 9, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+            36, 37, 38, 39, 40, 41, 42, 43,
+            44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+            64, 69, 85, 86, 87, 88, 89, 90, 102, 103, 104, 105, 106, 107, 108, 109,
+            110, 111, 112, 113, 114, 115, 116, 117, 118, 119
+        };
+        final int [] fuzzModifiers = {
+            VirtualPush1Device.SHIFT, VirtualPush1Device.SELECT,
+            VirtualPush1Device.DUPLICATE, VirtualPush1Device.MUTE,
+            VirtualPush1Device.DELETE, VirtualPush1Device.STOP
+        };
+        final long fuzzBaseSeed = 0x505553483146555AL;
+        int fuzzedScenarios = 0;
+        int fuzzedActions = 0;
+        for (int seedIndex = 0; seedIndex < 4; seedIndex++)
+        {
+            final long seed = fuzzBaseSeed + seedIndex * 0x9E3779B97F4A7C15L;
+            final long [] randomState = { seed };
+            for (final Views fuzzView: allPushViews)
+            {
+                final List<String> trace = new java.util.ArrayList<> ();
+                try
+                {
+                    modes.setActive (Modes.TRACK);
+                    viewManager.setActive (fuzzView);
+                    drainScheduled (state, 8);
+                    for (int actionIndex = 0; actionIndex < 64; actionIndex++)
+                    {
+                        final int action = nextScenarioInt (randomState, 13);
+                        final int row = nextScenarioInt (randomState, 8);
+                        final int column = nextScenarioInt (randomState, 8);
+                        final int pad = 36 + row * 8 + column;
+                        switch (action)
+                        {
+                            case 0, 1 -> {
+                                final int modifier = fuzzModifiers[nextScenarioInt (randomState, fuzzModifiers.length)];
+                                final boolean chord = action == 1;
+                                if (chord)
+                                    midi.device ().pressButton (modifier);
+                                midi.device ().pressPad (row, column, 1 + nextScenarioInt (randomState, 127));
+                                midi.device ().pressPadPressure (row, column, nextScenarioInt (randomState, 128));
+                                advanceButtonTime (state, nextScenarioInt (randomState, 420));
+                                midi.device ().releasePad (row, column);
+                                if (chord)
+                                    midi.device ().releaseButton (modifier);
+                                trace.add ((chord ? "chord+" + modifier + " " : "") + "pad " + pad);
+                            }
+                            case 2 -> {
+                                final int encoder = nextScenarioInt (randomState, 9);
+                                final int delta = nextScenarioInt (randomState, 127) - 63;
+                                midi.device ().turnEncoderBy (encoder, delta);
+                                trace.add ("encoder " + encoder + " delta " + delta);
+                            }
+                            case 3 -> {
+                                final int encoder = nextScenarioInt (randomState, 2);
+                                final int delta = nextScenarioInt (randomState, 127) - 63;
+                                midi.device ().turnSmallEncoderBy (encoder, delta);
+                                trace.add ("small encoder " + encoder + " delta " + delta);
+                            }
+                            case 4 -> {
+                                final int encoder = nextScenarioInt (randomState, 11);
+                                if (encoder < 9)
+                                {
+                                    midi.device ().touchEncoder (encoder, true);
+                                    midi.device ().turnEncoderBy (encoder, nextScenarioInt (randomState, 15) - 7);
+                                    midi.device ().touchEncoder (encoder, false);
+                                }
+                                else
+                                {
+                                    midi.device ().touchSmallEncoder (encoder - 9, true);
+                                    midi.device ().turnSmallEncoderBy (encoder - 9, nextScenarioInt (randomState, 15) - 7);
+                                    midi.device ().touchSmallEncoder (encoder - 9, false);
+                                }
+                                trace.add ("encoder touch " + encoder);
+                            }
+                            case 5 -> {
+                                midi.device ().touchRibbon (true);
+                                midi.device ().moveRibbon (nextScenarioInt (randomState, 16384));
+                                midi.device ().touchRibbon (false);
+                                trace.add ("ribbon");
+                            }
+                            case 6 -> {
+                                final int arrow = new int [] {
+                                    VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
+                                    VirtualPush1Device.UP, VirtualPush1Device.DOWN
+                                }[nextScenarioInt (randomState, 4)];
+                                midi.device ().tapButton (arrow);
+                                trace.add ("arrow " + arrow);
+                            }
+                            case 7 -> {
+                                final int navigation = nextScenarioInt (randomState, 2) == 0
+                                    ? VirtualPush1Device.IN : VirtualPush1Device.OUT;
+                                midi.device ().tapButton (navigation);
+                                trace.add ("in/out " + navigation);
+                            }
+                            case 8 -> {
+                                final int rowButton = nextScenarioInt (randomState, 2) == 0
+                                    ? 20 + nextScenarioInt (randomState, 8)
+                                    : 102 + nextScenarioInt (randomState, 8);
+                                midi.device ().tapButton (rowButton);
+                                trace.add ("row button " + rowButton);
+                            }
+                            case 9 -> {
+                                final int modeButton = new int [] {
+                                    VirtualPush1Device.NOTE, VirtualPush1Device.SESSION,
+                                    VirtualPush1Device.DEVICE, VirtualPush1Device.BROWSE,
+                                    VirtualPush1Device.TRACK, VirtualPush1Device.CLIP,
+                                    VirtualPush1Device.VOLUME, VirtualPush1Device.PAN_SEND
+                                }[nextScenarioInt (randomState, 8)];
+                                midi.device ().tapButton (modeButton);
+                                trace.add ("mode button " + modeButton);
+                            }
+                            case 10 -> {
+                                final int transportButton = new int [] {
+                                    VirtualPush1Device.PLAY, VirtualPush1Device.RECORD,
+                                    VirtualPush1Device.NEW, VirtualPush1Device.METRONOME
+                                }[nextScenarioInt (randomState, 4)];
+                                midi.device ().tapButton (transportButton);
+                                trace.add ("transport " + transportButton);
+                            }
+                            case 11 -> {
+                                final int modifier = fuzzModifiers[nextScenarioInt (randomState, fuzzModifiers.length)];
+                                midi.device ().pressButton (modifier);
+                                advanceButtonTime (state, 300 + nextScenarioInt (randomState, 151));
+                                midi.device ().releaseButton (modifier);
+                                trace.add ("long modifier " + modifier);
+                            }
+                            default -> {
+                                final int cc = fuzzButtonCCs[nextScenarioInt (randomState, fuzzButtonCCs.length)];
+                                midi.device ().tapButton (cc);
+                                trace.add ("button " + cc);
+                            }
+                        }
+                        fuzzedActions++;
+                        if ((actionIndex & 15) == 15)
+                        {
+                            setup.flush ();
+                            hardware.flush ();
+                            for (int lcdRow = 0; lcdRow < 4; lcdRow++)
+                                require (midi.device ().getLcdRow (lcdRow).length () == Push1DisplayLayout.COLUMNS,
+                                    "Fuzzer corrupted LCD row " + lcdRow + " in " + fuzzView);
+                        }
+                        if (trace.size () > 32)
+                            trace.remove (0);
+                    }
+                    for (int cc: fuzzButtonCCs)
+                        require (!midi.device ().isButtonPressed (cc),
+                            "Fuzzer left button CC " + cc + " held in " + fuzzView);
+                    for (int note = 36; note <= 99; note++)
+                        require (!midi.device ().isPadPressed ((note - 36) / 8, (note - 36) % 8),
+                            "Fuzzer left pad note " + note + " held in " + fuzzView);
+                    setup.flush ();
+                    hardware.flush ();
+                    require (state.errors.isEmpty (),
+                        "Fuzzer caused Bitwig host errors in " + fuzzView + ": " + state.errors);
+                    for (int lcdRow = 0; lcdRow < 4; lcdRow++)
+                        require (midi.device ().getLcdRow (lcdRow).length () == Push1DisplayLayout.COLUMNS,
+                            "Fuzzer left an incomplete LCD row " + lcdRow + " in " + fuzzView);
+                    fuzzedScenarios++;
+                }
+                catch (final Throwable failure)
+                {
+                    throw new AssertionError ("Generated Push 1 scenario failed: seed=" + seed
+                        + ", view=" + fuzzView + ", recent actions=" + trace, failure);
+                }
+            }
+        }
+        require (fuzzedScenarios == 4 * allPushViews.length,
+            "Generated scenario matrix did not cover every view and seed");
+        System.out.println ("Generated Push 1 interaction scenarios passed: " + fuzzedScenarios
+            + " view/seed combinations, " + fuzzedActions + " mixed actions, reproducible seed corpus.");
+
         musicalModel.setCanHoldNotes (false);
         viewManager.setActive (Views.PLAY);
 
@@ -1429,6 +1608,18 @@ public final class VirtualPush1RuntimeTest
     }
 
 
+
+    private static int nextScenarioInt (final long [] state, final int bound)
+    {
+        if (bound <= 0)
+            throw new IllegalArgumentException ("Scenario random bound must be positive");
+        state[0] += 0x9E3779B97F4A7C15L;
+        long value = state[0];
+        value = (value ^ (value >>> 30)) * 0xBF58476D1CE4E5B9L;
+        value = (value ^ (value >>> 27)) * 0x94D049BB133111EBL;
+        value ^= value >>> 31;
+        return (int) Long.remainderUnsigned (value, bound);
+    }
 
     /**
      * Stateful cursor-track/slot model for the Push 1 New command integration
