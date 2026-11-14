@@ -120,6 +120,10 @@ public final class VirtualPush1RuntimeTest
         boolean metronomeTicks;
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
+        // Monotonic virtual time for hardware-button hold semantics. This is
+        // deliberately separate from TimeoutOptimizer's wall-clock calibration.
+        long virtualTimeMillis;
+        final List<Runnable> buttonTimers = new java.util.ArrayList<> ();
     }
 
     private record ScheduledTask (long delay, Runnable task) { }
@@ -149,7 +153,7 @@ public final class VirtualPush1RuntimeTest
         final MixerModel mixerModel = new MixerModel ();
         final Scales [] scaleModel = new Scales [1];
         final VirtualPush1MidiBench midi = new VirtualPush1MidiBench ();
-        final IHwSurfaceFactory hardware = surfaceFactory (midi);
+        final IHwSurfaceFactory hardware = surfaceFactory (midi, state);
         final IHost host = (IHost) Proxy.newProxyInstance (IHost.class.getClassLoader (),
             new Class<?> [] { IHost.class }, (proxy, method, callArgs) -> {
                 switch (method.getName ())
@@ -2414,13 +2418,13 @@ public final class VirtualPush1RuntimeTest
             });
     }
 
-    private static IHwSurfaceFactory surfaceFactory (final VirtualPush1MidiBench midi)
+    private static IHwSurfaceFactory surfaceFactory (final VirtualPush1MidiBench midi, final State state)
     {
         final List<IHwLight> lights = new java.util.ArrayList<> ();
         return (IHwSurfaceFactory) Proxy.newProxyInstance (IHwSurfaceFactory.class.getClassLoader (),
             new Class<?> [] { IHwSurfaceFactory.class }, (proxy, method, args) -> switch (method.getName ())
             {
-                case "createButton" -> buttonProxy (midi);
+                case "createButton" -> buttonProxy (midi, state);
                 case "createRelativeKnob" -> continuousProxy (IHwRelativeKnob.class, midi);
                 case "createFader" -> continuousProxy (IHwFader.class, midi);
                 case "createAbsoluteKnob" -> continuousProxy (de.mossgrabers.framework.controller.hardware.IHwAbsoluteKnob.class, midi);
@@ -2476,15 +2480,28 @@ public final class VirtualPush1RuntimeTest
         return (IHwLight) defaultValue (IHwLight.class, IHwLight.class);
     }
 
-    private static IHwButton buttonProxy (final VirtualPush1MidiBench midi)
+    private static IHwButton buttonProxy (final VirtualPush1MidiBench midi, final State state)
     {
         final TriggerCommand [] command = { null };
         final boolean [] pressed = { false };
         final boolean [] longPressed = { false };
         final boolean [] consumed = { false };
         final int [] velocity = { 0 };
+        final long [] pressedAt = { -1 };
         final IHwLight [] light = { null };
         final IHwButton [] self = new IHwButton [1];
+        // DrivenByMoss AbstractHwButton uses a 300 ms TimeoutOptimizer. The
+        // virtual host advances this deadline deterministically without
+        // running TimeoutOptimizer's real wall-clock calibration callbacks.
+        state.buttonTimers.add (() -> {
+            if (pressed[0] && !longPressed[0] && pressedAt[0] >= 0
+                    && state.virtualTimeMillis - pressedAt[0] >= 300)
+            {
+                longPressed[0] = true;
+                if (command[0] != null)
+                    command[0].execute (ButtonEvent.LONG, velocity[0]);
+            }
+        });
         self[0] = (IHwButton) Proxy.newProxyInstance (IHwButton.class.getClassLoader (),
             new Class<?> [] { IHwButton.class }, (proxy, method, args) -> {
                 switch (method.getName ())
@@ -2510,6 +2527,7 @@ public final class VirtualPush1RuntimeTest
                             pressed[0] = true;
                             longPressed[0] = false;
                             consumed[0] = false;
+                            pressedAt[0] = state.virtualTimeMillis;
                             velocity[0] = (int) (amount * 127.0);
                         }
                         else if (event == ButtonEvent.LONG)
@@ -2522,6 +2540,7 @@ public final class VirtualPush1RuntimeTest
                         {
                             pressed[0] = false;
                             longPressed[0] = false;
+                            pressedAt[0] = -1;
                             if (command[0] != null && !consumed[0])
                                 command[0].execute (event, 0);
                             consumed[0] = false;
@@ -2640,6 +2659,16 @@ public final class VirtualPush1RuntimeTest
                     return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 });
         return null;
+    }
+
+    /** Advance hardware-button time and deliver any elapsed 300 ms long-press deadlines. */
+    private static void advanceButtonTime (final State state, final long milliseconds)
+    {
+        if (milliseconds < 0)
+            throw new IllegalArgumentException ("Virtual time cannot move backwards");
+        state.virtualTimeMillis += milliseconds;
+        for (final Runnable timer: List.copyOf (state.buttonTimers))
+            timer.run ();
     }
 
     /** Run only tasks for the requested virtual delay (1 ms flush or 100 ms test tick). */
