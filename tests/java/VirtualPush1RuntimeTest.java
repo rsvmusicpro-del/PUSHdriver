@@ -896,7 +896,6 @@ public final class VirtualPush1RuntimeTest
             "Parent selection must release the touched child parameter exactly once");
         require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
             "Parent channel must not be selected before the Bitwig cursor reports the parent");
-        MODEL_ACTIONS.clear ();
         deviceParamsMode.onKnobTouch (1, true);
         deviceParamsMode.onKnobValue (1, 7);
         deviceParamsMode.onKnobTouch (1, false);
