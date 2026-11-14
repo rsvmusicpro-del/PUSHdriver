@@ -635,7 +635,7 @@ public final class VirtualPush1RuntimeTest
             PushColorManager.PUSH1_COLOR2_ORCHID_HI,
             PushColorManager.PUSH1_COLOR2_YELLOW_HI,
             PushColorManager.PUSH1_COLOR2_MAGENTA_HI,
-            PushColorManager.PUSH1_COLOR2_PINK_HI,
+            PushColorManager.PUSH1_COLOR2_WHITE,
             PushColorManager.PUSH1_COLOR2_RED_HI
         };
         for (int i = 0; i < actionColors.length; i++)
