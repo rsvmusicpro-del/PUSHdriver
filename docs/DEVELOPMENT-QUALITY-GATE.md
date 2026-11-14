@@ -8,7 +8,9 @@ Every evolution intended for `custom` must pass the complete virtual Push 1 benc
 
 The required aggregate check is the `quality-gate` job. It depends on both platform jobs and fails unless both are successful:
 
-- Both platform jobs first run `scripts/check_push1_led_safety.py`, which rejects project-maintained Device/Chains/Browser mode overrides and verifies that the pinned upstream Device selector row does not use RGB/blink palette identifiers.
+- Both platform jobs run `scripts/check_push1_led_safety.py`, which rejects project-maintained Device/Chains/Browser mode overrides and verifies that the pinned upstream Device selector row does not use RGB/blink palette identifiers.
+- After source assembly, both platform jobs run `scripts/check_source_ownership.py`. It rejects project-owned mode classes, requires exact allowlists for source overrides and upstream patch targets, checks shadow type identity, verifies the assembled Device class inventory against pinned upstream, and rejects duplicate public fully-qualified Java types.
+- The inventory covers setup/configuration, modes, views, sequencer/drum/pad handlers, commands and controller surfaces. New source overlays or patch targets fail CI until explicitly reviewed.
 - `build`: assembles the pinned Push 1 source, checks deterministic assembly, builds and verifies the extension, runs the unified virtual simulation suite, validates the local runner and publishes the `.bwextension` artifact.
 - `macos-intel-validation`: builds, package-verifies and runs the same virtual simulation suite on Intel macOS.
 - `quality-gate`: succeeds only when both jobs succeed.
@@ -45,3 +47,13 @@ After saving, verify that GitHub reports the `custom` branch as protected and th
 The workflow itself is configured correctly and runs on every push and pull request to `custom`. The repository's branch metadata now reports `protected: true`. However, the connected GitHub integration cannot read the detailed branch-protection endpoint (GitHub returns HTTP 403), so it cannot independently verify that `quality-gate` is required or that administrators and other roles are prevented from bypassing the rule.
 
 A repository administrator should confirm those two settings in GitHub. Until then, describe the workflow as an active CI gate and the branch as protected, but do not claim that every possible merge path is guaranteed to require `quality-gate`.
+
+
+## Why this gate is necessary
+
+The former guard checked only three named Device-family files in one override directory. It did not inventory every project override or the upstream files modified directly by the assembly script. The virtual bench exercised production MIDI bindings but did not independently enforce implementation ownership; tests could therefore confirm a self-consistent but incorrect mapping.
+
+The source-ownership gate makes the upstream/project boundary explicit. The DeviceParamsMode-specific In/Out methods and DeviceBrowserMode filter-column navigation methods have been removed. Push 1 In/Out now delegates to upstream item/page methods; DeviceBrowserMode remains the sole upstream class with only defensive Bitwig empty-bank guards.
+
+
+The quality gate also verifies the physical In/Out contract end-to-end: CC62 is In/next and CC63 is Out/previous, including setup labels, command delegation, virtual-device constants, hardware documentation and isolated runtime assertions.
