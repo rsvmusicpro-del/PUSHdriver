@@ -2416,9 +2416,9 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("canScrollForwards"))
                     return Boolean.valueOf (deviceIndex < 15);
                 if (method.getName ().equals ("canScrollPageBackwards"))
-                    return Boolean.valueOf (deviceIndex >= 8);
+                    return Boolean.valueOf (deviceIndex > 0);
                 if (method.getName ().equals ("canScrollPageForwards"))
-                    return Boolean.valueOf (deviceIndex < 8);
+                    return Boolean.valueOf (deviceIndex < 15);
                 if (method.getName ().equals ("getItem"))
                 {
                     final int targetIndex = (int) args[0];
