@@ -123,9 +123,8 @@ public class DeviceChainsMode extends DeviceParamsMode
         }
 
         // The RGB action row is below the LCD.
-        final String [] actionLabels = { "On", "Params", "Expand", "Chains", "Banks", "Pin", "Window", "Up" };
-        for (int i = 0; i < actionLabels.length; i++)
-            display.setCell (3, i, i == 4 ? actionLabels[i] + " C" : actionLabels[i]);
+        for (int i = 0; i < this.hostMenu.length; i++)
+            display.setCell (3, i, i == 4 ? this.hostMenu[i] + " C" : this.hostMenu[i]);
     }
 
 
