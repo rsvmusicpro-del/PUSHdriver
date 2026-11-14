@@ -1444,25 +1444,25 @@ replace_once(device_params_mode,
                 case 7:
                     return white;
             }""",
-    """            final int off = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_BLACK);
-            final int white = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_WHITE);
+    """            final int off = PushColorManager.PUSH1_COLOR2_BLACK;
+            final int white = PushColorManager.PUSH1_COLOR2_WHITE;
             if (!cd.doesExist ())
                 return index == 7 ? white : off;
 
-            final int greenOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_GREEN_HI);
-            final int greenOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_GREEN_LO);
-            final int blueOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_BLUE_HI);
-            final int blueOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_BLUE_LO);
-            final int magentaOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_MAGENTA_HI);
-            final int magentaOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_MAGENTA_LO);
-            final int orangeOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_AMBER_HI);
-            final int orangeOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_AMBER_LO);
-            final int yellowOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_YELLOW_HI);
-            final int yellowOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_YELLOW_LO);
-            final int redOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_RED_HI);
-            final int redOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_RED_LO);
-            final int violetOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_ORCHID_HI);
-            final int violetOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_ORCHID_LO);
+            final int greenOn = PushColorManager.PUSH1_COLOR2_GREEN_HI;
+            final int greenOff = PushColorManager.PUSH1_COLOR2_GREEN_LO;
+            final int blueOn = PushColorManager.PUSH1_COLOR2_BLUE_HI;
+            final int blueOff = PushColorManager.PUSH1_COLOR2_BLUE_LO;
+            final int magentaOn = PushColorManager.PUSH1_COLOR2_MAGENTA_HI;
+            final int magentaOff = PushColorManager.PUSH1_COLOR2_MAGENTA_LO;
+            final int orangeOn = PushColorManager.PUSH1_COLOR2_AMBER_HI;
+            final int orangeOff = PushColorManager.PUSH1_COLOR2_AMBER_LO;
+            final int yellowOn = PushColorManager.PUSH1_COLOR2_YELLOW_HI;
+            final int yellowOff = PushColorManager.PUSH1_COLOR2_YELLOW_LO;
+            final int redOn = PushColorManager.PUSH1_COLOR2_RED_HI;
+            final int redOff = PushColorManager.PUSH1_COLOR2_RED_LO;
+            final int violetOn = PushColorManager.PUSH1_COLOR2_ORCHID_HI;
+            final int violetOff = PushColorManager.PUSH1_COLOR2_ORCHID_LO;
 
             switch (index)
             {
