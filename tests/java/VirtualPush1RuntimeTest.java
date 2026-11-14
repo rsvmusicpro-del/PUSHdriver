@@ -235,6 +235,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
                                 case "getMarkerBank" -> markerModel.bank ();
+                                case "getUserParameterBank" -> parameterBank;
                                 case "getBrowser" -> browserModel.browser ();
                                 case "getNoteClip" -> musicalModel.noteClip ();
                                 case "canSelectedTrackHoldNotes" -> musicalModel.canHoldNotes ();
