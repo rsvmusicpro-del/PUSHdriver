@@ -284,6 +284,8 @@ public final class VirtualPush1RuntimeTest
         final PushControllerSetup setup = new PushControllerSetup (host, factory, global, document);
         setup.init ();
         setup.startup ();
+        require (trackBankProxy (mixerModel).getSceneBank ().getPageSize () == 8,
+            "Virtual Bitwig track bank must expose its eight-slot clip-launcher page, not the 64-scene global bank");
 
         // Regression: an empty API layer slot may be represented by null.
         // A Push 1 second-row mute/solo action must ignore it rather than crash.
@@ -2899,7 +2901,7 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getSelectedItem"))
                     return navigationContext ? Optional.of (mixer.track (Math.floorMod (trackIndex, 8))) : Optional.empty ();
                 if (method.getName ().equals ("getSceneBank"))
-                    return mixer.sceneBank ();
+                    return sceneBankProxy (); // ITrackBank exposes the 8-slot clip-launcher page, not the global 64-scene bank.
                 if (method.getName ().equals ("getItem"))
                     return mixer.track (Math.max (0, Math.min (7, (int) args[0])));
                 if (method.getName ().equals ("canEditSend"))
@@ -3146,7 +3148,9 @@ public final class VirtualPush1RuntimeTest
                         case "isPlaying" -> this.trackPlaying[index];
                         case "stop" -> { this.trackPlaying[index] = false; for (final SlotState slot : this.slotStates[index]) { slot.playing = false; slot.recording = false; } yield null; }
                         case "returnToArrangement" -> { this.trackPlaying[index] = false; yield null; }
-                        case "getSceneBank" -> this.sceneBank;
+                        // A track owns an eight-slot scene page. The model-level scene bank
+                        // remains a separate 64-scene bank used for scene navigation.
+                        case "getSceneBank" -> sceneBankProxy ();
                         case "getSlotBank" -> this.slotBanks[index];
                         case "getVu", "getVuLeft", "getVuRight", "getVuPeakLeft", "getVuPeakRight" -> 0;
                         default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
