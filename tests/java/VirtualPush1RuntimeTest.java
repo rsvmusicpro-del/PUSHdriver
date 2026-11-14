@@ -391,6 +391,23 @@ public final class VirtualPush1RuntimeTest
         require (newClipModel.cursorTrack ().doesExist (), "Virtual cursor track should exist before Note/Session view selection");
         surface.getViewManager ().setActive (Views.PLAY);
         surface.getViewManager ().setPreferredView (newClipModel.cursorTrack ().getPosition (), Views.PLAY);
+
+        // Context-menu row alignment: Drum is shown in the upper LCD menu and
+        // must be selected by the upper physical row; Play is shown in the
+        // lower LCD menu and must be selected by the lower physical row.
+        modes.setActive (Modes.VIEW_SELECT);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Upper-row Drum view selection");
+        require (surface.getViewManager ().getActiveID () == Views.DRUM,
+            "The upper physical row must select Drum, which is displayed in the upper menu");
+        modes.setActive (Modes.VIEW_SELECT);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Lower-row Play view selection");
+        require (surface.getViewManager ().getActiveID () == Views.PLAY,
+            "The lower physical row must select Play, which is displayed in the lower menu");
+
+        modes.setActive (Modes.SESSION_VIEW_SELECT);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Lower-row Session view selection");
+        require (surface.getViewManager ().getActiveID () == Views.SESSION,
+            "Session view options displayed on the lower LCD row must use the lower physical row");
         midi.device ().tapButton (VirtualPush1Device.NOTE);
         require (Views.isNoteView (surface.getViewManager ().getActiveID ()), "Note CC did not select a note view");
         midi.device ().tapButton (VirtualPush1Device.SESSION);

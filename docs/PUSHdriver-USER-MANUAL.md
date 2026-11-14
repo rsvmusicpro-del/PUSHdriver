@@ -41,8 +41,8 @@ Le nom du port MIDI dépend du système et du pilote. Le simulateur logiciel du 
 | Élément | Fonction générale |
 |---|---|
 | Grille 8 × 8 | 64 pads sensibles à la vélocité et à la pression ; fonction déterminée par la vue active |
-| Rangée supérieure (8 boutons) | Actions contextuelles du mode Device/Chains (On, Parameters, Expanded, Chains, Banks, Pin, Window, Up) ; navigation vers l’élément précédent dans Browser |
-| Rangée inférieure (8 boutons) | Sélection des éléments affichés dans le menu inférieur de Device/Chains (appareils, pages de paramètres, chaînes) ; navigation vers l’élément suivant dans Browser |
+| Rangée supérieure (8 boutons) | Sélection des choix affichés dans la partie haute de l’écran ; commandes Device/Chains affichées en haut (On, Parameters, Expanded, Chains, Banks, Pin, Window, Up) ; élément précédent dans Browser |
+| Rangée inférieure (8 boutons) | Sélection des choix affichés dans la partie basse de l’écran (appareils, pages, chaînes, favoris Audio/Effects, etc.) ; élément suivant dans Browser |
 | 9 encodeurs principaux | Réglage des paramètres de la vue ou du mode actif |
 | 2 petits encodeurs | Fonctions contextuelles héritées du contrôleur Push |
 | Touches des encodeurs | Sélection de colonne, contrôle tactile ou geste contextuel selon le mode |
@@ -55,6 +55,21 @@ Le nom du port MIDI dépend du système et du pilote. Le simulateur logiciel du 
 | Footswitch 1 et 2 | Entrées pédales ; Footswitch 2 utilise par défaut l’action Sustain Pedal dans la configuration testée |
 
 Les boutons sont momentanés : appui = valeur MIDI 127, relâchement = 0. Les encodeurs transmettent des déplacements relatifs. Le ruban utilise le pitch bend et un événement tactile.
+
+---
+
+### Correspondance écran / boutons de sélection
+
+La règle ergonomique est la même dans les menus à deux zones : **un choix affiché en haut de l’écran se sélectionne avec la rangée physique supérieure ; un choix affiché en bas se sélectionne avec la rangée physique inférieure.** Les couleurs LED suivent cette correspondance.
+
+- **Sélecteur Note :** la rangée supérieure sélectionne les vues affichées en haut, notamment Sequencer, Poly Sequencer, Raindrops, **Drum**, Drum4 et Drum8. La rangée inférieure sélectionne les vues affichées en bas, notamment Play, Chords, Piano et Drum64.
+- **Sélecteur Session :** les choix étant affichés en bas de l’écran, ils se sélectionnent avec la rangée physique inférieure.
+- **Add Track :** la rangée supérieure sélectionne les favoris Instrument affichés en haut ; la rangée inférieure sélectionne les favoris Audio et Effect affichés en bas.
+- **Scale Layout :** les choix affichés en bas se sélectionnent avec la rangée inférieure.
+- **Device et Device Chains :** la rangée supérieure pilote les commandes affichées dans le menu supérieur ; la rangée inférieure sélectionne les appareils, pages ou chaînes affichés dans le menu inférieur.
+- **Device Layer :** la rangée inférieure sélectionne les couches affichées en bas ; la rangée supérieure conserve les commandes d’état.
+- **Layer Details :** les commandes Clear Mute / Clear Solo affichées en haut utilisent la rangée supérieure ; Active, Mute, Solo et Color affichés en bas utilisent la rangée inférieure.
+- **Browser :** cas différent, les deux rangées sont des commandes de déplacement dans une même liste : supérieur = précédent, inférieur = suivant.
 
 ---
 
