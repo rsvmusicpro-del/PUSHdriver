@@ -126,3 +126,42 @@ The Poly keyboard fundamental is evaluated before transient selection/playback h
 The Push-specific Poly implementation had overridden both `handleNoteArea` and `handleSequencerArea`. That duplicated the upstream event state machine and changed the established timing/meaning of note-pad presses, step release toggles, occupied-step clearing and long-press note editing. It also introduced a second inline step editor that was not part of the pinned DrivenByMoss interaction model. These overrides have been removed. The pinned upstream `AbstractPolySequencerView` now owns the actual note and step event flow again; the Push-specific class retains the upstream long-press step inspection and Select/Shift combinations, plus only the required fundamental track-color override.
 
 The runtime regression now drives the physical virtual MIDI pads: it selects notes in the lower keyboard, programs the upper step grid, verifies the upstream occupied-step toggle behavior, checks the long-note continuation feedback and checks that the fundamental remains in the track color both while held and released. This deliberately tests the same event route used by the physical Push instead of calling private/custom editor helpers directly.
+
+
+## Engine kernel implementation — 2026-11-15
+
+The first production slice introduces a Java 17 engine kernel under
+`de.mossgrabers.controller.ableton.push.engine.sequencer`:
+
+- `SequencerEngine` defines an explicit activation contract and immutable
+  `ActivationToken` record.
+- `AbstractSequencerEngine` serializes lifecycle transitions and advances a
+  monotonic generation on activation/deactivation. Deferred work can capture the
+  token and call `accepts(token)` before applying its result; stale work from
+  an earlier activation is rejected. The new sequencer adapters use this
+  lifecycle contract for ownership; wiring every existing delayed callback to
+  tokens remains part of the later per-domain migration.
+- `ClassicSequencerEngine` owns Push-specific page-follow/page-lock state.
+  The view acts as the Bitwig/Push adapter for page and playhead inputs.
+- `PolySequencerEngine` owns Push grid bounds, bottom-up step coordinate
+  conversion and scale-fundamental classification. The view delegates these
+  decisions to its engine.
+
+The implementation uses Java 17 records and synchronized lifecycle transitions
+without a third-party runtime dependency. Bitwig's note clip remains the single
+source of truth for musical data; DrivenByMoss remains the owner of the Poly
+note-memory and note/step event state machine. No parallel MIDI scheduler,
+clip cache, LED writer or second controller event router has been introduced.
+
+**Migration boundary:** this commit establishes the reusable engine contract
+and extracts the first two Push-specific sequencer engines. It does not claim
+that every DrivenByMoss feature (Drum, Session, Note, Mixer, Device, Browser,
+Transport, etc.) has already been migrated. Those feature engines must be
+extracted one domain at a time behind the same lifecycle contract, preserving
+upstream behavior and the source-ownership gate. Claiming all modes are
+migrated before their callbacks and state ownership are moved would be a false
+architectural guarantee.
+
+The deterministic `SequencerEngineTest` is part of the mandatory virtual
+bench and covers token invalidation, classic page-follow policy, Push pad
+bounds, Poly step mapping and scale-fundamental classification.
