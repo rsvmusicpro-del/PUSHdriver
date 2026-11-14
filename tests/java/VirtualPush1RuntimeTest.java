@@ -33,6 +33,7 @@ import de.mossgrabers.framework.daw.clip.IStepInfo;
 import de.mossgrabers.framework.daw.clip.NotePosition;
 import de.mossgrabers.framework.daw.clip.StepState;
 import de.mossgrabers.framework.daw.constants.Resolution;
+import de.mossgrabers.framework.daw.constants.RecordQuantization;
 import de.mossgrabers.controller.ableton.push.view.SequencerView;
 import de.mossgrabers.controller.ableton.push.view.PolySequencerView;
 import de.mossgrabers.framework.featuregroup.AbstractView;
@@ -255,6 +256,32 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.BROWSER) != null, "Browser mode was not registered");
         require (modes.get (Modes.SESSION) != null, "Session mode was not registered");
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
+        require (modes.get (Modes.FIXED) != null, "Fixed Length menu was not registered");
+        require (modes.get (Modes.QUANTIZE) != null, "Quantize menu was not registered");
+
+        // Exercise every option through the real production MIDI bindings.
+        // CC20–27 are the eight physical buttons directly below the LCD, in
+        // left-to-right order; displayed choices and actions must share an index.
+        for (int index = 0; index < 8; index++)
+        {
+            modes.setActive (Modes.FIXED);
+            midi.device ().tapButton (VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST + index);
+            require (surface.getConfiguration ().getNewClipLength () == index,
+                "Fixed Length physical button " + (index + 1) + " selected option "
+                    + surface.getConfiguration ().getNewClipLength () + " instead of LCD option " + index);
+        }
+
+        // Quantize exposes RecordQuantization enum values in left-to-right order.
+        // Verify every actionable LCD choice through the same MIDI path.
+        newClipModel.setTrackExists (true);
+        for (int index = 0; index < 5; index++)
+        {
+            modes.setActive (Modes.QUANTIZE);
+            midi.device ().tapButton (VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST + index);
+            require (newClipModel.recordQuantizationIndex () == index,
+                "Quantize physical button " + (index + 1) + " selected enum "
+                    + newClipModel.recordQuantizationIndex () + " instead of LCD option " + index);
+        }
 
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
@@ -1318,6 +1345,7 @@ public final class VirtualPush1RuntimeTest
         private final int [] selectedSlot = { 1 };
         private final boolean [] trackPlaying = { true };
         private final boolean [] trackExists = { false };
+        private final int [] recordQuantizationIndex = { 0 };
         private final boolean [] otherTrackPlaying = { true };
         private final int [] stopCount = { 0 };
         private final int [] createCount = { 0 };
@@ -1372,6 +1400,10 @@ public final class VirtualPush1RuntimeTest
                     switch (method.getName ())
                     {
                         case "doesExist": return this.trackExists[0];
+                        case "getRecordQuantizationGrid": return RecordQuantization.values ()[this.recordQuantizationIndex[0]];
+                        case "setRecordQuantizationGrid":
+                            this.recordQuantizationIndex[0] = ((RecordQuantization) args[0]).ordinal ();
+                            return null;
                         case "getSlotBank": return this.slotBank;
                         case "getColor": return ColorEx.BLUE;
                         case "isPlaying": return this.trackPlaying[0];
@@ -1389,6 +1421,7 @@ public final class VirtualPush1RuntimeTest
         boolean isTrackPlaying () { return this.trackPlaying[0]; }
         boolean isOtherTrackPlaying () { return this.otherTrackPlaying[0]; }
         int stopCount () { return this.stopCount[0]; }
+        int recordQuantizationIndex () { return this.recordQuantizationIndex[0]; }
         int createCount () { return this.createCount[0]; }
         int lastSlotIndex () { return this.lastSlotIndex[0]; }
         boolean lastOverdub () { return this.lastOverdub[0]; }
