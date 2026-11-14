@@ -57,6 +57,8 @@ with ZipFile(jar) as archive:
         "de/mossgrabers/controller/ableton/push/view/Drum64View.class",
         "de/mossgrabers/controller/ableton/push/view/SequencerView.class",
         "de/mossgrabers/controller/ableton/push/view/PolySequencerView.class",
+        "de/mossgrabers/controller/ableton/push/view/RaindropsView.class",
+        "de/mossgrabers/framework/view/sequencer/AbstractRaindropsView.class",
         "de/mossgrabers/controller/ableton/push/mode/device/DeviceBrowserMode.class",
         "de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.class",
         "de/mossgrabers/controller/ableton/push/mode/ScalesMode.class",
@@ -88,8 +90,7 @@ with ZipFile(jar) as archive:
 
     forbidden_names = (
         "Push2Display", "PushUsbDisplay", "Push2Controller", "MaschineColorManager",
-        "RaindropsView", "AbstractRaindropsView", "RAINDROPS",
-        "NAME_RAINDROPS", "com/studiohartman/jamepad/",
+        "com/studiohartman/jamepad/",
         "purejavahidapi/", "com/fasterxml/jackson/",
         "de/mossgrabers/bitwig/framework/usb/",
     )
@@ -97,14 +98,12 @@ with ZipFile(jar) as archive:
     if leftovers:
         raise SystemExit(f"Forbidden controller code or Raindrops dependency packaged: {leftovers}")
 
-    # Scan class constant pools as well as entry names: no dormant Raindrops mode may remain.
-    raindrops_refs = []
-    for path in classes:
-        data = archive.read(path)
-        if any(token in data for token in (b"Raindrops", b"Raindrop", b"RAINDROPS", b"NAME_RAINDROPS")):
-            raindrops_refs.append(path)
-    if raindrops_refs:
-        raise SystemExit(f"Raindrops symbols remain in compiled classes: {raindrops_refs}")
+    # Raindrops is an explicitly supported Push 1 Note-menu view. Verify both
+    # its implementation and the controller/enum registration in the package.
+    raindrops_setup = archive.read("de/mossgrabers/controller/ableton/push/PushControllerSetup.class")
+    views_class = archive.read("de/mossgrabers/framework/view/Views.class")
+    if b"RaindropsView" not in raindrops_setup or b"RAINDROPS" not in views_class:
+        raise SystemExit("Raindrops is not registered in the packaged Push 1 controller")
 
     definition_class = archive.read("de/mossgrabers/controller/ableton/push/PushControllerDefinition.class")
     if b"Push 2" in definition_class or b"Ableton Push 2" in definition_class or b"2982" in definition_class:
