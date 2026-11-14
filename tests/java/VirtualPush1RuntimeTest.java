@@ -605,8 +605,11 @@ public final class VirtualPush1RuntimeTest
         deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1));
         deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3));
         deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 5));
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
-            "Unavailable device slots must use the neutral unavailable LED color");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "Unavailable first-row device slots must stay off rather than reuse a second-row color index");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 0)) != PushColorManager.PUSH1_COLOR_GREEN_LO_SBLINK
+                && deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 0)) != PushColorManager.PUSH1_COLOR_GREEN_LO_FBLINK,
+            "Available first-row device buttons must use a steady, non-blinking color");
         require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
             "Unsupported hierarchy navigation must use the neutral unavailable LED color");
         require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 7)) == PushColorManager.PUSH1_COLOR2_ORCHID_HI,
@@ -619,8 +622,13 @@ public final class VirtualPush1RuntimeTest
         deviceCapabilitiesSupported = true;
         deviceSlotExists = true;
         deviceIndex = 4;
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 4)) == PushColorManager.PUSH1_COLOR2_GREEN_HI,
-            "The selected device must use the strong selection green");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 4)) == PushColorManager.PUSH1_COLOR_GREEN_HI,
+            "The selected device must use the steady first-row selection green");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 0)) == PushColorManager.PUSH1_COLOR_GREEN_LO,
+            "Unselected available devices must use steady low-intensity first-row green");
+        final DeviceParamsMode deviceChainsMode = (DeviceParamsMode) modes.get (Modes.DEVICE_CHAINS);
+        require (deviceChainsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 0)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "Empty Device Chains first-row slots must not use second-row LED indices");
         deviceParamsMode.onFirstRow (1, ButtonEvent.UP);
         requireAction ("device.select", "Selecting an existing device row must select that device");
         deviceParamsMode.onSecondRow (1, ButtonEvent.DOWN);
