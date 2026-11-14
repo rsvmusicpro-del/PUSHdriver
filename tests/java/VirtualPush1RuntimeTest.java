@@ -1088,7 +1088,7 @@ public final class VirtualPush1RuntimeTest
         require (polySequencerView.getKeyManager ().map (36) == 38
                 && polySequencerView.getKeyManager ().map (37) == 40,
             "Poly Sequencer's 32-note keyboard did not follow the newly selected D-major Scale");
-        require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, 39)).getState () == StepState.START,
+        require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, 37)).getState () == StepState.START,
             "Changing Poly Sequencer Scale deleted a previously programmed out-of-scale note");
         viewManager.setActive (Views.SEQUENCER);
 
