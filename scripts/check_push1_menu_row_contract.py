@@ -35,6 +35,17 @@ def require(condition: bool, message: str) -> None:
 
 
 note = read("NoteViewSelectMode.java")
+top_choices = note.split("private static final Views [] VIEWS_TOP =", 1)[1].split("};", 1)[0]
+expected_top_choices = [
+    "Views.SEQUENCER", "Views.POLY_SEQUENCER", "Views.DRUM",
+    "Views.DRUM4", "Views.DRUM8", "null", "null", "null",
+]
+actual_top_choices = [line.strip().rstrip(",") for line in top_choices.splitlines()
+                      if line.strip() and not line.strip().startswith("{")]
+require(actual_top_choices == expected_top_choices,
+        "Note View Select upper row must be Sequencer, Poly Sequencer, Drum, Drum 4, Drum 8, then three empty slots")
+require("Views.RAINDROPS" not in note,
+        "Raindrops must not remain selectable from the Push 1 Note View menu")
 require("this.activateView (VIEWS_TOP[index]);" in method(note, "public void onFirstRow"),
         "Note View Select Row 1 must select the upper display choices")
 require("this.activateView (VIEWS[index]);" in method(note, "public void onSecondRow"),
