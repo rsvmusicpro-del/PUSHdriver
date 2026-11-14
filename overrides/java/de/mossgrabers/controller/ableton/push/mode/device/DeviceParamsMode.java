@@ -674,10 +674,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         switch (this.getSelectorContext ())
         {
             case DEVICES: cursorDevice.getDeviceBank ().selectPreviousItem (); break;
-            case PAGES:
-                if (cursorDevice.doesExist ())
-                    cursorDevice.getParameterPageBank ().selectPreviousPage ();
-                break;
+            case PAGES: cursorDevice.getParameterPageBank ().selectPreviousPage (); break;
             case CHAINS: break;
             default: break;
         }
@@ -691,10 +688,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         switch (this.getSelectorContext ())
         {
             case DEVICES: cursorDevice.getDeviceBank ().selectNextItem (); break;
-            case PAGES:
-                if (cursorDevice.doesExist ())
-                    cursorDevice.getParameterPageBank ().selectNextPage ();
-                break;
+            case PAGES: cursorDevice.getParameterPageBank ().selectNextPage (); break;
             case CHAINS: break;
             default: break;
         }
@@ -708,7 +702,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         switch (this.getSelectorContext ())
         {
             case DEVICES: return cursorDevice.getDeviceBank ().canScrollBackwards ();
-            case PAGES: return cursorDevice.doesExist () && cursorDevice.getParameterPageBank ().canScrollPageBackwards ();
+            case PAGES: return cursorDevice.getParameterPageBank ().canScrollPageBackwards ();
             case CHAINS: return false;
             default: return false;
         }
@@ -722,7 +716,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         switch (this.getSelectorContext ())
         {
             case DEVICES: return cursorDevice.getDeviceBank ().canScrollForwards ();
-            case PAGES: return cursorDevice.doesExist () && cursorDevice.getParameterPageBank ().canScrollPageForwards ();
+            case PAGES: return cursorDevice.getParameterPageBank ().canScrollPageForwards ();
             case CHAINS: return false;
             default: return false;
         }
