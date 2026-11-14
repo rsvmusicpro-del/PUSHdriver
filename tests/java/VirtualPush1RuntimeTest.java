@@ -117,6 +117,7 @@ public final class VirtualPush1RuntimeTest
     private static boolean deviceSlotExists;
     private static boolean virtualDeviceParametersExist;
     private static String [] virtualSlotChains = { "Chain 1", "Chain 2" };
+    private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
     // Model API capabilities independently; Bitwig hosts may support one feature but not another.
     private static final EnumSet<Capability> SUPPORTED_CAPABILITIES = EnumSet.allOf (Capability.class);
     /** Return null for an empty ILayerBank slot to model hosts that do so. */
@@ -841,6 +842,21 @@ public final class VirtualPush1RuntimeTest
         require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
             "Selecting a valid chain must return to the Devices selector");
         virtualSlotChains = new String [] { "Chain 1", "Chain 2" };
+
+        // Whitespace and null parameter-page names must be dark and unselectable.
+        virtualParameterPages = new String [] { "Page 0", null, "   ", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
+        deviceParamsMode.setShowDevices (false);
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "A null parameter-page slot must be dark");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 2)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "A whitespace-only parameter-page slot must be dark");
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onSecondRow (1, ButtonEvent.UP);
+        deviceParamsMode.onSecondRow (2, ButtonEvent.UP);
+        require (MODEL_ACTIONS.stream ().noneMatch (action -> action.startsWith ("parameterPage.selectPage:")),
+            "Null and whitespace-only parameter pages must not be selectable");
+        deviceParamsMode.setShowDevices (true);
+        virtualParameterPages = new String [] { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
 
         // Every device-selector position is exercised through production MIDI.
         // Selecting the current device opens its parameter pages.
@@ -2343,7 +2359,7 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
-                    return "Page " + args[0];
+                    return virtualParameterPages[(int) args[0]];
                 if (method.getName ().equals ("selectPage"))
                 {
                     MODEL_ACTIONS.add ("parameterPage.selectPage:" + args[0]);
