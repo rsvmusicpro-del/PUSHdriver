@@ -356,6 +356,47 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     }
 
 
+    /**
+     * Select a slot chain and keep the Chains selector active until Bitwig's
+     * FOLLOW_SELECTION cursor reports the newly selected device.
+     *
+     * @param cd The cursor device
+     * @param chainName The selected slot-chain name
+     */
+    protected void selectSlotChainAndAwaitCursor (final ICursorDevice cd, final String chainName)
+    {
+        final long transition = ++this.hierarchyTransitionGeneration;
+        final String previousName = cd.getName ();
+        final int previousPosition = cd.getPosition ();
+        final boolean previousNested = cd.isNested ();
+        final boolean previousHasLayers = cd.hasLayers ();
+        cd.selectSlotChain (chainName);
+        this.awaitSelectedChainCursor (cd, previousName, previousPosition, previousNested, previousHasLayers, transition, 0);
+    }
+
+
+    private void awaitSelectedChainCursor (final ICursorDevice cd, final String previousName, final int previousPosition,
+        final boolean previousNested, final boolean previousHasLayers, final long transition, final int attempt)
+    {
+        if (transition != this.hierarchyTransitionGeneration || !cd.doesExist ())
+            return;
+
+        final boolean cursorUnchanged = previousName.equals (cd.getName ())
+            && previousPosition == cd.getPosition ()
+            && previousNested == cd.isNested ()
+            && previousHasLayers == cd.hasLayers ();
+        if (cursorUnchanged)
+        {
+            if (attempt < 40)
+                this.model.getHost ().scheduleTask (() -> this.awaitSelectedChainCursor (cd, previousName, previousPosition,
+                    previousNested, previousHasLayers, transition, attempt + 1), 73);
+            return;
+        }
+
+        this.setSelectorContext (SelectorContext.DEVICES);
+    }
+
+
     private void awaitParentCursor (final ICursorDevice cd, final ModeManager modeManager,
         final DeviceParamsMode deviceParamsMode, final String childName, final int childPosition,
         final boolean childNested, final boolean childHasLayers, final long transition, final int attempt)
