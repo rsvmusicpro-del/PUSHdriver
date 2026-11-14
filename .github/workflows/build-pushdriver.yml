@@ -22,6 +22,9 @@ jobs:
       - name: Enforce Push 1 static-row LED safety
         run: python3 scripts/check_push1_led_safety.py
 
+      - name: Test permanent regression-corpus promotion
+        run: python3 -m unittest discover -s tests/python -v
+
       - name: Assemble Push 1-only source tree
         run: python3 scripts/prepare_push1.py
 
@@ -56,6 +59,15 @@ jobs:
 
       - name: Run unified virtual Push 1 simulation suite
         run: python3 scripts/test_push1_extension.py
+
+      - name: Upload generated Push 1 failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: push1-generated-failure-traces-linux
+          path: target/push1-failures/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Validate one-command local bench runner
         run: python3 -m py_compile scripts/run_virtual_push1.py
@@ -106,6 +118,15 @@ jobs:
 
       - name: Run unified virtual Push 1 simulation suite on macOS
         run: python3 scripts/test_push1_extension.py
+
+      - name: Upload generated Push 1 failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: push1-generated-failure-traces-macos
+          path: target/push1-failures/
+          if-no-files-found: ignore
+          retention-days: 14
 
   quality-gate:
     if: always()
