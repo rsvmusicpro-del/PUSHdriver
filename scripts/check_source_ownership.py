@@ -45,6 +45,8 @@ PATCH_TARGET_ALLOWLIST={
 "de/mossgrabers/framework/view/Views.java",
 "de/mossgrabers/controller/ableton/push/mode/device/DeviceBrowserMode.java",
 "de/mossgrabers/bitwig/controller/ableton/push/Push1ControllerExtensionDefinition.java",
+"de/mossgrabers/bitwig/controller/ableton/push/Push2ControllerExtensionDefinition.java",
+"de/mossgrabers/controller/ableton/push/controller/Push2Display.java",
 "de/mossgrabers/bitwig/framework/daw/HostImpl.java",
 "de/mossgrabers/controller/ableton/push/PushControllerDefinition.java",
 "de/mossgrabers/controller/ableton/push/controller/PushUsbDisplay.java",
