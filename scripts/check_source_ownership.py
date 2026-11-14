@@ -24,6 +24,7 @@ PATCH_TARGET_ALLOWLIST={
 "de/mossgrabers/framework/daw/midi/DeviceInquiry.java",
 "de/mossgrabers/controller/ableton/push/controller/PushControlSurface.java",
 "de/mossgrabers/controller/ableton/push/mode/device/DeviceLayerMode.java",
+"de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java",
 "de/mossgrabers/controller/ableton/push/mode/ConfigurationMode.java",
 "de/mossgrabers/framework/view/sequencer/AbstractSequencerView.java",
 "de/mossgrabers/framework/view/sequencer/AbstractPolySequencerView.java",
