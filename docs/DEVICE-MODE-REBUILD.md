@@ -25,7 +25,7 @@ ROW1 must use only the Push 1 static CC palette. ROW2 uses the RGB-capable palet
 
 ## Bitwig-specific integration
 
-The complete upstream mode remains authoritative. No project-owned DeviceParamsMode, DeviceChainsMode or DeviceBrowserMode class is allowed. DeviceParamsMode is assembled from pinned upstream source without injected navigation methods: its native `selectPreviousItem` / `selectNextItem` and `hasPreviousItem` / `hasNextItem` already cover device-bank and parameter-page navigation. The Push 1 setup must not create a second Device state machine or shadow the upstream mode.
+The complete upstream modes remain authoritative. No project-owned DeviceParamsMode, DeviceChainsMode or DeviceBrowserMode class is allowed. DeviceParamsMode is assembled from pinned upstream source without injected navigation methods. Push 1 In/Out is only a command adapter: it dispatches to the existing upstream item/page methods according to the upstream selector state. Browser In/Out likewise delegates to the upstream content-type page methods. No PUSHdriver filter-column state or navigation methods are injected into DeviceBrowserMode; only defensive guards for transient/empty Bitwig browser banks remain.
 
 The existing Push 1 setup continues to route the physical In/Out controls into the active Device/Browser context while preserving their established behavior in Session and sequencer contexts. Optional Bitwig API capabilities must be checked before invoking parameter-section, pinning or slot-chain operations.
 

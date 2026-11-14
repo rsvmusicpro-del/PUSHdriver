@@ -4,7 +4,7 @@
 
 The pinned DrivenByMoss 19.2.2 submodule is the sole owner of Push controller modes. PUSHdriver must never add or overlay project-owned `DeviceParamsMode`, `DeviceChainsMode`, or `DeviceBrowserMode` classes. Device, Chains and Browser state transitions and row semantics remain in the upstream classes.
 
-PUSHdriver may adapt upstream behavior only through narrowly scoped, reviewed patches where Bitwig/Push 1 integration requires them. Every such patch must be listed in `PATCH_TARGET_ALLOWLIST` in `scripts/check_source_ownership.py`. A second mode implementation is prohibited, not merely allowlisted. The DeviceParamsMode-specific In/Out adapter was removed; upstream already provides the corresponding item navigation and boundary methods.
+PUSHdriver may adapt upstream behavior only through narrowly scoped, reviewed patches where Bitwig/Push 1 integration requires them. Every such patch must be listed in `PATCH_TARGET_ALLOWLIST` in `scripts/check_source_ownership.py`. A second mode implementation is prohibited, not merely allowlisted. The DeviceParamsMode-specific In/Out methods and DeviceBrowserMode filter-column navigation methods were removed. The Push 1 In/Out command adapter now calls the upstream mode's existing item/page methods; it owns no Device or Browser state machine.
 
 ## Required review for ownership changes
 
