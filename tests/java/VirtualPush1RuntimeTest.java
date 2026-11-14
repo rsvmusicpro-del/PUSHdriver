@@ -391,6 +391,34 @@ public final class VirtualPush1RuntimeTest
         require (newClipModel.cursorTrack ().doesExist (), "Virtual cursor track should exist before Note/Session view selection");
         surface.getViewManager ().setActive (Views.PLAY);
         surface.getViewManager ().setPreferredView (newClipModel.cursorTrack ().getPosition (), Views.PLAY);
+
+        // Context-menu row alignment: Drum is shown in the upper LCD menu and
+        // must be selected by the upper physical row; Play is shown in the
+        // lower LCD menu and must be selected by the lower physical row.
+        modes.setActive (Modes.VIEW_SELECT);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Upper-row Drum view selection");
+        require (surface.getViewManager ().getActiveID () == Views.DRUM,
+            "The upper physical row must select Drum, which is displayed in the upper menu");
+        modes.setActive (Modes.VIEW_SELECT);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Lower-row Play view selection");
+        require (surface.getViewManager ().getActiveID () == Views.PLAY,
+            "The lower physical row must select Play, which is displayed in the lower menu");
+
+        modes.setActive (Modes.SESSION_VIEW_SELECT);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Lower-row Session view selection");
+        require (surface.getViewManager ().getActiveID () == Views.SESSION,
+            "Session view options displayed on the lower LCD row must use the lower physical row");
+
+        modes.setActive (Modes.ADD_TRACK);
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Upper-row Instrument favorite");
+        require (MODEL_ACTIONS.contains ("track.addChannel:INSTRUMENT"),
+            "Instrument favorites displayed in the upper LCD row must use the upper physical row");
+        modes.setActive (Modes.ADD_TRACK);
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Lower-row Audio favorite");
+        require (MODEL_ACTIONS.contains ("track.addChannel:AUDIO"),
+            "Audio favorites displayed in the lower LCD row must use the lower physical row");
         midi.device ().tapButton (VirtualPush1Device.NOTE);
         require (Views.isNoteView (surface.getViewManager ().getActiveID ()), "Note CC did not select a note view");
         midi.device ().tapButton (VirtualPush1Device.SESSION);
@@ -598,19 +626,19 @@ public final class VirtualPush1RuntimeTest
         deviceCapabilitiesSupported = false;
         deviceParamsMode.setShowDevices (true);
         MODEL_ACTIONS.clear ();
-        deviceParamsMode.onFirstRow (1, ButtonEvent.UP);
-        deviceParamsMode.onSecondRow (1, ButtonEvent.DOWN);
-        deviceParamsMode.onSecondRow (3, ButtonEvent.DOWN);
-        deviceParamsMode.onSecondRow (5, ButtonEvent.DOWN);
-        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1));
-        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3));
-        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 5));
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
-            "Unavailable device slots must use the neutral unavailable LED color");
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
-            "Unsupported hierarchy navigation must use the neutral unavailable LED color");
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 7)) == PushColorManager.PUSH1_COLOR2_ORCHID_HI,
-            "Up must use the hierarchy color");
+        deviceParamsMode.onSecondRow (1, ButtonEvent.UP);
+        deviceParamsMode.onFirstRow (1, ButtonEvent.DOWN);
+        deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
+        deviceParamsMode.onFirstRow (5, ButtonEvent.DOWN);
+        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1));
+        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 3));
+        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 5));
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
+            "Unavailable device slots must use the neutral unavailable LED color on the lower selection row");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 3)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
+            "Unsupported hierarchy action must use the neutral unavailable LED color on the upper action row");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 7)) == PushColorManager.PUSH1_COLOR2_ORCHID_HI,
+            "Up must use the hierarchy color on the upper action row");
         require (MODEL_ACTIONS.isEmpty (),
             "DeviceParamsMode acted on an empty device row or an unsupported host capability");
         require (modes.isActive (Modes.DEVICE_PARAMS),
@@ -619,16 +647,19 @@ public final class VirtualPush1RuntimeTest
         deviceCapabilitiesSupported = true;
         deviceSlotExists = true;
         deviceIndex = 4;
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 4)) == PushColorManager.PUSH1_COLOR2_GREEN_HI,
-            "The selected device must use the strong selection green");
-        deviceParamsMode.onFirstRow (1, ButtonEvent.UP);
-        requireAction ("device.select", "Selecting an existing device row must select that device");
-        deviceParamsMode.onSecondRow (1, ButtonEvent.DOWN);
-        deviceParamsMode.onSecondRow (5, ButtonEvent.DOWN);
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 4)) == PushColorManager.PUSH1_COLOR2_GREEN_HI,
+            "The selected device must use the strong selection green on the lower selection row");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "Device upper-row parameter-section action");
         requireAction ("cursorDevice.toggleParameterPageSectionVisible",
-            "Supported parameter-page-section capability must remain actionable");
+            "The upper physical row must trigger the upper Parameters action");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 1, "Device lower-row device selection");
+        requireAction ("device.select", "The lower physical row must select the device displayed in the lower menu");
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (5, ButtonEvent.DOWN);
         requireAction ("cursorDevice.togglePinned",
-            "Supported pinning capability must remain actionable");
+            "Supported pinning must remain actionable from the upper action row");
         cursorDeviceExists = false;
         deviceSlotExists = false;
         deviceCapabilitiesSupported = true;
@@ -1696,7 +1727,14 @@ public final class VirtualPush1RuntimeTest
     {
         return (ITrackBank) Proxy.newProxyInstance (ITrackBank.class.getClassLoader (),
             new Class<?> [] { ITrackBank.class }, (proxy, method, args) -> {
-                if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
+                                if (method.getName ().equals ("addChannel"))
+                {
+                    final Object channelType = args == null || args.length == 0 ? null : args[0];
+                    final String channelTypeName = channelType instanceof Enum<?> enumValue ? enumValue.name () : String.valueOf (channelType);
+                    MODEL_ACTIONS.add ("track.addChannel:" + channelTypeName);
+                    return null;
+                }
+if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("track." + method.getName ());
                     switch (method.getName ())

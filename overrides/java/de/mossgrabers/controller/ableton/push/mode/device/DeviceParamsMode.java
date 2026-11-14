@@ -129,7 +129,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
 
     /** {@inheritDoc} */
     @Override
-    public void onFirstRow (final int index, final ButtonEvent event)
+    public void onSecondRow (final int index, final ButtonEvent event)
     {
         if (event == ButtonEvent.DOWN)
             return;
@@ -197,7 +197,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         }
 
         // LONG press - move upwards
-        this.surface.setTriggerConsumed (ButtonID.get (ButtonID.ROW1_1, index));
+        this.surface.setTriggerConsumed (ButtonID.get (ButtonID.ROW2_1, index));
         this.moveUp ();
     }
 
@@ -259,7 +259,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     {
         final ICursorDevice cd = this.model.getCursorDevice ();
 
-        int index = this.isButtonRow (0, buttonID);
+        int index = this.isButtonRow (1, buttonID);
         if (index >= 0)
         {
             final int unavailable = PushColorManager.PUSH1_COLOR2_GREY_LO;
@@ -284,7 +284,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 : PushColorManager.PUSH1_COLOR2_GREEN_LO;
         }
 
-        index = this.isButtonRow (1, buttonID);
+        index = this.isButtonRow (0, buttonID);
         if (index >= 0)
         {
             final int unavailable = PushColorManager.PUSH1_COLOR2_GREY_LO;
@@ -332,7 +332,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
 
     /** {@inheritDoc} */
     @Override
-    public void onSecondRow (final int index, final ButtonEvent event)
+    public void onFirstRow (final int index, final ButtonEvent event)
     {
         if (event != ButtonEvent.DOWN)
             return;
