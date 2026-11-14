@@ -2394,6 +2394,7 @@ public final class VirtualPush1RuntimeTest
         final TriggerCommand [] command = { null };
         final boolean [] pressed = { false };
         final boolean [] longPressed = { false };
+        final boolean [] consumed = { false };
         final int [] velocity = { 0 };
         final IHwLight [] light = { null };
         final IHwButton [] self = new IHwButton [1];
@@ -2417,15 +2418,37 @@ public final class VirtualPush1RuntimeTest
                     case "trigger":
                         final ButtonEvent event = args == null || args.length == 0 ? ButtonEvent.DOWN : (ButtonEvent) args[0];
                         final double amount = args != null && args.length > 1 ? (double) args[1] : 1.0;
-                        pressed[0] = event == ButtonEvent.DOWN || event == ButtonEvent.LONG;
-                        longPressed[0] = event == ButtonEvent.LONG;
-                        velocity[0] = (int) (amount * 127.0);
+                        if (event == ButtonEvent.DOWN)
+                        {
+                            pressed[0] = true;
+                            longPressed[0] = false;
+                            consumed[0] = false;
+                            velocity[0] = (int) (amount * 127.0);
+                        }
+                        else if (event == ButtonEvent.LONG)
+                        {
+                            pressed[0] = true;
+                            longPressed[0] = true;
+                            velocity[0] = (int) (amount * 127.0);
+                        }
+                        else if (event == ButtonEvent.UP)
+                        {
+                            pressed[0] = false;
+                            longPressed[0] = false;
+                            if (command[0] != null && !consumed[0])
+                                command[0].execute (event, 0);
+                            consumed[0] = false;
+                            return null;
+                        }
                         if (command[0] != null) command[0].execute (event, velocity[0]);
                         return null;
                     case "getCommand": return command[0];
                     case "isPressed": return pressed[0];
                     case "isLongPressed": return longPressed[0];
                     case "getPressedVelocity": return velocity[0];
+                    case "setConsumed": consumed[0] = true; return null;
+                    case "isConsumed": return consumed[0];
+                    case "clearState": pressed[0] = false; longPressed[0] = false; consumed[0] = false; return null;
                     case "addLight": light[0] = (IHwLight) args[0]; return null;
                     case "getLight": return light[0];
                     case "isBound": return command[0] != null;
