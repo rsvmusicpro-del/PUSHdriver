@@ -602,8 +602,8 @@ public final class VirtualPush1RuntimeTest
             VirtualPush1Device.UP, VirtualPush1Device.DOWN })
             requireButtonMidiDelivery (midi, arrow, "Shift arrow " + arrow);
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
-        requireAction ("device.selectPreviousPage", "Shift+Left must select the previous device page");
-        requireAction ("device.selectNextPage", "Shift+Right must select the next device page");
+        requireAction ("cursorDevice.swapWithPrevious", "Shift+Left must swap the selected device with its previous sibling");
+        requireAction ("cursorDevice.swapWithNext", "Shift+Right must swap the selected device with its next sibling");
         requireAction ("scene.selectPreviousPage", "Shift+Up must select the previous scene page");
         requireAction ("scene.selectNextPage", "Shift+Down must select the next scene page");
 
@@ -2260,6 +2260,12 @@ public final class VirtualPush1RuntimeTest
                         return null;
                     case "selectChannel":
                         MODEL_ACTIONS.add ("cursorDevice.selectChannel");
+                        return null;
+                    case "swapWithPrevious":
+                        MODEL_ACTIONS.add ("cursorDevice.swapWithPrevious");
+                        return null;
+                    case "swapWithNext":
+                        MODEL_ACTIONS.add ("cursorDevice.swapWithNext");
                         return null;
                     case "getParameterBank": return parameters;
                     case "getDeviceBank": return devices;
