@@ -45,3 +45,6 @@ These are explicit, reviewed overlays or additions, not parallel classes loaded 
 | `Push1DisplayGlyphs`, `Push1DisplayLayout`, `Push1DisplayProtocol`, `Push1DisplayText`, `Push1DisplayValueFormatter`, `Push1FirmwareVersion` | New Push 1 LCD/protocol support types; no upstream class is shadowed. |
 
 The two sequencer views are the largest remaining full-class overlays. They are not simultaneously registered beside another class with the same FQCN, but they can drift from future upstream changes. Their exact allowlist entry and the production runtime bench are mandatory until they can be reduced to smaller extension points.
+
+
+The gate also compares the method inventory of every assembled `mode/device/*.java` class with the pinned upstream class. Device mode patches may harden existing method bodies, but they may not add or remove mode methods. This prevents a future project-specific navigation state machine from being smuggled into an already allowlisted upstream file.
