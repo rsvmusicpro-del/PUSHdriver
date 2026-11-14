@@ -1239,6 +1239,88 @@ replace_once(browser_mode,
 """,
     "Push 1 In/Out browser filter-column navigation")
 
+# Bitwig's Browser banks can temporarily expose fewer than sixteen items while
+# filters/results refresh. The upstream Ableton renderer indexes a fixed 4x4
+# page, so bound every access against the current API bank before reading it.
+replace_once(browser_mode,
+    """                final IBrowserColumnItem [] items = browser.getFilterColumn (this.filterColumn).getItems ();
+                for (int i = 0; i < 16; i++)
+                {
+                    String text = (items[i].isSelected () ? Push1Display.SELECT_ARROW : " ") + StringUtils.shortenAndFixASCII (items[i].getName (), 18) + "                ";
+                    if (!items[i].getName ().isEmpty ())
+                    {
+                        final String hitStr = "(" + items[i].getHitCount () + ")";
+                        text = text.substring (0, 17 - hitStr.length ()) + hitStr;
+                    }
+                    display.setBlock (i % 4, i / 4, text);
+                }
+""",
+    """                final IBrowserColumn selectedColumn = browser.getFilterColumn (this.filterColumn);
+                final IBrowserColumnItem [] items = selectedColumn == null ? null : selectedColumn.getItems ();
+                for (int i = 0; i < 16; i++)
+                {
+                    if (items == null || i >= items.length || items[i] == null || !items[i].doesExist ())
+                    {
+                        display.setBlock (i % 4, i / 4, "");
+                        continue;
+                    }
+                    final String itemName = items[i].getName ();
+                    String text = (items[i].isSelected () ? Push1Display.SELECT_ARROW : " ") + StringUtils.shortenAndFixASCII (itemName, 18) + "                ";
+                    if (itemName != null && !itemName.isEmpty ())
+                    {
+                        final String hitStr = "(" + items[i].getHitCount () + ")";
+                        text = text.substring (0, 17 - hitStr.length ()) + hitStr;
+                    }
+                    display.setBlock (i % 4, i / 4, text);
+                }
+""",
+    "Push 1 Browser text filter item bounds")
+replace_once(browser_mode,
+    """                final IBrowserColumnItem [] item = browser.getFilterColumn (this.filterColumn).getItems ();
+                for (int i = 0; i < 8; i++)
+                {
+                    final String [] items = new String [6];
+                    final boolean [] selected = new boolean [6];
+                    for (int itemIndex = 0; itemIndex < 6; itemIndex++)
+                    {
+                        final int pos = i * 6 + itemIndex;
+                        final String hitText = " (" + item[pos].getHitCount () + ")";
+                        String text = item[pos].getName (12 - hitText.length ());
+                        if (!text.isEmpty ())
+                            text = text + hitText;
+                        items[itemIndex] = text;
+                        selected[itemIndex] = item[pos].isSelected ();
+                    }
+                    display.addListElement (items, selected);
+                }
+""",
+    """                final IBrowserColumn selectedColumn = browser.getFilterColumn (this.filterColumn);
+                final IBrowserColumnItem [] item = selectedColumn == null ? null : selectedColumn.getItems ();
+                for (int i = 0; i < 8; i++)
+                {
+                    final String [] items = new String [6];
+                    final boolean [] selected = new boolean [6];
+                    for (int itemIndex = 0; itemIndex < 6; itemIndex++)
+                    {
+                        final int pos = i * 6 + itemIndex;
+                        if (item == null || pos >= item.length || item[pos] == null || !item[pos].doesExist ())
+                        {
+                            items[itemIndex] = "";
+                            selected[itemIndex] = false;
+                            continue;
+                        }
+                        final String hitText = " (" + item[pos].getHitCount () + ")";
+                        String text = item[pos].getName (12 - hitText.length ());
+                        if (!text.isEmpty ())
+                            text = text + hitText;
+                        items[itemIndex] = text;
+                        selected[itemIndex] = item[pos].isSelected ();
+                    }
+                    display.addListElement (items, selected);
+                }
+""",
+    "Push 1 Browser graphic filter item bounds")
+
 # Add only the Push 1 In/Out adapter methods to the pinned upstream Ableton
 # DeviceParamsMode. The upstream class remains the sole implementation of the
 # Device workflow; this small bridge preserves PUSHdriver's physical CC62/63
