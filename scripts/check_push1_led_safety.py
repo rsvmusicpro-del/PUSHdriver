@@ -20,9 +20,9 @@ def section(source: str, start: str, end: str, label: str) -> str:
 # The production Device implementation must come from the pinned upstream
 # Ableton Push controller. Project overrides here previously reversed ROW1
 # and ROW2 and mixed RGB palette values with the Push 1 static CC palette.
-for name in ("DeviceParamsMode.java", "DeviceChainsMode.java"):
+for name in ("DeviceParamsMode.java", "DeviceChainsMode.java", "DeviceBrowserMode.java"):
     if (DEVICE_OVERRIDES / name).exists():
-        raise SystemExit(f"Conflicting project Device override remains: {name}")
+        raise SystemExit(f"Conflicting project Device/Browser override remains: {name}")
 
 if not UPSTREAM_DEVICE.exists():
     raise SystemExit("Pinned upstream DeviceParamsMode.java is missing; initialize the upstream submodule")
