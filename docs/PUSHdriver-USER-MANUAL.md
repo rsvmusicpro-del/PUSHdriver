@@ -148,7 +148,7 @@ Le mode Device permet de parcourir les appareils de la piste ou du contexte sél
 - Les pages vides ne sont pas présentées comme sélectionnables.
 
 ### Rangée supérieure : commandes d’appareil
-Selon les capacités exposées par Bitwig et l’appareil sélectionné, les huit boutons inférieurs correspondent à :
+Selon les capacités exposées par Bitwig et l’appareil sélectionné, les huit boutons supérieurs correspondent à :
 1. **On** : activer/désactiver l’appareil.
 2. **Parameter section** : afficher/masquer une section de paramètres si l’hôte le prend en charge.
 3. **Expanded** : développer/réduire l’affichage de l’appareil.
