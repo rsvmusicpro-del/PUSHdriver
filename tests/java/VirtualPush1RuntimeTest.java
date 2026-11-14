@@ -940,10 +940,10 @@ public final class VirtualPush1RuntimeTest
         sequencerView.updateControlSurface ();
 
         // Physical MIDI pad taps must still create and remove a classic sequencer note.
-        final int classicPadNote = sequencerView.getKeyManager ().map (2);
+        final int classicPadNote = sequencerView.getKeyManager ().map (3);
         final NotePosition classicPadPosition = new NotePosition (0, 1, classicPadNote);
-        midi.device ().pressPad (2, 1, 100);
-        midi.device ().releasePad (2, 1);
+        midi.device ().pressPad (3, 1, 100);
+        midi.device ().releasePad (3, 1);
         require (musicalModel.noteClip ().getStep (classicPadPosition).getState () == StepState.START,
             "Classic Sequencer physical pad release did not create its note");
         midi.device ().pressPad (2, 1, 100);
