@@ -937,6 +937,23 @@ public final class VirtualPush1RuntimeTest
         require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
             "A stale parent callback must not select the channel of a newer cursor device");
 
+        // In/Out navigation also supersedes a pending parent transition and
+        // must release the encoder input lock for the newly targeted device.
+        virtualCursorDeviceName = "Nested Child";
+        virtualCursorDevicePosition = 3;
+        virtualCursorDeviceNested = true;
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        deviceParamsMode.selectNextInOutItem ();
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onKnobTouch (1, true);
+        deviceParamsMode.onKnobTouch (1, false);
+        require (MODEL_ACTIONS.contains ("parameter.touch:1:true")
+                && MODEL_ACTIONS.contains ("parameter.touch:1:false"),
+            "In/Out navigation must cancel pending parent state and restore encoder touch");
+        drainScheduled (state, 73);
+        require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
+            "A cancelled parent transition must not act on the cursor after In/Out navigation");
+
         // A parent cursor that never updates must stop polling and recover the
         // Devices selector rather than leave navigation pending forever.
         virtualCursorDeviceName = "Stalled Child";

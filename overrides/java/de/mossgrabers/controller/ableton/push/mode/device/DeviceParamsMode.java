@@ -738,6 +738,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             if (bank.canScrollBackwards ())
             {
                 this.hierarchyTransitionGeneration++;
+                this.hierarchyTransitionPending = false;
                 this.releaseAllTouchedParameters ();
                 bank.selectPreviousItem ();
             }
@@ -758,6 +759,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             if (bank.canScrollForwards ())
             {
                 this.hierarchyTransitionGeneration++;
+                this.hierarchyTransitionPending = false;
                 this.releaseAllTouchedParameters ();
                 bank.selectNextItem ();
             }
@@ -777,6 +779,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             if (bank.canScrollPageBackwards ())
             {
                 this.hierarchyTransitionGeneration++;
+                this.hierarchyTransitionPending = false;
                 this.releaseAllTouchedParameters ();
                 bank.selectPreviousPage ();
             }
@@ -798,6 +801,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             if (bank.canScrollPageForwards ())
             {
                 this.hierarchyTransitionGeneration++;
+                this.hierarchyTransitionPending = false;
                 this.releaseAllTouchedParameters ();
                 bank.selectNextPage ();
             }
@@ -859,6 +863,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 if (cursorDevice.getDeviceBank ().canScrollBackwards ())
                 {
                     this.hierarchyTransitionGeneration++;
+                    this.hierarchyTransitionPending = false;
                     this.releaseAllTouchedParameters ();
                     cursorDevice.getDeviceBank ().selectPreviousItem ();
                 }
@@ -867,6 +872,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 if (cursorDevice.getParameterPageBank ().canScrollPageBackwards ())
                 {
                     this.hierarchyTransitionGeneration++;
+                    this.hierarchyTransitionPending = false;
                     this.releaseAllTouchedParameters ();
                     cursorDevice.getParameterPageBank ().selectPreviousPage ();
                 }
@@ -887,6 +893,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 if (cursorDevice.getDeviceBank ().canScrollForwards ())
                 {
                     this.hierarchyTransitionGeneration++;
+                    this.hierarchyTransitionPending = false;
                     this.releaseAllTouchedParameters ();
                     cursorDevice.getDeviceBank ().selectNextItem ();
                 }
@@ -895,6 +902,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 if (cursorDevice.getParameterPageBank ().canScrollPageForwards ())
                 {
                     this.hierarchyTransitionGeneration++;
+                    this.hierarchyTransitionPending = false;
                     this.releaseAllTouchedParameters ();
                     cursorDevice.getParameterPageBank ().selectNextPage ();
                 }
