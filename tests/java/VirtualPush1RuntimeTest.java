@@ -946,8 +946,8 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releasePad (3, 1);
         require (musicalModel.noteClip ().getStep (classicPadPosition).getState () == StepState.START,
             "Classic Sequencer physical pad release did not create its note");
-        midi.device ().pressPad (2, 1, 100);
-        midi.device ().releasePad (2, 1);
+        midi.device ().pressPad (3, 1, 100);
+        midi.device ().releasePad (3, 1);
         require (musicalModel.noteClip ().getStep (classicPadPosition).getState () == StepState.OFF,
             "Classic Sequencer physical pad tap did not toggle its note off");
 
