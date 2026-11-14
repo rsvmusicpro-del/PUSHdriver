@@ -65,11 +65,13 @@ public class DeviceChainsMode extends DeviceParamsMode
             final ICursorDevice cd = this.model.getCursorDevice ();
             if (!cd.doesExist ())
                 return;
+            if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+                return;
             final String [] slotChains = cd.getSlotChains ();
-            if (index >= slotChains.length)
+            if (slotChains == null || index >= slotChains.length || slotChains[index] == null || slotChains[index].isBlank ())
                 return;
             cd.selectSlotChain (slotChains[index]);
-            this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+            this.setSelectorContext (SelectorContext.DEVICES);
             return;
         }
 
@@ -87,10 +89,10 @@ public class DeviceChainsMode extends DeviceParamsMode
         if (index >= 0)
         {
             final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-            if (!cursorDevice.doesExist ())
+            if (!cursorDevice.doesExist () || !this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
                 return PushColorManager.PUSH1_COLOR_BLACK;
             final String [] slotChains = cursorDevice.getSlotChains ();
-            return index < slotChains.length
+            return slotChains != null && index < slotChains.length
                 ? PushColorManager.PUSH1_COLOR_GREEN_LO
                 : PushColorManager.PUSH1_COLOR_BLACK;
         }
@@ -109,14 +111,14 @@ public class DeviceChainsMode extends DeviceParamsMode
             return;
 
         // Chain selectors are now physically above the LCD (ROW2).
-        final String [] slotChains = cd.getSlotChains ();
+        final String [] slotChains = this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS) ? cd.getSlotChains () : new String [0];
         for (int i = 0; i < 8; i++)
-            display.setCell (0, i, i < slotChains.length ? slotChains[i] : "");
+            display.setCell (0, i, slotChains != null && i < slotChains.length ? slotChains[i] : "");
 
         // The RGB action row is below the LCD.
         final String [] actionLabels = { "On", "Params", "Expand", "Chains", "Banks", "Pin", "Window", "Up" };
         for (int i = 0; i < actionLabels.length; i++)
-            display.setCell (3, i, actionLabels[i]);
+            display.setCell (3, i, i == 4 ? actionLabels[i] + " C" : actionLabels[i]);
     }
 
 
@@ -131,11 +133,11 @@ public class DeviceChainsMode extends DeviceParamsMode
         final String color = this.model.getCurrentTrackBank ().getSelectedChannelColorEntry ();
         final ColorEx bottomMenuColor = DAWColor.getColorEntry (color);
         final boolean hasPinning = this.model.getHost ().supports (Capability.HAS_PINNING);
-        final String [] slotChains = cd.getSlotChains ();
+        final String [] slotChains = this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS) ? cd.getSlotChains () : new String [0];
         for (int i = 0; i < 8; i++)
         {
             final boolean isTopMenuOn = this.getTopMenuEnablement (cd, hasPinning, i);
-            final String bottomMenu = i < slotChains.length ? slotChains[i] : "";
+            final String bottomMenu = slotChains != null && i < slotChains.length ? slotChains[i] : "";
             final String bottomMenuIcon = "";
             final boolean isBottomMenuOn = i < slotChains.length;
             display.addParameterElement (this.hostMenu[i], isTopMenuOn, bottomMenu, bottomMenuIcon, bottomMenuColor, isBottomMenuOn, "", 0, "", false, -1);

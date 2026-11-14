@@ -781,10 +781,11 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Device Window action");
         requireAction ("cursorDevice.toggleWindowOpen", "ROW1 Window action was not dispatched");
 
-        // Banks toggles the selector row between device slots and parameter pages.
+        // Banks cycles the explicit selector contexts: Devices -> Pages -> Chains -> Devices.
         require (deviceParamsMode.isShowDevices (), "Device selectors should initially show device slots");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Device Banks action");
-        require (!deviceParamsMode.isShowDevices (), "Banks action did not switch to parameter pages");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Device Banks to Pages");
+        require (!deviceParamsMode.isShowDevices () && modes.isActive (Modes.DEVICE_PARAMS),
+            "Banks action did not switch from Devices to parameter pages");
         for (int i = 0; i < 8; i++)
         {
             MODEL_ACTIONS.clear ();
@@ -792,8 +793,11 @@ public final class VirtualPush1RuntimeTest
             requireAction ("parameterPage.selectPage:" + i,
                 "Static ROW2 selector " + i + " did not select its matching parameter page");
         }
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Return to Device selectors");
-        require (deviceParamsMode.isShowDevices (), "Banks action did not restore device selectors");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Device Banks to Chains");
+        require (modes.isActive (Modes.DEVICE_CHAINS), "Banks did not advance from Pages to Chains");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Device Banks to Devices");
+        require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
+            "Banks did not cycle from Chains back to Devices");
 
         // Every device-selector position is exercised through production MIDI.
         // Selecting the current device opens its parameter pages.
