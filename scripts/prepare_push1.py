@@ -1407,6 +1407,87 @@ pom.write_text(text)
 
 
 
+# Apply a Push 1 RGB palette to the Device action row (ROW2 / CC102-109).
+# Keep the upstream Device mode as the sole implementation; this is a narrow
+# source adaptation performed reproducibly during assembly.
+device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
+replace_once(device_params_mode,
+    """            final int white = this.isPush2 ? PushColorManager.PUSH2_COLOR2_WHITE : PushColorManager.PUSH1_COLOR2_WHITE;
+            if (!cd.doesExist ())
+                return index == 7 ? white : super.getButtonColor (buttonID);
+
+            final int green = this.isPush2 ? PushColorManager.PUSH2_COLOR2_GREEN : PushColorManager.PUSH1_COLOR2_GREEN;
+            final int grey = this.isPush2 ? PushColorManager.PUSH2_COLOR2_GREY_LO : PushColorManager.PUSH1_COLOR2_GREY_LO;
+            final int orange = this.isPush2 ? PushColorManager.PUSH2_COLOR2_ORANGE : PushColorManager.PUSH1_COLOR2_ORANGE;
+            final int off = this.isPush2 ? PushColorManager.PUSH2_COLOR_BLACK : PushColorManager.PUSH1_COLOR_BLACK;
+            final int turquoise = this.isPush2 ? PushColorManager.PUSH2_COLOR2_TURQUOISE_HI : PushColorManager.PUSH1_COLOR2_TURQUOISE_HI;
+
+            switch (index)
+            {
+                case 0:
+                    return cd.isEnabled () ? green : grey;
+                case 1:
+                    return cd.isParameterPageSectionVisible () ? orange : white;
+                case 2:
+                    return cd.isExpanded () ? orange : white;
+                case 3:
+                    return this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS) ? orange : white;
+                case 4:
+                    return this.showDevices ? white : orange;
+                case 5:
+                    if (!this.model.getHost ().supports (Capability.HAS_PINNING))
+                        return off;
+                    return cd.isPinned () ? turquoise : grey;
+                case 6:
+                    return cd.isWindowOpen () ? turquoise : grey;
+                default:
+                case 7:
+                    return white;
+            }""",
+    """            final int off = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_BLACK);
+            final int white = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_WHITE);
+            if (!cd.doesExist ())
+                return index == 7 ? white : off;
+
+            final int greenOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_GREEN_HI);
+            final int greenOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_GREEN_LO);
+            final int blueOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_BLUE_HI);
+            final int blueOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_BLUE_LO);
+            final int magentaOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_MAGENTA_HI);
+            final int magentaOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_MAGENTA_LO);
+            final int orangeOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_AMBER_HI);
+            final int orangeOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_AMBER_LO);
+            final int yellowOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_YELLOW_HI);
+            final int yellowOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_YELLOW_LO);
+            final int redOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_RED_HI);
+            final int redOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_RED_LO);
+            final int violetOn = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_ORCHID_HI);
+            final int violetOff = this.colorManager.getColorIndex (PushColorManager.PUSH1_COLOR2_ORCHID_LO);
+
+            switch (index)
+            {
+                case 0:
+                    return cd.isEnabled () ? greenOn : greenOff;
+                case 1:
+                    return cd.isParameterPageSectionVisible () ? blueOn : blueOff;
+                case 2:
+                    return cd.isExpanded () ? magentaOn : magentaOff;
+                case 3:
+                    return this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS) ? orangeOn : orangeOff;
+                case 4:
+                    return this.showDevices ? yellowOff : yellowOn;
+                case 5:
+                    if (!this.model.getHost ().supports (Capability.HAS_PINNING))
+                        return off;
+                    return cd.isPinned () ? redOn : redOff;
+                case 6:
+                    return cd.isWindowOpen () ? violetOn : violetOff;
+                default:
+                case 7:
+                    return white;
+            }""",
+    "Push 1 Device ROW2 semantic RGB palette")
+
 # Align the Push 1 physical button rows with the corresponding LCD halves.
 # Row 1 owns the upper display half; Row 2 owns the lower display half.
 # These adaptations are deliberately local to the affected menus.

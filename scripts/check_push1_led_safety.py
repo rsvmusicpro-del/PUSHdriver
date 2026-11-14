@@ -48,4 +48,36 @@ except SystemExit:
 else:
     raise SystemExit("Guard self-test failed: RGB/blink identifier was not rejected")
 
+second_row = section(
+    source,
+    "index = this.isButtonRow (1, buttonID);",
+    "return super.getButtonColor (buttonID);",
+    "Push 1 Device second-row RGB mapping",
+)
+expected_colors = (
+    "PUSH1_COLOR2_GREEN_HI", "PUSH1_COLOR2_GREEN_LO",
+    "PUSH1_COLOR2_BLUE_HI", "PUSH1_COLOR2_BLUE_LO",
+    "PUSH1_COLOR2_MAGENTA_HI", "PUSH1_COLOR2_MAGENTA_LO",
+    "PUSH1_COLOR2_AMBER_HI", "PUSH1_COLOR2_AMBER_LO",
+    "PUSH1_COLOR2_YELLOW_HI", "PUSH1_COLOR2_YELLOW_LO",
+    "PUSH1_COLOR2_RED_HI", "PUSH1_COLOR2_RED_LO",
+    "PUSH1_COLOR2_ORCHID_HI", "PUSH1_COLOR2_ORCHID_LO",
+    "PUSH1_COLOR2_WHITE",
+)
+for color in expected_colors:
+    if color not in second_row:
+        raise SystemExit(f"Push 1 Device ROW2 is missing its assigned color: {color}")
+for expected in (
+    "cd.isEnabled () ? greenOn : greenOff",
+    "cd.isParameterPageSectionVisible () ? blueOn : blueOff",
+    "cd.isExpanded () ? magentaOn : magentaOff",
+    "isActive (Modes.DEVICE_CHAINS) ? orangeOn : orangeOff",
+    "this.showDevices ? yellowOff : yellowOn",
+    "cd.isPinned () ? redOn : redOff",
+    "cd.isWindowOpen () ? violetOn : violetOff",
+    "return white;",
+):
+    if expected not in second_row:
+        raise SystemExit(f"Push 1 Device ROW2 state mapping is incorrect: {expected}")
+
 print("Push 1 Device LED safety passed: native Ableton row mapping is used and static ROW1 contains no RGB/blink identifiers.")
