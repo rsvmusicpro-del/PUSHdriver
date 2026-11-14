@@ -74,6 +74,11 @@ def patch_targets(source):
   if removed:
    targets.add(removed.group(1))
  return targets
+def validate_forbidden_navigation(source):
+ forbidden=("selectPreviousInOutItem","selectNextInOutItem","hasPreviousInOutItem","hasNextInOutItem","navigateFilterColumn","canNavigateFilterColumn","findNavigableFilterColumn")
+ return ["PUSHdriver-specific Device/Browser navigation state or methods remain."] if any(token in source for token in forbidden) else []
+
+
 def validate_override_inventory(actual):
  errors=[f"Unreviewed project override: {p}" for p in sorted(actual-OVERRIDE_ALLOWLIST)]
  errors += [f"Override inventory entry is missing: {p}" for p in sorted(OVERRIDE_ALLOWLIST-actual)]
@@ -109,8 +114,7 @@ def main():
  targets=patch_targets(prepare)
  if targets!=PATCH_TARGET_ALLOWLIST:
   errors.append(f"Upstream patch inventory changed. Unreviewed={sorted(targets-PATCH_TARGET_ALLOWLIST)}; stale={sorted(PATCH_TARGET_ALLOWLIST-targets)}")
- if any(x in prepare for x in ("selectPreviousInOutItem","selectNextInOutItem","hasPreviousInOutItem","hasNextInOutItem")):
-  errors.append("PUSHdriver-specific DeviceParamsMode navigation code remains.")
+ errors += validate_forbidden_navigation(prepare)
  if not ASSEMBLED.exists(): errors.append("Assembled Java tree missing; run scripts/prepare_push1.py first.")
  else:
   errors += validate_unique_types(list(ASSEMBLED.rglob("*.java")))

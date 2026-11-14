@@ -49,7 +49,6 @@ class SourceOwnershipTests(unittest.TestCase):
             {"example/First.java", "example/Second.java"},
         )
 
-
     def test_direct_source_writes_are_inventoried(self):
         source = (
             'definition = root / "src/main/java/example/Definition.java"\n'
@@ -60,6 +59,14 @@ class SourceOwnershipTests(unittest.TestCase):
             MODULE.patch_targets(source),
             {"example/Definition.java", "example/Obsolete.java"},
         )
+
+    def test_project_device_navigation_helpers_are_forbidden(self):
+        source = "browser_mode.navigateFilterColumn(false)"
+        self.assertTrue(MODULE.validate_forbidden_navigation(source))
+
+    def test_native_upstream_navigation_is_allowed(self):
+        source = "activeMode.selectPreviousItemPage()"
+        self.assertEqual(MODULE.validate_forbidden_navigation(source), [])
 
 
 if __name__ == "__main__":
