@@ -181,6 +181,31 @@ Rack-chain navigation remains inactive because API 17 does not expose a
 reliable selected-chain cursor for safe previous/next navigation. No MIDI
 IDs or alternate controller dispatcher are introduced.
 
+## Navigation LED color language
+
+The two eight-button rows use a consistent Push 1 palette so their purpose is
+recognizable across Device, Device Chains and Browser modes:
+
+- **Green — selection:** the top row uses dim green for available devices or
+  parameter pages and bright green for the current selection. Device Chains
+  uses dim green for existing chain slots; API 17 does not expose a reliable
+  selected-chain cursor, so it does not invent a selected-chain highlight.
+- **Blue — navigation/context:** Browser top-row previous-item controls use
+  dim blue and bottom-row next-item controls use bright blue. In Device mode,
+  the Devices/Parameters selector uses the same blue family.
+- **Amber/orange — state and actions:** the bottom-row On, Parameters,
+  Expanded, Pin Device and Window controls use bright amber when active and
+  dim amber when inactive.
+- **Orchid/violet — hierarchy:** Chains and Up use violet; Chains changes
+  intensity when its mode is active.
+- **Grey — unavailable:** unsupported host capabilities, empty device slots,
+  and unavailable Browser filter columns use dim grey rather than appearing
+  actionable.
+
+These are native Push 1 palette indices, not RGB values intended for Push 2.
+The virtual runtime checks representative selection, navigation, hierarchy
+and unavailable-state colors in addition to the existing button behavior.
+
 ## Interactive virtual Push 1 simulator
 
 The repository includes an optional desktop surface backed by the production

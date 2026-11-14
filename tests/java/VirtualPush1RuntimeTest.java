@@ -62,6 +62,7 @@ import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceBrowserMode;
 import de.mossgrabers.controller.ableton.push.controller.Push1Display;
+import de.mossgrabers.controller.ableton.push.controller.PushColorManager;
 import de.mossgrabers.framework.featuregroup.AbstractFeatureGroup;
 import de.mossgrabers.framework.daw.IBrowser;
 import de.mossgrabers.framework.daw.data.IBrowserColumn;
@@ -604,6 +605,12 @@ public final class VirtualPush1RuntimeTest
         deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1));
         deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3));
         deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 5));
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
+            "Unavailable device slots must use the neutral unavailable LED color");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
+            "Unsupported hierarchy navigation must use the neutral unavailable LED color");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 7)) == PushColorManager.PUSH1_COLOR2_ORCHID_HI,
+            "Up must use the hierarchy color");
         require (MODEL_ACTIONS.isEmpty (),
             "DeviceParamsMode acted on an empty device row or an unsupported host capability");
         require (modes.isActive (Modes.DEVICE_PARAMS),
@@ -612,6 +619,8 @@ public final class VirtualPush1RuntimeTest
         deviceCapabilitiesSupported = true;
         deviceSlotExists = true;
         deviceIndex = 4;
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 4)) == PushColorManager.PUSH1_COLOR2_GREEN_HI,
+            "The selected device must use the strong selection green");
         deviceParamsMode.onFirstRow (1, ButtonEvent.UP);
         requireAction ("device.select", "Selecting an existing device row must select that device");
         deviceParamsMode.onSecondRow (1, ButtonEvent.DOWN);
@@ -634,6 +643,10 @@ public final class VirtualPush1RuntimeTest
         final String availableFilterLed = browserMode.getButtonColorID (ButtonID.ROW1_1);
         require (AbstractFeatureGroup.BUTTON_COLOR_ON.equals (availableFilterLed),
             "Existing Browser filter column did not advertise its top-row LED");
+        require (browserMode.getButtonColor (ButtonID.ROW1_1) == PushColorManager.PUSH1_COLOR2_BLUE_LO,
+            "Browser previous-item buttons must use the navigation blue");
+        require (browserMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 0)) == PushColorManager.PUSH1_COLOR2_BLUE_HI,
+            "Browser next-item buttons must use the stronger navigation blue");
 
         final int filterBefore = browserModel.filterCursor (0);
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Browser previous filter item");
