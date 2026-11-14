@@ -7,9 +7,12 @@ package de.mossgrabers.controller.ableton.push.view;
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.framework.controller.ButtonID;
+import de.mossgrabers.framework.controller.hardware.IHwButton;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.clip.INoteClip;
 import de.mossgrabers.framework.daw.clip.NotePosition;
+import de.mossgrabers.framework.daw.clip.StepState;
+import de.mossgrabers.framework.daw.constants.Resolution;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractNoteSequencerView;
@@ -187,6 +190,40 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             return true;
         }
 
-        return super.handleSequencerAreaButtonCombinations (clip, notePosition, row, velocity);
+        // Preserve the upstream duplicate/mute gestures, which return before
+        // its long-press scan. The inherited scan uses row * clip.getNumSteps()
+        // as a physical pad offset; Bitwig reports the full clip length here
+        // (often 128), but the Push 1 grid has only eight columns per row.
+        if (this.isButtonCombination (ButtonID.DUPLICATE) || this.isButtonCombination (ButtonID.MUTE))
+            return super.handleSequencerAreaButtonCombinations (clip, notePosition, row, velocity);
+
+        // A long-pressed earlier step in this physical row stretches the note
+        // to the released column. Resolve the source pad using the hardware
+        // grid width, never the clip's global step count.
+        final int step = notePosition.getStep ();
+        final int padRowOffset = row * this.numDisplayCols;
+        final int note = notePosition.getNote ();
+        for (int sourceStep = 0; sourceStep < step; sourceStep++)
+        {
+            final int padIndex = padRowOffset + sourceStep;
+            if (padIndex < 0 || padIndex >= 64)
+                continue;
+
+            final IHwButton button = this.surface.getButton (ButtonID.get (ButtonID.PAD1, padIndex));
+            if (button == null || !button.isLongPressed ())
+                continue;
+
+            final NotePosition sourcePosition = new NotePosition (notePosition);
+            sourcePosition.setStep (sourceStep);
+            button.setConsumed ();
+            final double duration = (step - sourceStep + 1) * Resolution.getValueAt (this.getResolutionIndex ());
+            if (note >= 0 && clip.getStep (sourcePosition).getState () == StepState.START)
+                clip.updateStepDuration (sourcePosition, duration);
+            else
+                clip.setStep (sourcePosition, velocity, duration);
+            return true;
+        }
+
+        return false;
     }
 }
