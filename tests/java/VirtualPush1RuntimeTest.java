@@ -939,6 +939,18 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 6);
         sequencerView.updateControlSurface ();
 
+        // Physical MIDI pad taps must still create and remove a classic sequencer note.
+        final int classicPadNote = sequencerView.getKeyManager ().map (2);
+        final NotePosition classicPadPosition = new NotePosition (0, 1, classicPadNote);
+        midi.device ().pressPad (2, 1, 100);
+        midi.device ().releasePad (2, 1);
+        require (musicalModel.noteClip ().getStep (classicPadPosition).getState () == StepState.START,
+            "Classic Sequencer physical pad release did not create its note");
+        midi.device ().pressPad (2, 1, 100);
+        midi.device ().releasePad (2, 1);
+        require (musicalModel.noteClip ().getStep (classicPadPosition).getState () == StepState.OFF,
+            "Classic Sequencer physical pad tap did not toggle its note off");
+
         // Regression: the inherited long-press gesture used clip.getNumSteps()
         // (128) as a hardware row stride, which addressed pads outside the
         // 8x8 Push grid. Hold row 2/column 0 and release row 2/column 3; this
@@ -960,6 +972,18 @@ public final class VirtualPush1RuntimeTest
                 + expectedRowDuration + ", actual " + actualRowDuration + ", state "
                 + musicalModel.noteClip ().getStep (durationPosition).getState ());
         midi.device ().releasePad (2, 0);
+
+        // The selected note and its continuation must keep the edit color even
+        // when the playhead highlight is active on that same pad column.
+        final IStepInfo classicContinuation = musicalModel.noteClip ().getStep (new NotePosition (0, 1, durationNote));
+        final java.lang.reflect.Method classicStepColor = Class.forName (
+            "de.mossgrabers.framework.view.sequencer.AbstractSequencerView").getDeclaredMethod (
+                "getStepColor", IStepInfo.class, boolean.class, int.class, int.class, int.class, int.class, List.class);
+        classicStepColor.setAccessible (true);
+        final String classicSelectedColor = (String) classicStepColor.invoke (
+            sequencerView, classicContinuation, true, 0, 1, 1, durationNote, List.of (durationPosition));
+        require ("COLOR_STEP_SELECTED".equals (classicSelectedColor),
+            "Classic Sequencer playhead hid the selected long-note continuation color");
 
         sequencerView.onLeft (ButtonEvent.DOWN);
         sequencerView.onRight (ButtonEvent.DOWN);
@@ -998,6 +1022,18 @@ public final class VirtualPush1RuntimeTest
         require (expectedRootColor.equals (rootColor),
             "Poly Sequencer fundamental did not retain the selected track color");
 
+        // Exercise the real Push MIDI path: the lower keyboard must send note
+        // on/off state, and a selected fundamental must use the selection color.
+        midi.device ().pressPad (0, 0, 100);
+        require (polySequencerView.getKeyManager ().isKeyPressed (mappedRoot),
+            "Poly Sequencer lower pad did not trigger its mapped MIDI note");
+        midi.device ().releasePad (0, 0);
+        require (!polySequencerView.getKeyManager ().isKeyPressed (mappedRoot),
+            "Poly Sequencer lower pad did not release its mapped MIDI note");
+        final String selectedRootColor = (String) polyGridColor.invoke (polySequencerView, true, false, rootTrack, 36);
+        require (de.mossgrabers.framework.view.AbstractPlayView.COLOR_PLAY.equals (selectedRootColor),
+            "Poly Sequencer selected root pad was hidden by the scale-root color");
+
         for (int note = 36; note <= 39; note++)
         {
             polySequencerView.onGridNote (note, 100);
@@ -1009,6 +1045,19 @@ public final class VirtualPush1RuntimeTest
         for (int note = 36; note <= 39; note++)
             require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
                 "Poly Sequencer did not write selected MIDI note " + note + " to the first step");
+
+        // The Poly Sequencer edit highlight must follow a selected long note
+        // through its continuation pads, including while the playhead is there.
+        final NotePosition polyLongPosition = new NotePosition (0, 0, 37);
+        musicalModel.noteClip ().updateStepDuration (polyLongPosition, 4 * Resolution.getValueAt (polySequencerView.getResolutionIndex ()));
+        final IStepInfo polyContinuation = musicalModel.noteClip ().getStep (new NotePosition (0, 1, 37));
+        final java.lang.reflect.Method polyStepColor = AbstractPolySequencerView.class.getDeclaredMethod (
+            "getStepColor", IStepInfo.class, boolean.class, int.class, List.class);
+        polyStepColor.setAccessible (true);
+        final String polySelectedColor = (String) polyStepColor.invoke (
+            polySequencerView, polyContinuation, true, 1, List.of (polyLongPosition));
+        require ("COLOR_STEP_SELECTED".equals (polySelectedColor),
+            "Poly Sequencer playhead hid the selected long-note continuation color");
 
         // A second step tap must add notes without toggling existing notes off.
         polySequencerView.onGridNote (92, 100);
