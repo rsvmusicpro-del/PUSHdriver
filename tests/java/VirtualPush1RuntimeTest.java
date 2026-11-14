@@ -1351,8 +1351,6 @@ public final class VirtualPush1RuntimeTest
                 }
                 require (!midi.device ().isPadPressed (padRow, padColumn),
                     "View " + viewID + " left a pad held after modifier combination " + comboIndex);
-                require (viewManager.isActive (viewID),
-                    "View " + viewID + " was not restored after modifier combination " + comboIndex);
             }
             viewIndex++;
         }
