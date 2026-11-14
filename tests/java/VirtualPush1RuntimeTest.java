@@ -53,6 +53,7 @@ import de.mossgrabers.framework.daw.data.bank.ISceneBank;
 import de.mossgrabers.framework.daw.data.bank.ISendBank;
 import de.mossgrabers.framework.daw.data.bank.IParameterBank;
 import de.mossgrabers.framework.parameter.IParameter;
+import de.mossgrabers.framework.parameter.NoteAttribute;
 import de.mossgrabers.framework.daw.midi.ArpeggiatorMode;
 import de.mossgrabers.framework.daw.midi.IMidiAccess;
 import de.mossgrabers.framework.daw.midi.IMidiInput;
@@ -168,7 +169,13 @@ public final class VirtualPush1RuntimeTest
                 {
                     case "createSurfaceFactory": return hardware;
                     case "getName": return "Virtual Bitwig API 17";
-                    case "supports": return Boolean.valueOf (SUPPORTED_CAPABILITIES.contains ((Capability) callArgs[0]));
+                    case "supports":
+                        // HostImpl has two overloads: all note attributes are supported,
+                        // while DAW capabilities are advertised independently.
+                        if (callArgs[0] instanceof NoteAttribute) return Boolean.TRUE;
+                        if (callArgs[0] instanceof Capability capability)
+                            return Boolean.valueOf (SUPPORTED_CAPABILITIES.contains (capability));
+                        throw new AssertionError ("Unknown IHost.supports argument: " + callArgs[0]);
                     case "scheduleTask": state.scheduled.add (new ScheduledTask (((Number) callArgs[1]).longValue (), (Runnable) callArgs[0])); return null;
                     case "error":
                         if (state.errors.size () < 30)
