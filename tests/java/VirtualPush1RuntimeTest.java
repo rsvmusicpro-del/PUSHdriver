@@ -1618,7 +1618,9 @@ public final class VirtualPush1RuntimeTest
                         });
                 if (method.getName ().equals ("addChannel"))
                 {
-                    MODEL_ACTIONS.add ("track.addChannel:" + args[0]);
+                    final Object channelType = args == null || args.length == 0 ? null : args[0];
+                    final String channelTypeName = channelType instanceof Enum<?> enumValue ? enumValue.name () : String.valueOf (channelType);
+                    MODEL_ACTIONS.add ("track.addChannel:" + channelTypeName);
                     return null;
                 }
                 if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
