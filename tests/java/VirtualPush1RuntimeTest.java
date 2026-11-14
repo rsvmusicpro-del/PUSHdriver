@@ -1287,6 +1287,19 @@ public final class VirtualPush1RuntimeTest
             Views.SCENE_PLAY,
             Views.DRUM64
         };
+        final int [][] padModifierCombinations =
+        {
+            { VirtualPush1Device.SHIFT },
+            { VirtualPush1Device.SELECT },
+            { VirtualPush1Device.DUPLICATE },
+            { VirtualPush1Device.MUTE },
+            { VirtualPush1Device.SHIFT, VirtualPush1Device.SELECT },
+            { VirtualPush1Device.DUPLICATE, VirtualPush1Device.SELECT },
+            { VirtualPush1Device.MUTE, VirtualPush1Device.SELECT },
+            { VirtualPush1Device.SHIFT, VirtualPush1Device.DUPLICATE },
+            { VirtualPush1Device.SHIFT, VirtualPush1Device.MUTE }
+        };
+        int viewIndex = 0;
         for (final Views viewID: allPushViews)
         {
             require (viewManager.get (viewID) != null, "Registered Push view is missing: " + viewID);
@@ -1314,6 +1327,34 @@ public final class VirtualPush1RuntimeTest
                 require (!midi.device ().isPadPressed (padRow, padColumn),
                     "View " + viewID + " left physical pad " + note + " stuck after release");
             }
+
+            // Pairwise modifier exploration complements the setup test's
+            // single-button sweep. Re-enter the view for each combination,
+            // then exercise a deterministic pad/pressure/release sequence.
+            for (int comboIndex = 0; comboIndex < padModifierCombinations.length; comboIndex++)
+            {
+                viewManager.setActive (viewID);
+                final int padIndex = (viewIndex * 13 + comboIndex * 17) % 64;
+                final int padRow = padIndex / 8;
+                final int padColumn = padIndex % 8;
+                for (final int modifier: padModifierCombinations[comboIndex])
+                    midi.device ().pressButton (modifier);
+                midi.device ().pressPad (padRow, padColumn, 1 + (padIndex * 29 + comboIndex * 7) % 127);
+                midi.device ().pressPadPressure (padRow, padColumn, (padIndex * 11 + comboIndex * 13) % 128);
+                midi.device ().releasePad (padRow, padColumn);
+                for (int modifierIndex = padModifierCombinations[comboIndex].length - 1; modifierIndex >= 0; modifierIndex--)
+                {
+                    final int modifier = padModifierCombinations[comboIndex][modifierIndex];
+                    midi.device ().releaseButton (modifier);
+                    require (!midi.device ().isButtonPressed (modifier),
+                        "Modifier CC " + modifier + " remained pressed after pairwise interaction");
+                }
+                require (!midi.device ().isPadPressed (padRow, padColumn),
+                    "View " + viewID + " left a pad held after modifier combination " + comboIndex);
+                require (viewManager.isActive (viewID),
+                    "View " + viewID + " was not restored after modifier combination " + comboIndex);
+            }
+            viewIndex++;
         }
         musicalModel.setCanHoldNotes (false);
         viewManager.setActive (Views.PLAY);
