@@ -1026,16 +1026,20 @@ public final class VirtualPush1RuntimeTest
             "Poly Sequencer fundamental did not retain the selected track color");
 
         // Exercise the real Push MIDI path: the lower keyboard must send note
-        // on/off state, and a selected fundamental must use the selection color.
+        // on/off state, while the fundamental keeps the track color both held
+        // and persistently selected.
         midi.device ().pressPad (0, 0, 100);
         require (polySequencerView.getKeyManager ().isKeyPressed (mappedRoot),
             "Poly Sequencer lower pad did not trigger its mapped MIDI note");
+        final String heldRootColor = (String) polyGridColor.invoke (polySequencerView, true, false, rootTrack, 36);
+        require (expectedRootColor.equals (heldRootColor),
+            "Poly Sequencer held fundamental lost the selected track color");
         midi.device ().releasePad (0, 0);
         require (!polySequencerView.getKeyManager ().isKeyPressed (mappedRoot),
             "Poly Sequencer lower pad did not release its mapped MIDI note");
         final String selectedRootColor = (String) polyGridColor.invoke (polySequencerView, true, false, rootTrack, 36);
-        require (de.mossgrabers.framework.view.AbstractPlayView.COLOR_PLAY.equals (selectedRootColor),
-            "Poly Sequencer selected root pad was hidden by the scale-root color");
+        require (expectedRootColor.equals (selectedRootColor),
+            "Poly Sequencer selected fundamental lost the selected track color");
 
         for (int note = 36; note <= 39; note++)
         {
