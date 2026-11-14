@@ -653,6 +653,9 @@ public final class VirtualPush1RuntimeTest
             "In/Out must run in the primary Device Parameters mode, not its Chains submode");
         require (((DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS)).isShowDevices (),
             "In/Out device navigation must begin in DEVICES selector context");
+        // Earlier boundary checks intentionally left the virtual cursor at the
+        // last device; restore an interior position for bidirectional In/Out.
+        deviceIndex = 4;
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out");
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In");
