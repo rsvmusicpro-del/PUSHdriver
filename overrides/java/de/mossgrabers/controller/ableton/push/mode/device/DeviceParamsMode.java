@@ -503,7 +503,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 if (index < pages.getPageSize ())
                 {
                     final String page = pages.getItem (index);
-                    if (this.isAvailablePage (page) && pages.getSelectedItemIndex () != index)
+                    if (this.isAvailablePage (page))
                     {
                         this.releaseAllTouchedParameters ();
                         pages.selectPage (index);
