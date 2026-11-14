@@ -21,7 +21,6 @@ import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 import de.mossgrabers.framework.view.sequencer.AbstractNoteSequencerView;
 
 import java.util.List;
-import java.util.Optional;
 
 
 /**
@@ -105,9 +104,16 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             final int mappedNote = this.keyManager.map (row);
             notePosition.setNote (mappedNote);
             final IStepInfo stepInfo = mappedNote < 0 ? null : clip.getStep (notePosition);
-            final String color = this.model.hasRecordingState () && !this.isEditOrContinuation (channel, playheadColumn, mappedNote, editNotes)
-                ? AbstractSequencerView.COLOR_STEP_HILITE_RECORD
-                : this.getStepColor (stepInfo, true, Optional.empty (), channel, playheadColumn, mappedNote, editNotes);
+            final boolean isSelected = mappedNote >= 0 && this.isEditOrContinuation (channel, playheadColumn, mappedNote, editNotes);
+            final String color;
+            if (isSelected)
+                color = AbstractSequencerView.COLOR_STEP_SELECTED;
+            else if (this.model.hasRecordingState ())
+                color = AbstractSequencerView.COLOR_STEP_HILITE_RECORD;
+            else if (stepInfo == null || stepInfo.getState () == StepState.OFF)
+                color = AbstractSequencerView.COLOR_STEP_HILITE_NO_CONTENT;
+            else
+                color = AbstractSequencerView.COLOR_STEP_HILITE_CONTENT;
             gridPad.lightEx (playheadColumn, this.numDisplayRows - 1 - row, color);
         }
     }
