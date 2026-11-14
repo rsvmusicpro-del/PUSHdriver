@@ -57,6 +57,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     protected boolean              showDevices;
     private SelectorContext        selectorContext = SelectorContext.DEVICES;
     private final IParameter []    touchedParameters = new IParameter [8];
+    private long hierarchyTransitionGeneration;
 
 
     /**
@@ -219,6 +220,8 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     @Override
     public void onDeactivate ()
     {
+        // Invalidate delayed cursor callbacks before another mode owns the surface.
+        this.hierarchyTransitionGeneration++;
         this.releaseAllTouchedParameters ();
         super.onDeactivate ();
     }
@@ -269,6 +272,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     public void onFirstRow (final int index, final ButtonEvent event)
     {
         if (event != ButtonEvent.DOWN) return;
+        this.hierarchyTransitionGeneration++;
         final ICursorDevice device = this.model.getCursorDevice ();
         switch (index)
         {
@@ -303,6 +307,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
      */
     protected void moveUp ()
     {
+        final long transition = ++this.hierarchyTransitionGeneration;
         final ModeManager modeManager = this.surface.getModeManager ();
         if (this.getSelectorContext () == SelectorContext.CHAINS || this.getSelectorContext () == SelectorContext.PAGES)
         {
@@ -329,15 +334,17 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         // Devices are shown, if nested show the layers otherwise move up to the tracks
         if (cd.isNested ())
         {
+            // Bitwig updates a FOLLOW_SELECTION cursor asynchronously. A fixed
+            // 300 ms delay can run against the child or a newer selection. Wait
+            // for the cursor identity to change and cancel if another UI action
+            // or mode transition supersedes this request.
+            final String childName = cd.getName ();
+            final int childPosition = cd.getPosition ();
+            final boolean childNested = cd.isNested ();
+            final boolean childHasLayers = cd.hasLayers ();
             cd.selectParent ();
-            this.model.getHost ().scheduleTask ( () -> {
-                if (cd.hasLayers ())
-                    modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
-                else
-                    modeManager.setActive (Modes.DEVICE_PARAMS);
-                deviceParamsMode.setShowDevices (false);
-                cd.selectChannel ();
-            }, 300);
+            this.awaitParentCursor (cd, modeManager, deviceParamsMode, childName, childPosition,
+                childNested, childHasLayers, transition, 0);
             return;
         }
 
@@ -346,6 +353,36 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             this.surface.getButton (ButtonID.MASTERTRACK).trigger (ButtonEvent.DOWN);
         else
             this.surface.getButton (ButtonID.TRACK).trigger (ButtonEvent.DOWN);
+    }
+
+
+    private void awaitParentCursor (final ICursorDevice cd, final ModeManager modeManager,
+        final DeviceParamsMode deviceParamsMode, final String childName, final int childPosition,
+        final boolean childNested, final boolean childHasLayers, final long transition, final int attempt)
+    {
+        if (transition != this.hierarchyTransitionGeneration || !cd.doesExist ())
+            return;
+
+        final boolean cursorStillOnChild = childName.equals (cd.getName ())
+            && childPosition == cd.getPosition ()
+            && childNested == cd.isNested ()
+            && childHasLayers == cd.hasLayers ();
+        if (cursorStillOnChild)
+        {
+            // Bound the wait: an unsupported/failed host transition must not
+            // leave a permanent task loop or later act on an unrelated device.
+            if (attempt < 40)
+                this.model.getHost ().scheduleTask (() -> this.awaitParentCursor (cd, modeManager, deviceParamsMode,
+                    childName, childPosition, childNested, childHasLayers, transition, attempt + 1), 73);
+            return;
+        }
+
+        if (cd.hasLayers ())
+            modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
+        else
+            modeManager.setActive (Modes.DEVICE_PARAMS);
+        deviceParamsMode.setShowDevices (false);
+        cd.selectChannel ();
     }
 
 
@@ -414,6 +451,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     public void onSecondRow (final int index, final ButtonEvent event)
     {
         if (event == ButtonEvent.DOWN) return;
+        this.hierarchyTransitionGeneration++;
         if (event == ButtonEvent.UP)
         {
             final ICursorDevice cd = this.model.getCursorDevice ();
@@ -597,6 +635,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             final IDeviceBank bank = cursorDevice.getDeviceBank ();
             if (bank.canScrollBackwards ())
             {
+                this.hierarchyTransitionGeneration++;
                 this.releaseAllTouchedParameters ();
                 bank.selectPreviousItem ();
             }
@@ -616,6 +655,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             final IDeviceBank bank = cursorDevice.getDeviceBank ();
             if (bank.canScrollForwards ())
             {
+                this.hierarchyTransitionGeneration++;
                 this.releaseAllTouchedParameters ();
                 bank.selectNextItem ();
             }
@@ -634,6 +674,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             final IDeviceBank bank = this.model.getCursorDevice ().getDeviceBank ();
             if (bank.canScrollPageBackwards ())
             {
+                this.hierarchyTransitionGeneration++;
                 this.releaseAllTouchedParameters ();
                 bank.selectPreviousPage ();
             }
@@ -654,6 +695,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             final IDeviceBank bank = this.model.getCursorDevice ().getDeviceBank ();
             if (bank.canScrollPageForwards ())
             {
+                this.hierarchyTransitionGeneration++;
                 this.releaseAllTouchedParameters ();
                 bank.selectNextPage ();
             }
@@ -714,6 +756,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             case DEVICES:
                 if (cursorDevice.getDeviceBank ().canScrollBackwards ())
                 {
+                    this.hierarchyTransitionGeneration++;
                     this.releaseAllTouchedParameters ();
                     cursorDevice.getDeviceBank ().selectPreviousItem ();
                 }
@@ -721,6 +764,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             case PAGES:
                 if (cursorDevice.getParameterPageBank ().canScrollPageBackwards ())
                 {
+                    this.hierarchyTransitionGeneration++;
                     this.releaseAllTouchedParameters ();
                     cursorDevice.getParameterPageBank ().selectPreviousPage ();
                 }
@@ -740,6 +784,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             case DEVICES:
                 if (cursorDevice.getDeviceBank ().canScrollForwards ())
                 {
+                    this.hierarchyTransitionGeneration++;
                     this.releaseAllTouchedParameters ();
                     cursorDevice.getDeviceBank ().selectNextItem ();
                 }
@@ -747,6 +792,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             case PAGES:
                 if (cursorDevice.getParameterPageBank ().canScrollPageForwards ())
                 {
+                    this.hierarchyTransitionGeneration++;
                     this.releaseAllTouchedParameters ();
                     cursorDevice.getParameterPageBank ().selectNextPage ();
                 }
