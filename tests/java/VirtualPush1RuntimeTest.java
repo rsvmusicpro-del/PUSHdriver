@@ -629,12 +629,12 @@ public final class VirtualPush1RuntimeTest
         }
         // The eight action functions each have their own distinct RGB hue.
         final int [] actionColors = {
-            PushColorManager.PUSH1_COLOR2_GREEN_HI,
-            PushColorManager.PUSH1_COLOR2_CYAN_HI,
-            PushColorManager.PUSH1_COLOR2_BLUE_HI,
-            PushColorManager.PUSH1_COLOR2_ORCHID_HI,
-            PushColorManager.PUSH1_COLOR2_YELLOW_HI,
-            PushColorManager.PUSH1_COLOR2_MAGENTA_HI,
+            PushColorManager.PUSH1_COLOR2_GREEN_LO,
+            PushColorManager.PUSH1_COLOR2_CYAN_LO,
+            PushColorManager.PUSH1_COLOR2_BLUE_LO,
+            PushColorManager.PUSH1_COLOR2_ORCHID_LO,
+            PushColorManager.PUSH1_COLOR2_YELLOW_LO,
+            PushColorManager.PUSH1_COLOR2_MAGENTA_LO,
             PushColorManager.PUSH1_COLOR2_WHITE,
             PushColorManager.PUSH1_COLOR2_RED_HI
         };
