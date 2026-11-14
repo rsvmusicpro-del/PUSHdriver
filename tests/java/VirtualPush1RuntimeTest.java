@@ -1616,13 +1616,6 @@ public final class VirtualPush1RuntimeTest
                             case "select" -> { MODEL_ACTIONS.add ("device.select"); yield null; }
                             default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                         });
-                if (method.getName ().equals ("addChannel"))
-                {
-                    final Object channelType = args == null || args.length == 0 ? null : args[0];
-                    final String channelTypeName = channelType instanceof Enum<?> enumValue ? enumValue.name () : String.valueOf (channelType);
-                    MODEL_ACTIONS.add ("track.addChannel:" + channelTypeName);
-                    return null;
-                }
                 if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("device." + method.getName ());
@@ -1734,7 +1727,14 @@ public final class VirtualPush1RuntimeTest
     {
         return (ITrackBank) Proxy.newProxyInstance (ITrackBank.class.getClassLoader (),
             new Class<?> [] { ITrackBank.class }, (proxy, method, args) -> {
-                if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
+                                if (method.getName ().equals ("addChannel"))
+                {
+                    final Object channelType = args == null || args.length == 0 ? null : args[0];
+                    final String channelTypeName = channelType instanceof Enum<?> enumValue ? enumValue.name () : String.valueOf (channelType);
+                    MODEL_ACTIONS.add ("track.addChannel:" + channelTypeName);
+                    return null;
+                }
+if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("track." + method.getName ());
                     switch (method.getName ())
