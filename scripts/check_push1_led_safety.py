@@ -1,3 +1,4 @@
+# This guard is part of the mandatory cross-mode hardware LED quality gate.
 #!/usr/bin/env python3
 """Reject Push 1 RGB/blink palette identifiers on the static CC button row."""
 from pathlib import Path
