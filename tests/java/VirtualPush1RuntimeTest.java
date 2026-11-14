@@ -1619,8 +1619,9 @@ public final class VirtualPush1RuntimeTest
                 }
                 catch (final Throwable failure)
                 {
+                    writeGeneratedScenarioFailure (seed, fuzzView, trace, failure);
                     throw new AssertionError ("Generated Push 1 scenario failed: seed=" + seed
-                        + ", view=" + fuzzView + ", recent actions=" + trace, failure);
+                        + ", view=" + fuzzView + ", actions=" + trace, failure);
                 }
             }
         }
@@ -1681,6 +1682,35 @@ public final class VirtualPush1RuntimeTest
     }
 
 
+
+    /**
+     * Persist the complete failing generated scenario for local triage and CI
+     * artifact upload. The report is intentionally separate from the passing
+     * regression corpus; promote its seed after the defect is fixed.
+     */
+    private static void writeGeneratedScenarioFailure (final long seed, final Views view,
+            final List<String> trace, final Throwable failure)
+    {
+        try
+        {
+            final Path reportDirectory = Path.of ("target/push1-failures");
+            Files.createDirectories (reportDirectory);
+            final Path report = reportDirectory.resolve (
+                "seed-" + seed + "-view-" + view.name () + ".txt");
+            final List<String> lines = new java.util.ArrayList<> ();
+            lines.add ("seed=" + seed);
+            lines.add ("view=" + view.name ());
+            lines.add ("action_count=" + trace.size ());
+            lines.add ("trace:");
+            lines.addAll (trace);
+            lines.add ("failure=" + failure);
+            Files.write (report, lines);
+        }
+        catch (final IOException recordingFailure)
+        {
+            failure.addSuppressed (recordingFailure);
+        }
+    }
 
     private static int nextScenarioInt (final long [] state, final int bound)
     {
