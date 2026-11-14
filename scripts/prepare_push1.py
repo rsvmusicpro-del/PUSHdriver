@@ -1156,6 +1156,7 @@ replace_once(setup,
 # DeviceBrowserMode remains the pinned upstream state machine. Only the
 # defensive Bitwig empty-bank guards below are applied; no project-owned
 # filter-column navigation state or methods are injected into Browser mode.
+browser_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceBrowserMode.java"
 
 # Bitwig's Browser banks can temporarily expose fewer than sixteen items while
 # filters/results refresh. The upstream Ableton renderer indexes a fixed 4x4
