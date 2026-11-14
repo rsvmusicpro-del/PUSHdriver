@@ -955,6 +955,24 @@ public final class VirtualPush1RuntimeTest
         sequencerView.updateNoteMapping ();
         drainScheduled (state, 6);
         sequencerView.updateControlSurface ();
+
+        // Regression: the inherited long-press gesture used clip.getNumSteps()
+        // (128) as a hardware row stride, which addressed pads outside the
+        // 8x8 Push grid. Hold row 2/column 0 and release row 2/column 3; this
+        // must create a four-step note duration without indexing off-grid.
+        final int durationNote = sequencerView.getKeyManager ().map (2);
+        final NotePosition durationPosition = new NotePosition (0, 0, durationNote);
+        musicalModel.noteClip ().clearStep (durationPosition);
+        final IHwButton durationSourcePad = surface.getButton (ButtonID.get (ButtonID.PAD1, 16));
+        midi.device ().pressPad (2, 0, 100);
+        durationSourcePad.trigger (ButtonEvent.LONG);
+        midi.device ().pressPad (2, 3, 100);
+        midi.device ().releasePad (2, 3);
+        midi.device ().releasePad (2, 0);
+        final double expectedRowDuration = 4 * Resolution.getValueAt (sequencerView.getResolutionIndex ());
+        require (Math.abs (musicalModel.noteClip ().getStep (durationPosition).getDuration () - expectedRowDuration) < 0.000001,
+            "Sequencer long-press duration gesture did not use the physical eight-column row offset");
+
         sequencerView.onLeft (ButtonEvent.DOWN);
         sequencerView.onRight (ButtonEvent.DOWN);
         require (musicalModel.pageBackCount () == 1 && musicalModel.pageForwardCount () == 1,
