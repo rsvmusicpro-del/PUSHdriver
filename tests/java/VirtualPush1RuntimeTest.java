@@ -670,6 +670,28 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Device selector row");
         requireAction ("device.select", "The upper static row must select devices");
 
+        // Enter Device Chains through the production RGB action binding, then
+        // verify and use the static selector row through the production MIDI path.
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Device Chains action");
+        require (modes.isActive (Modes.DEVICE_CHAINS), "ROW1 Chains action did not activate Device Chains");
+        final de.mossgrabers.controller.ableton.push.mode.device.DeviceChainsMode chainsMode =
+            (de.mossgrabers.controller.ableton.push.mode.device.DeviceChainsMode) modes.get (Modes.DEVICE_CHAINS);
+        for (int i = 0; i < 8; i++)
+        {
+            final int color = chainsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, i));
+            require (color == PushColorManager.PUSH1_COLOR_BLACK
+                    || color == PushColorManager.PUSH1_COLOR_GREEN_LO
+                    || color == PushColorManager.PUSH1_COLOR_GREEN_HI,
+                "Device Chains ROW2 button " + i + " used an RGB/blink color: " + color);
+        }
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Device Chains selector");
+        requireAction ("device.selectSlotChain:Chain 1",
+            "ROW2 selector must select the matching chain and return to Device parameters");
+        require (modes.isActive (Modes.DEVICE_PARAMS),
+            "Selecting a Device Chain did not return to Device parameters");
+
         cursorDeviceExists = false;
         deviceSlotExists = false;
         deviceCapabilitiesSupported = true;
@@ -685,9 +707,23 @@ public final class VirtualPush1RuntimeTest
         require (AbstractFeatureGroup.BUTTON_COLOR_ON.equals (availableFilterLed),
             "Existing Browser filter column did not advertise its top-row LED");
         require (browserMode.getButtonColor (ButtonID.ROW1_1) == PushColorManager.PUSH1_COLOR2_BLUE_LO,
-            "Browser previous-item buttons must use the navigation blue");
-        require (browserMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 0)) == PushColorManager.PUSH1_COLOR2_BLUE_HI,
-            "Browser next-item buttons must use the stronger navigation blue");
+            "Browser previous-item buttons must use the RGB navigation blue on ROW1");
+        // ROW2 is a static-CC row: every state must stay in the non-blinking
+        // Push 1 palette, including the final Results/Preview selector.
+        for (int i = 0; i < 8; i++)
+        {
+            final ButtonID row2Button = ButtonID.get (ButtonID.ROW2_1, i);
+            final int color = browserMode.getButtonColor (row2Button);
+            require (color == PushColorManager.PUSH1_COLOR_BLACK
+                    || color == PushColorManager.PUSH1_COLOR_GREEN_LO
+                    || color == PushColorManager.PUSH1_COLOR_GREEN_HI,
+                "Browser ROW2 button " + i + " used an RGB/blink color on the static CC row: " + color);
+            require (AbstractFeatureGroup.BUTTON_COLOR_OFF.equals (browserMode.getButtonColorID (row2Button))
+                    || AbstractFeatureGroup.BUTTON_COLOR_ON.equals (browserMode.getButtonColorID (row2Button)),
+                "Browser ROW2 button " + i + " exposed a color-2/blink identifier");
+        }
+        require (browserMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 0)) == PushColorManager.PUSH1_COLOR_GREEN_HI,
+            "Browser next-item buttons must use the static non-blinking green palette");
 
         final int filterBefore = browserModel.filterCursor (0);
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Browser previous filter item");
@@ -1666,6 +1702,10 @@ public final class VirtualPush1RuntimeTest
                     case "getParameterBank": return parameters;
                     case "getDeviceBank": return devices;
                     case "getParameterPageBank": return pages;
+                    case "getSlotChains": return new String [] { "Chain 1", "Chain 2" };
+                    case "selectSlotChain":
+                        MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
+                        return null;
                     case "toggleEnabledState":
                         MODEL_ACTIONS.add ("cursorDevice.toggleEnabledState");
                         return null;

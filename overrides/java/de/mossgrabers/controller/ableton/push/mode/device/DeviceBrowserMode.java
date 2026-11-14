@@ -367,9 +367,11 @@ public class DeviceBrowserMode extends BaseMode<IItem>
         index = this.isButtonRow (1, buttonID);
         if (index >= 0)
         {
+            // ROW2 / CC102-109 is the static Push 1 CC palette. Never use
+            // COLOR2 RGB indices here: on this physical row they are blink commands.
             if (AbstractFeatureGroup.BUTTON_COLOR_OFF.equals (this.getButtonColorID (buttonID)))
-                return PushColorManager.PUSH1_COLOR2_GREY_LO;
-            return PushColorManager.PUSH1_COLOR2_BLUE_HI;
+                return PushColorManager.PUSH1_COLOR_BLACK;
+            return PushColorManager.PUSH1_COLOR_GREEN_HI;
         }
 
         return super.getButtonColor (buttonID);
@@ -396,10 +398,12 @@ public class DeviceBrowserMode extends BaseMode<IItem>
         index = this.isButtonRow (1, buttonID);
         if (index >= 0)
         {
+            // ROW2 uses the static CC palette, not the RGB/blink color family.
             if (index == 7)
-                return AbstractMode.BUTTON_COLOR2_ON;
+                return AbstractFeatureGroup.BUTTON_COLOR_ON;
             final Optional<IBrowserColumn> col = this.getFilterColumn (index);
-            return col.isPresent () && col.get ().doesExist () ? AbstractMode.BUTTON_COLOR2_ON : AbstractFeatureGroup.BUTTON_COLOR_OFF;
+            return col.isPresent () && col.get ().doesExist ()
+                ? AbstractFeatureGroup.BUTTON_COLOR_ON : AbstractFeatureGroup.BUTTON_COLOR_OFF;
         }
 
         return AbstractFeatureGroup.BUTTON_COLOR_OFF;
