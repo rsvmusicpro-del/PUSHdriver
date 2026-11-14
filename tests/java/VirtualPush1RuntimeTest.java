@@ -1269,6 +1269,23 @@ public final class VirtualPush1RuntimeTest
             for (int row = 0; row < 4; row++)
                 require (midi.device ().getLcdRow (row).length () == Push1DisplayLayout.COLUMNS,
                     "View " + viewID + " did not produce a complete Push 1 LCD row " + row);
+
+            // Cross every physical pad address with every packaged view. The
+            // deterministic velocity/pressure pattern explores distinct input
+            // values while ensuring each press is paired with a real release.
+            for (int note = 36; note <= 99; note++)
+            {
+                final int padIndex = note - 36;
+                final int padRow = padIndex / 8;
+                final int padColumn = padIndex % 8;
+                final int velocity = 1 + note * 37 % 127;
+                final int pressure = 1 + note * 17 % 127;
+                midi.device ().pressPad (padRow, padColumn, velocity);
+                midi.device ().pressPadPressure (padRow, padColumn, pressure);
+                midi.device ().releasePad (padRow, padColumn);
+                require (!midi.device ().isPadPressed (padRow, padColumn),
+                    "View " + viewID + " left physical pad " + note + " stuck after release");
+            }
         }
         musicalModel.setCanHoldNotes (false);
         viewManager.setActive (Views.PLAY);
