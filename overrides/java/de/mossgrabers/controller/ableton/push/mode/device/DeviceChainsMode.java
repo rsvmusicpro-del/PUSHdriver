@@ -57,6 +57,12 @@ public class DeviceChainsMode extends DeviceParamsMode
     @Override
     public void onSecondRow (final int index, final ButtonEvent event)
     {
+        // Device Chains is an optional Bitwig host capability. Guard the mode itself,
+        // not only the action which normally activates it: restored/stale mode state
+        // must never query or invoke unsupported slot-chain API methods.
+        if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+            return;
+
         if (event == ButtonEvent.DOWN)
             return;
 
@@ -86,6 +92,8 @@ public class DeviceChainsMode extends DeviceParamsMode
         final int index = this.isButtonRow (1, buttonID);
         if (index >= 0)
         {
+            if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+                return PushColorManager.PUSH1_COLOR_BLACK;
             final ICursorDevice cursorDevice = this.model.getCursorDevice ();
             if (!cursorDevice.doesExist ())
                 return PushColorManager.PUSH1_COLOR_BLACK;
@@ -108,6 +116,16 @@ public class DeviceChainsMode extends DeviceParamsMode
         if (!this.checkExists1 (display, cd))
             return;
 
+        if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+        {
+            for (int i = 0; i < 8; i++)
+                display.setCell (0, i, "");
+            final String [] actionLabels = { "On", "Params", "Expand", "", "Banks", "Pin", "Window", "Up" };
+            for (int i = 0; i < actionLabels.length; i++)
+                display.setCell (3, i, actionLabels[i]);
+            return;
+        }
+
         // Chain selectors are now physically above the LCD (ROW2).
         final String [] slotChains = cd.getSlotChains ();
         for (int i = 0; i < 8; i++)
@@ -127,6 +145,16 @@ public class DeviceChainsMode extends DeviceParamsMode
         final ICursorDevice cd = this.model.getCursorDevice ();
         if (!this.checkExists2 (display, cd))
             return;
+
+        if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+        {
+            final String color = this.model.getCurrentTrackBank ().getSelectedChannelColorEntry ();
+            final ColorEx menuColor = DAWColor.getColorEntry (color);
+            for (int i = 0; i < 8; i++)
+                display.addParameterElement (this.hostMenu[i], this.getTopMenuEnablement (cd, false, i),
+                    "", "", menuColor, false, "", 0, "", false, -1);
+            return;
+        }
 
         final String color = this.model.getCurrentTrackBank ().getSelectedChannelColorEntry ();
         final ColorEx bottomMenuColor = DAWColor.getColorEntry (color);
