@@ -40,7 +40,14 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
         cwd=root, check=True,
     )
     runtime_classpath = os.pathsep.join((classpath, output))
-    command = ["java", "-cp", runtime_classpath, "VirtualPush1RuntimeTest"]
+    command = ["java"]
+    fuzz_seed = next(
+        (argument.split("=", 1)[1] for argument in sys.argv[1:] if argument.startswith("--fuzz-seed=")),
+        None,
+    )
+    if fuzz_seed is not None:
+        command.append(f"-Dpush1.fuzz.seed={fuzz_seed}")
+    command.extend(["-cp", runtime_classpath, "VirtualPush1RuntimeTest"])
     if "--gui" in sys.argv:
         command.append("--gui")
     subprocess.run(command, cwd=root, check=True)
