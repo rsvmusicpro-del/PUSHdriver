@@ -997,6 +997,7 @@ public final class VirtualPush1RuntimeTest
         virtualCursorDeviceNested = false;
         virtualCursorDeviceHasLayers = false;
         virtualDeviceParametersExist = false;
+        deviceParamsMode.setShowDevices (true);
 
         // Confirm the physical MIDI bindings now dispatch actions on ROW1 and
         // device selection on ROW2 through the production command layer.
