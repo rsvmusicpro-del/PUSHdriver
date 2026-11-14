@@ -123,7 +123,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     protected SelectorContext getSelectorContext ()
     {
         final ModeManager manager = this.surface.getModeManager ();
-        if (manager.isActive (Modes.DEVICE_CHAINS))
+        if (manager.getActiveID () == Modes.DEVICE_CHAINS)
             return SelectorContext.CHAINS;
         return this.getPrimaryMode ().selectorContext;
     }

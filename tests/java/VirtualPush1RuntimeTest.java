@@ -643,6 +643,10 @@ public final class VirtualPush1RuntimeTest
         // parameter pages, using the actual DeviceParamsMode production path.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Device mode");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Device button did not activate Device mode for In/Out tests");
+        require (modes.getActiveID () == Modes.DEVICE_PARAMS,
+            "In/Out must run in the primary Device Parameters mode, not its Chains submode");
+        require (((DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS)).isShowDevices (),
+            "In/Out device navigation must begin in DEVICES selector context");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out");
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In");
