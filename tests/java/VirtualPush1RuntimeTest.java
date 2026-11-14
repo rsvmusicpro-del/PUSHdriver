@@ -904,6 +904,9 @@ public final class VirtualPush1RuntimeTest
             "Null and whitespace-only chain slots must not be selectable");
         chainSelectorMode.onSecondRow (0, ButtonEvent.UP);
         requireAction ("device.selectSlotChain:Chain 1", "A valid chain slot must remain selectable");
+        require (modes.isActive (Modes.DEVICE_CHAINS),
+            "The Chains selector must remain active until Bitwig reports the new cursor device");
+        drainScheduled (state, 73);
         require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
             "Selecting a valid chain must return to the Devices selector");
         virtualSlotChains = new String [] { "Chain 1", "Chain 2" };
@@ -2485,6 +2488,12 @@ public final class VirtualPush1RuntimeTest
                         if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
                             throw new AssertionError ("Unsupported slot-chain capability was invoked");
                         MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
+                        state.scheduled.add (new ScheduledTask (73, () -> {
+                            virtualCursorDeviceName = "Device in " + args[0];
+                            virtualCursorDevicePosition = 0;
+                            virtualCursorDeviceNested = false;
+                            virtualCursorDeviceHasLayers = false;
+                        }));
                         return null;
                     case "toggleEnabledState":
                         MODEL_ACTIONS.add ("cursorDevice.toggleEnabledState");
