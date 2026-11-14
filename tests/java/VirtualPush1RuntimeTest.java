@@ -983,7 +983,8 @@ public final class VirtualPush1RuntimeTest
         final String classicSelectedColor = (String) classicStepColor.invoke (
             sequencerView, classicContinuation, true, 0, 1, 1, durationNote, List.of (durationPosition));
         require ("COLOR_STEP_SELECTED".equals (classicSelectedColor),
-            "Classic Sequencer playhead hid the selected long-note continuation color");
+            "Classic Sequencer playhead hid the selected long-note continuation color; state="
+                + classicContinuation.getState () + ", color=" + classicSelectedColor);
 
         sequencerView.onLeft (ButtonEvent.DOWN);
         sequencerView.onRight (ButtonEvent.DOWN);
@@ -1927,6 +1928,30 @@ public final class VirtualPush1RuntimeTest
                 });
         }
 
+        private StepState stepState (final NotePosition position)
+        {
+            final String key = this.key (position);
+            if (this.steps.containsKey (key))
+                return this.steps.get (key);
+
+            for (int sourceStep = position.getStep () - 1; sourceStep >= 0; sourceStep--)
+            {
+                final NotePosition source = new NotePosition (position);
+                source.setStep (sourceStep);
+                final String sourceKey = this.key (source);
+                if (!this.steps.containsKey (sourceKey))
+                    continue;
+
+                if (this.steps.get (sourceKey) != StepState.START)
+                    return StepState.OFF;
+
+                final double duration = this.durations.getOrDefault (sourceKey, 0.25);
+                final double elapsed = (position.getStep () - sourceStep) * this.stepLength[0];
+                return elapsed < duration - 0.000001 ? StepState.CONTINUE : StepState.OFF;
+            }
+            return StepState.OFF;
+        }
+
         private IStepInfo stepInfo (final NotePosition position)
         {
             final String key = this.key (position);
@@ -1934,7 +1959,7 @@ public final class VirtualPush1RuntimeTest
                 IStepInfo.class.getClassLoader (), new Class<?> [] { IStepInfo.class },
                 (proxy, method, args) -> switch (method.getName ())
                 {
-                    case "getState" -> this.steps.getOrDefault (key, StepState.OFF);
+                    case "getState" -> this.stepState (position);
                     case "isMuted" -> this.muted.getOrDefault (key, false);
                     case "getDuration" -> this.durations.getOrDefault (key, 0.25);
                     case "getVelocity" -> 100.0;
