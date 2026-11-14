@@ -986,6 +986,9 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Device Chains selector");
         requireAction ("device.selectSlotChain:Chain 1",
             "ROW2 selector must select the matching chain and return to Device parameters");
+        require (modes.isActive (Modes.DEVICE_CHAINS),
+            "Chains mode must remain active until the cursor reports the selected chain");
+        drainScheduled (state, 73);
         require (modes.isActive (Modes.DEVICE_PARAMS),
             "Selecting a Device Chain did not return to Device parameters");
 
