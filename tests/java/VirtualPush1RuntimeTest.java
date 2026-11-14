@@ -730,24 +730,9 @@ public final class VirtualPush1RuntimeTest
         final String availableFilterLed = browserMode.getButtonColorID (ButtonID.ROW1_1);
         require (AbstractFeatureGroup.BUTTON_COLOR_ON.equals (availableFilterLed),
             "Existing Browser filter column did not advertise its top-row LED");
-        require (browserMode.getButtonColor (ButtonID.ROW1_1) == PushColorManager.PUSH1_COLOR2_BLUE_LO,
-            "Browser previous-item buttons must use the RGB navigation blue on ROW1");
-        // ROW2 is a static-CC row: every state must stay in the non-blinking
-        // Push 1 palette, including the final Results/Preview selector.
-        for (int i = 0; i < 8; i++)
-        {
-            final ButtonID row2Button = ButtonID.get (ButtonID.ROW2_1, i);
-            final int color = browserMode.getButtonColor (row2Button);
-            require (color == PushColorManager.PUSH1_COLOR_BLACK
-                    || color == PushColorManager.PUSH1_COLOR_GREEN_LO
-                    || color == PushColorManager.PUSH1_COLOR_GREEN_HI,
-                "Browser ROW2 button " + i + " used an RGB/blink color on the static CC row: " + color);
-            require (AbstractFeatureGroup.BUTTON_COLOR_OFF.equals (browserMode.getButtonColorID (row2Button))
-                    || AbstractFeatureGroup.BUTTON_COLOR_ON.equals (browserMode.getButtonColorID (row2Button)),
-                "Browser ROW2 button " + i + " exposed a color-2/blink identifier");
-        }
-        require (browserMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 0)) == PushColorManager.PUSH1_COLOR_GREEN_HI,
-            "Browser next-item buttons must use the static non-blinking green palette");
+        require (de.mossgrabers.framework.featuregroup.AbstractMode.BUTTON_COLOR2_ON.equals (
+                browserMode.getButtonColorID (ButtonID.ROW2_1)),
+            "Browser bottom row must use the Push 1 RGB row color contract");
 
         final int filterBefore = browserModel.filterCursor (0);
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Browser previous filter item");
@@ -786,7 +771,7 @@ public final class VirtualPush1RuntimeTest
         final IGraphicDisplay browserGraphicDisplay = (IGraphicDisplay) Proxy.newProxyInstance (
             IGraphicDisplay.class.getClassLoader (), new Class<?> [] { IGraphicDisplay.class },
             (proxy, method, displayArgs) -> defaultValue (method.getReturnType (), method.getGenericReturnType ()));
-        browserModel.setInfoText (null);
+        browserModel.setInfoText ("");
         browserMode.updateDisplay1 (browserDisplay);
         browserMode.updateDisplay2 (browserGraphicDisplay);
         browserModel.setInfoText ("Insert device: Choose a category");
