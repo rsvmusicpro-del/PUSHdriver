@@ -1239,69 +1239,18 @@ replace_once(browser_mode,
 """,
     "Push 1 In/Out browser filter-column navigation")
 
-# Keep ordinary horizontal-arrow item navigation unchanged. In/Out has a
-# dedicated path so its parameter-page behavior cannot leak into PushCursorCommand.
+# DeviceParamsMode in the maintained Push 1 override owns the context-aware
+# In/Out path. Verify it exists rather than rewriting the mode during assembly.
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
-replace_once(device_params_mode,
-    """    public boolean hasNextItem ()
-    {
-        if (this.showDevices)
-            return this.model.getCursorDevice ().getDeviceBank ().canScrollForwards ();
-        return super.hasNextItem ();
-    }
-""",
-    """    public boolean hasNextItem ()
-    {
-        return this.showDevices
-            ? this.model.getCursorDevice ().getDeviceBank ().canScrollForwards ()
-            : super.hasNextItem ();
-    }
-
-
-    /**
-     * Navigate one step using the Push 1 In/Out controls.
-     * Device selection and parameter-page selection are intentionally separate
-     * from the standard arrow-button selectPreviousItem/selectNextItem paths.
-     */
-    public void selectPreviousInOutItem ()
-    {
-        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-        if (this.showDevices)
-            cursorDevice.getDeviceBank ().selectPreviousItem ();
-        else
-            cursorDevice.getParameterPageBank ().selectPreviousPage ();
-    }
-
-
-    /** {@inheritDoc} */
-    public void selectNextInOutItem ()
-    {
-        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-        if (this.showDevices)
-            cursorDevice.getDeviceBank ().selectNextItem ();
-        else
-            cursorDevice.getParameterPageBank ().selectNextPage ();
-    }
-
-
-    /** Check whether Out has a previous device or parameter-page bank. */
-    public boolean hasPreviousInOutItem ()
-    {
-        if (this.showDevices)
-            return this.model.getCursorDevice ().getDeviceBank ().canScrollBackwards ();
-        return this.model.getCursorDevice ().getParameterPageBank ().canScrollPageBackwards ();
-    }
-
-
-    /** Check whether In has a next device or parameter-page bank. */
-    public boolean hasNextInOutItem ()
-    {
-        if (this.showDevices)
-            return this.model.getCursorDevice ().getDeviceBank ().canScrollForwards ();
-        return this.model.getCursorDevice ().getParameterPageBank ().canScrollPageForwards ();
-    }
-""",
-    "Push 1 In/Out-only device and parameter-page navigation")
+device_params_source = device_params_mode.read_text()
+for required_method in (
+    "public void selectPreviousInOutItem ()",
+    "public void selectNextInOutItem ()",
+    "public boolean hasPreviousInOutItem ()",
+    "public boolean hasNextInOutItem ()",
+):
+    if required_method not in device_params_source:
+        raise SystemExit(f"DeviceParamsMode is missing required Push 1 navigation method: {required_method}")
 
 # Keep the physical Push 1 New button on its native dedicated binding, while
 # stopping the cursor track's current clip before preparing its next note clip.

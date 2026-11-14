@@ -259,7 +259,6 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     {
         if (event != ButtonEvent.DOWN) return;
         final ICursorDevice device = this.model.getCursorDevice ();
-        final ModeManager modeManager = this.surface.getModeManager ();
         switch (index)
         {
             case 0: if (device.doesExist ()) device.toggleEnabledState (); break;
@@ -392,7 +391,8 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 return index == cd.getIndex () ? PushColorManager.PUSH1_COLOR_GREEN_HI : PushColorManager.PUSH1_COLOR_GREEN_LO;
             }
             final IParameterPageBank bank = cd.getParameterPageBank ();
-            if (bank.getItem (index).isEmpty ()) return PushColorManager.PUSH1_COLOR_BLACK;
+            final String page = bank.getItem (index);
+            if (page == null || page.isEmpty ()) return PushColorManager.PUSH1_COLOR_BLACK;
             return index == bank.getSelectedItemIndex () ? PushColorManager.PUSH1_COLOR_GREEN_HI : PushColorManager.PUSH1_COLOR_GREEN_LO;
         }
         return super.getButtonColor (buttonID);
@@ -494,7 +494,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             for (int i = 0; i < 8; i++)
             {
                 final String page = bank.getItem (i);
-                display.setCell (0, i, page.isEmpty () ? "" : (i == selected ? Push1Display.SELECT_ARROW : "") + page);
+                display.setCell (0, i, page == null || page.isEmpty () ? "" : (i == selected ? Push1Display.SELECT_ARROW : "") + page);
             }
         }
 
@@ -552,6 +552,8 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             {
                 bottomMenuIcon = cd.getName ();
                 bottomMenu = parameterPageBank.getItem (i);
+                if (bottomMenu == null)
+                    bottomMenu = "";
 
                 if (bottomMenu.length () > 12)
                     bottomMenu = bottomMenu.substring (0, 12);
@@ -662,6 +664,70 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         if (this.getSelectorContext () == SelectorContext.DEVICES)
             return this.model.getCursorDevice ().getDeviceBank ().canScrollPageForwards ();
         return super.hasNextItemPage ();
+    }
+
+
+    /** Navigate the previous item with Push 1 In/Out. */
+    public void selectPreviousInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist ())
+            return;
+        switch (this.getSelectorContext ())
+        {
+            case DEVICES: cursorDevice.getDeviceBank ().selectPreviousItem (); break;
+            case PAGES: cursorDevice.getParameterPageBank ().selectPreviousPage (); break;
+            case CHAINS: break;
+            default: break;
+        }
+    }
+
+
+    /** Navigate the next item with Push 1 In/Out. */
+    public void selectNextInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist ())
+            return;
+        switch (this.getSelectorContext ())
+        {
+            case DEVICES: cursorDevice.getDeviceBank ().selectNextItem (); break;
+            case PAGES: cursorDevice.getParameterPageBank ().selectNextPage (); break;
+            case CHAINS: break;
+            default: break;
+        }
+    }
+
+
+    /** Check whether the previous Push 1 In/Out item exists. */
+    public boolean hasPreviousInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist ())
+            return false;
+        switch (this.getSelectorContext ())
+        {
+            case DEVICES: return cursorDevice.getDeviceBank ().canScrollBackwards ();
+            case PAGES: return cursorDevice.getParameterPageBank ().canScrollPageBackwards ();
+            case CHAINS: return false;
+            default: return false;
+        }
+    }
+
+
+    /** Check whether the next Push 1 In/Out item exists. */
+    public boolean hasNextInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist ())
+            return false;
+        switch (this.getSelectorContext ())
+        {
+            case DEVICES: return cursorDevice.getDeviceBank ().canScrollForwards ();
+            case PAGES: return cursorDevice.getParameterPageBank ().canScrollPageForwards ();
+            case CHAINS: return false;
+            default: return false;
+        }
     }
 
 

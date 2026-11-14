@@ -115,6 +115,7 @@ public final class VirtualPush1RuntimeTest
     private static int parameterPageIndex = 1;
     private static boolean cursorDeviceExists;
     private static boolean deviceSlotExists;
+    private static boolean virtualDeviceParametersExist;
     // Model API capabilities independently; Bitwig hosts may support one feature but not another.
     private static final EnumSet<Capability> SUPPORTED_CAPABILITIES = EnumSet.allOf (Capability.class);
     /** Return null for an empty ILayerBank slot to model hosts that do so. */
@@ -761,6 +762,20 @@ public final class VirtualPush1RuntimeTest
             "Supported parameter-page-section capability must remain actionable");
         requireAction ("cursorDevice.togglePinned",
             "Supported pinning capability must remain actionable");
+
+        // A touched encoder must release the original parameter before a device
+        // selection changes the cursor target; the later physical release must not
+        // accidentally release a different device's parameter.
+        virtualDeviceParametersExist = true;
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onKnobTouch (0, true);
+        deviceParamsMode.onSecondRow (1, ButtonEvent.UP);
+        deviceParamsMode.onKnobTouch (0, false);
+        require (MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:true")).count () == 1,
+            "Touching a Device encoder must start automation touch exactly once");
+        require (MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:false")).count () == 1,
+            "Changing the cursor device must release the originally touched parameter exactly once");
+        virtualDeviceParametersExist = false;
 
         // Confirm the physical MIDI bindings now dispatch actions on ROW1 and
         // device selection on ROW2 through the production command layer.
@@ -2374,9 +2389,20 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
+                {
+                    final int parameterIndex = (int) args[0];
                     return Proxy.newProxyInstance (IParameter.class.getClassLoader (),
                         new Class<?> [] { IParameter.class },
-                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                        (p, m, a) -> switch (m.getName ())
+                        {
+                            case "doesExist" -> Boolean.valueOf (virtualDeviceParametersExist);
+                            case "touchValue" -> {
+                                MODEL_ACTIONS.add ("parameter.touch:" + parameterIndex + ":" + a[0]);
+                                yield null;
+                            }
+                            default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                        });
+                }
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }

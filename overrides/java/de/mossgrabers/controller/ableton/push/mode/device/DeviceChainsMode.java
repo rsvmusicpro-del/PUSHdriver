@@ -113,7 +113,10 @@ public class DeviceChainsMode extends DeviceParamsMode
         // Chain selectors are now physically above the LCD (ROW2).
         final String [] slotChains = this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS) ? cd.getSlotChains () : new String [0];
         for (int i = 0; i < 8; i++)
-            display.setCell (0, i, slotChains != null && i < slotChains.length ? slotChains[i] : "");
+        {
+            final String chain = slotChains != null && i < slotChains.length && slotChains[i] != null ? slotChains[i] : "";
+            display.setCell (0, i, chain);
+        }
 
         // The RGB action row is below the LCD.
         final String [] actionLabels = { "On", "Params", "Expand", "Chains", "Banks", "Pin", "Window", "Up" };
@@ -139,7 +142,7 @@ public class DeviceChainsMode extends DeviceParamsMode
             final boolean isTopMenuOn = this.getTopMenuEnablement (cd, hasPinning, i);
             final String bottomMenu = slotChains != null && i < slotChains.length ? slotChains[i] : "";
             final String bottomMenuIcon = "";
-            final boolean isBottomMenuOn = i < slotChains.length;
+            final boolean isBottomMenuOn = slotChains != null && i < slotChains.length;
             display.addParameterElement (this.hostMenu[i], isTopMenuOn, bottomMenu, bottomMenuIcon, bottomMenuColor, isBottomMenuOn, "", 0, "", false, -1);
         }
     }
