@@ -1011,8 +1011,24 @@ replace_once(configuration, "        Views.RAINDROPS,\n", "",
     "PushConfiguration Raindrops preference")
 
 note_view_select = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteViewSelectMode.java"
-replace_once(note_view_select, "        Views.RAINDROPS,\n", "        null,\n",
-    "NoteViewSelectMode Raindrops slot")
+replace_once(note_view_select,
+    "        Views.SEQUENCER,\n"
+    "        Views.POLY_SEQUENCER,\n"
+    "        Views.RAINDROPS,\n"
+    "        Views.DRUM,\n"
+    "        Views.DRUM4,\n"
+    "        Views.DRUM8,\n"
+    "        null,\n"
+    "        null\n",
+    "        Views.SEQUENCER,\n"
+    "        Views.POLY_SEQUENCER,\n"
+    "        Views.DRUM,\n"
+    "        Views.DRUM4,\n"
+    "        Views.DRUM8,\n"
+    "        null,\n"
+    "        null,\n"
+    "        null\n",
+    "NoteViewSelectMode Push 1 mode order without Raindrops")
 
 layout = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/trigger/LayoutCommand.java"
 replace_once(layout,
