@@ -18,9 +18,9 @@ PUSHdriver therefore separates five test layers:
 
 ## New scenario engine
 
-The runtime suite now runs a deterministic SplitMix64 generator over every packaged Push 1 view. Four fixed seeds produce 56 view/seed scenarios and 3,584 mixed actions in each run. Actions mix pads, pressure, modifiers, encoders, encoder touch, ribbon, navigation, row selectors, mode buttons, transport and button holds. Invariants check that inputs are released, the LCD remains complete and the virtual Bitwig host reports no runtime errors.
+The runtime suite runs a deterministic SplitMix64 generator over every packaged Push 1 view. Four rotating seeds plus every seed in `tests/scenarios/fuzz-seeds.txt` are executed on every run. The initial permanent corpus includes the previously discovered `DeviceLayerMode` null-layer failure seed, so the default suite now runs 70 view/seed scenarios and 4,480 mixed actions (64 per scenario); the count grows automatically as fixed failures are promoted. Actions mix pads, pressure, modifiers, encoders, encoder touch, ribbon, navigation, row selectors, mode buttons, transport and button holds. Invariants check that inputs are released, the LCD remains complete and the virtual Bitwig host reports no runtime errors.
 
-The generator is deliberately deterministic: a failure is reproducible from its seed. Replay one seed with `python3 scripts/run_virtual_push1.py --fuzz-seed=0x505553483146555A` (replace the value with the seed reported by the failure). It is not yet a full QuickCheck/Hypothesis implementation and does not claim automatic shrinking to a minimal sequence. The recent action trace helps isolate a failing prefix; a future JUnit/property-test migration can add automatic shrinking.
+The generator is deliberately deterministic: a failure is reproducible from its seed. Replay one seed with `python3 scripts/run_virtual_push1.py --fuzz-seed=0x505553483146555A` (replace the value with the seed reported by the failure). It is not yet a full QuickCheck/Hypothesis implementation and does not claim automatic shrinking to a minimal sequence. Once a generated defect is fixed, `scripts/promote_push1_regression.py SEED --reason '...'` adds its deterministic seed to the permanent corpus; the promotion is idempotent and the default local/CI suite then replays it on every packaged view. The full trace is retained in the failure output to make triage and later conversion into a hand-authored minimal scenario practical.
 
 ## Defect found by generated testing
 
@@ -54,7 +54,7 @@ This timing represents the controller framework's button semantics after MIDI de
 
 ## Future implementation order
 
-1. Keep the current dependency-free generated scenarios and timed-button regression in every CI run.
+1. Keep the dependency-free generated scenarios, permanent seed corpus and timed-button regression in every CI run; promote each fixed deterministic failure before merging.
 2. Add a separate reference-profile test for every physical input/output mapping, sourced from the Push 1 protocol reference and pinned upstream map, never from the simulator itself.
 3. Add event trace export/replay (MIDI short messages, SysEx, virtual timestamps, active view and seed) so a failure can become a permanent named regression scenario.
 4. Migrate the standalone test runner into discoverable test cases, then evaluate QuickTheories shrinking and PIT mutation coverage on production Push 1 overrides and critical framework adapters.
