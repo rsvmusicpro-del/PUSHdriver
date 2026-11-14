@@ -966,12 +966,17 @@ public final class VirtualPush1RuntimeTest
         final IHwButton durationSourcePad = surface.getButton (ButtonID.get (ButtonID.PAD1, 16));
         midi.device ().pressPad (2, 0, 100);
         durationSourcePad.trigger (ButtonEvent.LONG);
+        require (durationSourcePad.isLongPressed (), "Virtual source pad did not enter the long-pressed state");
         midi.device ().pressPad (2, 3, 100);
         midi.device ().releasePad (2, 3);
-        midi.device ().releasePad (2, 0);
+        require (durationSourcePad.isConsumed (), "Sequencer did not consume the held source pad after the duration gesture");
         final double expectedRowDuration = 4 * Resolution.getValueAt (sequencerView.getResolutionIndex ());
-        require (Math.abs (musicalModel.noteClip ().getStep (durationPosition).getDuration () - expectedRowDuration) < 0.000001,
-            "Sequencer long-press duration gesture did not use the physical eight-column row offset");
+        final double actualRowDuration = musicalModel.noteClip ().getStep (durationPosition).getDuration ();
+        require (Math.abs (actualRowDuration - expectedRowDuration) < 0.000001,
+            "Sequencer long-press duration gesture did not use the physical eight-column row offset: expected "
+                + expectedRowDuration + ", actual " + actualRowDuration + ", state "
+                + musicalModel.noteClip ().getStep (durationPosition).getState ());
+        midi.device ().releasePad (2, 0);
 
         sequencerView.onLeft (ButtonEvent.DOWN);
         sequencerView.onRight (ButtonEvent.DOWN);
