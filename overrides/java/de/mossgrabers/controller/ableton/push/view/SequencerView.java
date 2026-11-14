@@ -125,7 +125,10 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             else if (this.model.hasRecordingState ())
                 color = AbstractSequencerView.COLOR_STEP_HILITE_RECORD;
             else if (stepInfo == null || stepInfo.getState () == StepState.OFF)
-                color = AbstractSequencerView.COLOR_STEP_HILITE_NO_CONTENT;
+                // Push 1's GREEN_LO is too dim for a moving playhead. Use
+                // the full-intensity highlight so empty and occupied columns
+                // remain clearly visible under normal room lighting.
+                color = AbstractSequencerView.COLOR_STEP_HILITE_CONTENT;
             else
                 color = AbstractSequencerView.COLOR_STEP_HILITE_CONTENT;
             gridPad.lightEx (playheadColumn, this.numDisplayRows - 1 - row, color);
