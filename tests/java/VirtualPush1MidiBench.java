@@ -343,6 +343,15 @@ public final class VirtualPush1MidiBench
     public int getDispatchedTouchEvents () { return this.dispatchedTouchEvents; }
     public int getDispatchedPitchbendEvents () { return this.dispatchedPitchbendEvents; }
 
+    /** Read the production hardware-button long-press state for a bound CC. */
+    public boolean isBoundButtonLongPressed (final int cc)
+    {
+        for (final ButtonBinding binding: this.buttonBindings)
+            if (binding.type () == BindType.CC && binding.control () == cc)
+                return binding.button ().isLongPressed ();
+        throw new IllegalArgumentException ("No production button binding exists for CC " + cc);
+    }
+
     private static Object defaultValue (final Class<?> type)
     {
         if (!type.isPrimitive () || type == void.class) return null;
