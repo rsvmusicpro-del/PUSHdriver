@@ -781,6 +781,27 @@ public final class VirtualPush1RuntimeTest
             "Touching a Device encoder must start automation touch exactly once");
         require (MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:false")).count () == 1,
             "Changing the cursor device must release the originally touched parameter exactly once");
+        // In/Out changes the cursor device too; it must release the exact old
+        // parameter before the asynchronous Bitwig cursor update is observed.
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onKnobTouch (0, true);
+        deviceParamsMode.selectNextInOutItem ();
+        deviceParamsMode.onKnobTouch (0, false);
+        require (MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:true")).count () == 1
+                && MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:false")).count () == 1,
+            "In/Out device navigation must release the originally touched parameter exactly once");
+
+        // Selecting a different parameter page also changes the encoder target.
+        deviceParamsMode.setShowDevices (false);
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onKnobTouch (0, true);
+        deviceParamsMode.onSecondRow (2, ButtonEvent.UP);
+        deviceParamsMode.onKnobTouch (0, false);
+        require (MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:true")).count () == 1
+                && MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:false")).count () == 1,
+            "Parameter-page selection must release the originally touched parameter exactly once");
+        requireAction ("parameterPage.selectPage:2", "Selecting a page must still reach the API-17 page bank");
+        deviceParamsMode.setShowDevices (true);
         virtualDeviceParametersExist = false;
 
         // Confirm the physical MIDI bindings now dispatch actions on ROW1 and
@@ -819,6 +840,13 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Device Banks to Devices");
         require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
             "Banks did not cycle from Chains back to Devices");
+
+        // A slot-chain list containing only null/blank entries is not an
+        // available context and must not light the Chains action.
+        virtualSlotChains = new String [] { null, "   " };
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 3)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
+            "Chains must be disabled when the host reports no usable chain names");
+        virtualSlotChains = new String [] { "Chain 1", "Chain 2" };
 
         // Empty, null and whitespace-only chain slots must be dark and inert
         // in both the selector feedback and the production selection handler.
