@@ -975,6 +975,13 @@ public final class VirtualPush1RuntimeTest
 
         // Enter Device Chains through the production RGB action binding, then
         // verify and use the static selector row through the production MIDI path.
+        // The earlier chain test intentionally left the virtual cursor in a
+        // chain child; reset to the parent so this second selection models a
+        // distinct asynchronous cursor return.
+        virtualCursorDeviceName = "Virtual Device";
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceHasLayers = false;
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Device Chains action");
         require (modes.isActive (Modes.DEVICE_CHAINS), "ROW1 Chains action did not activate Device Chains");
