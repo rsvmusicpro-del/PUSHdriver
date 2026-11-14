@@ -19,8 +19,22 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Enforce Push 1 static-row LED safety
+        run: python3 scripts/check_push1_led_safety.py
+
+      - name: Test Python regression and source-ownership guards
+        run: python3 -m unittest discover -s tests/python -v
+
       - name: Assemble Push 1-only source tree
         run: python3 scripts/prepare_push1.py
+
+      - name: Verify 64-color Push 1 palette
+        run: python3 scripts/check_push1_color_palette.py
+      - name: Enforce single-source ownership for modes, views and overrides
+        run: python3 scripts/check_source_ownership.py
+
+      - name: Verify menu physical-row and LCD alignment
+        run: python3 scripts/check_push1_menu_row_contract.py
 
       - name: Snapshot assembled sources
         run: |
@@ -51,8 +65,17 @@ jobs:
       - name: Verify Push 1-only package
         run: python3 scripts/verify_push1.py
 
-      - name: Run unified virtual Push 1 simulation suite
-        run: python3 scripts/test_push1_extension.py
+      - name: Run extended fuzz and delayed-callback interleaving suite
+        run: python3 scripts/test_push1_extension.py --fuzz-actions=256 --fuzz-seeds=16
+
+      - name: Upload generated Push 1 failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: push1-generated-failure-traces-linux
+          path: target/push1-failures/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Validate one-command local bench runner
         run: python3 -m py_compile scripts/run_virtual_push1.py
@@ -83,8 +106,22 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Enforce Push 1 static-row LED safety
+        run: python3 scripts/check_push1_led_safety.py
+
+      - name: Test Python regression and source-ownership guards
+        run: python3 -m unittest discover -s tests/python -v
+
       - name: Assemble Push 1-only source tree
         run: python3 scripts/prepare_push1.py
+
+      - name: Verify 64-color Push 1 palette
+        run: python3 scripts/check_push1_color_palette.py
+      - name: Enforce single-source ownership for modes, views and overrides
+        run: python3 scripts/check_source_ownership.py
+
+      - name: Verify menu physical-row and LCD alignment
+        run: python3 scripts/check_push1_menu_row_contract.py
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -98,8 +135,17 @@ jobs:
       - name: Verify Push 1-only package
         run: python3 scripts/verify_push1.py
 
-      - name: Run unified virtual Push 1 simulation suite on macOS
-        run: python3 scripts/test_push1_extension.py
+      - name: Run extended fuzz and delayed-callback interleaving suite on macOS
+        run: python3 scripts/test_push1_extension.py --fuzz-actions=256 --fuzz-seeds=16
+
+      - name: Upload generated Push 1 failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: push1-generated-failure-traces-macos
+          path: target/push1-failures/
+          if-no-files-found: ignore
+          retention-days: 14
 
   quality-gate:
     if: always()

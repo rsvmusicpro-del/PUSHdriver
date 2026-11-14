@@ -181,30 +181,32 @@ Rack-chain navigation remains inactive because API 17 does not expose a
 reliable selected-chain cursor for safe previous/next navigation. No MIDI
 IDs or alternate controller dispatcher are introduced.
 
-## Navigation LED color language
+## Device mode: physical row assignment and color language
 
-The two eight-button rows use a consistent Push 1 palette so their purpose is
-recognizable across Device, Device Chains and Browser modes:
+Device mode deliberately assigns the two physical button rows according to
+their LED capabilities:
 
-- **Green — selection:** the top row uses dim green for available devices or
-  parameter pages and bright green for the current selection. Device Chains
-  uses dim green for existing chain slots; API 17 does not expose a reliable
-  selected-chain cursor, so it does not invent a selected-chain highlight.
-- **Blue — navigation/context:** Browser top-row previous-item controls use
-  dim blue and bottom-row next-item controls use bright blue. In Device mode,
-  the Devices/Parameters selector uses the same blue family.
-- **Amber/orange — state and actions:** the bottom-row On, Parameters,
-  Expanded, Pin Device and Window controls use bright amber when active and
-  dim amber when inactive.
-- **Orchid/violet — hierarchy:** Chains and Up use violet; Chains changes
-  intensity when its mode is active.
-- **Grey — unavailable:** unsupported host capabilities, empty device slots,
-  and unavailable Browser filter columns use dim grey rather than appearing
-  actionable.
+- **ROW1 / CC 20–27 — below the LCD:** the RGB row carries the eight Device
+  actions, in order: On (green), Parameters (cyan), Expanded (blue), Chains
+  (orchid/violet), Banks (yellow), Pin Device (magenta), Window (white), and
+  Up (red). Each action has its own hue; stateful actions use the dim/bright
+  intensity of that hue. Up remains red as a hierarchy action.
+- **ROW2 / CC 102–109 — above the LCD:** the static CC row selects the eight
+  visible devices or parameter pages. Existing entries use dim green and the
+  selected entry uses bright green; unavailable entries are off. This row
+  uses only the first-row static palette. Never send PUSH1_COLOR2_* RGB
+  indices to ROW2: several overlapping values are blink commands.
+- **Device Chains:** chain selectors also use ROW2's static green/off
+  feedback. The inherited Device actions remain on ROW1's RGB palette.
+- **LCD:** the first text row labels the selector row above the display; the
+  two middle rows show parameter names and values; the last row labels the
+  eight action buttons below the display. Device/page selection and the
+  action legends therefore follow the new physical positions.
 
-These are native Push 1 palette indices, not RGB values intended for Push 2.
-The virtual runtime checks representative selection, navigation, hierarchy
-and unavailable-state colors in addition to the existing button behavior.
+The virtual runtime checks the two physical row assignments, all eight
+distinct action hues, and the static-only selector feedback. These are native
+Push 1 palette indices; no Push 2 palette or custom RGB SysEx is used.
+
 
 ## Interactive virtual Push 1 simulator
 

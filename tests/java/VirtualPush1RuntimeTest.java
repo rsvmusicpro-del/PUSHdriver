@@ -5,6 +5,7 @@ import de.mossgrabers.framework.configuration.ISettingsUI;
 import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.controller.ContinuousID;
 import de.mossgrabers.framework.controller.ISetupFactory;
+import de.mossgrabers.framework.controller.display.IGraphicDisplay;
 import de.mossgrabers.framework.controller.display.ITextDisplay;
 import de.mossgrabers.framework.controller.color.ColorManager;
 import de.mossgrabers.framework.controller.color.ColorEx;
@@ -17,6 +18,7 @@ import de.mossgrabers.framework.controller.hardware.IHwRelativeKnob;
 import de.mossgrabers.framework.controller.valuechanger.RelativeEncoding;
 import de.mossgrabers.framework.controller.hardware.IHwSurfaceFactory;
 import de.mossgrabers.framework.daw.IHost;
+import de.mossgrabers.framework.daw.constants.Capability;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.ITransport;
 import de.mossgrabers.framework.daw.data.bank.ITrackBank;
@@ -27,6 +29,8 @@ import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.daw.data.ITrack;
 import de.mossgrabers.framework.daw.data.IDrumDevice;
 import de.mossgrabers.framework.daw.data.IDrumPad;
+import de.mossgrabers.framework.daw.data.IMarker;
+import de.mossgrabers.framework.daw.data.bank.IMarkerBank;
 import de.mossgrabers.framework.daw.data.bank.IDrumPadBank;
 import de.mossgrabers.framework.daw.clip.INoteClip;
 import de.mossgrabers.framework.daw.clip.IStepInfo;
@@ -49,6 +53,7 @@ import de.mossgrabers.framework.daw.data.bank.ISceneBank;
 import de.mossgrabers.framework.daw.data.bank.ISendBank;
 import de.mossgrabers.framework.daw.data.bank.IParameterBank;
 import de.mossgrabers.framework.parameter.IParameter;
+import de.mossgrabers.framework.parameter.NoteAttribute;
 import de.mossgrabers.framework.daw.midi.ArpeggiatorMode;
 import de.mossgrabers.framework.daw.midi.IMidiAccess;
 import de.mossgrabers.framework.daw.midi.IMidiInput;
@@ -84,7 +89,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Iterator;
+import java.util.EnumSet;
 import java.util.Set;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.io.IOException;
 import java.util.function.IntSupplier;
 import java.util.function.IntConsumer;
 import java.util.function.Supplier;
@@ -106,7 +115,22 @@ public final class VirtualPush1RuntimeTest
     private static int parameterPageIndex = 1;
     private static boolean cursorDeviceExists;
     private static boolean deviceSlotExists;
-    private static boolean deviceCapabilitiesSupported = true;
+    private static String virtualCursorDeviceName = "Virtual Device";
+    private static int virtualCursorDevicePosition = 4;
+    private static boolean virtualCursorDeviceNested;
+    private static boolean virtualCursorDeviceHasLayers;
+    private static boolean virtualDeviceParametersExist;
+    private static String [] virtualSlotChains = { "Chain 1", "Chain 2", "Chain 3", "Chain 4", "Chain 5", "Chain 6", "Chain 7", "Chain 8" };
+    private static String [] virtualDeviceBankNames = { "Device 0", "Device 1", "Device 2", "Device 3", "Device 4", "Device 5", "Device 6", "Device 7" };
+    private static boolean virtualParentNestedAfterSelect;
+    private static boolean virtualParentHasLayersAfterSelect;
+    private static boolean virtualSuppressParentCursorUpdate;
+    private static boolean virtualSuppressChainCursorUpdate;
+    private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
+    // Model API capabilities independently; Bitwig hosts may support one feature but not another.
+    private static final EnumSet<Capability> SUPPORTED_CAPABILITIES = EnumSet.allOf (Capability.class);
+    /** Return null for an empty ILayerBank slot to model hosts that do so. */
+    private static boolean returnNullForLayerItems;
 
     private static final class State
     {
@@ -117,6 +141,10 @@ public final class VirtualPush1RuntimeTest
         boolean metronomeTicks;
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
+        // Monotonic virtual time for hardware-button hold semantics. This is
+        // deliberately separate from TimeoutOptimizer's wall-clock calibration.
+        long virtualTimeMillis;
+        final List<Runnable> buttonTimers = new java.util.ArrayList<> ();
     }
 
     private record ScheduledTask (long delay, Runnable task) { }
@@ -142,17 +170,24 @@ public final class VirtualPush1RuntimeTest
         final NewClipModel newClipModel = new NewClipModel ();
         newClipModel.setTrackExists (true);
         final MusicalModel musicalModel = new MusicalModel ();
+        final MarkerModel markerModel = new MarkerModel ();
         final MixerModel mixerModel = new MixerModel ();
         final Scales [] scaleModel = new Scales [1];
         final VirtualPush1MidiBench midi = new VirtualPush1MidiBench ();
-        final IHwSurfaceFactory hardware = surfaceFactory (midi);
+        final IHwSurfaceFactory hardware = surfaceFactory (midi, state);
         final IHost host = (IHost) Proxy.newProxyInstance (IHost.class.getClassLoader (),
             new Class<?> [] { IHost.class }, (proxy, method, callArgs) -> {
                 switch (method.getName ())
                 {
                     case "createSurfaceFactory": return hardware;
                     case "getName": return "Virtual Bitwig API 17";
-                    case "supports": return Boolean.valueOf (deviceCapabilitiesSupported);
+                    case "supports":
+                        // HostImpl has two overloads: all note attributes are supported,
+                        // while DAW capabilities are advertised independently.
+                        if (callArgs[0] instanceof NoteAttribute) return Boolean.TRUE;
+                        if (callArgs[0] instanceof Capability capability)
+                            return Boolean.valueOf (SUPPORTED_CAPABILITIES.contains (capability));
+                        throw new AssertionError ("Unknown IHost.supports argument: " + callArgs[0]);
                     case "scheduleTask": state.scheduled.add (new ScheduledTask (((Number) callArgs[1]).longValue (), (Runnable) callArgs[0])); return null;
                     case "error":
                         if (state.errors.size () < 30)
@@ -218,7 +253,7 @@ public final class VirtualPush1RuntimeTest
                         final ITrackBank trackBank = trackBankProxy (mixerModel);
                         final ISceneBank sceneBank = mixerModel.sceneBank ();
                         final IParameterBank parameterBank = parameterBankProxy ();
-                        final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank);
+                        final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank, state);
                         return Proxy.newProxyInstance (IModel.class.getClassLoader (),
                             new Class<?> [] { IModel.class }, (p, m, a) -> switch (m.getName ())
                             {
@@ -230,6 +265,8 @@ public final class VirtualPush1RuntimeTest
                                 case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
                                 case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
+                                case "getMarkerBank" -> markerModel.bank ();
+                                case "getUserParameterBank" -> parameterBank;
                                 case "getBrowser" -> browserModel.browser ();
                                 case "getNoteClip" -> musicalModel.noteClip ();
                                 case "canSelectedTrackHoldNotes" -> musicalModel.canHoldNotes ();
@@ -247,6 +284,59 @@ public final class VirtualPush1RuntimeTest
         final PushControllerSetup setup = new PushControllerSetup (host, factory, global, document);
         setup.init ();
         setup.startup ();
+        require (trackBankProxy (mixerModel).getSceneBank ().getPageSize () == 8,
+            "Virtual Bitwig track bank must expose its eight-slot clip-launcher page, not the 64-scene global bank");
+
+        // Regression: an empty API layer slot may be represented by null.
+        // A Push 1 second-row mute/solo action must ignore it rather than crash.
+        final var startupModes = setup.getSurface ().getModeManager ();
+        require (startupModes.get (Modes.DEVICE_LAYER) != null,
+            "Device Layer mode was not registered for empty-slot regression coverage");
+        startupModes.setActive (Modes.DEVICE_LAYER);
+        final boolean previousCursorDeviceExists = cursorDeviceExists;
+        cursorDeviceExists = true;
+        returnNullForLayerItems = true;
+        try
+        {
+            // Top-row selection and all distinct Push 1 second-row paths:
+            // direct mute/solo, send-page scrolling and move-up.
+            for (final int emptyLayerButton: new int [] {
+                VirtualPush1Device.TOP_ROW_FIRST,
+                VirtualPush1Device.BOTTOM_ROW_FIRST,
+                VirtualPush1Device.BOTTOM_ROW_FIRST + 3,
+                VirtualPush1Device.BOTTOM_ROW_FIRST + 4,
+                VirtualPush1Device.BOTTOM_ROW_FIRST + 7
+            })
+                midi.device ().tapButton (emptyLayerButton);
+        }
+        finally
+        {
+            returnNullForLayerItems = false;
+            cursorDeviceExists = previousCursorDeviceExists;
+        }
+        startupModes.setActive (Modes.TRACK);
+
+        // Match DrivenByMoss AbstractHwButton's 300 ms long-press contract.
+        // A short tap must never be upgraded to LONG after the release.
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        advanceButtonTime (state, 299);
+        require (!midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Push button entered LONG before the 300 ms threshold");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        advanceButtonTime (state, 1);
+        require (!midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Released short tap was incorrectly delivered as a long press");
+
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        advanceButtonTime (state, 299);
+        require (!midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Push button entered LONG before 300 ms");
+        advanceButtonTime (state, 1);
+        require (midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Push button did not enter LONG at the 300 ms threshold");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        require (!midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Push button remained in LONG after release");
 
         final PushControlSurface surface = setup.getSurface ();
         final var modes = surface.getModeManager ();
@@ -512,8 +602,8 @@ public final class VirtualPush1RuntimeTest
             VirtualPush1Device.UP, VirtualPush1Device.DOWN })
             requireButtonMidiDelivery (midi, arrow, "Shift arrow " + arrow);
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
-        requireAction ("device.selectPreviousPage", "Shift+Left must select the previous device page");
-        requireAction ("device.selectNextPage", "Shift+Right must select the next device page");
+        requireAction ("cursorDevice.swapWithPrevious", "Shift+Left must swap the selected device with its previous sibling");
+        requireAction ("cursorDevice.swapWithNext", "Shift+Right must swap the selected device with its next sibling");
         requireAction ("scene.selectPreviousPage", "Shift+Up must select the previous scene page");
         requireAction ("scene.selectNextPage", "Shift+Down must select the next scene page");
 
@@ -562,76 +652,85 @@ public final class VirtualPush1RuntimeTest
         require (sceneIndex == 15, "Session scene navigation moved beyond the last scene");
         navigationContext = false;
 
-        // In/Out are separate from arrows: first navigate devices, then
-        // parameter pages, using the actual DeviceParamsMode production path.
+        // Device mode follows the native Ableton Push 1 row grammar:
+        // ROW1 (CC20-27) selects devices/pages/chains; ROW2 (CC102-109)
+        // contains the eight RGB device actions. This is intentionally tested
+        // through real MIDI bindings, not direct mode-method calls.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Device mode");
-        require (modes.isActive (Modes.DEVICE_PARAMS), "Device button did not activate Device mode for In/Out tests");
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In");
-        requireAction ("device.selectPreviousItem", "In must select the previous device");
-        requireAction ("device.selectNextItem", "Out must select the next device");
-        deviceIndex = 0;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device page lower boundary");
-        require (deviceIndex == 0, "In moved before the first device");
-        deviceIndex = 15;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device page upper boundary");
-        require (deviceIndex == 15, "Out moved beyond the last device");
-        ((DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS)).setShowDevices (false);
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out parameter page");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In parameter page");
-        requireAction ("parameterPage.selectPreviousPage", "In must select the previous parameter page");
-        requireAction ("parameterPage.selectNextPage", "Out must select the next parameter page");
-        parameterPageIndex = 0;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Parameter page lower boundary");
-        require (parameterPageIndex == 0, "Parameter page moved before its first page");
-        parameterPageIndex = 3;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page upper boundary");
-        require (parameterPageIndex == 3, "Parameter page moved beyond its last page");
-
-        // DeviceParamsMode must ignore empty device slots and must not call
-        // API methods whose capabilities are unavailable on the host.
+        require (modes.isActive (Modes.DEVICE_PARAMS), "Device button did not activate Device mode");
         final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS);
-        cursorDeviceExists = true;
-        deviceSlotExists = false;
-        deviceCapabilitiesSupported = false;
-        deviceParamsMode.setShowDevices (true);
-        MODEL_ACTIONS.clear ();
-        deviceParamsMode.onFirstRow (1, ButtonEvent.UP);
-        deviceParamsMode.onSecondRow (1, ButtonEvent.DOWN);
-        deviceParamsMode.onSecondRow (3, ButtonEvent.DOWN);
-        deviceParamsMode.onSecondRow (5, ButtonEvent.DOWN);
-        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1));
-        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3));
-        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 5));
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
-            "Unavailable device slots must use the neutral unavailable LED color");
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
-            "Unsupported hierarchy navigation must use the neutral unavailable LED color");
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 7)) == PushColorManager.PUSH1_COLOR2_ORCHID_HI,
-            "Up must use the hierarchy color");
-        require (MODEL_ACTIONS.isEmpty (),
-            "DeviceParamsMode acted on an empty device row or an unsupported host capability");
-        require (modes.isActive (Modes.DEVICE_PARAMS),
-            "Unsupported slot-chain capability unexpectedly activated Device Chains");
+        require (deviceParamsMode.isShowDevices (), "Device mode must initially show device selectors");
 
-        deviceCapabilitiesSupported = true;
-        deviceSlotExists = true;
+        // The static-CC top row selects devices and must never emit blink IDs.
+        cursorDeviceExists = true;
+        virtualDeviceParametersExist = true;
         deviceIndex = 4;
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 4)) == PushColorManager.PUSH1_COLOR2_GREEN_HI,
-            "The selected device must use the strong selection green");
-        deviceParamsMode.onFirstRow (1, ButtonEvent.UP);
-        requireAction ("device.select", "Selecting an existing device row must select that device");
-        deviceParamsMode.onSecondRow (1, ButtonEvent.DOWN);
-        deviceParamsMode.onSecondRow (5, ButtonEvent.DOWN);
-        requireAction ("cursorDevice.toggleParameterPageSectionVisible",
-            "Supported parameter-page-section capability must remain actionable");
-        requireAction ("cursorDevice.togglePinned",
-            "Supported pinning capability must remain actionable");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2, "Ableton Device selector 3");
+        requireAction ("device.select:2", "Top-row selector did not select device 3");
+        for (int i = 0; i < 8; i++)
+        {
+            final int color = deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, i));
+            require (color != 2 && color != 3 && color != 5 && color != 6
+                    && color != 8 && color != 9 && color != 11 && color != 12
+                    && color != 14 && color != 15 && color != 17 && color != 18
+                    && color != 20 && color != 21 && color != 23 && color != 24,
+                "Ableton Device selector ROW1 emitted a Push 1 blink opcode at index " + i + ": " + color);
+        }
+
+        // The RGB bottom row is the action row in Ableton's Push implementation.
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Ableton Device On action");
+        requireAction ("cursorDevice.toggleEnabledState", "Bottom-row Device On action was not dispatched");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 2, "Ableton Device Expand action");
+        requireAction ("cursorDevice.toggleExpanded", "Bottom-row Expand action was not dispatched");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 6, "Ableton Device Window action");
+        requireAction ("cursorDevice.toggleWindowOpen", "Bottom-row Window action was not dispatched");
+
+        // Banks switches between device selectors and parameter-page selectors;
+        // the selector buttons remain on the physical top row in both contexts.
+        deviceParamsMode.setShowDevices (false);
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2, "Ableton parameter-page selector 3");
+        requireAction ("parameterPage.selectPage:2", "Top-row selector did not select parameter page 3");
+        deviceParamsMode.setShowDevices (true);
+
+        // In/Out retains the upstream device-bank and parameter-page navigation.
+        deviceIndex = 4;
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
+        requireAction ("device.selectNextItem", "In (CC 62) must select the next device");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63)");
+        requireAction ("device.selectPreviousItem", "Out (CC 63) must select the previous device");
+
+        // Parameter-page In/Out delegates to the upstream page-bank methods.
+        deviceParamsMode.setShowDevices (false);
+        parameterPageIndex = 2;
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Parameter page In");
+        requireAction ("parameterBank.selectNextPage", "In (CC 62) must use upstream next-page navigation");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page Out");
+        requireAction ("parameterBank.selectPreviousPage", "Out (CC 63) must use upstream previous-page navigation");
+        deviceParamsMode.setShowDevices (true);
+
+        // Device Chains is an upstream submode: top row selects a chain and
+        // bottom row remains the Device action row.
+        virtualSlotChains = new String [] { "Chain 1", "Chain 2", "Chain 3", "Chain 4", "Chain 5", "Chain 6", "Chain 7", "Chain 8" };
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Ableton Device Chains action");
+        require (modes.isActive (Modes.DEVICE_CHAINS), "Bottom-row Chains action did not activate Device Chains");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Ableton Device Chain selector 8");
+        requireAction ("device.selectSlotChain:Chain 8", "Top-row selector did not select chain 8");
+        require (modes.isActive (Modes.DEVICE_PARAMS), "Selecting a chain did not return to Device parameters");
+
+        // Returning to Device mode must keep the real controller bindings active.
+        requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Re-enter Device mode");
+        require (modes.isActive (Modes.DEVICE_PARAMS), "Device mode could not be re-entered");
         cursorDeviceExists = false;
-        deviceSlotExists = false;
-        deviceCapabilitiesSupported = true;
 
         // Browser mode is exercised against a stateful API-17 IBrowser model:
         // filter columns, result list, content-type paging and selection state
@@ -643,10 +742,9 @@ public final class VirtualPush1RuntimeTest
         final String availableFilterLed = browserMode.getButtonColorID (ButtonID.ROW1_1);
         require (AbstractFeatureGroup.BUTTON_COLOR_ON.equals (availableFilterLed),
             "Existing Browser filter column did not advertise its top-row LED");
-        require (browserMode.getButtonColor (ButtonID.ROW1_1) == PushColorManager.PUSH1_COLOR2_BLUE_LO,
-            "Browser previous-item buttons must use the navigation blue");
-        require (browserMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 0)) == PushColorManager.PUSH1_COLOR2_BLUE_HI,
-            "Browser next-item buttons must use the stronger navigation blue");
+        require (de.mossgrabers.framework.featuregroup.AbstractMode.BUTTON_COLOR2_ON.equals (
+                browserMode.getButtonColorID (ButtonID.ROW2_1)),
+            "Browser bottom row must use the Push 1 RGB row color contract");
 
         final int filterBefore = browserModel.filterCursor (0);
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Browser previous filter item");
@@ -679,6 +777,32 @@ public final class VirtualPush1RuntimeTest
         require (browserDisplayText.stream ().anyMatch (text -> text.startsWith (String.valueOf (Push1Display.SELECT_ARROW))),
             "Browser selected-column marker was not composed for the Push 1 LCD: " + browserDisplayText);
 
+        // Real hosts can return fewer entries than the visible page size while
+        // a filter is empty or a result set is being refreshed. The display
+        // renderer must blank missing slots rather than indexing past the array.
+        final IGraphicDisplay browserGraphicDisplay = (IGraphicDisplay) Proxy.newProxyInstance (
+            IGraphicDisplay.class.getClassLoader (), new Class<?> [] { IGraphicDisplay.class },
+            (proxy, method, displayArgs) -> defaultValue (method.getReturnType (), method.getGenericReturnType ()));
+        browserModel.setInfoText ("");
+        browserMode.updateDisplay1 (browserDisplay);
+        browserMode.updateDisplay2 (browserGraphicDisplay);
+        browserModel.setInfoText ("Insert device: Choose a category");
+        browserModel.setFilterItemCount (2);
+        midi.device ().touchEncoder (0, true);
+        browserMode.updateDisplay1 (browserDisplay);
+        browserMode.updateDisplay2 (browserGraphicDisplay);
+        midi.device ().touchEncoder (0, false);
+        browserModel.setResultItemCount (2);
+        midi.device ().touchEncoder (7, true);
+        browserMode.updateDisplay1 (browserDisplay);
+        browserMode.updateDisplay2 (browserGraphicDisplay);
+        browserModel.setResultItemCount (0);
+        browserMode.updateDisplay1 (browserDisplay);
+        browserMode.updateDisplay2 (browserGraphicDisplay);
+        midi.device ().touchEncoder (7, false);
+        browserModel.setFilterItemCount (16);
+        browserModel.setResultItemCount (16);
+
         // Shift+Left/Right pages browser content types; plain row buttons
         // navigate filter entries and results rather than the content tabs.
         final int contentBefore = browserModel.contentTypeIndex ();
@@ -690,6 +814,15 @@ public final class VirtualPush1RuntimeTest
         require (browserModel.contentTypeIndex () == contentBefore,
             "Shift+Right did not page to the next Browser content type");
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+
+        // In/Out delegates Browser paging to upstream content-type methods.
+        final int inOutContentBefore = browserModel.contentTypeIndex ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Browser In content type");
+        require (browserModel.contentTypeIndex () == inOutContentBefore + 1,
+            "In (CC 62) did not use the upstream Browser next-content-type method");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Browser Out content type");
+        require (browserModel.contentTypeIndex () == inOutContentBefore,
+            "Out (CC 63) did not use the upstream Browser previous-content-type method");
 
         final int resultBefore = browserModel.resultCursor ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Browser previous result");
@@ -805,6 +938,56 @@ public final class VirtualPush1RuntimeTest
         sequencerView.updateNoteMapping ();
         drainScheduled (state, 6);
         sequencerView.updateControlSurface ();
+
+        // Physical MIDI pad taps must still create and remove a classic sequencer note.
+        final int classicPadNote = sequencerView.getKeyManager ().map (3);
+        final NotePosition classicPadPosition = new NotePosition (0, 1, classicPadNote);
+        midi.device ().pressPad (3, 1, 100);
+        midi.device ().releasePad (3, 1);
+        require (musicalModel.noteClip ().getStep (classicPadPosition).getState () == StepState.START,
+            "Classic Sequencer physical pad release did not create its note");
+        midi.device ().pressPad (3, 1, 100);
+        midi.device ().releasePad (3, 1);
+        require (musicalModel.noteClip ().getStep (classicPadPosition).getState () == StepState.OFF,
+            "Classic Sequencer physical pad tap did not toggle its note off");
+
+        // Regression: the inherited long-press gesture used clip.getNumSteps()
+        // (128) as a hardware row stride, which addressed pads outside the
+        // 8x8 Push grid. Hold row 2/column 0 and release row 2/column 3; this
+        // must create a four-step note duration without indexing off-grid.
+        final int durationNote = sequencerView.getKeyManager ().map (2);
+        final NotePosition durationPosition = new NotePosition (0, 0, durationNote);
+        musicalModel.noteClip ().clearStep (durationPosition);
+        final IHwButton durationSourcePad = surface.getButton (ButtonID.get (ButtonID.PAD1, 16));
+        midi.device ().pressPad (2, 0, 100);
+        durationSourcePad.trigger (ButtonEvent.LONG);
+        require (durationSourcePad.isLongPressed (), "Virtual source pad did not enter the long-pressed state");
+        midi.device ().pressPad (2, 3, 100);
+        midi.device ().releasePad (2, 3);
+        require (durationSourcePad.isConsumed (), "Sequencer did not consume the held source pad after the duration gesture");
+        final double expectedRowDuration = 4 * Resolution.getValueAt (sequencerView.getResolutionIndex ());
+        final double actualRowDuration = musicalModel.noteClip ().getStep (durationPosition).getDuration ();
+        require (Math.abs (actualRowDuration - expectedRowDuration) < 0.000001,
+            "Sequencer long-press duration gesture did not use the physical eight-column row offset: expected "
+                + expectedRowDuration + ", actual " + actualRowDuration + ", state "
+                + musicalModel.noteClip ().getStep (durationPosition).getState ());
+        midi.device ().releasePad (2, 0);
+
+        // The selected note and its continuation must keep the edit color even
+        // when the playhead highlight is active on that same pad column.
+        final IStepInfo classicContinuation = musicalModel.noteClip ().getStep (new NotePosition (0, 1, durationNote));
+        require (classicContinuation.getState () == StepState.CONTINUE,
+            "Virtual clip model did not expose the classic long-note continuation");
+        final java.lang.reflect.Method classicStepColor = Class.forName (
+            "de.mossgrabers.framework.view.sequencer.AbstractSequencerView").getDeclaredMethod (
+                "getStepColor", IStepInfo.class, boolean.class, int.class, int.class, int.class, int.class, List.class);
+        classicStepColor.setAccessible (true);
+        final String classicSelectedColor = (String) classicStepColor.invoke (
+            sequencerView, classicContinuation, true, 0, 1, 1, durationNote, List.of (durationPosition));
+        require ("COLOR_STEP_SELECTED".equals (classicSelectedColor),
+            "Classic Sequencer playhead hid the selected long-note continuation color; state="
+                + classicContinuation.getState () + ", color=" + classicSelectedColor);
+
         sequencerView.onLeft (ButtonEvent.DOWN);
         sequencerView.onRight (ButtonEvent.DOWN);
         require (musicalModel.pageBackCount () == 1 && musicalModel.pageForwardCount () == 1,
@@ -842,29 +1025,57 @@ public final class VirtualPush1RuntimeTest
         require (expectedRootColor.equals (rootColor),
             "Poly Sequencer fundamental did not retain the selected track color");
 
+        // Exercise the real Push MIDI path: the lower keyboard must send note
+        // on/off state, and a selected fundamental must use the selection color.
+        midi.device ().pressPad (0, 0, 100);
+        require (polySequencerView.getKeyManager ().isKeyPressed (mappedRoot),
+            "Poly Sequencer lower pad did not trigger its mapped MIDI note");
+        midi.device ().releasePad (0, 0);
+        require (!polySequencerView.getKeyManager ().isKeyPressed (mappedRoot),
+            "Poly Sequencer lower pad did not release its mapped MIDI note");
+        final String selectedRootColor = (String) polyGridColor.invoke (polySequencerView, true, false, rootTrack, 36);
+        require (de.mossgrabers.framework.view.AbstractPlayView.COLOR_PLAY.equals (selectedRootColor),
+            "Poly Sequencer selected root pad was hidden by the scale-root color");
+
         for (int note = 36; note <= 39; note++)
         {
-            polySequencerView.onGridNote (note, 100);
-            polySequencerView.onGridNote (note, 0);
+            final int column = note - 36;
+            midi.device ().pressPad (0, column, 100);
+            midi.device ().releasePad (0, column);
         }
-        // Hardware pad 92 is the first step (step zero) in the upper grid.
-        polySequencerView.onGridNote (92, 100);
-        polySequencerView.onGridNote (92, 0);
+        // Physical pad 92 (row 7, column 0) is the first step in the upper grid.
+        midi.device ().pressPad (7, 0, 100);
+        midi.device ().releasePad (7, 0);
         for (int note = 36; note <= 39; note++)
             require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
                 "Poly Sequencer did not write selected MIDI note " + note + " to the first step");
 
+        // The Poly Sequencer edit highlight must follow a selected long note
+        // through its continuation pads, including while the playhead is there.
+        final NotePosition polyLongPosition = new NotePosition (0, 0, 37);
+        musicalModel.noteClip ().updateStepDuration (polyLongPosition, 4 * Resolution.getValueAt (polySequencerView.getResolutionIndex ()));
+        final IStepInfo polyContinuation = musicalModel.noteClip ().getStep (new NotePosition (0, 1, 37));
+        require (polyContinuation.getState () == StepState.CONTINUE,
+            "Virtual clip model did not expose the Poly Sequencer long-note continuation");
+        final java.lang.reflect.Method polyStepColor = AbstractPolySequencerView.class.getDeclaredMethod (
+            "getStepColor", IStepInfo.class, boolean.class, int.class, List.class);
+        polyStepColor.setAccessible (true);
+        final String polySelectedColor = (String) polyStepColor.invoke (
+            polySequencerView, polyContinuation, true, 1, List.of (polyLongPosition));
+        require ("COLOR_STEP_SELECTED".equals (polySelectedColor),
+            "Poly Sequencer playhead hid the selected long-note continuation color");
+
         // A second step tap must add notes without toggling existing notes off.
-        polySequencerView.onGridNote (92, 100);
-        polySequencerView.onGridNote (92, 0);
+        midi.device ().pressPad (7, 0, 100);
+        midi.device ().releasePad (7, 0);
         for (int note = 36; note <= 39; note++)
             require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
                 "Poly Sequencer erased an existing note while adding to an occupied step");
 
         polySequencerView.onGridNoteLongPress (92);
         polySequencerView.onGridNote (92, 0);
-        polySequencerView.onGridNote (36, 100);
-        polySequencerView.onGridNote (36, 0);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
         require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, 36)).getState () == StepState.OFF,
             "Poly Sequencer did not remove the tapped note from the edited step");
         for (int note = 37; note <= 39; note++)
@@ -1089,8 +1300,380 @@ public final class VirtualPush1RuntimeTest
         setup.flush ();
         drainScheduled (state, 1);
         hardware.flush ();
+        // Render every Push 1 view through the production ViewManager and
+        // LCD output path. The setup command matrix below executes bindings;
+        // this pass additionally forces each view to compose its live display.
+        final Views [] allPushViews =
+        {
+            Views.PLAY,
+            Views.CHORDS,
+            Views.PIANO,
+            Views.PRG_CHANGE,
+            Views.CLIP_LENGTH,
+            Views.COLOR,
+            Views.SESSION,
+            Views.SEQUENCER,
+            Views.POLY_SEQUENCER,
+            Views.DRUM,
+            Views.DRUM4,
+            Views.DRUM8,
+            Views.SCENE_PLAY,
+            Views.DRUM64
+        };
+        final int [][] padModifierCombinations =
+        {
+            { VirtualPush1Device.SHIFT },
+            { VirtualPush1Device.SELECT },
+            { VirtualPush1Device.DUPLICATE },
+            { VirtualPush1Device.MUTE },
+            { VirtualPush1Device.SHIFT, VirtualPush1Device.SELECT },
+            { VirtualPush1Device.DUPLICATE, VirtualPush1Device.SELECT },
+            { VirtualPush1Device.MUTE, VirtualPush1Device.SELECT },
+            { VirtualPush1Device.SHIFT, VirtualPush1Device.DUPLICATE },
+            { VirtualPush1Device.SHIFT, VirtualPush1Device.MUTE }
+        };
+        int viewIndex = 0;
+        for (final Views viewID: allPushViews)
+        {
+            require (viewManager.get (viewID) != null, "Registered Push view is missing: " + viewID);
+            viewManager.setActive (viewID);
+            drainScheduled (state, 8);
+            setup.flush ();
+            hardware.flush ();
+            for (int row = 0; row < 4; row++)
+                require (midi.device ().getLcdRow (row).length () == Push1DisplayLayout.COLUMNS,
+                    "View " + viewID + " did not produce a complete Push 1 LCD row " + row);
+
+            // Cross every physical pad address with every packaged view. The
+            // deterministic velocity/pressure pattern explores distinct input
+            // values while ensuring each press is paired with a real release.
+            for (int note = 36; note <= 99; note++)
+            {
+                final int padIndex = note - 36;
+                final int padRow = padIndex / 8;
+                final int padColumn = padIndex % 8;
+                final int velocity = 1 + note * 37 % 127;
+                final int pressure = 1 + note * 17 % 127;
+                midi.device ().pressPad (padRow, padColumn, velocity);
+                midi.device ().pressPadPressure (padRow, padColumn, pressure);
+                midi.device ().releasePad (padRow, padColumn);
+                require (!midi.device ().isPadPressed (padRow, padColumn),
+                    "View " + viewID + " left physical pad " + note + " stuck after release");
+            }
+
+            // Pairwise modifier exploration complements the setup test's
+            // single-button sweep. Re-enter the view for each combination,
+            // then exercise a deterministic pad/pressure/release sequence.
+            for (int comboIndex = 0; comboIndex < padModifierCombinations.length; comboIndex++)
+            {
+                viewManager.setActive (viewID);
+                final int padIndex = (viewIndex * 13 + comboIndex * 17) % 64;
+                final int padRow = padIndex / 8;
+                final int padColumn = padIndex % 8;
+                for (final int modifier: padModifierCombinations[comboIndex])
+                    midi.device ().pressButton (modifier);
+                midi.device ().pressPad (padRow, padColumn, 1 + (padIndex * 29 + comboIndex * 7) % 127);
+                midi.device ().pressPadPressure (padRow, padColumn, (padIndex * 11 + comboIndex * 13) % 128);
+                midi.device ().releasePad (padRow, padColumn);
+                for (int modifierIndex = padModifierCombinations[comboIndex].length - 1; modifierIndex >= 0; modifierIndex--)
+                {
+                    final int modifier = padModifierCombinations[comboIndex][modifierIndex];
+                    midi.device ().releaseButton (modifier);
+                    require (!midi.device ().isButtonPressed (modifier),
+                        "Modifier CC " + modifier + " remained pressed after pairwise interaction");
+                }
+                require (!midi.device ().isPadPressed (padRow, padColumn),
+                    "View " + viewID + " left a pad held after modifier combination " + comboIndex);
+            }
+            viewIndex++;
+        }
+
+        // Seeded state-machine exploration: unlike the hand-authored examples
+        // above, these scenarios mix real MIDI controls in different orders,
+        // hold modifiers across pad actions, advance virtual button time, and
+        // exercise every packaged view. Each seed is printed on failure so the
+        // exact sequence can be replayed and minimized.
+        final int [] fuzzButtonCCs = {
+            3, 9, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+            36, 37, 38, 39, 40, 41, 42, 43,
+            44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+            64, 69, 85, 86, 87, 88, 89, 90, 102, 103, 104, 105, 106, 107, 108, 109,
+            110, 111, 112, 113, 114, 115, 116, 117, 118, 119
+        };
+        final int [] fuzzModifiers = {
+            VirtualPush1Device.SHIFT, VirtualPush1Device.SELECT,
+            VirtualPush1Device.DUPLICATE, VirtualPush1Device.MUTE,
+            VirtualPush1Device.DELETE, VirtualPush1Device.STOP
+        };
+        final long fuzzBaseSeed = 0x505553483146555AL;
+        final String replaySeedProperty = System.getProperty ("push1.fuzz.seed");
+        final List<Long> fuzzSeeds = new java.util.ArrayList<> ();
+        if (replaySeedProperty != null)
+            fuzzSeeds.add (Long.decode (replaySeedProperty));
+        else
+        {
+            // Keep four broad deterministic exploration seeds, then append every
+            // historical failure promoted into the checked-in regression corpus.
+            final int fuzzSeedCount = Integer.getInteger ("push1.fuzz.seeds", 16);
+            if (fuzzSeedCount < 4 || fuzzSeedCount > 1024)
+                throw new IllegalArgumentException ("push1.fuzz.seeds must be between 4 and 1024");
+            for (int seedIndex = 0; seedIndex < fuzzSeedCount; seedIndex++)
+                fuzzSeeds.add (fuzzBaseSeed + seedIndex * 0x9E3779B97F4A7C15L);
+            final Path regressionCorpus = Path.of ("tests/scenarios/fuzz-seeds.txt");
+            try
+            {
+                int lineNumber = 0;
+                for (final String line: Files.readAllLines (regressionCorpus))
+                {
+                    lineNumber++;
+                    final String value = line.split ("#", 2)[0].trim ();
+                    if (value.isEmpty ())
+                        continue;
+                    final long seed;
+                    try { seed = Long.decode (value); }
+                    catch (final NumberFormatException error)
+                    {
+                        throw new IllegalStateException ("Invalid Push 1 regression seed at "
+                            + regressionCorpus + ":" + lineNumber + ": " + value, error);
+                    }
+                    if (!fuzzSeeds.contains (seed))
+                        fuzzSeeds.add (seed);
+                }
+            }
+            catch (final IOException error)
+            {
+                throw new IllegalStateException ("Cannot read Push 1 regression corpus: "
+                    + regressionCorpus, error);
+            }
+        }
+        final int fuzzActionCount = Integer.getInteger ("push1.fuzz.actions", 256);
+        if (fuzzActionCount < 64 || fuzzActionCount > 100000)
+            throw new IllegalArgumentException ("push1.fuzz.actions must be between 64 and 100000");
+        int fuzzedScenarios = 0;
+        int fuzzedActions = 0;
+        for (final long seed: fuzzSeeds)
+        {
+            final long [] randomState = { seed };
+            for (final Views fuzzView: allPushViews)
+            {
+                final List<String> trace = new java.util.ArrayList<> ();
+                try
+                {
+                    modes.setActive (Modes.TRACK);
+                    viewManager.setActive (fuzzView);
+                    drainScheduled (state, 8);
+                    for (int actionIndex = 0; actionIndex < fuzzActionCount; actionIndex++)
+                    {
+                        // Fourteen action families include rapid mode churn and command bursts.
+                        final int action = nextScenarioInt (randomState, 14);
+                        final int row = nextScenarioInt (randomState, 8);
+                        final int column = nextScenarioInt (randomState, 8);
+                        final int pad = 36 + row * 8 + column;
+                        switch (action)
+                        {
+                            case 0, 1 -> {
+                                final int modifier = fuzzModifiers[nextScenarioInt (randomState, fuzzModifiers.length)];
+                                final boolean chord = action == 1;
+                                if (chord)
+                                    midi.device ().pressButton (modifier);
+                                midi.device ().pressPad (row, column, 1 + nextScenarioInt (randomState, 127));
+                                midi.device ().pressPadPressure (row, column, nextScenarioInt (randomState, 128));
+                                advanceButtonTime (state, nextScenarioInt (randomState, 420));
+                                midi.device ().releasePad (row, column);
+                                if (chord)
+                                    midi.device ().releaseButton (modifier);
+                                trace.add ((chord ? "chord+" + modifier + " " : "") + "pad " + pad);
+                            }
+                            case 2 -> {
+                                final int encoder = nextScenarioInt (randomState, 9);
+                                final int delta = nextScenarioInt (randomState, 127) - 63;
+                                midi.device ().turnEncoderBy (encoder, delta);
+                                trace.add ("encoder " + encoder + " delta " + delta);
+                            }
+                            case 3 -> {
+                                final int encoder = nextScenarioInt (randomState, 2);
+                                final int delta = nextScenarioInt (randomState, 127) - 63;
+                                midi.device ().turnSmallEncoderBy (encoder, delta);
+                                trace.add ("small encoder " + encoder + " delta " + delta);
+                            }
+                            case 4 -> {
+                                final int encoder = nextScenarioInt (randomState, 11);
+                                if (encoder < 9)
+                                {
+                                    midi.device ().touchEncoder (encoder, true);
+                                    midi.device ().turnEncoderBy (encoder, nextScenarioInt (randomState, 15) - 7);
+                                    midi.device ().touchEncoder (encoder, false);
+                                }
+                                else
+                                {
+                                    midi.device ().touchSmallEncoder (encoder - 9, true);
+                                    midi.device ().turnSmallEncoderBy (encoder - 9, nextScenarioInt (randomState, 15) - 7);
+                                    midi.device ().touchSmallEncoder (encoder - 9, false);
+                                }
+                                trace.add ("encoder touch " + encoder);
+                            }
+                            case 5 -> {
+                                midi.device ().touchRibbon (true);
+                                midi.device ().moveRibbon (nextScenarioInt (randomState, 16384));
+                                midi.device ().touchRibbon (false);
+                                trace.add ("ribbon");
+                            }
+                            case 6 -> {
+                                final int arrow = new int [] {
+                                    VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
+                                    VirtualPush1Device.UP, VirtualPush1Device.DOWN
+                                }[nextScenarioInt (randomState, 4)];
+                                midi.device ().tapButton (arrow);
+                                trace.add ("arrow " + arrow);
+                            }
+                            case 7 -> {
+                                final int navigation = nextScenarioInt (randomState, 2) == 0
+                                    ? VirtualPush1Device.IN : VirtualPush1Device.OUT;
+                                midi.device ().tapButton (navigation);
+                                trace.add ("in/out " + navigation);
+                            }
+                            case 8 -> {
+                                final int rowButton = nextScenarioInt (randomState, 2) == 0
+                                    ? 20 + nextScenarioInt (randomState, 8)
+                                    : 102 + nextScenarioInt (randomState, 8);
+                                midi.device ().tapButton (rowButton);
+                                trace.add ("row button " + rowButton);
+                            }
+                            case 9 -> {
+                                final int modeButton = new int [] {
+                                    VirtualPush1Device.NOTE, VirtualPush1Device.SESSION,
+                                    VirtualPush1Device.DEVICE, VirtualPush1Device.BROWSE,
+                                    VirtualPush1Device.TRACK, VirtualPush1Device.CLIP,
+                                    VirtualPush1Device.VOLUME, VirtualPush1Device.PAN_SEND
+                                }[nextScenarioInt (randomState, 8)];
+                                midi.device ().tapButton (modeButton);
+                                trace.add ("mode button " + modeButton);
+                            }
+                            case 10 -> {
+                                final int transportButton = new int [] {
+                                    VirtualPush1Device.PLAY, VirtualPush1Device.RECORD,
+                                    VirtualPush1Device.NEW, VirtualPush1Device.METRONOME
+                                }[nextScenarioInt (randomState, 4)];
+                                midi.device ().tapButton (transportButton);
+                                trace.add ("transport " + transportButton);
+                            }
+                            case 11 -> {
+                                final int modifier = fuzzModifiers[nextScenarioInt (randomState, fuzzModifiers.length)];
+                                midi.device ().pressButton (modifier);
+                                advanceButtonTime (state, 300 + nextScenarioInt (randomState, 151));
+                                midi.device ().releaseButton (modifier);
+                                trace.add ("long modifier " + modifier);
+                            }
+                            case 12 -> {
+                                // Rapid mode changes with interleaved commands before the next host flush.
+                                final int[] rapidModes = {
+                                    VirtualPush1Device.NOTE, VirtualPush1Device.SESSION,
+                                    VirtualPush1Device.DEVICE, VirtualPush1Device.BROWSE,
+                                    VirtualPush1Device.TRACK, VirtualPush1Device.CLIP,
+                                    VirtualPush1Device.VOLUME, VirtualPush1Device.PAN_SEND
+                                };
+                                final int burstLength = 3 + nextScenarioInt (randomState, 6);
+                                final List<Integer> burst = new java.util.ArrayList<> ();
+                                for (int burstIndex = 0; burstIndex < burstLength; burstIndex++)
+                                {
+                                    final int modeButton = rapidModes[nextScenarioInt (randomState, rapidModes.length)];
+                                    midi.device ().tapButton (modeButton);
+                                    burst.add (modeButton);
+                                    switch (nextScenarioInt (randomState, 4))
+                                    {
+                                        case 0 -> midi.device ().tapButton (VirtualPush1Device.IN);
+                                        case 1 -> midi.device ().tapButton (VirtualPush1Device.OUT);
+                                        case 2 -> midi.device ().turnEncoderBy (nextScenarioInt (randomState, 9),
+                                            nextScenarioInt (randomState, 31) - 15);
+                                        default -> midi.device ().tapButton (20 + nextScenarioInt (randomState, 8));
+                                    }
+                                }
+                                trace.add ("rapid mode/command burst " + burst);
+                            }
+                            default -> {
+                                final int cc = fuzzButtonCCs[nextScenarioInt (randomState, fuzzButtonCCs.length)];
+                                midi.device ().tapButton (cc);
+                                trace.add ("button " + cc);
+                            }
+                        }
+                        fuzzedActions++;
+                        if ((actionIndex & 15) == 15)
+                        {
+                            setup.flush ();
+                            hardware.flush ();
+                            // Vary when delayed host callbacks are delivered.
+                            switch (nextScenarioInt (randomState, 4))
+                            {
+                                case 0 -> drainScheduled (state, 1);
+                                case 1 -> drainScheduled (state, 8);
+                                case 2 -> drainScheduled (state, 73);
+                                default -> drainScheduled (state, 100);
+                            }
+                            for (int lcdRow = 0; lcdRow < 4; lcdRow++)
+                                require (midi.device ().getLcdRow (lcdRow).length () == Push1DisplayLayout.COLUMNS,
+                                    "Fuzzer corrupted LCD row " + lcdRow + " in " + fuzzView);
+                        }
+                        // Preserve the complete 64-action trace so a failing
+                        // generated sequence can be promoted without reconstruction.
+                    }
+                    for (int cc: fuzzButtonCCs)
+                        require (!midi.device ().isButtonPressed (cc),
+                            "Fuzzer left button CC " + cc + " held in " + fuzzView);
+                    for (int note = 36; note <= 99; note++)
+                        require (!midi.device ().isPadPressed ((note - 36) / 8, (note - 36) % 8),
+                            "Fuzzer left pad note " + note + " held in " + fuzzView);
+                    setup.flush ();
+                    hardware.flush ();
+                    drainScheduled (state, 1);
+                    drainScheduled (state, 8);
+                    drainScheduled (state, 73);
+                    drainScheduled (state, 100);
+                    require (state.errors.isEmpty (),
+                        "Fuzzer caused Bitwig host errors in " + fuzzView + ": " + state.errors);
+                    for (int lcdRow = 0; lcdRow < 4; lcdRow++)
+                        require (midi.device ().getLcdRow (lcdRow).length () == Push1DisplayLayout.COLUMNS,
+                            "Fuzzer left an incomplete LCD row " + lcdRow + " in " + fuzzView);
+                    fuzzedScenarios++;
+                }
+                catch (final Throwable failure)
+                {
+                    writeGeneratedScenarioFailure (seed, fuzzView, trace, failure);
+                    throw new AssertionError ("Generated Push 1 scenario failed: seed=" + seed
+                        + ", view=" + fuzzView + ", actions=" + trace, failure);
+                }
+            }
+        }
+        require (fuzzedScenarios == fuzzSeeds.size () * allPushViews.length,
+            "Generated scenario matrix did not cover every view and seed");
+        require (fuzzedActions == fuzzedScenarios * fuzzActionCount,
+            "Generated scenario matrix did not execute the configured action count per view/seed scenario");
+        System.out.println ("Generated Push 1 interaction scenarios passed: " + fuzzedScenarios
+            + " view/seed combinations across " + fuzzSeeds.size () + " seeds, "
+            + fuzzedActions + " mixed actions at " + fuzzActionCount
+            + " actions/scenario (including the permanent regression corpus).");
+
         musicalModel.setCanHoldNotes (false);
         viewManager.setActive (Views.PLAY);
+
+        // Force every registered Push mode through the production display
+        // refresh path as well. Modes not registered by the Push 1 setup are
+        // skipped; the complete registered mode inventory is discovered from
+        // the live manager rather than duplicated as a hand-maintained list.
+        int renderedModes = 0;
+        for (final Modes modeID: Modes.values ())
+        {
+            if (modes.get (modeID) == null)
+                continue;
+            modes.setActive (modeID);
+            setup.flush ();
+            hardware.flush ();
+            for (int row = 0; row < 4; row++)
+                require (midi.device ().getLcdRow (row).length () == Push1DisplayLayout.COLUMNS,
+                    "Mode " + modeID + " did not preserve the complete Push 1 LCD row " + row);
+            renderedModes++;
+        }
+        require (renderedModes > 0, "No registered Push 1 modes were exercised by the display matrix");
+        modes.setActive (Modes.TRACK);
 
         // DrivenByMoss' own setup test traverses every registered view/mode
         // pair, presses every real bound button (down/long/up), and executes
@@ -1120,6 +1703,47 @@ public final class VirtualPush1RuntimeTest
 
 
     /**
+     * Persist the complete failing generated scenario for local triage and CI
+     * artifact upload. The report is intentionally separate from the passing
+     * regression corpus; promote its seed after the defect is fixed.
+     */
+    private static void writeGeneratedScenarioFailure (final long seed, final Views view,
+            final List<String> trace, final Throwable failure)
+    {
+        try
+        {
+            final Path reportDirectory = Path.of ("target/push1-failures");
+            Files.createDirectories (reportDirectory);
+            final Path report = reportDirectory.resolve (
+                "seed-" + seed + "-view-" + view.name () + ".txt");
+            final List<String> lines = new java.util.ArrayList<> ();
+            lines.add ("seed=" + seed);
+            lines.add ("view=" + view.name ());
+            lines.add ("action_count=" + trace.size ());
+            lines.add ("trace:");
+            lines.addAll (trace);
+            lines.add ("failure=" + failure);
+            Files.write (report, lines);
+        }
+        catch (final IOException recordingFailure)
+        {
+            failure.addSuppressed (recordingFailure);
+        }
+    }
+
+    private static int nextScenarioInt (final long [] state, final int bound)
+    {
+        if (bound <= 0)
+            throw new IllegalArgumentException ("Scenario random bound must be positive");
+        state[0] += 0x9E3779B97F4A7C15L;
+        long value = state[0];
+        value = (value ^ (value >>> 30)) * 0xBF58476D1CE4E5B9L;
+        value = (value ^ (value >>> 27)) * 0x94D049BB133111EBL;
+        value ^= value >>> 31;
+        return (int) Long.remainderUnsigned (value, bound);
+    }
+
+    /**
      * Stateful cursor-track/slot model for the Push 1 New command integration
      * tests. Slot search wraps within the visible page, and track playback is
      * deliberately independent from the selected slot's playback state.
@@ -1130,6 +1754,38 @@ public final class VirtualPush1RuntimeTest
      * and Drum64 views. Notes, step length, clip paging and drum-pad selection
      * are retained across real Push 1 MIDI events.
      */
+    /**
+     * Minimal but non-null API-17 marker bank. MarkerMode expects every bank
+     * slot to return an IMarker proxy even when no marker exists in that slot.
+     */
+    private static final class MarkerModel
+    {
+        private final IMarker marker = (IMarker) Proxy.newProxyInstance (
+            IMarker.class.getClassLoader (), new Class<?> [] { IMarker.class },
+            (proxy, method, args) -> switch (method.getName ())
+            {
+                case "doesExist" -> false;
+                case "getName" -> "";
+                case "getPosition" -> 0.0;
+                case "getColor" -> ColorEx.BLACK;
+                default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+
+        private final IMarkerBank bank = (IMarkerBank) Proxy.newProxyInstance (
+            IMarkerBank.class.getClassLoader (), new Class<?> [] { IMarkerBank.class },
+            (proxy, method, args) -> switch (method.getName ())
+            {
+                case "getItem" -> this.marker;
+                case "getPageSize" -> 8;
+                case "getScrollPosition" -> 0;
+                case "canScrollPageBackwards", "canScrollPageForwards" -> false;
+                default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+
+        IMarkerBank bank () { return this.bank; }
+    }
+
+
     private static final class MusicalModel
     {
         private final Map<String, StepState> steps = new java.util.HashMap<> ();
@@ -1190,7 +1846,13 @@ public final class VirtualPush1RuntimeTest
                         case "setStep":
                         {
                             final NotePosition position = (NotePosition) args[0];
-                            this.steps.put (this.key (position), StepState.START);
+                            final String key = this.key (position);
+                            this.steps.put (key, StepState.START);
+                            // INoteClip.setStep(position, velocity, duration)
+                            // persists the supplied duration in Bitwig. Keep the
+                            // virtual host model faithful when that overload is used.
+                            if (args.length > 2 && args[2] instanceof Number duration)
+                                this.durations.put (key, duration.doubleValue ());
                             this.lastToggle = new NotePosition (position);
                             return null;
                         }
@@ -1270,6 +1932,30 @@ public final class VirtualPush1RuntimeTest
                 });
         }
 
+        private StepState stepState (final NotePosition position)
+        {
+            final String key = this.key (position);
+            if (this.steps.containsKey (key))
+                return this.steps.get (key);
+
+            for (int sourceStep = position.getStep () - 1; sourceStep >= 0; sourceStep--)
+            {
+                final NotePosition source = new NotePosition (position);
+                source.setStep (sourceStep);
+                final String sourceKey = this.key (source);
+                if (!this.steps.containsKey (sourceKey))
+                    continue;
+
+                if (this.steps.get (sourceKey) != StepState.START)
+                    return StepState.OFF;
+
+                final double duration = this.durations.getOrDefault (sourceKey, 0.25);
+                final double elapsed = (position.getStep () - sourceStep) * this.stepLength[0];
+                return elapsed < duration - 0.000001 ? StepState.CONTINUE : StepState.OFF;
+            }
+            return StepState.OFF;
+        }
+
         private IStepInfo stepInfo (final NotePosition position)
         {
             final String key = this.key (position);
@@ -1277,7 +1963,7 @@ public final class VirtualPush1RuntimeTest
                 IStepInfo.class.getClassLoader (), new Class<?> [] { IStepInfo.class },
                 (proxy, method, args) -> switch (method.getName ())
                 {
-                    case "getState" -> this.steps.getOrDefault (key, StepState.OFF);
+                    case "getState" -> this.stepState (position);
                     case "isMuted" -> this.muted.getOrDefault (key, false);
                     case "getDuration" -> this.durations.getOrDefault (key, 0.25);
                     case "getVelocity" -> 100.0;
@@ -1426,11 +2112,14 @@ public final class VirtualPush1RuntimeTest
     {
         private static final String [] CONTENT_TYPES = { "Devices", "Presets", "Samples" };
         private final int [] filterCursors = { 2, 1, 3 };
+        private final int [] filterItemCount = { 16 };
+        private final int [] resultItemCount = { 16 };
         private final IBrowserColumn [] columns = new IBrowserColumn [3];
         private final int [] resultCursor = { 2 };
         private final int [] contentType = { 1 };
         private final boolean [] active = { false };
         private final boolean [] preview = { true };
+        private final String [] infoText = { "Insert device: Choose a category" };
         private final int [] selectedColumn = { 0 };
         private final IBrowser browser;
 
@@ -1450,7 +2139,7 @@ public final class VirtualPush1RuntimeTest
                             case "getWildcard": return "All";
                             case "getCursorName": return "Category " + this.filterCursors[column];
                             case "getItems":
-                                final IBrowserColumnItem [] items = new IBrowserColumnItem [16];
+                                final IBrowserColumnItem [] items = new IBrowserColumnItem [this.filterItemCount[0]];
                                 for (int item = 0; item < items.length; item++)
                                     items[item] = this.filterItem (column, item);
                                 return items;
@@ -1516,7 +2205,7 @@ public final class VirtualPush1RuntimeTest
                         case "getSelectedFilterItemIndex": return this.filterCursors[(int) args[0]];
                         case "resetFilterColumn": this.filterCursors[(int) args[0]] = 0; return null;
                         case "getResultColumnItems":
-                            final IBrowserColumnItem [] results = new IBrowserColumnItem [16];
+                            final IBrowserColumnItem [] results = new IBrowserColumnItem [this.resultItemCount[0]];
                             for (int item = 0; item < results.length; item++)
                                 results[item] = this.resultItem (item);
                             return results;
@@ -1524,7 +2213,7 @@ public final class VirtualPush1RuntimeTest
                         case "selectNextResult": this.resultCursor[0] = Math.min (15, this.resultCursor[0] + 1); return null;
                         case "getSelectedResult": return "Preset " + this.resultCursor[0];
                         case "getNumResults": case "getNumFilterColumnEntries": return 16;
-                        case "getInfoText": return "Insert device: Choose a category";
+                        case "getInfoText": return this.infoText[0];
                         default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                     }
                 });
@@ -1538,6 +2227,9 @@ public final class VirtualPush1RuntimeTest
         int contentTypeIndex () { return this.contentType[0]; }
         void setFilterCursor (final int column, final int value) { this.filterCursors[column] = Math.max (0, Math.min (15, value)); }
         void setResultCursor (final int value) { this.resultCursor[0] = Math.max (0, Math.min (15, value)); }
+        void setFilterItemCount (final int value) { this.filterItemCount[0] = Math.max (0, value); }
+        void setResultItemCount (final int value) { this.resultItemCount[0] = Math.max (0, value); }
+        void setInfoText (final String value) { this.infoText[0] = value; }
 
         private IBrowserColumnItem filterItem (final int column, final int item)
         {
@@ -1569,22 +2261,39 @@ public final class VirtualPush1RuntimeTest
         }
     }
 
-    private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters)
+    private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters, final State state)
     {
         final IDeviceBank devices = (IDeviceBank) Proxy.newProxyInstance (
             IDeviceBank.class.getClassLoader (), new Class<?> [] { IDeviceBank.class },
             (proxy, method, args) -> {
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
+                if (method.getName ().equals ("canScrollBackwards"))
+                    return Boolean.valueOf (deviceIndex > 0);
+                if (method.getName ().equals ("canScrollForwards"))
+                    return Boolean.valueOf (deviceIndex < 15);
+                if (method.getName ().equals ("canScrollPageBackwards"))
+                    return Boolean.valueOf (deviceIndex > 0);
+                if (method.getName ().equals ("canScrollPageForwards"))
+                    return Boolean.valueOf (deviceIndex < 15);
                 if (method.getName ().equals ("getItem"))
+                {
+                    final int targetIndex = (int) args[0];
                     return Proxy.newProxyInstance (de.mossgrabers.framework.daw.data.IDevice.class.getClassLoader (),
                         new Class<?> [] { de.mossgrabers.framework.daw.data.IDevice.class },
                         (p, m, a) -> switch (m.getName ())
                         {
                             case "doesExist" -> Boolean.valueOf (deviceSlotExists);
-                            case "select" -> { MODEL_ACTIONS.add ("device.select"); yield null; }
+                            case "getName" -> virtualDeviceBankNames[targetIndex % virtualDeviceBankNames.length];
+                            case "getPosition" -> Integer.valueOf (targetIndex);
+                            case "select" -> {
+                                MODEL_ACTIONS.add ("device.select");
+                                MODEL_ACTIONS.add ("device.select:" + targetIndex);
+                                yield null;
+                            }
                             default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                         });
+                }
                 if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("device." + method.getName ());
@@ -1605,8 +2314,18 @@ public final class VirtualPush1RuntimeTest
             (proxy, method, args) -> {
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
+                if (method.getName ().equals ("canScrollPageBackwards"))
+                    return Boolean.valueOf (parameterPageIndex > 0);
+                if (method.getName ().equals ("canScrollPageForwards"))
+                    return Boolean.valueOf (parameterPageIndex < 3);
                 if (method.getName ().equals ("getItem"))
-                    return "";
+                    return virtualParameterPages[(int) args[0]];
+                if (method.getName ().equals ("selectPage"))
+                {
+                    MODEL_ACTIONS.add ("parameterPage.selectPage:" + args[0]);
+                    parameterPageIndex = (int) args[0];
+                    return null;
+                }
                 if (List.of ("selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("parameterPage." + method.getName ());
@@ -1622,25 +2341,81 @@ public final class VirtualPush1RuntimeTest
                 {
                     case "doesExist": return Boolean.valueOf (cursorDeviceExists);
                     case "getIndex": return Integer.valueOf (deviceIndex);
+                    case "getPosition": return Integer.valueOf (virtualCursorDevicePosition);
+                    case "getName": return virtualCursorDeviceName;
+                    case "isNested": return Boolean.valueOf (virtualCursorDeviceNested);
+                    case "hasLayers": return Boolean.valueOf (virtualCursorDeviceHasLayers);
+                    case "selectParent":
+                        MODEL_ACTIONS.add ("cursorDevice.selectParent");
+                        if (!virtualSuppressParentCursorUpdate)
+                            state.scheduled.add (new ScheduledTask (73, () -> {
+                                virtualCursorDeviceName = virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
+                                virtualCursorDevicePosition = Math.max (0, virtualCursorDevicePosition - 1);
+                                virtualCursorDeviceNested = virtualParentNestedAfterSelect;
+                                virtualCursorDeviceHasLayers = virtualParentHasLayersAfterSelect;
+                                virtualDeviceBankNames = virtualParentNestedAfterSelect
+                                    ? new String [] { "Nested sibling 0", "Nested sibling 1", "Nested sibling 2", "Nested sibling 3", "Nested sibling 4", "Nested sibling 5", "Nested sibling 6", "Nested sibling 7" }
+                                    : new String [] { "Outer sibling 0", "Outer sibling 1", "Outer sibling 2", "Outer sibling 3", "Outer sibling 4", "Outer sibling 5", "Outer sibling 6", "Outer sibling 7" };
+                            }));
+                        return null;
+                    case "selectChannel":
+                        MODEL_ACTIONS.add ("cursorDevice.selectChannel");
+                        return null;
+                    case "swapWithPrevious":
+                        MODEL_ACTIONS.add ("cursorDevice.swapWithPrevious");
+                        return null;
+                    case "swapWithNext":
+                        MODEL_ACTIONS.add ("cursorDevice.swapWithNext");
+                        return null;
                     case "getParameterBank": return parameters;
                     case "getDeviceBank": return devices;
                     case "getParameterPageBank": return pages;
+                    case "getSlotChains":
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
+                            throw new AssertionError ("Unsupported slot-chain capability was queried");
+                        return virtualSlotChains.clone ();
+                    case "selectSlotChain":
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
+                            throw new AssertionError ("Unsupported slot-chain capability was invoked");
+                        MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
+                        if (!virtualSuppressChainCursorUpdate)
+                            state.scheduled.add (new ScheduledTask (73, () -> {
+                                // Simulate a chain child whose name, position and
+                                // nesting flags match the previous cursor. The
+                                // sibling-bank contents still identify the change.
+                                virtualDeviceBankNames = new String [] {
+                                    "Slot " + args[0] + " child 0", "Slot " + args[0] + " child 1",
+                                    "Slot " + args[0] + " child 2", "Slot " + args[0] + " child 3",
+                                    "Slot " + args[0] + " child 4", "Slot " + args[0] + " child 5",
+                                    "Slot " + args[0] + " child 6", "Slot " + args[0] + " child 7"
+                                };
+                            }));
+                        return null;
+                    case "toggleEnabledState":
+                        MODEL_ACTIONS.add ("cursorDevice.toggleEnabledState");
+                        return null;
+                    case "toggleExpanded":
+                        MODEL_ACTIONS.add ("cursorDevice.toggleExpanded");
+                        return null;
+                    case "toggleWindowOpen":
+                        MODEL_ACTIONS.add ("cursorDevice.toggleWindowOpen");
+                        return null;
                     case "toggleParameterPageSectionVisible":
-                        if (!deviceCapabilitiesSupported)
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_PARAMETER_PAGE_SECTION))
                             throw new AssertionError ("Unsupported parameter-page-section capability was invoked");
                         MODEL_ACTIONS.add ("cursorDevice.toggleParameterPageSectionVisible");
                         return null;
                     case "isParameterPageSectionVisible":
-                        if (!deviceCapabilitiesSupported)
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_PARAMETER_PAGE_SECTION))
                             throw new AssertionError ("Unsupported parameter-page-section state was read");
                         return Boolean.TRUE;
                     case "togglePinned":
-                        if (!deviceCapabilitiesSupported)
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_PINNING))
                             throw new AssertionError ("Unsupported pinning capability was invoked");
                         MODEL_ACTIONS.add ("cursorDevice.togglePinned");
                         return null;
                     case "isPinned":
-                        if (!deviceCapabilitiesSupported)
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_PINNING))
                             throw new AssertionError ("Unsupported pinning state was read");
                         return Boolean.TRUE;
                     default:
@@ -1653,12 +2428,40 @@ public final class VirtualPush1RuntimeTest
     {
         return (IParameterBank) Proxy.newProxyInstance (IParameterBank.class.getClassLoader (),
             new Class<?> [] { IParameterBank.class }, (proxy, method, args) -> {
+                if (List.of ("scrollBackwards", "scrollForwards", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
+                {
+                    MODEL_ACTIONS.add ("parameterBank." + method.getName ());
+                    switch (method.getName ())
+                    {
+                        case "scrollBackwards": parameterPageIndex = Math.max (0, parameterPageIndex - 1); break;
+                        case "scrollForwards": parameterPageIndex = Math.min (3, parameterPageIndex + 1); break;
+                        case "selectPreviousPage": parameterPageIndex = Math.max (0, parameterPageIndex - 1); break;
+                        case "selectNextPage": parameterPageIndex = Math.min (3, parameterPageIndex + 1); break;
+                        default: break;
+                    }
+                    return null;
+                }
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
+                {
+                    final int parameterIndex = (int) args[0];
                     return Proxy.newProxyInstance (IParameter.class.getClassLoader (),
                         new Class<?> [] { IParameter.class },
-                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                        (p, m, a) -> switch (m.getName ())
+                        {
+                            case "doesExist" -> Boolean.valueOf (virtualDeviceParametersExist);
+                            case "touchValue" -> {
+                                MODEL_ACTIONS.add ("parameter.touch:" + parameterIndex + ":" + a[0]);
+                                yield null;
+                            }
+                            case "changeValue" -> {
+                                MODEL_ACTIONS.add ("parameter.changeValue:" + parameterIndex + ":" + a[0]);
+                                yield null;
+                            }
+                            default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                        });
+                }
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
@@ -1711,12 +2514,14 @@ public final class VirtualPush1RuntimeTest
                 }
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
+                if (method.getName ().equals ("getSelectedChannelColorEntry"))
+                    return "DAW_COLOR_RED";
                 if (method.getName ().equals ("stop"))
                 { mixer.stopAll (); return null; }
                 if (method.getName ().equals ("getSelectedItem"))
                     return navigationContext ? Optional.of (mixer.track (Math.floorMod (trackIndex, 8))) : Optional.empty ();
                 if (method.getName ().equals ("getSceneBank"))
-                    return mixer.sceneBank ();
+                    return sceneBankProxy (); // ITrackBank exposes the 8-slot clip-launcher page, not the global 64-scene bank.
                 if (method.getName ().equals ("getItem"))
                     return mixer.track (Math.max (0, Math.min (7, (int) args[0])));
                 if (method.getName ().equals ("canEditSend"))
@@ -1963,7 +2768,9 @@ public final class VirtualPush1RuntimeTest
                         case "isPlaying" -> this.trackPlaying[index];
                         case "stop" -> { this.trackPlaying[index] = false; for (final SlotState slot : this.slotStates[index]) { slot.playing = false; slot.recording = false; } yield null; }
                         case "returnToArrangement" -> { this.trackPlaying[index] = false; yield null; }
-                        case "getSceneBank" -> this.sceneBank;
+                        // A track owns an eight-slot scene page. The model-level scene bank
+                        // remains a separate 64-scene bank used for scene navigation.
+                        case "getSceneBank" -> sceneBankProxy ();
                         case "getSlotBank" -> this.slotBanks[index];
                         case "getVu", "getVuLeft", "getVuRight", "getVuPeakLeft", "getVuPeakRight" -> 0;
                         default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
@@ -2059,13 +2866,13 @@ public final class VirtualPush1RuntimeTest
             });
     }
 
-    private static IHwSurfaceFactory surfaceFactory (final VirtualPush1MidiBench midi)
+    private static IHwSurfaceFactory surfaceFactory (final VirtualPush1MidiBench midi, final State state)
     {
         final List<IHwLight> lights = new java.util.ArrayList<> ();
         return (IHwSurfaceFactory) Proxy.newProxyInstance (IHwSurfaceFactory.class.getClassLoader (),
             new Class<?> [] { IHwSurfaceFactory.class }, (proxy, method, args) -> switch (method.getName ())
             {
-                case "createButton" -> buttonProxy (midi);
+                case "createButton" -> buttonProxy (midi, state);
                 case "createRelativeKnob" -> continuousProxy (IHwRelativeKnob.class, midi);
                 case "createFader" -> continuousProxy (IHwFader.class, midi);
                 case "createAbsoluteKnob" -> continuousProxy (de.mossgrabers.framework.controller.hardware.IHwAbsoluteKnob.class, midi);
@@ -2121,14 +2928,28 @@ public final class VirtualPush1RuntimeTest
         return (IHwLight) defaultValue (IHwLight.class, IHwLight.class);
     }
 
-    private static IHwButton buttonProxy (final VirtualPush1MidiBench midi)
+    private static IHwButton buttonProxy (final VirtualPush1MidiBench midi, final State state)
     {
         final TriggerCommand [] command = { null };
         final boolean [] pressed = { false };
         final boolean [] longPressed = { false };
+        final boolean [] consumed = { false };
         final int [] velocity = { 0 };
+        final long [] pressedAt = { -1 };
         final IHwLight [] light = { null };
         final IHwButton [] self = new IHwButton [1];
+        // DrivenByMoss AbstractHwButton uses a 300 ms TimeoutOptimizer. The
+        // virtual host advances this deadline deterministically without
+        // running TimeoutOptimizer's real wall-clock calibration callbacks.
+        state.buttonTimers.add (() -> {
+            if (pressed[0] && !longPressed[0] && pressedAt[0] >= 0
+                    && state.virtualTimeMillis - pressedAt[0] >= 300)
+            {
+                longPressed[0] = true;
+                if (command[0] != null)
+                    command[0].execute (ButtonEvent.LONG, velocity[0]);
+            }
+        });
         self[0] = (IHwButton) Proxy.newProxyInstance (IHwButton.class.getClassLoader (),
             new Class<?> [] { IHwButton.class }, (proxy, method, args) -> {
                 switch (method.getName ())
@@ -2149,15 +2970,39 @@ public final class VirtualPush1RuntimeTest
                     case "trigger":
                         final ButtonEvent event = args == null || args.length == 0 ? ButtonEvent.DOWN : (ButtonEvent) args[0];
                         final double amount = args != null && args.length > 1 ? (double) args[1] : 1.0;
-                        pressed[0] = event == ButtonEvent.DOWN || event == ButtonEvent.LONG;
-                        longPressed[0] = event == ButtonEvent.LONG;
-                        velocity[0] = (int) (amount * 127.0);
+                        if (event == ButtonEvent.DOWN)
+                        {
+                            pressed[0] = true;
+                            longPressed[0] = false;
+                            consumed[0] = false;
+                            pressedAt[0] = state.virtualTimeMillis;
+                            velocity[0] = (int) (amount * 127.0);
+                        }
+                        else if (event == ButtonEvent.LONG)
+                        {
+                            pressed[0] = true;
+                            longPressed[0] = true;
+                            velocity[0] = (int) (amount * 127.0);
+                        }
+                        else if (event == ButtonEvent.UP)
+                        {
+                            pressed[0] = false;
+                            longPressed[0] = false;
+                            pressedAt[0] = -1;
+                            if (command[0] != null && !consumed[0])
+                                command[0].execute (event, 0);
+                            consumed[0] = false;
+                            return null;
+                        }
                         if (command[0] != null) command[0].execute (event, velocity[0]);
                         return null;
                     case "getCommand": return command[0];
                     case "isPressed": return pressed[0];
                     case "isLongPressed": return longPressed[0];
                     case "getPressedVelocity": return velocity[0];
+                    case "setConsumed": consumed[0] = true; return null;
+                    case "isConsumed": return consumed[0];
+                    case "clearState": pressed[0] = false; longPressed[0] = false; consumed[0] = false; return null;
                     case "addLight": light[0] = (IHwLight) args[0]; return null;
                     case "getLight": return light[0];
                     case "isBound": return command[0] != null;
@@ -2232,6 +3077,8 @@ public final class VirtualPush1RuntimeTest
 
     private static Object defaultValue (final Class<?> type, final Type genericType)
     {
+        if (returnNullForLayerItems && type == de.mossgrabers.framework.daw.data.ILayer.class)
+            return null;
         if (type == void.class) return null;
         if (type == boolean.class) return false;
         if (type == byte.class) return (byte) 0;
@@ -2262,6 +3109,16 @@ public final class VirtualPush1RuntimeTest
                     return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 });
         return null;
+    }
+
+    /** Advance hardware-button time and deliver any elapsed 300 ms long-press deadlines. */
+    private static void advanceButtonTime (final State state, final long milliseconds)
+    {
+        if (milliseconds < 0)
+            throw new IllegalArgumentException ("Virtual time cannot move backwards");
+        state.virtualTimeMillis += milliseconds;
+        for (final Runnable timer: List.copyOf (state.buttonTimers))
+            timer.run ();
     }
 
     /** Run only tasks for the requested virtual delay (1 ms flush or 100 ms test tick). */

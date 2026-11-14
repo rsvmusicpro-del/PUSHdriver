@@ -24,6 +24,20 @@ def main() -> int:
         action="store_true",
         help="Open the Swing virtual Push 1 after the automated tests pass.",
     )
+    parser.add_argument(
+        "--fuzz-actions",
+        type=int,
+        help="Number of generated actions per view/seed scenario (default: 256).",
+    )
+    parser.add_argument(
+        "--fuzz-seeds",
+        type=int,
+        help="Number of rotating deterministic seeds (default: 16, plus regression corpus).",
+    )
+    parser.add_argument(
+        "--fuzz-seed",
+        help="Replay one generated interaction seed (decimal or 0x-prefixed hexadecimal).",
+    )
     args = parser.parse_args()
 
     if shutil.which("java") is None:
@@ -41,12 +55,19 @@ def main() -> int:
             "This bench is validated with Java 17. Detected Java output:\n" + java_version
         )
 
+    run([sys.executable, "scripts/check_push1_led_safety.py"])
     run([sys.executable, "scripts/prepare_push1.py"])
     run(["mvn", "--batch-mode", "--no-transfer-progress", "clean", "package"])
     run([sys.executable, "scripts/verify_push1.py"])
     test_command = [sys.executable, "scripts/test_push1_extension.py"]
     if args.gui:
         test_command.append("--gui")
+    if args.fuzz_seed is not None:
+        test_command.append(f"--fuzz-seed={args.fuzz_seed}")
+    if args.fuzz_actions is not None:
+        test_command.append(f"--fuzz-actions={args.fuzz_actions}")
+    if args.fuzz_seeds is not None:
+        test_command.append(f"--fuzz-seeds={args.fuzz_seeds}")
     run(test_command)
 
     print("\nAbleton Push 1 virtual test bench completed successfully.", flush=True)
