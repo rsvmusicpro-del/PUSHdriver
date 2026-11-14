@@ -192,6 +192,20 @@ replace_once(device_layer_mode,
     "                return;\n"
     "            if (this.configuration.isMuteState ())\n",
     "DeviceLayerMode empty-slot mute/solo guard")
+replace_once(device_layer_mode,
+    "            final ILayer layer = this.bank.getItem (offset + index);\n"
+    "            if (!layer.doesExist ())\n",
+    "            final ILayer layer = this.bank.getItem (offset + index);\n"
+    "            if (layer == null || !layer.doesExist ())\n",
+    "DeviceLayerMode empty-slot first-row guard")
+replace_once(device_layer_mode,
+    "                    final ILayer layer = this.bank.getItem (offset + i);\n"
+    "                    final ISendBank sendBank = layer.getSendBank ();\n",
+    "                    final ILayer layer = this.bank.getItem (offset + i);\n"
+    "                    if (layer == null || !layer.doesExist ())\n"
+    "                        continue;\n"
+    "                    final ISendBank sendBank = layer.getSendBank ();\n",
+    "DeviceLayerMode empty-slot send-page guard")
 
 configuration_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/ConfigurationMode.java"
 replace_once(configuration_mode,
