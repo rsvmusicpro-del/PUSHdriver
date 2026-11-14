@@ -27,7 +27,7 @@ class PromotePush1RegressionTest(unittest.TestCase):
             self.assertTrue(promote(17, "Device row regression", corpus))
             self.assertFalse(promote(17, "duplicate again", corpus))
             content = corpus.read_text(encoding="utf-8")
-            self.assertIn("16", content)
+            self.assertIn("0x10", content)
             self.assertIn("# Device row regression\n17", content)
             self.assertEqual(content.count("\n17\n"), 1)
 
