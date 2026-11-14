@@ -22,6 +22,12 @@ The runtime suite now runs a deterministic SplitMix64 generator over every packa
 
 The generator is deliberately deterministic: a failure is reproducible from its seed. Replay one seed with `python3 scripts/run_virtual_push1.py --fuzz-seed=0x505553483146555A` (replace the value with the seed reported by the failure). It is not yet a full QuickCheck/Hypothesis implementation and does not claim automatic shrinking to a minimal sequence. The recent action trace helps isolate a failing prefix; a future JUnit/property-test migration can add automatic shrinking.
 
+## Defect found by generated testing
+
+The first CI run of the generated interaction matrix found a real production exception in the inherited Push `DeviceLayerMode`: a second-row mute/solo action called `toggleMute()` / `toggleSolo()` on a null layer item. The deterministic trace identified seed `5788624465584084314`, view `DRUM64` and the sequence prefix that reached the empty slot. The Push 1 source assembly now patches this action to return safely when the layer is null or reports `doesExist() == false`. A focused regression makes the API-17 test collaborator return a literal null layer item and presses the physical lower-row CC through the production binding.
+
+This is the important difference between a broader test count and a useful test station: generated input found an unanticipated state combination, the trace made it reproducible, and the permanent test now protects the exact production path.
+
 ## Timing fidelity
 
 The pinned DrivenByMoss `AbstractHwButton` uses a 300 ms `TimeoutOptimizer` interval before a held button becomes `LONG`. The virtual host now has a monotonic virtual clock and tests the exact 299/300 ms boundary. It does not run `TimeoutOptimizer`'s wall-clock calibration in simulated time: doing so would make a deterministic test depend on scheduler speed and `System.currentTimeMillis()`.
