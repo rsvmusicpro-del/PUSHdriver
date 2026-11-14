@@ -312,7 +312,7 @@ public final class VirtualPush1MidiBench
     }
 
     /** Inject one MIDI 1.0 short message as the Bitwig callback would deliver it. */
-    public void inject (final int status, final int data1, final int data2)
+    public synchronized void inject (final int status, final int data1, final int data2)
     {
         if (status < 0x80 || status > 0xEF)
             throw new IllegalArgumentException ("Expected a channel MIDI status byte");
@@ -324,7 +324,7 @@ public final class VirtualPush1MidiBench
     }
 
     /** Inject a complete hexadecimal SysEx frame. */
-    public void injectSysex (final String frame)
+    public synchronized void injectSysex (final String frame)
     {
         if (frame == null || !frame.startsWith ("F0 ") || !frame.endsWith (" F7"))
             throw new IllegalArgumentException ("Malformed SysEx boundaries");
