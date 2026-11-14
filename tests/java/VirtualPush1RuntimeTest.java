@@ -2314,8 +2314,13 @@ public final class VirtualPush1RuntimeTest
                     case "getParameterBank": return parameters;
                     case "getDeviceBank": return devices;
                     case "getParameterPageBank": return pages;
-                    case "getSlotChains": return new String [] { "Chain 1", "Chain 2" };
+                    case "getSlotChains":
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
+                            throw new AssertionError ("Unsupported slot-chain capability was queried");
+                        return new String [] { "Chain 1", "Chain 2" };
                     case "selectSlotChain":
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
+                            throw new AssertionError ("Unsupported slot-chain capability was invoked");
                         MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
                         return null;
                     case "toggleEnabledState":
