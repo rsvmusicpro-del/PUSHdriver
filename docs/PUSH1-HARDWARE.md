@@ -183,28 +183,27 @@ IDs or alternate controller dispatcher are introduced.
 
 ## Navigation LED color language
 
-The two eight-button rows use a consistent Push 1 palette so their purpose is
-recognizable across Device, Device Chains and Browser modes:
+The two physical eight-button rows do **not** share the same LED protocol:
 
-- **Green — selection:** the top row uses dim green for available devices or
-  parameter pages and bright green for the current selection. Device Chains
-  uses dim green for existing chain slots; API 17 does not expose a reliable
-  selected-chain cursor, so it does not invent a selected-chain highlight.
-- **Blue — navigation/context:** Browser top-row previous-item controls use
-  dim blue and bottom-row next-item controls use bright blue. In Device mode,
-  the Devices/Parameters selector uses the same blue family.
-- **Amber/orange — state and actions:** the bottom-row On, Parameters,
-  Expanded, Pin Device and Window controls use bright amber when active and
-  dim amber when inactive.
-- **Orchid/violet — hierarchy:** Chains and Up use violet; Chains changes
-  intensity when its mode is active.
-- **Grey — unavailable:** unsupported host capabilities, empty device slots,
-  and unavailable Browser filter columns use dim grey rather than appearing
-  actionable.
+- **ROW1 / CC 20–27 — below the LCD:** this row uses the Push 1 second-row
+  RGB palette. Device and parameter-page selection use dim/bright green;
+  unavailable slots use dim grey. Device Chains uses dim green for existing
+  chain slots because API 17 does not expose a reliable selected-chain cursor.
+- **ROW2 / CC 102–109 — above the LCD:** this row uses the first-row CC LED
+  palette. Its numeric values overlap the second-row palette but have
+  different meanings: several values are blink commands. Never pass
+  PUSH1_COLOR2_* indices to ROW2 when a steady light is intended.
+- Device action buttons on ROW2 therefore use only static first-row colors:
+  **orange** (dim/bright) for On, Parameters, Expanded, Pin Device and Window;
+  **red** (dim/bright) for Chains and Up; **yellow** (dim/medium) for the
+  Devices/Parameters selector; and **off** for unavailable actions. The
+  first-row hardware palette has no equivalent static blue, orchid or grey,
+  so those second-row colors must not be reused on ROW2.
 
-These are native Push 1 palette indices, not RGB values intended for Push 2.
-The virtual runtime checks representative selection, navigation, hierarchy
-and unavailable-state colors in addition to the existing button behavior.
+The virtual runtime checks the physical row mapping and asserts that all
+Device action-row outputs belong to the static first-row palette, never a
+blink command. These are native Push 1 palette indices, not RGB values
+intended for Push 2.
 
 ## Interactive virtual Push 1 simulator
 

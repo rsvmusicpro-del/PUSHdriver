@@ -287,13 +287,16 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         index = this.isButtonRow (1, buttonID);
         if (index >= 0)
         {
-            final int unavailable = PushColorManager.PUSH1_COLOR2_GREY_LO;
-            final int actionOn = PushColorManager.PUSH1_COLOR2_AMBER_HI;
-            final int actionOff = PushColorManager.PUSH1_COLOR2_AMBER_LO;
-            final int hierarchyOn = PushColorManager.PUSH1_COLOR2_ORCHID_HI;
-            final int hierarchyOff = PushColorManager.PUSH1_COLOR2_ORCHID_LO;
-            final int navigationOn = PushColorManager.PUSH1_COLOR2_BLUE_HI;
-            final int navigationOff = PushColorManager.PUSH1_COLOR2_BLUE_LO;
+            // ROW2 (CC 102-109, above the LCD) uses the Push 1 first-row
+            // LED palette. PUSH1_COLOR2_* values are second-row RGB palette
+            // indices; several of the same numbers mean blink commands here.
+            final int unavailable = PushColorManager.PUSH1_COLOR_BLACK;
+            final int actionOn = PushColorManager.PUSH1_COLOR_ORANGE_HI;
+            final int actionOff = PushColorManager.PUSH1_COLOR_ORANGE_LO;
+            final int hierarchyOn = PushColorManager.PUSH1_COLOR_RED_HI;
+            final int hierarchyOff = PushColorManager.PUSH1_COLOR_RED_LO;
+            final int navigationOn = PushColorManager.PUSH1_COLOR_YELLOW_MD;
+            final int navigationOff = PushColorManager.PUSH1_COLOR_YELLOW_LO;
 
             if (!cd.doesExist ())
                 return index == 7 ? hierarchyOn : unavailable;

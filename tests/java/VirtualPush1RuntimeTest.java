@@ -607,10 +607,10 @@ public final class VirtualPush1RuntimeTest
         deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 5));
         require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
             "Unavailable device slots must use the neutral unavailable LED color");
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
-            "Unsupported hierarchy navigation must use the neutral unavailable LED color");
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 7)) == PushColorManager.PUSH1_COLOR2_ORCHID_HI,
-            "Up must use the hierarchy color");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "Unsupported hierarchy navigation must be off on the first-row LED protocol");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 7)) == PushColorManager.PUSH1_COLOR_RED_HI,
+            "Up must use the static hierarchy color");
         require (MODEL_ACTIONS.isEmpty (),
             "DeviceParamsMode acted on an empty device row or an unsupported host capability");
         require (modes.isActive (Modes.DEVICE_PARAMS),
@@ -621,6 +621,27 @@ public final class VirtualPush1RuntimeTest
         deviceIndex = 4;
         require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 4)) == PushColorManager.PUSH1_COLOR2_GREEN_HI,
             "The selected device must use the strong selection green");
+        // ROW2 is driven by the first-row CC LED palette, where values 2, 3,
+        // 5, 6, 8, 9, 11, 12, 14, 15, 17, 18, 20, 21, 23 and 24 are blink
+        // commands. Every Device action button must resolve to a static color.
+        for (int i = 0; i < 8; i++)
+        {
+            final int color = deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, i));
+            final boolean staticColor = color == PushColorManager.PUSH1_COLOR_BLACK
+                || color == PushColorManager.PUSH1_COLOR_RED_LO
+                || color == PushColorManager.PUSH1_COLOR_RED_HI
+                || color == PushColorManager.PUSH1_COLOR_ORANGE_LO
+                || color == PushColorManager.PUSH1_COLOR_ORANGE_HI
+                || color == PushColorManager.PUSH1_COLOR_YELLOW_LO
+                || color == PushColorManager.PUSH1_COLOR_YELLOW_MD
+                || color == PushColorManager.PUSH1_COLOR_GREEN_LO
+                || color == PushColorManager.PUSH1_COLOR_GREEN_HI;
+            require (staticColor, "Device action button " + i + " must never receive a blinking/unsupported first-row LED value: " + color);
+        }
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 4)) == PushColorManager.PUSH1_COLOR_YELLOW_LO,
+            "Device/Parameters navigation must use static dim yellow while showing devices");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 7)) == PushColorManager.PUSH1_COLOR_RED_HI,
+            "Up must remain a static hierarchy indicator");
         deviceParamsMode.onFirstRow (1, ButtonEvent.UP);
         requireAction ("device.select", "Selecting an existing device row must select that device");
         deviceParamsMode.onSecondRow (1, ButtonEvent.DOWN);
