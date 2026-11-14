@@ -81,6 +81,20 @@ require("isButtonRow (0, buttonID)" in note_colors.split("index = this.isButtonR
 require("VIEWS[index]" in note_colors.split("index = this.isButtonRow (1", 1)[1],
         "Note View Select Row 2 LED feedback must describe lower choices")
 
+# Push 1 hardware geometry: ROW1 is the upper button bank nearest the LCD;
+# ROW2 is the lower bank. Keep this distinct from assumptions based on Push 2.
+require("new ButtonRowModeCommand<> (0, i" in setup_source
+        and "new ButtonRowModeCommand<> (1, i" in setup_source,
+        "Push 1 physical button banks must keep their row 0 / row 1 command IDs")
+require("surface.getButton (ButtonID.ROW1_1).setBounds (32.57639592970192, 43.44862211964502"
+        in setup_source
+        and "surface.getButton (ButtonID.ROW2_1).setBounds (32.57639592970192, 51.6242466465187"
+        in setup_source,
+        "Push 1 upper/lower button geometry must match the expected physical row mapping")
+require(note.count("this.activateView (VIEWS_TOP[index])") == 1
+        and note.count("this.activateView (VIEWS[index])") == 1,
+        "Each Note menu physical row must have exactly one matching selection handler")
+
 session = read("SessionViewSelectMode.java")
 require("display.setCell (0, i" in method(session, "public void updateDisplay1"),
         "Session view choices must be drawn in the upper LCD row")
