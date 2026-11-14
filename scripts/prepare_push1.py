@@ -1059,14 +1059,17 @@ for relative in (
     "src/main/java/de/mossgrabers/controller/ableton/push/view/PolySequencerView.java",
 ):
     source_file = root / relative
-    replace_once(source_file,
-        "        final int index = note - 36;\n"
-        "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
-        "        final int index = note - 36;\n"
-        "        if (index < 0 || index >= 64)\n"
-        "            return;\n"
-        "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
-        relative + " long-press pad bounds")
+    # The Push 1 override may already enforce the same boundary with a
+    # null-safe button lookup. Do not reapply the upstream textual patch to it.
+    if "if (index < 0 || index >= 64)" not in source_file.read_text ():
+        replace_once(source_file,
+            "        final int index = note - 36;\n"
+            "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
+            "        final int index = note - 36;\n"
+            "        if (index < 0 || index >= 64)\n"
+            "            return;\n"
+            "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
+            relative + " long-press pad bounds")
 
 for relative in (
     "src/main/java/de/mossgrabers/controller/ableton/push/view/Drum4View.java",
