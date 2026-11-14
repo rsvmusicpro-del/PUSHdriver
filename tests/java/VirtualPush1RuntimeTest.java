@@ -802,6 +802,25 @@ public final class VirtualPush1RuntimeTest
         require (browserDisplayText.stream ().anyMatch (text -> text.startsWith (String.valueOf (Push1Display.SELECT_ARROW))),
             "Browser selected-column marker was not composed for the Push 1 LCD: " + browserDisplayText);
 
+        // Real hosts can return fewer entries than the visible page size while
+        // a filter is empty or a result set is being refreshed. The display
+        // renderer must blank missing slots rather than indexing past the array.
+        browserModel.setFilterItemCount (2);
+        midi.device ().touchEncoder (0, true);
+        browserMode.updateDisplay1 (browserDisplay);
+        final IGraphicDisplay browserGraphicDisplay = (IGraphicDisplay) Proxy.newProxyInstance (
+            IGraphicDisplay.class.getClassLoader (), new Class<?> [] { IGraphicDisplay.class },
+            (proxy, method, displayArgs) -> defaultValue (method.getReturnType (), method.getGenericReturnType ()));
+        browserMode.updateDisplay2 (browserGraphicDisplay);
+        midi.device ().touchEncoder (0, false);
+        browserModel.setResultItemCount (0);
+        midi.device ().touchEncoder (7, true);
+        browserMode.updateDisplay1 (browserDisplay);
+        browserMode.updateDisplay2 (browserGraphicDisplay);
+        midi.device ().touchEncoder (7, false);
+        browserModel.setFilterItemCount (16);
+        browserModel.setResultItemCount (16);
+
         // Shift+Left/Right pages browser content types; plain row buttons
         // navigate filter entries and results rather than the content tabs.
         final int contentBefore = browserModel.contentTypeIndex ();
@@ -1549,6 +1568,8 @@ public final class VirtualPush1RuntimeTest
     {
         private static final String [] CONTENT_TYPES = { "Devices", "Presets", "Samples" };
         private final int [] filterCursors = { 2, 1, 3 };
+        private final int [] filterItemCount = { 16 };
+        private final int [] resultItemCount = { 16 };
         private final IBrowserColumn [] columns = new IBrowserColumn [3];
         private final int [] resultCursor = { 2 };
         private final int [] contentType = { 1 };
@@ -1573,7 +1594,7 @@ public final class VirtualPush1RuntimeTest
                             case "getWildcard": return "All";
                             case "getCursorName": return "Category " + this.filterCursors[column];
                             case "getItems":
-                                final IBrowserColumnItem [] items = new IBrowserColumnItem [16];
+                                final IBrowserColumnItem [] items = new IBrowserColumnItem [this.filterItemCount[0]];
                                 for (int item = 0; item < items.length; item++)
                                     items[item] = this.filterItem (column, item);
                                 return items;
@@ -1639,7 +1660,7 @@ public final class VirtualPush1RuntimeTest
                         case "getSelectedFilterItemIndex": return this.filterCursors[(int) args[0]];
                         case "resetFilterColumn": this.filterCursors[(int) args[0]] = 0; return null;
                         case "getResultColumnItems":
-                            final IBrowserColumnItem [] results = new IBrowserColumnItem [16];
+                            final IBrowserColumnItem [] results = new IBrowserColumnItem [this.resultItemCount[0]];
                             for (int item = 0; item < results.length; item++)
                                 results[item] = this.resultItem (item);
                             return results;
@@ -1661,6 +1682,8 @@ public final class VirtualPush1RuntimeTest
         int contentTypeIndex () { return this.contentType[0]; }
         void setFilterCursor (final int column, final int value) { this.filterCursors[column] = Math.max (0, Math.min (15, value)); }
         void setResultCursor (final int value) { this.resultCursor[0] = Math.max (0, Math.min (15, value)); }
+        void setFilterItemCount (final int value) { this.filterItemCount[0] = Math.max (0, value); }
+        void setResultItemCount (final int value) { this.resultItemCount[0] = Math.max (0, value); }
 
         private IBrowserColumnItem filterItem (final int column, final int item)
         {
