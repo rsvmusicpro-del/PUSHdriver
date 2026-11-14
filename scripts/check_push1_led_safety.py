@@ -48,11 +48,16 @@ except SystemExit:
 else:
     raise SystemExit("Guard self-test failed: RGB/blink identifier was not rejected")
 
+# DeviceParamsMode remains upstream-owned. Its Push 1 RGB adaptation is
+# deliberately applied by prepare_push1.py during assembly, so validate that
+# reproducible patch recipe before assembly rather than expecting it in the
+# pristine submodule source.
+prepare_source = (ROOT / "scripts/prepare_push1.py").read_text(encoding="utf-8")
 second_row = section(
-    source,
-    "index = this.isButtonRow (1, buttonID);",
-    "return super.getButtonColor (buttonID);",
-    "Push 1 Device second-row RGB mapping",
+    prepare_source,
+    "final int greenOn",
+    "# Align the Push 1 physical button rows",
+    "Push 1 Device second-row RGB patch recipe",
 )
 expected_colors = (
     "PUSH1_COLOR2_GREEN_HI", "PUSH1_COLOR2_GREEN_LO",
