@@ -650,11 +650,6 @@ public final class VirtualPush1RuntimeTest
                         && actionColorFamilies[i][1] != actionColorFamilies[j][1],
                     "Device action hues must all be distinct");
         }
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, i)) == actionColors[i],
-                "Device action " + i + " must use its dedicated RGB color");
-            for (int j = 0; j < i; j++)
-                require (actionColors[i] != actionColors[j], "Device action colors must all be distinct");
-        }
         require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 4)) == PushColorManager.PUSH1_COLOR2_YELLOW_LO,
             "Banks must use dim yellow while showing devices");
         deviceParamsMode.onSecondRow (1, ButtonEvent.UP);
