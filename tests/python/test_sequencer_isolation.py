@@ -14,11 +14,18 @@ class SequencerIsolationContractTests(unittest.TestCase):
         self.assertIn("extends AbstractNoteSequencerView", classic)
         self.assertIn("extends AbstractPolySequencerView", poly)
 
-    def test_fundamental_track_color_precedes_selection_and_playback(self):
+    def test_poly_uses_drivenbymoss_note_and_step_event_handlers(self):
+        source = POLY_VIEW.read_text(encoding="utf-8")
+        self.assertNotIn("void handleNoteArea", source)
+        self.assertNotIn("void handleSequencerArea", source)
+        self.assertIn("onGridNoteLongPress", source)
+        self.assertIn("handleSequencerAreaButtonCombinations", source)
+
+    def test_fundamental_track_color_precedes_upstream_key_feedback(self):
         source = POLY_VIEW.read_text(encoding="utf-8")
         fundamental = source.index("Math.floorMod (mappedNote, 12) == this.scales.getScaleOffset ()")
-        selected = source.index("this.noteMemory.containsKey (Integer.valueOf (mappedNote))")
-        self.assertLess(fundamental, selected)
+        upstream_fallback = source.index("return super.getGridColor")
+        self.assertLess(fundamental, upstream_fallback)
         self.assertIn("this.getPadColor (note, this.useDawColors ? track : null)", source)
 
     def test_poly_note_observer_routes_only_to_active_view(self):
