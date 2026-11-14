@@ -806,16 +806,22 @@ public final class VirtualPush1RuntimeTest
         // Real hosts can return fewer entries than the visible page size while
         // a filter is empty or a result set is being refreshed. The display
         // renderer must blank missing slots rather than indexing past the array.
-        browserModel.setFilterItemCount (2);
-        midi.device ().touchEncoder (0, true);
-        browserMode.updateDisplay1 (browserDisplay);
         final IGraphicDisplay browserGraphicDisplay = (IGraphicDisplay) Proxy.newProxyInstance (
             IGraphicDisplay.class.getClassLoader (), new Class<?> [] { IGraphicDisplay.class },
             (proxy, method, displayArgs) -> defaultValue (method.getReturnType (), method.getGenericReturnType ()));
+        browserModel.setInfoText (null);
+        browserMode.updateDisplay1 (browserDisplay);
+        browserModel.setInfoText ("Insert device: Choose a category");
+        browserModel.setFilterItemCount (2);
+        midi.device ().touchEncoder (0, true);
+        browserMode.updateDisplay1 (browserDisplay);
         browserMode.updateDisplay2 (browserGraphicDisplay);
         midi.device ().touchEncoder (0, false);
-        browserModel.setResultItemCount (0);
+        browserModel.setResultItemCount (2);
         midi.device ().touchEncoder (7, true);
+        browserMode.updateDisplay1 (browserDisplay);
+        browserMode.updateDisplay2 (browserGraphicDisplay);
+        browserModel.setResultItemCount (0);
         browserMode.updateDisplay1 (browserDisplay);
         browserMode.updateDisplay2 (browserGraphicDisplay);
         midi.device ().touchEncoder (7, false);
@@ -1576,6 +1582,7 @@ public final class VirtualPush1RuntimeTest
         private final int [] contentType = { 1 };
         private final boolean [] active = { false };
         private final boolean [] preview = { true };
+        private final String [] infoText = { "Insert device: Choose a category" };
         private final int [] selectedColumn = { 0 };
         private final IBrowser browser;
 
@@ -1669,7 +1676,7 @@ public final class VirtualPush1RuntimeTest
                         case "selectNextResult": this.resultCursor[0] = Math.min (15, this.resultCursor[0] + 1); return null;
                         case "getSelectedResult": return "Preset " + this.resultCursor[0];
                         case "getNumResults": case "getNumFilterColumnEntries": return 16;
-                        case "getInfoText": return "Insert device: Choose a category";
+                        case "getInfoText": return this.infoText[0];
                         default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                     }
                 });
@@ -1685,6 +1692,7 @@ public final class VirtualPush1RuntimeTest
         void setResultCursor (final int value) { this.resultCursor[0] = Math.max (0, Math.min (15, value)); }
         void setFilterItemCount (final int value) { this.filterItemCount[0] = Math.max (0, value); }
         void setResultItemCount (final int value) { this.resultItemCount[0] = Math.max (0, value); }
+        void setInfoText (final String value) { this.infoText[0] = value; }
 
         private IBrowserColumnItem filterItem (final int column, final int item)
         {
