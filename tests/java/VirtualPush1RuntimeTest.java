@@ -828,8 +828,8 @@ public final class VirtualPush1RuntimeTest
             {
                 require (!deviceParamsMode.isShowDevices (),
                     "Selecting the current device must open its parameter pages");
-                requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Return from parameter pages");
-                require (deviceParamsMode.isShowDevices (), "Banks action failed to restore device selectors");
+                requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Up from parameter pages");
+                require (deviceParamsMode.isShowDevices (), "Up action failed to return to device selectors");
             }
             else
                 requireAction ("device.select:" + i, "ROW2 selector " + i + " selected the wrong device slot");
