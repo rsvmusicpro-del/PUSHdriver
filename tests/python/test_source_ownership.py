@@ -18,11 +18,11 @@ class SourceOwnershipTests(unittest.TestCase):
  def test_duplicate_fqcn_is_rejected(self):
   with tempfile.TemporaryDirectory() as d:
    a=Path(d)/"A.java"; b=Path(d)/"B.java"
-   a.write_text("package example;\\npublic class Collision {}\\n",encoding="utf-8")
-   b.write_text("package example;\\npublic class Collision {}\\n",encoding="utf-8")
+   a.write_text("package example;\npublic class Collision {}\n",encoding="utf-8")
+   b.write_text("package example;\npublic class Collision {}\n",encoding="utf-8")
    errors=MODULE.validate_unique_types([a,b])
   self.assertTrue(any("Duplicate Java type example.Collision" in e for e in errors))
  def test_new_patch_target_is_detected(self):
-  s='device_mode = root / "src/main/java/example/mode/DeviceMode.java"\\nreplace_once(device_mode, "a", "b", "test")\\n'
+  s='device_mode = root / "src/main/java/example/mode/DeviceMode.java"\nreplace_once(device_mode, "a", "b", "test")\n'
   self.assertEqual(MODULE.patch_targets(s),{"example/mode/DeviceMode.java"})
 if __name__=="__main__": unittest.main()
