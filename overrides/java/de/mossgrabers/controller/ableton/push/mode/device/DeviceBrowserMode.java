@@ -296,7 +296,8 @@ public class DeviceBrowserMode extends BaseMode<IItem>
                 for (int i = 0; i < 7; i++)
                 {
                     final Optional<IBrowserColumn> column = this.getFilterColumn (i);
-                    final String headerTopName = i == 0 ? browser.getInfoText () : "";
+                    final String infoText = browser.getInfoText ();
+                    final String headerTopName = i == 0 && infoText != null ? infoText : "";
                     final String headerBottomName = i == 0 ? selectedResult : "";
                     final String menuBottomName = getColumnName (column);
                     display.addOptionElement (headerTopName, column.isEmpty () ? "" : column.get ().getName (), i == this.filterColumn, headerBottomName, menuBottomName, !menuBottomName.equals (" "), false);
