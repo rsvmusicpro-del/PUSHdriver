@@ -1322,12 +1322,30 @@ replace_once(browser_mode,
     "Push 1 Browser graphic filter item bounds")
 
 replace_once(browser_mode,
-    "if (!results[0].doesExist ())",
-    "if (results == null || results.length == 0 || results[0] == null || !results[0].doesExist ())",
+    """if (!results[0].doesExist ())
+                {
+                    display.clear ().setBlock (1, 1, "       No results").setBlock (1, 2, "available...").allDone ();
+                    return;
+                }""",
+    """if (results == null || results.length == 0 || results[0] == null || !results[0].doesExist ())
+                {
+                    display.clear ().setBlock (1, 1, "       No results").setBlock (1, 2, "available...").allDone ();
+                    return;
+                }""",
     "Push 1 Browser text empty result guard")
 replace_once(browser_mode,
-    "if (!results[0].doesExist ())",
-    "if (results == null || results.length == 0 || results[0] == null || !results[0].doesExist ())",
+    """if (!results[0].doesExist ())
+                {
+                    for (int i = 0; i < 8; i++)
+                        display.addOptionElement (i == 3 ? "No results available..." : "", "", false, "", "", false, false);
+                    return;
+                }""",
+    """if (results == null || results.length == 0 || results[0] == null || !results[0].doesExist ())
+                {
+                    for (int i = 0; i < 8; i++)
+                        display.addOptionElement (i == 3 ? "No results available..." : "", "", false, "", "", false, false);
+                    return;
+                }""",
     "Push 1 Browser graphic empty result guard")
 replace_once(browser_mode,
     "if (i < results.length)\n                        display.setBlock",
