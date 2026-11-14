@@ -397,7 +397,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         final IParameterPageBank pages = cd.getParameterPageBank ();
         if (pages != null)
         {
-            state.append (pages.getSelectedItemIndex ()).append (':');
+            state.append ("pages:");
             for (int i = 0; i < pages.getPageSize (); i++)
                 state.append (String.valueOf (pages.getItem (i))).append (';');
         }

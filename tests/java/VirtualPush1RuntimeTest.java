@@ -120,7 +120,7 @@ public final class VirtualPush1RuntimeTest
     private static boolean virtualCursorDeviceNested;
     private static boolean virtualCursorDeviceHasLayers;
     private static boolean virtualDeviceParametersExist;
-    private static String [] virtualSlotChains = { "Chain 1", "Chain 2" };
+    private static String [] virtualSlotChains = { "Chain 1", "Chain 2", "Chain 3", "Chain 4", "Chain 5", "Chain 6", "Chain 7", "Chain 8" };
     private static String [] virtualDeviceBankNames = { "Device 0", "Device 1", "Device 2", "Device 3", "Device 4", "Device 5", "Device 6", "Device 7" };
     private static boolean virtualParentNestedAfterSelect;
     private static boolean virtualSuppressParentCursorUpdate;
@@ -995,14 +995,14 @@ public final class VirtualPush1RuntimeTest
         virtualSlotChains = new String [] { null, "   " };
         require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 3)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
             "Chains must be disabled when the host reports no usable chain names");
-        virtualSlotChains = new String [] { "Chain 1", "Chain 2" };
+        virtualSlotChains = new String [] { "Chain 1", "Chain 2", "Chain 3", "Chain 4", "Chain 5", "Chain 6", "Chain 7", "Chain 8" };
 
         // Empty, null and whitespace-only chain slots must be dark and inert
         // in both the selector feedback and the production selection handler.
         deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
         require (modes.isActive (Modes.DEVICE_CHAINS), "Chains action did not enter the Chains selector");
         final DeviceParamsMode chainSelectorMode = (DeviceParamsMode) modes.get (Modes.DEVICE_CHAINS);
-        virtualSlotChains = new String [] { "Chain 1", null, "   ", "Chain 4" };
+        virtualSlotChains = new String [] { "Chain 1", null, "   ", "Chain 4", "Chain 5", "Chain 6", "Chain 7", "Chain 8" };
         require (chainSelectorMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 0)) == PushColorManager.PUSH1_COLOR_GREEN_LO,
             "A named chain must be shown as available");
         require (chainSelectorMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1)) == PushColorManager.PUSH1_COLOR_BLACK,
@@ -1014,14 +1014,14 @@ public final class VirtualPush1RuntimeTest
         chainSelectorMode.onSecondRow (2, ButtonEvent.UP);
         require (MODEL_ACTIONS.stream ().noneMatch (action -> action.startsWith ("device.selectSlotChain:")),
             "Null and whitespace-only chain slots must not be selectable");
-        chainSelectorMode.onSecondRow (0, ButtonEvent.UP);
-        requireAction ("device.selectSlotChain:Chain 1", "A valid chain slot must remain selectable");
+        chainSelectorMode.onSecondRow (7, ButtonEvent.UP);
+        requireAction ("device.selectSlotChain:Chain 8", "The eighth chain slot must remain selectable");
         require (modes.isActive (Modes.DEVICE_CHAINS),
             "The Chains selector must remain active until Bitwig reports the new cursor device");
         drainScheduled (state, 73);
         require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
             "Selecting a valid chain must return to the Devices selector");
-        virtualSlotChains = new String [] { "Chain 1", "Chain 2" };
+        virtualSlotChains = new String [] { "Chain 1", "Chain 2", "Chain 3", "Chain 4", "Chain 5", "Chain 6", "Chain 7", "Chain 8" };
 
         // Whitespace and null parameter-page names must be dark and unselectable.
         virtualParameterPages = new String [] { "Page 0", null, "   ", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
@@ -1079,14 +1079,38 @@ public final class VirtualPush1RuntimeTest
                 "Device Chains ROW2 button " + i + " used an RGB/blink color: " + color);
         }
         MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Device Chains selector");
-        requireAction ("device.selectSlotChain:Chain 1",
-            "ROW2 selector must select the matching chain and return to Device parameters");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "Device Chains selector 8");
+        requireAction ("device.selectSlotChain:Chain 8",
+            "ROW2 selector 8 must select the matching chain");
         require (modes.isActive (Modes.DEVICE_CHAINS),
             "Chains mode must remain active until the cursor reports the selected chain");
         drainScheduled (state, 73);
         require (modes.isActive (Modes.DEVICE_PARAMS),
             "Selecting a Device Chain did not return to Device parameters");
+
+        for (int i = 0; i < 8; i++)
+        {
+            virtualCursorDeviceName = "Virtual Device";
+            virtualCursorDevicePosition = 4;
+            virtualCursorDeviceNested = false;
+            virtualCursorDeviceHasLayers = false;
+            virtualDeviceBankNames = new String [] {
+                "Container " + i + " sibling 0", "Container " + i + " sibling 1",
+                "Container " + i + " sibling 2", "Container " + i + " sibling 3",
+                "Container " + i + " sibling 4", "Container " + i + " sibling 5",
+                "Container " + i + " sibling 6", "Container " + i + " sibling 7"
+            };
+            modes.setActive (Modes.DEVICE_PARAMS);
+            deviceParamsMode.setShowDevices (true);
+            deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
+            MODEL_ACTIONS.clear ();
+            chainsMode.onSecondRow (i, ButtonEvent.UP);
+            requireAction ("device.selectSlotChain:Chain " + (i + 1),
+                "Chain selector slot " + i + " dispatched the wrong chain");
+            drainScheduled (state, 73);
+            require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
+                "Chain selector slot " + i + " did not return to the Devices context");
+        }
 
         // A chain command whose cursor never changes must recover from CHAINS
         // after the bounded wait instead of stranding the user in that context.
@@ -2637,7 +2661,12 @@ public final class VirtualPush1RuntimeTest
                                 // Simulate a chain child whose name, position and
                                 // nesting flags match the previous cursor. The
                                 // sibling-bank contents still identify the change.
-                                virtualDeviceBankNames = new String [] { "Slot child 0", "Slot child 1", "Slot child 2", "Slot child 3", "Slot child 4", "Slot child 5", "Slot child 6", "Slot child 7" };
+                                virtualDeviceBankNames = new String [] {
+                                    "Slot " + args[0] + " child 0", "Slot " + args[0] + " child 1",
+                                    "Slot " + args[0] + " child 2", "Slot " + args[0] + " child 3",
+                                    "Slot " + args[0] + " child 4", "Slot " + args[0] + " child 5",
+                                    "Slot " + args[0] + " child 6", "Slot " + args[0] + " child 7"
+                                };
                             }));
                         return null;
                     case "toggleEnabledState":

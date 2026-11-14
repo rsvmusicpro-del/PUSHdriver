@@ -143,4 +143,18 @@ The follow-up audit adds regression coverage and guards for three race/capabilit
 
 The virtual host now models a delayed parent cursor update and a delayed slot-chain selection. It also exercises stale parent callbacks, touch release during In/Out and page selection, empty chain names, and unsupported slot-chain mode rendering.
 
-This follow-up is still a partial audit, not the exhaustive certification described by the acceptance matrix above. The remaining work includes complete nested container/layer/page transition combinations, all eight chain slots and page layouts, external Bitwig-driven cursor changes during pending transitions, full action/LED/LCD state assertions, and live Bitwig 4.3.10 plus physical Push 1 validation.
+### Targeted audit completion — 2026-11-14
+
+The three requested Device-mode audit areas are implemented and covered by the production virtual Push 1 runtime bench:
+
+1. **Asynchronous chain cursor return:** the pending transition compares a structural cursor snapshot (device name/position, nesting/layer/slot traits, available slot names, sibling-device bank and parameter-page names). It polls for up to 40 × 73 ms. A confirmed cursor update returns to DEVICES; a missing/failed host update also exits the pending CHAINS context at timeout, so the controller cannot remain stranded there. A later Bitwig cursor update remains authoritative and refreshes the Device view.
+2. **Nested hierarchy and pages:** parent navigation uses the same structural snapshot and bounded asynchronous wait; stale callbacks are invalidated by later controller actions or mode deactivation. Parameter touch is released on the original parameter before device/page/hierarchy target changes. Tests cover multiple parent levels, delayed cursor changes, stale transitions, page selection, and all eight chain selector positions.
+3. **Bitwig API 17 capability contract:** the pinned DrivenByMoss 19.2.2 HostImpl advertises the three optional Device capabilities below. The Device implementation guards each independently, and the virtual test exercises all eight combinations of their enabled/disabled states.
+
+| Capability | API-backed operations guarded by Device mode |
+|---|---|
+| HAS_SLOT_CHAINS | getSlotChains, chain selection, Chains context, chain LEDs/LCD, cursor snapshots |
+| HAS_PARAMETER_PAGE_SECTION | parameter-section state read and toggle |
+| HAS_PINNING | pin state read and toggle |
+
+The virtual acceptance for these three requested areas is complete on the pinned API-17 contract. The CI bench cannot emulate the actual Bitwig 4.3.10 process or physical Push 1 hardware; those are integration checks, not additional code-audit objectives.
