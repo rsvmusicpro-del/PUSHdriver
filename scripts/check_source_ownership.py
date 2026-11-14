@@ -27,6 +27,7 @@ PATCH_TARGET_ALLOWLIST={
 "de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java",
 "de/mossgrabers/controller/ableton/push/mode/ConfigurationMode.java",
 "de/mossgrabers/framework/view/sequencer/AbstractSequencerView.java",
+"de/mossgrabers/framework/view/sequencer/AbstractPolySequencerView.java",
 "de/mossgrabers/framework/view/sequencer/AbstractDrumView.java",
 "de/mossgrabers/controller/ableton/push/controller/PushColorManager.java",
 "de/mossgrabers/framework/daw/DAWColor.java",
