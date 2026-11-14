@@ -5,7 +5,6 @@ package de.mossgrabers.controller.ableton.push.command.trigger;
 
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
-import de.mossgrabers.controller.ableton.push.mode.device.DeviceBrowserMode;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.framework.command.core.AbstractTriggerCommand;
 import de.mossgrabers.framework.daw.IModel;
@@ -17,7 +16,7 @@ import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
 
-/** Push 1 Out control: navigate outward in Device/Browser mode. */
+/** Push 1 In control: delegate navigation to the active upstream mode. */
 public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, PushConfiguration>
 {
     public PageLeftCommand (final IModel model, final PushControlSurface surface)
@@ -34,33 +33,35 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final var modeManager = this.surface.getModeManager ();
         final IMode activeMode = modeManager.getActive ();
 
-        if (activeMode instanceof final DeviceBrowserMode browserMode)
+        if (modeManager.isActive (Modes.BROWSER))
         {
-            if (event == ButtonEvent.DOWN)
-                browserMode.navigateFilterColumn (false);
+            if (event == ButtonEvent.DOWN && activeMode != null)
+                activeMode.selectNextItemPage ();
             return;
         }
+
+        if (modeManager.isActive (Modes.DEVICE_CHAINS))
+            return;
 
         if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
         {
             if (event == ButtonEvent.DOWN)
-                deviceParamsMode.selectPreviousInOutItem ();
+            {
+                if (deviceParamsMode.isShowDevices ())
+                    deviceParamsMode.selectNextItem ();
+                else
+                    deviceParamsMode.selectNextItemPage ();
+            }
             return;
         }
-
-        // Rack-chain selection has no selected-chain cursor in Extension API 17.
-        // Keep these buttons inactive there rather than navigating unrelated items.
-        if (modeManager.isActive (Modes.DEVICE_CHAINS))
-            return;
 
         if (Modes.isDeviceMode (modeManager.getActiveID ()))
         {
             if (event == ButtonEvent.DOWN && activeMode != null)
-                activeMode.selectPreviousItem ();
+                activeMode.selectNextItemPage ();
             return;
         }
 
-        // Preserve the established Bitwig Session and sequencer paging paths.
         if (viewManager.isActive (Views.SESSION))
         {
             if (event == ButtonEvent.DOWN)

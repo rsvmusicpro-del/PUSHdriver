@@ -700,10 +700,22 @@ public final class VirtualPush1RuntimeTest
         // In/Out retains the upstream device-bank and parameter-page navigation.
         deviceIndex = 4;
         MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In");
-        requireAction ("device.selectPreviousItem", "In must select the previous device");
-        requireAction ("device.selectNextItem", "Out must select the next device");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
+        requireAction ("device.selectNextItem", "In (CC 62) must select the next device");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63)");
+        requireAction ("device.selectPreviousItem", "Out (CC 63) must select the previous device");
+
+        // Parameter-page In/Out delegates to the upstream page-bank methods.
+        deviceParamsMode.setShowDevices (false);
+        parameterPageIndex = 2;
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Parameter page In");
+        requireAction ("parameterBank.selectNextPage", "In (CC 62) must use upstream next-page navigation");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page Out");
+        requireAction ("parameterBank.selectPreviousPage", "Out (CC 63) must use upstream previous-page navigation");
+        deviceParamsMode.setShowDevices (true);
 
         // Device Chains is an upstream submode: top row selects a chain and
         // bottom row remains the Device action row.
@@ -802,6 +814,15 @@ public final class VirtualPush1RuntimeTest
         require (browserModel.contentTypeIndex () == contentBefore,
             "Shift+Right did not page to the next Browser content type");
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+
+        // In/Out delegates Browser paging to upstream content-type methods.
+        final int inOutContentBefore = browserModel.contentTypeIndex ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Browser In content type");
+        require (browserModel.contentTypeIndex () == inOutContentBefore + 1,
+            "In (CC 62) did not use the upstream Browser next-content-type method");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Browser Out content type");
+        require (browserModel.contentTypeIndex () == inOutContentBefore,
+            "Out (CC 63) did not use the upstream Browser previous-content-type method");
 
         final int resultBefore = browserModel.resultCursor ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Browser previous result");
@@ -2328,6 +2349,19 @@ public final class VirtualPush1RuntimeTest
     {
         return (IParameterBank) Proxy.newProxyInstance (IParameterBank.class.getClassLoader (),
             new Class<?> [] { IParameterBank.class }, (proxy, method, args) -> {
+                if (List.of ("scrollBackwards", "scrollForwards", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
+                {
+                    MODEL_ACTIONS.add ("parameterBank." + method.getName ());
+                    switch (method.getName ())
+                    {
+                        case "scrollBackwards": parameterPageIndex = Math.max (0, parameterPageIndex - 1); break;
+                        case "scrollForwards": parameterPageIndex = Math.min (3, parameterPageIndex + 1); break;
+                        case "selectPreviousPage": parameterPageIndex = Math.max (0, parameterPageIndex - 1); break;
+                        case "selectNextPage": parameterPageIndex = Math.min (3, parameterPageIndex + 1); break;
+                        default: break;
+                    }
+                    return null;
+                }
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
