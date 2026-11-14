@@ -55,7 +55,7 @@ public class DeviceChainsMode extends DeviceParamsMode
 
     /** {@inheritDoc} */
     @Override
-    public void onFirstRow (final int index, final ButtonEvent event)
+    public void onSecondRow (final int index, final ButtonEvent event)
     {
         if (event == ButtonEvent.DOWN)
             return;
@@ -74,7 +74,7 @@ public class DeviceChainsMode extends DeviceParamsMode
         }
 
         // LONG press - move upwards
-        this.surface.setTriggerConsumed (ButtonID.get (ButtonID.ROW1_1, index));
+        this.surface.setTriggerConsumed (ButtonID.get (ButtonID.ROW2_1, index));
         this.moveUp ();
     }
 
@@ -83,7 +83,7 @@ public class DeviceChainsMode extends DeviceParamsMode
     @Override
     public int getButtonColor (final ButtonID buttonID)
     {
-        final int index = this.isButtonRow (0, buttonID);
+        final int index = this.isButtonRow (1, buttonID);
         if (index >= 0)
         {
             final ICursorDevice cursorDevice = this.model.getCursorDevice ();
@@ -95,7 +95,7 @@ public class DeviceChainsMode extends DeviceParamsMode
                 : PushColorManager.PUSH1_COLOR2_GREY_LO;
         }
 
-        // The bottom row remains the inherited Device action/hierarchy row.
+        // The upper row remains the inherited Device action/hierarchy row.
         return super.getButtonColor (buttonID);
     }
 

@@ -598,19 +598,19 @@ public final class VirtualPush1RuntimeTest
         deviceCapabilitiesSupported = false;
         deviceParamsMode.setShowDevices (true);
         MODEL_ACTIONS.clear ();
-        deviceParamsMode.onFirstRow (1, ButtonEvent.UP);
-        deviceParamsMode.onSecondRow (1, ButtonEvent.DOWN);
-        deviceParamsMode.onSecondRow (3, ButtonEvent.DOWN);
-        deviceParamsMode.onSecondRow (5, ButtonEvent.DOWN);
-        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1));
-        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3));
-        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 5));
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
-            "Unavailable device slots must use the neutral unavailable LED color");
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 3)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
-            "Unsupported hierarchy navigation must use the neutral unavailable LED color");
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 7)) == PushColorManager.PUSH1_COLOR2_ORCHID_HI,
-            "Up must use the hierarchy color");
+        deviceParamsMode.onSecondRow (1, ButtonEvent.UP);
+        deviceParamsMode.onFirstRow (1, ButtonEvent.DOWN);
+        deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
+        deviceParamsMode.onFirstRow (5, ButtonEvent.DOWN);
+        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1));
+        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 3));
+        deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 5));
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
+            "Unavailable device slots must use the neutral unavailable LED color on the lower selection row");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 3)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
+            "Unsupported hierarchy action must use the neutral unavailable LED color on the upper action row");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 7)) == PushColorManager.PUSH1_COLOR2_ORCHID_HI,
+            "Up must use the hierarchy color on the upper action row");
         require (MODEL_ACTIONS.isEmpty (),
             "DeviceParamsMode acted on an empty device row or an unsupported host capability");
         require (modes.isActive (Modes.DEVICE_PARAMS),
@@ -619,16 +619,19 @@ public final class VirtualPush1RuntimeTest
         deviceCapabilitiesSupported = true;
         deviceSlotExists = true;
         deviceIndex = 4;
-        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 4)) == PushColorManager.PUSH1_COLOR2_GREEN_HI,
-            "The selected device must use the strong selection green");
-        deviceParamsMode.onFirstRow (1, ButtonEvent.UP);
-        requireAction ("device.select", "Selecting an existing device row must select that device");
-        deviceParamsMode.onSecondRow (1, ButtonEvent.DOWN);
-        deviceParamsMode.onSecondRow (5, ButtonEvent.DOWN);
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 4)) == PushColorManager.PUSH1_COLOR2_GREEN_HI,
+            "The selected device must use the strong selection green on the lower selection row");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "Device upper-row parameter-section action");
         requireAction ("cursorDevice.toggleParameterPageSectionVisible",
-            "Supported parameter-page-section capability must remain actionable");
+            "The upper physical row must trigger the upper Parameters action");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 1, "Device lower-row device selection");
+        requireAction ("device.select", "The lower physical row must select the device displayed in the lower menu");
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (5, ButtonEvent.DOWN);
         requireAction ("cursorDevice.togglePinned",
-            "Supported pinning capability must remain actionable");
+            "Supported pinning must remain actionable from the upper action row");
         cursorDeviceExists = false;
         deviceSlotExists = false;
         deviceCapabilitiesSupported = true;

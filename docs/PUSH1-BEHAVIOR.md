@@ -34,6 +34,8 @@ The full physical ID declarations live in the pinned upstream `PushControlSurfac
 
 ## Characterized mode-specific adaptations
 
+- **Contextual Device/Chains menus:** the upper physical button row is bound to the upper contextual actions; the lower physical row selects the devices, parameter pages or slot chains shown in the lower menu. LED feedback follows the same row assignment. Browser is intentionally different: its upper/lower buttons move backward/forward through the same filter or result list.
+
 - **Navigation:** Left/Right use active-mode item selection, or item pages with Shift. Up/Down scroll scenes, or scene pages with Shift. Scene Play uses a 64-scene bank; ordinary Session navigation uses the track bank's scene bank. Arrow LED availability follows the same granularity as execution.
 - **In/Out:** CC 62/63 navigate device/parameter pages in Device mode and filter columns in Browser mode. Rack-chain mode remains inactive because API 17 does not provide a safe selected-chain cursor. Existing Session/sequencer fallbacks are retained.
 - **New:** the selected cursor track is checked for an available slot before playback is changed. If the track is playing, that track is stopped and a note clip is created with the inherited clip length and overdub rules. Other tracks are not stopped.

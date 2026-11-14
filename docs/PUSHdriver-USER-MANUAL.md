@@ -41,8 +41,8 @@ Le nom du port MIDI dépend du système et du pilote. Le simulateur logiciel du 
 | Élément | Fonction générale |
 |---|---|
 | Grille 8 × 8 | 64 pads sensibles à la vélocité et à la pression ; fonction déterminée par la vue active |
-| Rangée supérieure (8 boutons) | Sélection/navigation contextuelle : filtres Browser, appareils ou pages de paramètres |
-| Rangée inférieure (8 boutons) | Actions contextuelles : filtres suivants, états d’appareils, hiérarchie |
+| Rangée supérieure (8 boutons) | Actions contextuelles du mode Device/Chains (On, Parameters, Expanded, Chains, Banks, Pin, Window, Up) ; navigation vers l’élément précédent dans Browser |
+| Rangée inférieure (8 boutons) | Sélection des éléments affichés dans le menu inférieur de Device/Chains (appareils, pages de paramètres, chaînes) ; navigation vers l’élément suivant dans Browser |
 | 9 encodeurs principaux | Réglage des paramètres de la vue ou du mode actif |
 | 2 petits encodeurs | Fonctions contextuelles héritées du contrôleur Push |
 | Touches des encodeurs | Sélection de colonne, contrôle tactile ou geste contextuel selon le mode |
@@ -133,19 +133,21 @@ Le comportement précis dépend de l’état du transport et des fonctions expos
 Le mode Device permet de parcourir les appareils de la piste ou du contexte sélectionné, puis de modifier leurs paramètres.
 
 ### Liste d’appareils
-- La rangée supérieure représente les appareils disponibles dans la banque visible.
-- Le bouton correspondant sélectionne l’appareil.
+- Les appareils disponibles sont affichés dans le menu inférieur, aligné avec la rangée physique de boutons inférieure.
+- Le bouton inférieur correspondant sélectionne l’appareil affiché à sa verticale.
+- La rangée supérieure conserve les commandes contextuelles de l’appareil (On, Parameters, Expanded, Chains, Banks, Pin, Window et Up).
 - **In / Out** et les flèches horizontales naviguent entre les appareils sur `custom`.
 - **Shift + ← / →** change de page d’appareils.
 - Un appareil absent ou un emplacement vide est signalé comme indisponible.
 
 ### Pages de paramètres
-- Le bouton de la rangée supérieure correspondant à une page sélectionne cette page.
+- Les noms de pages sont affichés dans le menu inférieur ; le bouton inférieur correspondant sélectionne la page affichée à sa verticale.
+- La rangée supérieure reste dédiée aux commandes contextuelles de l’appareil.
 - **In / Out** passe à la page précédente/suivante.
 - Les encodeurs principaux règlent les paramètres affichés.
 - Les pages vides ne sont pas présentées comme sélectionnables.
 
-### Rangée inférieure : commandes d’appareil
+### Rangée supérieure : commandes d’appareil
 Selon les capacités exposées par Bitwig et l’appareil sélectionné, les huit boutons inférieurs correspondent à :
 1. **On** : activer/désactiver l’appareil.
 2. **Parameter section** : afficher/masquer une section de paramètres si l’hôte le prend en charge.
@@ -172,8 +174,8 @@ Les couleurs sont les indices de palette natifs du Push 1, pas des valeurs RGB d
 ## 7. Device Chains
 
 La vue Chains sert à parcourir la hiérarchie de chaînes d’un appareil lorsque Bitwig expose cette capacité.
-- Le bouton **Chains** ouvre ou ferme cette vue.
-- **Up** remonte à l’appareil ou au niveau parent.
+- Les noms des chaînes sont affichés dans le menu inférieur ; le bouton inférieur correspondant sélectionne la chaîne située à sa verticale.
+- La rangée supérieure conserve les commandes d’appareil, notamment **Chains** pour ouvrir/fermer cette vue et **Up** pour remonter à l’appareil ou au niveau parent.
 - Les commandes de chaînes non prises en charge par l’API 17 restent désactivées.
 - In/Out n’y navigue pas : l’extension évite de déplacer une sélection qui ne peut pas être identifiée de manière fiable par l’API.
 
@@ -190,6 +192,7 @@ Le Browser utilise les rangées de boutons, les encodeurs et les flèches pour p
 - **In / Out** : colonne de filtre suivante/précédente.
 - **Bouton supérieur d’une colonne** : élément précédent dans cette colonne.
 - **Bouton inférieur d’une colonne** : élément suivant dans cette colonne.
+- Dans Browser, ces deux rangées sont des commandes de déplacement opposées dans la même liste ; elles ne représentent pas deux éléments différents à sélectionner.
 - **Toucher un encodeur** : sélectionne la colonne correspondante.
 - **Tourner l’encodeur touché** : change l’élément du filtre sélectionné.
 - Un seul encodeur est traité comme colonne active à la fois.
