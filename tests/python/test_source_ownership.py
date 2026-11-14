@@ -50,5 +50,17 @@ class SourceOwnershipTests(unittest.TestCase):
         )
 
 
+    def test_direct_source_writes_are_inventoried(self):
+        source = (
+            'definition = root / "src/main/java/example/Definition.java"\n'
+            'definition.write_text("source")\n'
+            'obsolete = root / "src/main/java/example/Obsolete.java").unlink()\n'
+        )
+        self.assertEqual(
+            MODULE.patch_targets(source),
+            {"example/Definition.java", "example/Obsolete.java"},
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

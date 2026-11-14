@@ -44,6 +44,10 @@ PATCH_TARGET_ALLOWLIST={
 "de/mossgrabers/controller/ableton/push/command/trigger/LayoutCommand.java",
 "de/mossgrabers/framework/view/Views.java",
 "de/mossgrabers/controller/ableton/push/mode/device/DeviceBrowserMode.java",
+"de/mossgrabers/bitwig/controller/ableton/push/Push1ControllerExtensionDefinition.java",
+"de/mossgrabers/bitwig/framework/daw/HostImpl.java",
+"de/mossgrabers/controller/ableton/push/PushControllerDefinition.java",
+"de/mossgrabers/controller/ableton/push/controller/PushUsbDisplay.java",
 }
 FORBIDDEN={"DeviceParamsMode.java","DeviceChainsMode.java","DeviceBrowserMode.java"}
 def java_types(path):
@@ -61,6 +65,12 @@ def patch_targets(source):
   call=re.search(r"replace_once\s*\(\s*(\w+)",line)
   if call and call.group(1) in current:
    targets.add(current[call.group(1)])
+  for name,path in current.items():
+   if re.search(rf"\b{re.escape(name)}\.(?:write_text|unlink)\s*\(",line):
+    targets.add(path)
+  removed=re.search(r'root\s*/\s*"src/main/java/([^"]+)"\)\.unlink\s*\(',line)
+  if removed:
+   targets.add(removed.group(1))
  return targets
 def validate_override_inventory(actual):
  errors=[f"Unreviewed project override: {p}" for p in sorted(actual-OVERRIDE_ALLOWLIST)]
