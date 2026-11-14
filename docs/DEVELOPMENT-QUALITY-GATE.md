@@ -23,6 +23,8 @@ Do not weaken, skip or replace `python3 scripts/test_push1_extension.py` with a 
 
 The Device/Browser LED contract is checked twice: the Java runtime suite validates every selector index and exercises Device Chains through production MIDI bindings; the independent Python guard prevents color-2/RGB blink identifiers from entering static CC-row color logic. A test must assert the hardware-safe palette, not merely repeat the implementation's current choice.
 
+The runtime suite also checks the pinned DrivenByMoss 300 ms button long-press boundary using virtual time, then executes four reproducible generated seeds across every packaged view (56 view/seed scenarios and 3,584 mixed actions). Failures report the seed, view and recent action trace. See `docs/VIRTUAL-PUSH1-TEST-STRATEGY.md` for the evidence layers, external references and staged roadmap.
+
 ## Required GitHub repository setting
 
 A workflow running on pushes and pull requests is not, by itself, a merge lock. GitHub must be configured to require the aggregate check for branch `custom`.

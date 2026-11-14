@@ -24,6 +24,10 @@ def main() -> int:
         action="store_true",
         help="Open the Swing virtual Push 1 after the automated tests pass.",
     )
+    parser.add_argument(
+        "--fuzz-seed",
+        help="Replay one generated interaction seed (decimal or 0x-prefixed hexadecimal).",
+    )
     args = parser.parse_args()
 
     if shutil.which("java") is None:
@@ -48,6 +52,8 @@ def main() -> int:
     test_command = [sys.executable, "scripts/test_push1_extension.py"]
     if args.gui:
         test_command.append("--gui")
+    if args.fuzz_seed is not None:
+        test_command.append(f"--fuzz-seed={args.fuzz_seed}")
     run(test_command)
 
     print("\nAbleton Push 1 virtual test bench completed successfully.", flush=True)

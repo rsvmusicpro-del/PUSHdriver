@@ -110,6 +110,8 @@ public final class VirtualPush1RuntimeTest
     private static boolean cursorDeviceExists;
     private static boolean deviceSlotExists;
     private static boolean deviceCapabilitiesSupported = true;
+    /** Return null for an empty ILayerBank slot to model hosts that do so. */
+    private static boolean returnNullForLayerItems;
 
     private static final class State
     {
@@ -120,6 +122,10 @@ public final class VirtualPush1RuntimeTest
         boolean metronomeTicks;
         final ArrayDeque<ScheduledTask> scheduled = new ArrayDeque<> ();
         final List<String> errors = new java.util.ArrayList<> ();
+        // Monotonic virtual time for hardware-button hold semantics. This is
+        // deliberately separate from TimeoutOptimizer's wall-clock calibration.
+        long virtualTimeMillis;
+        final List<Runnable> buttonTimers = new java.util.ArrayList<> ();
     }
 
     private record ScheduledTask (long delay, Runnable task) { }
@@ -149,7 +155,7 @@ public final class VirtualPush1RuntimeTest
         final MixerModel mixerModel = new MixerModel ();
         final Scales [] scaleModel = new Scales [1];
         final VirtualPush1MidiBench midi = new VirtualPush1MidiBench ();
-        final IHwSurfaceFactory hardware = surfaceFactory (midi);
+        final IHwSurfaceFactory hardware = surfaceFactory (midi, state);
         final IHost host = (IHost) Proxy.newProxyInstance (IHost.class.getClassLoader (),
             new Class<?> [] { IHost.class }, (proxy, method, callArgs) -> {
                 switch (method.getName ())
@@ -253,6 +259,57 @@ public final class VirtualPush1RuntimeTest
         final PushControllerSetup setup = new PushControllerSetup (host, factory, global, document);
         setup.init ();
         setup.startup ();
+
+        // Regression: an empty API layer slot may be represented by null.
+        // A Push 1 second-row mute/solo action must ignore it rather than crash.
+        final var startupModes = setup.getSurface ().getModeManager ();
+        require (startupModes.get (Modes.DEVICE_LAYER) != null,
+            "Device Layer mode was not registered for empty-slot regression coverage");
+        startupModes.setActive (Modes.DEVICE_LAYER);
+        final boolean previousCursorDeviceExists = cursorDeviceExists;
+        cursorDeviceExists = true;
+        returnNullForLayerItems = true;
+        try
+        {
+            // Top-row selection and all distinct Push 1 second-row paths:
+            // direct mute/solo, send-page scrolling and move-up.
+            for (final int emptyLayerButton: new int [] {
+                VirtualPush1Device.TOP_ROW_FIRST,
+                VirtualPush1Device.BOTTOM_ROW_FIRST,
+                VirtualPush1Device.BOTTOM_ROW_FIRST + 3,
+                VirtualPush1Device.BOTTOM_ROW_FIRST + 4,
+                VirtualPush1Device.BOTTOM_ROW_FIRST + 7
+            })
+                midi.device ().tapButton (emptyLayerButton);
+        }
+        finally
+        {
+            returnNullForLayerItems = false;
+            cursorDeviceExists = previousCursorDeviceExists;
+        }
+        startupModes.setActive (Modes.TRACK);
+
+        // Match DrivenByMoss AbstractHwButton's 300 ms long-press contract.
+        // A short tap must never be upgraded to LONG after the release.
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        advanceButtonTime (state, 299);
+        require (!midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Push button entered LONG before the 300 ms threshold");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        advanceButtonTime (state, 1);
+        require (!midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Released short tap was incorrectly delivered as a long press");
+
+        midi.device ().pressButton (VirtualPush1Device.SHIFT);
+        advanceButtonTime (state, 299);
+        require (!midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Push button entered LONG before 300 ms");
+        advanceButtonTime (state, 1);
+        require (midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Push button did not enter LONG at the 300 ms threshold");
+        midi.device ().releaseButton (VirtualPush1Device.SHIFT);
+        require (!midi.isBoundButtonLongPressed (VirtualPush1Device.SHIFT),
+            "Push button remained in LONG after release");
 
         final PushControlSurface surface = setup.getSurface ();
         final var modes = surface.getModeManager ();
@@ -1354,6 +1411,189 @@ public final class VirtualPush1RuntimeTest
             }
             viewIndex++;
         }
+
+        // Seeded state-machine exploration: unlike the hand-authored examples
+        // above, these scenarios mix real MIDI controls in different orders,
+        // hold modifiers across pad actions, advance virtual button time, and
+        // exercise every packaged view. Each seed is printed on failure so the
+        // exact sequence can be replayed and minimized.
+        final int [] fuzzButtonCCs = {
+            3, 9, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+            36, 37, 38, 39, 40, 41, 42, 43,
+            44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+            64, 69, 85, 86, 87, 88, 89, 90, 102, 103, 104, 105, 106, 107, 108, 109,
+            110, 111, 112, 113, 114, 115, 116, 117, 118, 119
+        };
+        final int [] fuzzModifiers = {
+            VirtualPush1Device.SHIFT, VirtualPush1Device.SELECT,
+            VirtualPush1Device.DUPLICATE, VirtualPush1Device.MUTE,
+            VirtualPush1Device.DELETE, VirtualPush1Device.STOP
+        };
+        final long fuzzBaseSeed = 0x505553483146555AL;
+        final String replaySeedProperty = System.getProperty ("push1.fuzz.seed");
+        final int fuzzSeedCount = replaySeedProperty == null ? 4 : 1;
+        int fuzzedScenarios = 0;
+        int fuzzedActions = 0;
+        for (int seedIndex = 0; seedIndex < fuzzSeedCount; seedIndex++)
+        {
+            final long seed = replaySeedProperty == null
+                ? fuzzBaseSeed + seedIndex * 0x9E3779B97F4A7C15L
+                : Long.decode (replaySeedProperty);
+            final long [] randomState = { seed };
+            for (final Views fuzzView: allPushViews)
+            {
+                final List<String> trace = new java.util.ArrayList<> ();
+                try
+                {
+                    modes.setActive (Modes.TRACK);
+                    viewManager.setActive (fuzzView);
+                    drainScheduled (state, 8);
+                    for (int actionIndex = 0; actionIndex < 64; actionIndex++)
+                    {
+                        final int action = nextScenarioInt (randomState, 13);
+                        final int row = nextScenarioInt (randomState, 8);
+                        final int column = nextScenarioInt (randomState, 8);
+                        final int pad = 36 + row * 8 + column;
+                        switch (action)
+                        {
+                            case 0, 1 -> {
+                                final int modifier = fuzzModifiers[nextScenarioInt (randomState, fuzzModifiers.length)];
+                                final boolean chord = action == 1;
+                                if (chord)
+                                    midi.device ().pressButton (modifier);
+                                midi.device ().pressPad (row, column, 1 + nextScenarioInt (randomState, 127));
+                                midi.device ().pressPadPressure (row, column, nextScenarioInt (randomState, 128));
+                                advanceButtonTime (state, nextScenarioInt (randomState, 420));
+                                midi.device ().releasePad (row, column);
+                                if (chord)
+                                    midi.device ().releaseButton (modifier);
+                                trace.add ((chord ? "chord+" + modifier + " " : "") + "pad " + pad);
+                            }
+                            case 2 -> {
+                                final int encoder = nextScenarioInt (randomState, 9);
+                                final int delta = nextScenarioInt (randomState, 127) - 63;
+                                midi.device ().turnEncoderBy (encoder, delta);
+                                trace.add ("encoder " + encoder + " delta " + delta);
+                            }
+                            case 3 -> {
+                                final int encoder = nextScenarioInt (randomState, 2);
+                                final int delta = nextScenarioInt (randomState, 127) - 63;
+                                midi.device ().turnSmallEncoderBy (encoder, delta);
+                                trace.add ("small encoder " + encoder + " delta " + delta);
+                            }
+                            case 4 -> {
+                                final int encoder = nextScenarioInt (randomState, 11);
+                                if (encoder < 9)
+                                {
+                                    midi.device ().touchEncoder (encoder, true);
+                                    midi.device ().turnEncoderBy (encoder, nextScenarioInt (randomState, 15) - 7);
+                                    midi.device ().touchEncoder (encoder, false);
+                                }
+                                else
+                                {
+                                    midi.device ().touchSmallEncoder (encoder - 9, true);
+                                    midi.device ().turnSmallEncoderBy (encoder - 9, nextScenarioInt (randomState, 15) - 7);
+                                    midi.device ().touchSmallEncoder (encoder - 9, false);
+                                }
+                                trace.add ("encoder touch " + encoder);
+                            }
+                            case 5 -> {
+                                midi.device ().touchRibbon (true);
+                                midi.device ().moveRibbon (nextScenarioInt (randomState, 16384));
+                                midi.device ().touchRibbon (false);
+                                trace.add ("ribbon");
+                            }
+                            case 6 -> {
+                                final int arrow = new int [] {
+                                    VirtualPush1Device.LEFT, VirtualPush1Device.RIGHT,
+                                    VirtualPush1Device.UP, VirtualPush1Device.DOWN
+                                }[nextScenarioInt (randomState, 4)];
+                                midi.device ().tapButton (arrow);
+                                trace.add ("arrow " + arrow);
+                            }
+                            case 7 -> {
+                                final int navigation = nextScenarioInt (randomState, 2) == 0
+                                    ? VirtualPush1Device.IN : VirtualPush1Device.OUT;
+                                midi.device ().tapButton (navigation);
+                                trace.add ("in/out " + navigation);
+                            }
+                            case 8 -> {
+                                final int rowButton = nextScenarioInt (randomState, 2) == 0
+                                    ? 20 + nextScenarioInt (randomState, 8)
+                                    : 102 + nextScenarioInt (randomState, 8);
+                                midi.device ().tapButton (rowButton);
+                                trace.add ("row button " + rowButton);
+                            }
+                            case 9 -> {
+                                final int modeButton = new int [] {
+                                    VirtualPush1Device.NOTE, VirtualPush1Device.SESSION,
+                                    VirtualPush1Device.DEVICE, VirtualPush1Device.BROWSE,
+                                    VirtualPush1Device.TRACK, VirtualPush1Device.CLIP,
+                                    VirtualPush1Device.VOLUME, VirtualPush1Device.PAN_SEND
+                                }[nextScenarioInt (randomState, 8)];
+                                midi.device ().tapButton (modeButton);
+                                trace.add ("mode button " + modeButton);
+                            }
+                            case 10 -> {
+                                final int transportButton = new int [] {
+                                    VirtualPush1Device.PLAY, VirtualPush1Device.RECORD,
+                                    VirtualPush1Device.NEW, VirtualPush1Device.METRONOME
+                                }[nextScenarioInt (randomState, 4)];
+                                midi.device ().tapButton (transportButton);
+                                trace.add ("transport " + transportButton);
+                            }
+                            case 11 -> {
+                                final int modifier = fuzzModifiers[nextScenarioInt (randomState, fuzzModifiers.length)];
+                                midi.device ().pressButton (modifier);
+                                advanceButtonTime (state, 300 + nextScenarioInt (randomState, 151));
+                                midi.device ().releaseButton (modifier);
+                                trace.add ("long modifier " + modifier);
+                            }
+                            default -> {
+                                final int cc = fuzzButtonCCs[nextScenarioInt (randomState, fuzzButtonCCs.length)];
+                                midi.device ().tapButton (cc);
+                                trace.add ("button " + cc);
+                            }
+                        }
+                        fuzzedActions++;
+                        if ((actionIndex & 15) == 15)
+                        {
+                            setup.flush ();
+                            hardware.flush ();
+                            for (int lcdRow = 0; lcdRow < 4; lcdRow++)
+                                require (midi.device ().getLcdRow (lcdRow).length () == Push1DisplayLayout.COLUMNS,
+                                    "Fuzzer corrupted LCD row " + lcdRow + " in " + fuzzView);
+                        }
+                        if (trace.size () > 32)
+                            trace.remove (0);
+                    }
+                    for (int cc: fuzzButtonCCs)
+                        require (!midi.device ().isButtonPressed (cc),
+                            "Fuzzer left button CC " + cc + " held in " + fuzzView);
+                    for (int note = 36; note <= 99; note++)
+                        require (!midi.device ().isPadPressed ((note - 36) / 8, (note - 36) % 8),
+                            "Fuzzer left pad note " + note + " held in " + fuzzView);
+                    setup.flush ();
+                    hardware.flush ();
+                    require (state.errors.isEmpty (),
+                        "Fuzzer caused Bitwig host errors in " + fuzzView + ": " + state.errors);
+                    for (int lcdRow = 0; lcdRow < 4; lcdRow++)
+                        require (midi.device ().getLcdRow (lcdRow).length () == Push1DisplayLayout.COLUMNS,
+                            "Fuzzer left an incomplete LCD row " + lcdRow + " in " + fuzzView);
+                    fuzzedScenarios++;
+                }
+                catch (final Throwable failure)
+                {
+                    throw new AssertionError ("Generated Push 1 scenario failed: seed=" + seed
+                        + ", view=" + fuzzView + ", recent actions=" + trace, failure);
+                }
+            }
+        }
+        require (fuzzedScenarios == 4 * allPushViews.length,
+            "Generated scenario matrix did not cover every view and seed");
+        System.out.println ("Generated Push 1 interaction scenarios passed: " + fuzzedScenarios
+            + " view/seed combinations, " + fuzzedActions + " mixed actions, reproducible seed corpus.");
+
         musicalModel.setCanHoldNotes (false);
         viewManager.setActive (Views.PLAY);
 
@@ -1403,6 +1643,18 @@ public final class VirtualPush1RuntimeTest
     }
 
 
+
+    private static int nextScenarioInt (final long [] state, final int bound)
+    {
+        if (bound <= 0)
+            throw new IllegalArgumentException ("Scenario random bound must be positive");
+        state[0] += 0x9E3779B97F4A7C15L;
+        long value = state[0];
+        value = (value ^ (value >>> 30)) * 0xBF58476D1CE4E5B9L;
+        value = (value ^ (value >>> 27)) * 0x94D049BB133111EBL;
+        value ^= value >>> 31;
+        return (int) Long.remainderUnsigned (value, bound);
+    }
 
     /**
      * Stateful cursor-track/slot model for the Push 1 New command integration
@@ -2414,13 +2666,13 @@ public final class VirtualPush1RuntimeTest
             });
     }
 
-    private static IHwSurfaceFactory surfaceFactory (final VirtualPush1MidiBench midi)
+    private static IHwSurfaceFactory surfaceFactory (final VirtualPush1MidiBench midi, final State state)
     {
         final List<IHwLight> lights = new java.util.ArrayList<> ();
         return (IHwSurfaceFactory) Proxy.newProxyInstance (IHwSurfaceFactory.class.getClassLoader (),
             new Class<?> [] { IHwSurfaceFactory.class }, (proxy, method, args) -> switch (method.getName ())
             {
-                case "createButton" -> buttonProxy (midi);
+                case "createButton" -> buttonProxy (midi, state);
                 case "createRelativeKnob" -> continuousProxy (IHwRelativeKnob.class, midi);
                 case "createFader" -> continuousProxy (IHwFader.class, midi);
                 case "createAbsoluteKnob" -> continuousProxy (de.mossgrabers.framework.controller.hardware.IHwAbsoluteKnob.class, midi);
@@ -2476,15 +2728,28 @@ public final class VirtualPush1RuntimeTest
         return (IHwLight) defaultValue (IHwLight.class, IHwLight.class);
     }
 
-    private static IHwButton buttonProxy (final VirtualPush1MidiBench midi)
+    private static IHwButton buttonProxy (final VirtualPush1MidiBench midi, final State state)
     {
         final TriggerCommand [] command = { null };
         final boolean [] pressed = { false };
         final boolean [] longPressed = { false };
         final boolean [] consumed = { false };
         final int [] velocity = { 0 };
+        final long [] pressedAt = { -1 };
         final IHwLight [] light = { null };
         final IHwButton [] self = new IHwButton [1];
+        // DrivenByMoss AbstractHwButton uses a 300 ms TimeoutOptimizer. The
+        // virtual host advances this deadline deterministically without
+        // running TimeoutOptimizer's real wall-clock calibration callbacks.
+        state.buttonTimers.add (() -> {
+            if (pressed[0] && !longPressed[0] && pressedAt[0] >= 0
+                    && state.virtualTimeMillis - pressedAt[0] >= 300)
+            {
+                longPressed[0] = true;
+                if (command[0] != null)
+                    command[0].execute (ButtonEvent.LONG, velocity[0]);
+            }
+        });
         self[0] = (IHwButton) Proxy.newProxyInstance (IHwButton.class.getClassLoader (),
             new Class<?> [] { IHwButton.class }, (proxy, method, args) -> {
                 switch (method.getName ())
@@ -2510,6 +2775,7 @@ public final class VirtualPush1RuntimeTest
                             pressed[0] = true;
                             longPressed[0] = false;
                             consumed[0] = false;
+                            pressedAt[0] = state.virtualTimeMillis;
                             velocity[0] = (int) (amount * 127.0);
                         }
                         else if (event == ButtonEvent.LONG)
@@ -2522,6 +2788,7 @@ public final class VirtualPush1RuntimeTest
                         {
                             pressed[0] = false;
                             longPressed[0] = false;
+                            pressedAt[0] = -1;
                             if (command[0] != null && !consumed[0])
                                 command[0].execute (event, 0);
                             consumed[0] = false;
@@ -2610,6 +2877,8 @@ public final class VirtualPush1RuntimeTest
 
     private static Object defaultValue (final Class<?> type, final Type genericType)
     {
+        if (returnNullForLayerItems && type == de.mossgrabers.framework.daw.data.ILayer.class)
+            return null;
         if (type == void.class) return null;
         if (type == boolean.class) return false;
         if (type == byte.class) return (byte) 0;
@@ -2640,6 +2909,16 @@ public final class VirtualPush1RuntimeTest
                     return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 });
         return null;
+    }
+
+    /** Advance hardware-button time and deliver any elapsed 300 ms long-press deadlines. */
+    private static void advanceButtonTime (final State state, final long milliseconds)
+    {
+        if (milliseconds < 0)
+            throw new IllegalArgumentException ("Virtual time cannot move backwards");
+        state.virtualTimeMillis += milliseconds;
+        for (final Runnable timer: List.copyOf (state.buttonTimers))
+            timer.run ();
     }
 
     /** Run only tasks for the requested virtual delay (1 ms flush or 100 ms test tick). */
