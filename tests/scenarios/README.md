@@ -17,3 +17,4 @@ python3 scripts/promote_push1_regression.py 5788624465584084314 --reason "Device
 The promotion command is idempotent: a seed is stored once, with a human-readable defect note. The full suite then replays it on every local run and both CI platforms. Keep the defect description factual; do not promote a flaky or environment-only failure as a product regression until it has a deterministic reproduction.
 
 The corpus stores seeds rather than implementation-derived expected values. This preserves the original generated interaction sequence and makes failures reproducible without copying production constants into the oracle.
+A CI artifact-upload step marked as skipped on a passing job is expected: failure reports are archived only when a runtime test fails.
