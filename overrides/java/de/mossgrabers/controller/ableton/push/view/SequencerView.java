@@ -11,6 +11,8 @@ import de.mossgrabers.framework.controller.hardware.IHwButton;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.clip.INoteClip;
 import de.mossgrabers.framework.daw.clip.NotePosition;
+import de.mossgrabers.framework.daw.clip.StepState;
+import de.mossgrabers.framework.daw.constants.Resolution;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractNoteSequencerView;
