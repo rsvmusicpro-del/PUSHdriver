@@ -321,7 +321,7 @@ public final class VirtualPush1RuntimeTest
                 "Send 1 encoder " + (encoder + 1) + " did not target its corresponding track");
         }
         modes.setActive (Modes.TRACK);
-        midi.device ().tapButton (VirtualPush1Device.BOTTOM_ROW_FIRST);
+        midi.device ().tapButton (VirtualPush1Device.ABOVE_DISPLAY_ROW_FIRST);
         require (mixerModel.isMuted (0), "Track second-row button did not toggle the selected track mute state");
         midi.device ().tapButton (VirtualPush1Device.METRONOME);
         require (state.metronome, "Metronome CC did not enable the Bitwig transport metronome");
@@ -649,10 +649,10 @@ public final class VirtualPush1RuntimeTest
             "Browser next-item buttons must use the stronger navigation blue");
 
         final int filterBefore = browserModel.filterCursor (0);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Browser previous filter item");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST, "Browser previous filter item");
         require (browserModel.filterCursor (0) == filterBefore - 1,
             "Push 1 top row did not select the previous Browser filter item");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Browser next filter item");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.ABOVE_DISPLAY_ROW_FIRST, "Browser next filter item");
         require (browserModel.filterCursor (0) == filterBefore,
             "Push 1 bottom row did not select the next Browser filter item");
 
@@ -692,25 +692,25 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
 
         final int resultBefore = browserModel.resultCursor ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Browser previous result");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST + 7, "Browser previous result");
         require (browserModel.resultCursor () == Math.max (0, resultBefore - 1),
             "Push 1 top-row result button did not select the previous result");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "Browser next result");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.ABOVE_DISPLAY_ROW_FIRST + 7, "Browser next result");
         require (browserModel.resultCursor () == resultBefore,
             "Push 1 bottom-row result button did not select the next result");
 
         // Navigation must clamp at the first/last filter and result entries.
         browserModel.setFilterCursor (0, 0);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Browser filter lower boundary");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST, "Browser filter lower boundary");
         require (browserModel.filterCursor (0) == 0, "Browser filter cursor moved below its first item");
         browserModel.setFilterCursor (0, 15);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Browser filter upper boundary");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.ABOVE_DISPLAY_ROW_FIRST, "Browser filter upper boundary");
         require (browserModel.filterCursor (0) == 15, "Browser filter cursor moved beyond its last item");
         browserModel.setResultCursor (0);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Browser result lower boundary");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST + 7, "Browser result lower boundary");
         require (browserModel.resultCursor () == 0, "Browser result cursor moved below its first item");
         browserModel.setResultCursor (15);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "Browser result upper boundary");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.ABOVE_DISPLAY_ROW_FIRST + 7, "Browser result upper boundary");
         require (browserModel.resultCursor () == 15, "Browser result cursor moved beyond its last item");
 
         // The API-17 note input exists before its optional Note Repeat service.
@@ -721,19 +721,19 @@ public final class VirtualPush1RuntimeTest
             "Virtual MIDI input should begin without the optional Note Repeat service");
         require (modes.get (Modes.REPEAT_NOTE) != null, "Note Repeat mode was not registered");
         modes.setActive (Modes.REPEAT_NOTE);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Note Repeat latch without service");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST + 4, "Note Repeat latch without service");
         require (!midi.noteRepeat ().isLatchActive (),
             "Note Repeat attempted to mutate an unavailable service");
         midi.setNoteRepeatAvailable (true);
         require (midi.input ().getDefaultNoteInput ().getNoteRepeat () == midi.noteRepeat (),
             "Late-created Note Repeat service was not exposed by the MIDI input");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Note Repeat latch after service creation");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST + 4, "Note Repeat latch after service creation");
         require (midi.noteRepeat ().isLatchActive (), "Late-created Note Repeat service was not resolved by the active mode");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 5, "Note Repeat pressure velocity");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST + 5, "Note Repeat pressure velocity");
         require (midi.noteRepeat ().usePressure (), "Note Repeat pressure-velocity state did not toggle");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Note Repeat free running");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST + 6, "Note Repeat free running");
         require (midi.noteRepeat ().isFreeRunning (), "Note Repeat free-running state did not toggle");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Note Repeat shuffle");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST + 7, "Note Repeat shuffle");
         require (midi.noteRepeat ().isShuffle (), "Note Repeat shuffle state did not toggle");
         modes.setActive (Modes.TRACK);
 
