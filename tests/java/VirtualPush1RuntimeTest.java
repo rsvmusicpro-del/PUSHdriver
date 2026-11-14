@@ -819,8 +819,8 @@ public final class VirtualPush1RuntimeTest
         require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
             "Banks did not cycle from Chains back to Devices");
 
-        // Empty, null and whitespace-only chain slots must be dark and inert,
-        // with identical semantics in the LED, text and graphic render paths.
+        // Empty, null and whitespace-only chain slots must be dark and inert
+        // in both the selector feedback and the production selection handler.
         deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
         require (modes.isActive (Modes.DEVICE_CHAINS), "Chains action did not enter the Chains selector");
         final DeviceParamsMode chainsMode = (DeviceParamsMode) modes.get (Modes.DEVICE_CHAINS);
