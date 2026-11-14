@@ -55,7 +55,7 @@ public class DeviceChainsMode extends DeviceParamsMode
 
     /** {@inheritDoc} */
     @Override
-    public void onFirstRow (final int index, final ButtonEvent event)
+    public void onSecondRow (final int index, final ButtonEvent event)
     {
         if (event == ButtonEvent.DOWN)
             return;
@@ -74,7 +74,7 @@ public class DeviceChainsMode extends DeviceParamsMode
         }
 
         // LONG press - move upwards
-        this.surface.setTriggerConsumed (ButtonID.get (ButtonID.ROW1_1, index));
+        this.surface.setTriggerConsumed (ButtonID.get (ButtonID.ROW2_1, index));
         this.moveUp ();
     }
 
@@ -83,16 +83,16 @@ public class DeviceChainsMode extends DeviceParamsMode
     @Override
     public int getButtonColor (final ButtonID buttonID)
     {
-        final int index = this.isButtonRow (0, buttonID);
+        final int index = this.isButtonRow (1, buttonID);
         if (index >= 0)
         {
             final ICursorDevice cursorDevice = this.model.getCursorDevice ();
             if (!cursorDevice.doesExist ())
-                return PushColorManager.PUSH1_COLOR2_GREY_LO;
+                return PushColorManager.PUSH1_COLOR_BLACK;
             final String [] slotChains = cursorDevice.getSlotChains ();
             return index < slotChains.length
-                ? PushColorManager.PUSH1_COLOR2_GREEN_LO
-                : PushColorManager.PUSH1_COLOR2_GREY_LO;
+                ? PushColorManager.PUSH1_COLOR_GREEN_LO
+                : PushColorManager.PUSH1_COLOR_BLACK;
         }
 
         // The bottom row remains the inherited Device action/hierarchy row.
@@ -108,16 +108,15 @@ public class DeviceChainsMode extends DeviceParamsMode
         if (!this.checkExists1 (display, cd))
             return;
 
-        // Row 3
-        display.setBlock (2, 0, "Device Chains:").setBlock (2, 1, cd.getName ());
-
-        // Row 4
+        // Chain selectors are now physically above the LCD (ROW2).
         final String [] slotChains = cd.getSlotChains ();
         for (int i = 0; i < 8; i++)
-        {
-            final String bottomMenu = i < slotChains.length ? slotChains[i] : "";
-            display.setCell (3, i, bottomMenu);
-        }
+            display.setCell (0, i, i < slotChains.length ? slotChains[i] : "");
+
+        // The RGB action row is below the LCD.
+        final String [] actionLabels = { "On", "Params", "Expand", "Chains", "Banks", "Pin", "Window", "Up" };
+        for (int i = 0; i < actionLabels.length; i++)
+            display.setCell (3, i, actionLabels[i]);
     }
 
 
