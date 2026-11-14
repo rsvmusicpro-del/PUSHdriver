@@ -180,6 +180,33 @@ replace_once(push_surface,
     "        }",
     "Push 1 firmware inquiry parser")
 
+# API banks may return null for an empty layer slot. DeviceLayerMode already
+# checks existence before selecting a first-row item, and must do the same
+# before applying mute/solo to a second-row selector.
+device_layer_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceLayerMode.java"
+replace_once(device_layer_mode,
+    "            final ILayer layer = this.bank.getItem (offset + index);\n"
+    "            if (this.configuration.isMuteState ())\n",
+    "            final ILayer layer = this.bank.getItem (offset + index);\n"
+    "            if (layer == null || !layer.doesExist ())\n"
+    "                return;\n"
+    "            if (this.configuration.isMuteState ())\n",
+    "DeviceLayerMode empty-slot mute/solo guard")
+replace_once(device_layer_mode,
+    "            final ILayer layer = this.bank.getItem (offset + index);\n"
+    "            if (!layer.doesExist ())\n",
+    "            final ILayer layer = this.bank.getItem (offset + index);\n"
+    "            if (layer == null || !layer.doesExist ())\n",
+    "DeviceLayerMode empty-slot first-row guard")
+replace_once(device_layer_mode,
+    "                    final ILayer layer = this.bank.getItem (offset + i);\n"
+    "                    final ISendBank sendBank = layer.getSendBank ();\n",
+    "                    final ILayer layer = this.bank.getItem (offset + i);\n"
+    "                    if (layer == null || !layer.doesExist ())\n"
+    "                        continue;\n"
+    "                    final ISendBank sendBank = layer.getSendBank ();\n",
+    "DeviceLayerMode empty-slot send-page guard")
+
 configuration_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/ConfigurationMode.java"
 replace_once(configuration_mode,
     "import de.mossgrabers.framework.daw.data.IItem;\n",
@@ -210,6 +237,135 @@ if source.count(highlight) != 2:
 sequencer_colors.write_text(source.replace(highlight,
     "                if (highlight)\n"
     "                    return this.model.hasRecordingState () ? COLOR_STEP_HILITE_RECORD : COLOR_STEP_HILITE_CONTENT;", 2))
+
+
+
+# Selected notes must remain visible when the playhead crosses them. The same
+# rule applies to sustained notes: every continuation pad inherits its start's
+# edit highlight until the note ends.
+source = sequencer_colors.read_text()
+old = """                if (highlight)
+                    return this.model.hasRecordingState () ? COLOR_STEP_HILITE_RECORD : COLOR_STEP_HILITE_CONTENT;
+                if (isEdit (channel, step, note, editNotes))
+                    return COLOR_STEP_SELECTED;"""
+new = """                if (isEditOrContinuation (channel, step, note, editNotes))
+                    return COLOR_STEP_SELECTED;
+                if (highlight)
+                    return this.model.hasRecordingState () ? COLOR_STEP_HILITE_RECORD : COLOR_STEP_HILITE_CONTENT;"""
+if source.count(old) != 2:
+    raise SystemExit("AbstractSequencerView: expected two selected-note color branches")
+sequencer_colors.write_text(source.replace(old, new))
+
+poly_sequencer = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractPolySequencerView.java"
+source = poly_sequencer.read_text()
+old = """                if (hilite)
+                    return COLOR_STEP_HILITE_CONTENT;
+                if (isChordEdit (channel, step, editNotes))
+                    return COLOR_STEP_SELECTED;"""
+new = """                if (isChordEdit (channel, step, editNotes))
+                    return COLOR_STEP_SELECTED;
+                if (hilite)
+                    return COLOR_STEP_HILITE_CONTENT;"""
+if source.count(old) != 2:
+    raise SystemExit("AbstractPolySequencerView: expected two selected-step color branches")
+poly_sequencer.write_text(source.replace(old, new))
+
+replace_once(poly_sequencer,
+    """    protected static boolean isChordEdit (final int channel, final int step, final List<NotePosition> editNotes)
+    {
+        for (final NotePosition editNote: editNotes)
+        {
+            if (editNote.getChannel () == channel && editNote.getStep () == step)
+                return true;
+        }
+        return false;
+    }""",
+    """    protected boolean isChordEdit (final int channel, final int step, final List<NotePosition> editNotes)
+    {
+        final INoteClip clip = this.getClip ();
+        for (final NotePosition editNote: editNotes)
+        {
+            if (editNote.getChannel () != channel || editNote.getStep () > step)
+                continue;
+
+            final NotePosition position = new NotePosition (channel, step, editNote.getNote ());
+            for (int sourceStep = step; sourceStep >= editNote.getStep (); sourceStep--)
+            {
+                position.setStep (sourceStep);
+                final StepState state = clip.getStep (position).getState ();
+                if (state == StepState.START)
+                {
+                    if (sourceStep == editNote.getStep ())
+                        return true;
+                    break;
+                }
+                if (state == StepState.OFF)
+                    break;
+            }
+        }
+        return false;
+    }""",
+    "Poly sequencer edit highlight spans note continuations")
+
+replace_once(sequencer_colors,
+    """    protected static boolean isEdit (final int channel, final int step, final int note, final List<NotePosition> editNotes)
+    {
+        for (final NotePosition editNote: editNotes)
+        {
+            if (editNote.getChannel () == channel && editNote.getStep () == step && editNote.getNote () == note)
+                return true;
+        }
+        return false;
+    }""",
+    """    protected static boolean isEdit (final int channel, final int step, final int note, final List<NotePosition> editNotes)
+    {
+        for (final NotePosition editNote: editNotes)
+        {
+            if (editNote.getChannel () == channel && editNote.getStep () == step && editNote.getNote () == note)
+                return true;
+        }
+        return false;
+    }
+
+
+    /**
+     * Test if a displayed continuation belongs to a note selected for editing.
+     *
+     * @param channel The MIDI channel
+     * @param step The displayed step
+     * @param note The MIDI note
+     * @param editNotes The currently edited notes
+     * @return True if the step belongs to an edited note
+     */
+    protected boolean isEditOrContinuation (final int channel, final int step, final int note, final List<NotePosition> editNotes)
+    {
+        if (isEdit (channel, step, note, editNotes))
+            return true;
+
+        final INoteClip clip = this.getClip ();
+        final NotePosition position = new NotePosition (channel, step, note);
+        for (final NotePosition editNote: editNotes)
+        {
+            if (editNote.getChannel () != channel || editNote.getNote () != note || editNote.getStep () >= step)
+                continue;
+
+            for (int sourceStep = step; sourceStep >= editNote.getStep (); sourceStep--)
+            {
+                position.setStep (sourceStep);
+                final StepState state = clip.getStep (position).getState ();
+                if (state == StepState.START)
+                {
+                    if (sourceStep == editNote.getStep ())
+                        return true;
+                    break;
+                }
+                if (state == StepState.OFF)
+                    break;
+            }
+        }
+        return false;
+    }""",
+    "Classic sequencer edit highlight spans note continuations")
 
 drum_view = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractDrumView.java"
 replace_once(drum_view,
@@ -961,57 +1117,8 @@ replace_once(drum64,
     "            return isRecording ? AbstractDrumView.COLOR_PAD_RECORD : AbstractDrumView.COLOR_PAD_PLAY;",
     "Drum64View LED lookup bounds")
 
-# Remove the Push Raindrops mode and its framework-only implementation completely.
-for obsolete in (
-    root / "src/main/java/de/mossgrabers/controller/ableton/push/view/RaindropsView.java",
-    root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractRaindropsView.java",
-):
-    if not obsolete.is_file():
-        raise SystemExit(f"Expected Raindrops source not found: {obsolete}")
-    obsolete.unlink()
-
-
+# Keep the upstream Raindrops view registered and available to the Push 1 Note menu.
 setup = root / "src/main/java/de/mossgrabers/controller/ableton/push/PushControllerSetup.java"
-replace_once(setup,
-    "import de.mossgrabers.controller.ableton.push.view.RaindropsView;\n", "",
-    "PushControllerSetup Raindrops import")
-replace_once(setup,
-    "        viewManager.register (Views.RAINDROPS, new RaindropsView (surface, this.model));\n", "",
-    "PushControllerSetup Raindrops registration")
-
-configuration = root / "src/main/java/de/mossgrabers/controller/ableton/push/PushConfiguration.java"
-replace_once(configuration, "        Views.RAINDROPS,\n", "",
-    "PushConfiguration Raindrops preference")
-
-note_view_select = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteViewSelectMode.java"
-replace_once(note_view_select, "        Views.RAINDROPS,\n", "        null,\n",
-    "NoteViewSelectMode Raindrops slot")
-
-layout = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/trigger/LayoutCommand.java"
-replace_once(layout,
-    "        else if (viewManager.isActive (Views.SEQUENCER))\n"
-    "            this.activatePreferredView (Views.RAINDROPS);\n"
-    "        else if (viewManager.isActive (Views.RAINDROPS))\n"
-    "            this.activatePreferredView (Views.DRUM);",
-    "        else if (viewManager.isActive (Views.SEQUENCER))\n"
-    "            this.activatePreferredView (Views.DRUM);",
-    "LayoutCommand Raindrops cycle")
-# Keep the upstream SelectPlayViewCommand unchanged: Note remains the native
-# view-selection / session-restore control and is not repurposed for Drum64.
-
-views = root / "src/main/java/de/mossgrabers/framework/view/Views.java"
-replace_once(views,
-    "    /** View for raindrops sequencer. */\n    RAINDROPS,\n",
-    "    /** Reserved to preserve the ordinal values of the remaining view IDs. */\n    UNUSED_VIEW_SLOT,\n",
-    "Views enum compatibility slot")
-for old, label in (
-    ("    /** The name of the raindrops view. */\n    public static final String              NAME_RAINDROPS      = \"Raindrop\";\n", "Views Raindrops name"),
-    ("        NOTE_VIEWS.add (RAINDROPS);\n", "Views note-view registration"),
-    ("        VIEW_NAMES.put (NAME_RAINDROPS, RAINDROPS);\n", "Views name registration"),
-    ("        SEQUENCER_VIEWS.add (RAINDROPS);\n", "Views sequencer registration"),
-):
-    replace_once(views, old, "", label)
-
 
 # Register and compile only the Push 1 extension entry point and text display.
 (root / "src/main/java/de/mossgrabers/bitwig/controller/ableton/push/Push2ControllerExtensionDefinition.java").unlink(missing_ok=True)
@@ -1085,12 +1192,12 @@ setup.write_text(setup_source)
 # sequencer page behavior in all other contexts.
 replace_once(setup,
     'this.addButton (ButtonID.PAGE_LEFT, "Page Left"',
-    'this.addButton (ButtonID.PAGE_LEFT, "Out"',
-    "Push 1 Out button label")
+    'this.addButton (ButtonID.PAGE_LEFT, "In"',
+    "Push 1 In button label")
 replace_once(setup,
     'this.addButton (ButtonID.PAGE_RIGHT, "Page Right"',
-    'this.addButton (ButtonID.PAGE_RIGHT, "In"',
-    "Push 1 In button label")
+    'this.addButton (ButtonID.PAGE_RIGHT, "Out"',
+    "Push 1 Out button label")
 replace_once(setup,
     """PushControlSurface.PUSH_BUTTON_DEVICE_LEFT, () -> {
 
@@ -1098,14 +1205,14 @@ replace_once(setup,
     """PushControlSurface.PUSH_BUTTON_DEVICE_LEFT, () -> {
 
             final IMode activeMode = modeManager.getActive ();
-            if (activeMode instanceof final DeviceBrowserMode browserMode)
-                return browserMode.canNavigateFilterColumn (false);
-            if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
-                return deviceParamsMode.hasPreviousInOutItem ();
+            if (modeManager.isActive (Modes.BROWSER) && activeMode != null)
+                return activeMode.hasNextItemPage ();
             if (modeManager.isActive (Modes.DEVICE_CHAINS))
                 return false;
+            if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
+                return deviceParamsMode.isShowDevices () ? deviceParamsMode.hasNextItem () : deviceParamsMode.hasNextItemPage ();
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
-                return activeMode.hasPreviousItem ();
+                return activeMode.hasNextItemPage ();
             if (viewManager.isActive (Views.SESSION))""",
     "Push 1 Out button LED state")
 replace_once(setup,
@@ -1115,166 +1222,142 @@ replace_once(setup,
     """PushControlSurface.PUSH_BUTTON_DEVICE_RIGHT, () -> {
 
             final IMode activeMode = modeManager.getActive ();
-            if (activeMode instanceof final DeviceBrowserMode browserMode)
-                return browserMode.canNavigateFilterColumn (true);
-            if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
-                return deviceParamsMode.hasNextInOutItem ();
+            if (modeManager.isActive (Modes.BROWSER) && activeMode != null)
+                return activeMode.hasPreviousItemPage ();
             if (modeManager.isActive (Modes.DEVICE_CHAINS))
                 return false;
+            if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
+                return deviceParamsMode.isShowDevices () ? deviceParamsMode.hasPreviousItem () : deviceParamsMode.hasPreviousItemPage ();
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
-                return activeMode.hasNextItem ();
+                return activeMode.hasPreviousItemPage ();
             if (viewManager.isActive (Views.SESSION))""",
     "Push 1 In button LED state")
 
-# Keep browser filter focus, LCD marker and button availability synchronized.
+# DeviceBrowserMode remains the pinned upstream state machine. Only the
+# defensive Bitwig empty-bank guards below are applied; no project-owned
+# filter-column navigation state or methods are injected into Browser mode.
 browser_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceBrowserMode.java"
+
+# Bitwig's Browser banks can temporarily expose fewer than sixteen items while
+# filters/results refresh. The upstream Ableton renderer indexes a fixed 4x4
+# page, so bound every access against the current API bank before reading it.
 replace_once(browser_mode,
-    """    public void resetFilterColumn ()
-    {
-        this.filterColumn = -1;
-    }
+    """                final IBrowserColumnItem [] items = browser.getFilterColumn (this.filterColumn).getItems ();
+                for (int i = 0; i < 16; i++)
+                {
+                    String text = (items[i].isSelected () ? Push1Display.SELECT_ARROW : " ") + StringUtils.shortenAndFixASCII (items[i].getName (), 18) + "                ";
+                    if (!items[i].getName ().isEmpty ())
+                    {
+                        final String hitStr = "(" + items[i].getHitCount () + ")";
+                        text = text.substring (0, 17 - hitStr.length ()) + hitStr;
+                    }
+                    display.setBlock (i % 4, i / 4, text);
+                }
 """,
-    """    public void resetFilterColumn ()
-    {
-        this.filterColumn = -1;
-    }
-
-
-    /**
-     * Find the next existing browser filter column in the requested direction.
-     * Bitwig exposes a fixed column bank; individual columns may not exist for
-     * the current browser content type, so numeric bounds alone are insufficient.
-     *
-     * @param forward True for In (right), false for Out (left)
-     * @return The position of the next existing column, or -1 if none is available
-     */
-    private int findNavigableFilterColumn (final boolean forward)
-    {
-        final IBrowser browser = this.model.getBrowser ();
-        final int count = browser.getFilterColumnCount ();
-        final int selectedPosition = browser.getSelectedFilterColumn ().getPosition ();
-        final int step = forward ? 1 : -1;
-
-        for (int position = selectedPosition + step; position >= 0 && position < count; position += step)
-        {
-            if (browser.getFilterColumn (position).doesExist ())
-                return position;
-        }
-        return -1;
-    }
-
-
-    /**
-     * Check if In/Out can move to another existing browser filter column.
-     *
-     * @param forward True for In (right), false for Out (left)
-     * @return True if another existing column is available
-     */
-    public boolean canNavigateFilterColumn (final boolean forward)
-    {
-        return this.findNavigableFilterColumn (forward) >= 0;
-    }
-
-
-    /**
-     * Move the browser focus to the next existing filter column.
-     *
-     * @param forward True for In (right), false for Out (left)
-     */
-    public void navigateFilterColumn (final boolean forward)
-    {
-        final IBrowser browser = this.model.getBrowser ();
-        final int targetPosition = this.findNavigableFilterColumn (forward);
-        if (targetPosition < 0)
-            return;
-
-        int selectedPosition = browser.getSelectedFilterColumn ().getPosition ();
-        for (int attempts = 0; selectedPosition != targetPosition && attempts < browser.getFilterColumnCount (); attempts++)
-        {
-            final int previousPosition = selectedPosition;
-            if (forward)
-                browser.selectNextFilterColumn ();
-            else
-                browser.selectPreviousFilterColumn ();
-
-            selectedPosition = browser.getSelectedFilterColumn ().getPosition ();
-            // Do not trap Bitwig's controller thread if the host does not
-            // publish the selected-column change synchronously.
-            if (selectedPosition == previousPosition)
-                return;
-        }
-        if (selectedPosition != targetPosition)
-            return;
-
-        this.filterColumn = browser.getSelectedFilterColumn ().getIndex ();
-        this.selectionMode = DeviceBrowserMode.SELECTION_OFF;
-    }
+    """                final IBrowserColumn selectedColumn = browser.getFilterColumn (this.filterColumn);
+                final IBrowserColumnItem [] items = selectedColumn == null ? null : selectedColumn.getItems ();
+                for (int i = 0; i < 16; i++)
+                {
+                    if (items == null || i >= items.length || items[i] == null || !items[i].doesExist ())
+                    {
+                        display.setBlock (i % 4, i / 4, "");
+                        continue;
+                    }
+                    final String itemName = items[i].getName ();
+                    String text = (items[i].isSelected () ? Push1Display.SELECT_ARROW : " ") + StringUtils.shortenAndFixASCII (itemName, 18) + "                ";
+                    if (itemName != null && !itemName.isEmpty ())
+                    {
+                        final String hitStr = "(" + items[i].getHitCount () + ")";
+                        text = text.substring (0, 17 - hitStr.length ()) + hitStr;
+                    }
+                    display.setBlock (i % 4, i / 4, text);
+                }
 """,
-    "Push 1 In/Out browser filter-column navigation")
-
-# Keep ordinary horizontal-arrow item navigation unchanged. In/Out has a
-# dedicated path so its parameter-page behavior cannot leak into PushCursorCommand.
-device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
-replace_once(device_params_mode,
-    """    public boolean hasNextItem ()
-    {
-        if (this.showDevices)
-            return this.model.getCursorDevice ().getDeviceBank ().canScrollForwards ();
-        return super.hasNextItem ();
-    }
+    "Push 1 Browser text filter item bounds")
+replace_once(browser_mode,
+    """                final IBrowserColumnItem [] item = browser.getFilterColumn (this.filterColumn).getItems ();
+                for (int i = 0; i < 8; i++)
+                {
+                    final String [] items = new String [6];
+                    final boolean [] selected = new boolean [6];
+                    for (int itemIndex = 0; itemIndex < 6; itemIndex++)
+                    {
+                        final int pos = i * 6 + itemIndex;
+                        final String hitText = " (" + item[pos].getHitCount () + ")";
+                        String text = item[pos].getName (12 - hitText.length ());
+                        if (!text.isEmpty ())
+                            text = text + hitText;
+                        items[itemIndex] = text;
+                        selected[itemIndex] = item[pos].isSelected ();
+                    }
+                    display.addListElement (items, selected);
+                }
 """,
-    """    public boolean hasNextItem ()
-    {
-        return this.showDevices
-            ? this.model.getCursorDevice ().getDeviceBank ().canScrollForwards ()
-            : super.hasNextItem ();
-    }
-
-
-    /**
-     * Navigate one step using the Push 1 In/Out controls.
-     * Device selection and parameter-page selection are intentionally separate
-     * from the standard arrow-button selectPreviousItem/selectNextItem paths.
-     */
-    public void selectPreviousInOutItem ()
-    {
-        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-        if (this.showDevices)
-            cursorDevice.getDeviceBank ().selectPreviousItem ();
-        else
-            cursorDevice.getParameterPageBank ().selectPreviousPage ();
-    }
-
-
-    /** {@inheritDoc} */
-    public void selectNextInOutItem ()
-    {
-        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-        if (this.showDevices)
-            cursorDevice.getDeviceBank ().selectNextItem ();
-        else
-            cursorDevice.getParameterPageBank ().selectNextPage ();
-    }
-
-
-    /** Check whether Out has a previous device or parameter-page bank. */
-    public boolean hasPreviousInOutItem ()
-    {
-        if (this.showDevices)
-            return this.model.getCursorDevice ().getDeviceBank ().canScrollBackwards ();
-        return this.model.getCursorDevice ().getParameterPageBank ().canScrollPageBackwards ();
-    }
-
-
-    /** Check whether In has a next device or parameter-page bank. */
-    public boolean hasNextInOutItem ()
-    {
-        if (this.showDevices)
-            return this.model.getCursorDevice ().getDeviceBank ().canScrollForwards ();
-        return this.model.getCursorDevice ().getParameterPageBank ().canScrollPageForwards ();
-    }
+    """                final IBrowserColumn selectedColumn = browser.getFilterColumn (this.filterColumn);
+                final IBrowserColumnItem [] item = selectedColumn == null ? null : selectedColumn.getItems ();
+                for (int i = 0; i < 8; i++)
+                {
+                    final String [] items = new String [6];
+                    final boolean [] selected = new boolean [6];
+                    for (int itemIndex = 0; itemIndex < 6; itemIndex++)
+                    {
+                        final int pos = i * 6 + itemIndex;
+                        if (item == null || pos >= item.length || item[pos] == null || !item[pos].doesExist ())
+                        {
+                            items[itemIndex] = "";
+                            selected[itemIndex] = false;
+                            continue;
+                        }
+                        final String hitText = " (" + item[pos].getHitCount () + ")";
+                        String text = item[pos].getName (12 - hitText.length ());
+                        if (!text.isEmpty ())
+                            text = text + hitText;
+                        items[itemIndex] = text;
+                        selected[itemIndex] = item[pos].isSelected ();
+                    }
+                    display.addListElement (items, selected);
+                }
 """,
-    "Push 1 In/Out-only device and parameter-page navigation")
+    "Push 1 Browser graphic filter item bounds")
+
+replace_once(browser_mode,
+    """if (!results[0].doesExist ())
+                {
+                    display.clear ().setBlock (1, 1, "       No results").setBlock (1, 2, "available...").allDone ();
+                    return;
+                }""",
+    """if (results == null || results.length == 0 || results[0] == null || !results[0].doesExist ())
+                {
+                    display.clear ().setBlock (1, 1, "       No results").setBlock (1, 2, "available...").allDone ();
+                    return;
+                }""",
+    "Push 1 Browser text empty result guard")
+replace_once(browser_mode,
+    """if (!results[0].doesExist ())
+                {
+                    for (int i = 0; i < 8; i++)
+                        display.addOptionElement (i == 3 ? "No results available..." : "", "", false, "", "", false, false);
+                    return;
+                }""",
+    """if (results == null || results.length == 0 || results[0] == null || !results[0].doesExist ())
+                {
+                    for (int i = 0; i < 8; i++)
+                        display.addOptionElement (i == 3 ? "No results available..." : "", "", false, "", "", false, false);
+                    return;
+                }""",
+    "Push 1 Browser graphic empty result guard")
+replace_once(browser_mode,
+    "if (i < results.length)\n                        display.setBlock",
+    "if (i < results.length && results[i] != null && results[i].doesExist ())\n                        display.setBlock",
+    "Push 1 Browser text result item guard")
+replace_once(browser_mode,
+    "items[item] = pos < results.length ? results[pos].getName (14) : \"\";\n                        selected[item] = pos < results.length && results[pos].isSelected ();",
+    "items[item] = pos < results.length && results[pos] != null && results[pos].doesExist () ? results[pos].getName (14) : \"\";\n                        selected[item] = pos < results.length && results[pos] != null && results[pos].doesExist () && results[pos].isSelected ();",
+    "Push 1 Browser graphic result item guard")
+
+# DeviceParamsMode remains byte-for-byte on the pinned upstream implementation.
+# The Push 1 In/Out command adapter calls its existing item/page methods.
+# Never inject a second DeviceParamsMode navigation implementation.
 
 # Keep the physical Push 1 New button on its native dedicated binding, while
 # stopping the cursor track's current clip before preparing its next note clip.
@@ -1450,3 +1533,645 @@ for group, artifact in (
         raise SystemExit(f"Could not isolate dependency {group}:{artifact}")
     text = text[:start] + text[end + len("</dependency>"):]
 pom.write_text(text)
+
+
+
+# Apply a Push 1 RGB palette to the Device action row (ROW2 / CC102-109).
+# Keep the upstream Device mode as the sole implementation; this is a narrow
+# source adaptation performed reproducibly during assembly.
+device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
+replace_once(device_params_mode,
+    """            final int white = this.isPush2 ? PushColorManager.PUSH2_COLOR2_WHITE : PushColorManager.PUSH1_COLOR2_WHITE;
+            if (!cd.doesExist ())
+                return index == 7 ? white : super.getButtonColor (buttonID);
+
+            final int green = this.isPush2 ? PushColorManager.PUSH2_COLOR2_GREEN : PushColorManager.PUSH1_COLOR2_GREEN;
+            final int grey = this.isPush2 ? PushColorManager.PUSH2_COLOR2_GREY_LO : PushColorManager.PUSH1_COLOR2_GREY_LO;
+            final int orange = this.isPush2 ? PushColorManager.PUSH2_COLOR2_ORANGE : PushColorManager.PUSH1_COLOR2_ORANGE;
+            final int off = this.isPush2 ? PushColorManager.PUSH2_COLOR_BLACK : PushColorManager.PUSH1_COLOR_BLACK;
+            final int turquoise = this.isPush2 ? PushColorManager.PUSH2_COLOR2_TURQUOISE_HI : PushColorManager.PUSH1_COLOR2_TURQUOISE_HI;
+
+            switch (index)
+            {
+                case 0:
+                    return cd.isEnabled () ? green : grey;
+                case 1:
+                    return cd.isParameterPageSectionVisible () ? orange : white;
+                case 2:
+                    return cd.isExpanded () ? orange : white;
+                case 3:
+                    return this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS) ? orange : white;
+                case 4:
+                    return this.showDevices ? white : orange;
+                case 5:
+                    if (!this.model.getHost ().supports (Capability.HAS_PINNING))
+                        return off;
+                    return cd.isPinned () ? turquoise : grey;
+                case 6:
+                    return cd.isWindowOpen () ? turquoise : grey;
+                default:
+                case 7:
+                    return white;
+            }""",
+    """            final int off = PushColorManager.PUSH1_COLOR2_BLACK;
+            final int white = PushColorManager.PUSH1_COLOR2_WHITE;
+            if (!cd.doesExist ())
+                return index == 7 ? white : off;
+
+            final int greenOn = PushColorManager.PUSH1_COLOR2_GREEN_HI;
+            final int greenOff = PushColorManager.PUSH1_COLOR2_GREEN_LO;
+            final int blueOn = PushColorManager.PUSH1_COLOR2_BLUE_HI;
+            final int blueOff = PushColorManager.PUSH1_COLOR2_BLUE_LO;
+            final int magentaOn = PushColorManager.PUSH1_COLOR2_MAGENTA_HI;
+            final int magentaOff = PushColorManager.PUSH1_COLOR2_MAGENTA_LO;
+            final int orangeOn = PushColorManager.PUSH1_COLOR2_AMBER_HI;
+            final int orangeOff = PushColorManager.PUSH1_COLOR2_AMBER_LO;
+            final int yellowOn = PushColorManager.PUSH1_COLOR2_YELLOW_HI;
+            final int yellowOff = PushColorManager.PUSH1_COLOR2_YELLOW_LO;
+            final int redOn = PushColorManager.PUSH1_COLOR2_RED_HI;
+            final int redOff = PushColorManager.PUSH1_COLOR2_RED_LO;
+            final int violetOn = PushColorManager.PUSH1_COLOR2_ORCHID_HI;
+            final int violetOff = PushColorManager.PUSH1_COLOR2_ORCHID_LO;
+
+            switch (index)
+            {
+                case 0:
+                    return cd.isEnabled () ? greenOn : greenOff;
+                case 1:
+                    return cd.isParameterPageSectionVisible () ? blueOn : blueOff;
+                case 2:
+                    return cd.isExpanded () ? magentaOn : magentaOff;
+                case 3:
+                    return this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS) ? orangeOn : orangeOff;
+                case 4:
+                    return this.showDevices ? yellowOff : yellowOn;
+                case 5:
+                    if (!this.model.getHost ().supports (Capability.HAS_PINNING))
+                        return off;
+                    return cd.isPinned () ? redOn : redOff;
+                case 6:
+                    return cd.isWindowOpen () ? violetOn : violetOff;
+                default:
+                case 7:
+                    return white;
+            }""",
+    "Push 1 Device ROW2 semantic RGB palette")
+
+# Align the Push 1 physical button rows with the corresponding LCD halves.
+# Row 1 owns the upper display half; Row 2 owns the lower display half.
+# These adaptations are deliberately local to the affected menus.
+def replace_menu_fragment(path: str, old: str, new: str, label: str) -> None:
+    target = root / path
+    source = target.read_text()
+    if new in source and old not in source:
+        return
+    if source.count(old) != 1:
+        raise SystemExit(f"{label}: expected exactly one source block")
+    target.write_text(source.replace(old, new, 1))
+
+
+note_view = "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteViewSelectMode.java"
+replace_menu_fragment(note_view,
+    """    private static final Views [] VIEWS_TOP =
+    {
+        Views.SEQUENCER,
+        Views.POLY_SEQUENCER,
+        Views.RAINDROPS,
+        Views.DRUM,
+        Views.DRUM4,
+        Views.DRUM8,
+        null,
+        null
+    };""",
+    """    private static final Views [] VIEWS_TOP =
+    {
+        Views.SEQUENCER,
+        Views.POLY_SEQUENCER,
+        Views.DRUM,
+        Views.DRUM4,
+        Views.DRUM8,
+        null,
+        null,
+        Views.RAINDROPS
+    };""",
+    "NoteViewSelect upper-row layout")
+replace_menu_fragment(note_view,
+    """    public void onFirstRow (final int index, final ButtonEvent event)
+    {
+        if (event == ButtonEvent.UP)
+            this.activateView (VIEWS[index]);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void onSecondRow (final int index, final ButtonEvent event)
+    {
+        if (event == ButtonEvent.UP)
+            this.activateView (VIEWS_TOP[index]);
+    }""",
+    """    public void onFirstRow (final int index, final ButtonEvent event)
+    {
+        if (event == ButtonEvent.UP)
+            this.activateView (VIEWS_TOP[index]);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void onSecondRow (final int index, final ButtonEvent event)
+    {
+        if (event == ButtonEvent.UP)
+            this.activateView (VIEWS[index]);
+    }""",
+    "NoteViewSelect row actions")
+replace_menu_fragment(note_view,
+    """        int index = this.isButtonRow (0, buttonID);
+        if (index >= 0)
+        {
+            final ViewManager viewManager = this.surface.getViewManager ();
+            if (VIEWS[index] == null)
+                return AbstractFeatureGroup.BUTTON_COLOR_OFF;
+            return viewManager.isActive (VIEWS[index]) ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+        }
+
+        index = this.isButtonRow (1, buttonID);
+        if (index >= 0)
+        {
+            final ViewManager viewManager = this.surface.getViewManager ();
+            if (VIEWS_TOP[index] == null)
+                return AbstractFeatureGroup.BUTTON_COLOR_OFF;
+            return viewManager.isActive (VIEWS_TOP[index]) ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+        }""",
+    """        int index = this.isButtonRow (0, buttonID);
+        if (index >= 0)
+        {
+            final ViewManager viewManager = this.surface.getViewManager ();
+            if (VIEWS_TOP[index] == null)
+                return AbstractFeatureGroup.BUTTON_COLOR_OFF;
+            return viewManager.isActive (VIEWS_TOP[index]) ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+        }
+
+        index = this.isButtonRow (1, buttonID);
+        if (index >= 0)
+        {
+            final ViewManager viewManager = this.surface.getViewManager ();
+            if (VIEWS[index] == null)
+                return AbstractFeatureGroup.BUTTON_COLOR_OFF;
+            return viewManager.isActive (VIEWS[index]) ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+        }""",
+    "NoteViewSelect row LEDs")
+
+
+session_view = "src/main/java/de/mossgrabers/controller/ableton/push/mode/SessionViewSelectMode.java"
+replace_menu_fragment(session_view,
+    """            case 6:
+                this.surface.getModeManager ().setActive (Modes.MARKERS);
+                break;
+
+            case 7:
+                this.surface.getModeManager ().restore ();
+                configuration.toggleScenesClipMode ();
+                break;
+
+""",
+    "",
+    "SessionView move lower actions to Row 2")
+replace_menu_fragment(session_view,
+    """    /** {@inheritDoc} */
+    @Override
+    public void updateDisplay1 (final ITextDisplay display)""",
+    """    /** {@inheritDoc} */
+    @Override
+    public void onSecondRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+        if (index == 6)
+            this.surface.getModeManager ().setActive (Modes.MARKERS);
+        else if (index == 7)
+        {
+            this.surface.getModeManager ().restore ();
+            this.surface.getConfiguration ().toggleScenesClipMode ();
+        }
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void updateDisplay1 (final ITextDisplay display)""",
+    "SessionView Row 2 actions")
+replace_menu_fragment(session_view,
+    "display.setCell (3, i, (this.isSelected (viewManager, i) ? Push1Display.SELECT_ARROW : \"\") + VIEW_NAMES[i]);",
+    "display.setCell (0, i, (this.isSelected (viewManager, i) ? Push1Display.SELECT_ARROW : \"\") + VIEW_NAMES[i]);",
+    "SessionView upper LCD row")
+replace_menu_fragment(session_view,
+    """display.addOptionElement ("", "", false, i == 0 ? "Session view" : "", VIEW_NAMES[i], isMenuBottomSelected, false);""",
+    """display.addOptionElement (i == 0 ? "Session view" : "", VIEW_NAMES[i], isMenuBottomSelected, "", "", false, false);""",
+    "SessionView upper graphic row")
+replace_menu_fragment(session_view,
+    """    public String getButtonColorID (final ButtonID buttonID)
+    {
+        final int index = this.isButtonRow (0, buttonID);
+        if (index >= 0)
+        {
+            if (index < VIEWS.length)
+            {
+                if (VIEWS[index] == null)
+                    return AbstractFeatureGroup.BUTTON_COLOR_OFF;
+                final ViewManager viewManager = this.surface.getViewManager ();
+                return this.isSelected (viewManager, index) ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+            }
+
+            if (index == 6)
+                return AbstractFeatureGroup.BUTTON_COLOR_ON;
+            if (index == 7)
+            {
+                final boolean isOn = this.surface.getModeManager ().isActive (Modes.SESSION);
+                return isOn ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+            }
+            return AbstractFeatureGroup.BUTTON_COLOR_OFF;
+        }
+
+        return AbstractFeatureGroup.BUTTON_COLOR_OFF;
+    }""",
+    """    public String getButtonColorID (final ButtonID buttonID)
+    {
+        int index = this.isButtonRow (0, buttonID);
+        if (index >= 0 && index < VIEWS.length)
+        {
+            if (VIEWS[index] == null)
+                return AbstractFeatureGroup.BUTTON_COLOR_OFF;
+            final ViewManager viewManager = this.surface.getViewManager ();
+            return this.isSelected (viewManager, index) ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+        }
+
+        index = this.isButtonRow (1, buttonID);
+        if (index == 6)
+            return AbstractFeatureGroup.BUTTON_COLOR_ON;
+        if (index == 7)
+        {
+            final boolean isOn = this.surface.getModeManager ().isActive (Modes.SESSION);
+            return isOn ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+        }
+        return AbstractFeatureGroup.BUTTON_COLOR_OFF;
+    }""",
+    "SessionView row LED ownership")
+
+
+scales_mode = "src/main/java/de/mossgrabers/controller/ableton/push/mode/ScalesMode.java"
+replace_menu_fragment(scales_mode,
+    """    public void onFirstRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+        if (index == 0)
+        {
+            if (this.isPush2)
+                this.scales.nextScale ();
+            else
+                this.scales.prevScale ();
+        }
+        else if (index > 0 && index < 7)
+            this.scales.setScaleOffsetByIndex (index - 1);
+        this.update ();
+    }""",
+    """    public void onFirstRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+        if (index == 0)
+        {
+            if (this.isPush2)
+                this.scales.nextScale ();
+            else
+                this.scales.prevScale ();
+        }
+        else if (index > 0 && index < 7)
+            this.scales.setScaleOffsetByIndex (index + 5);
+        this.update ();
+    }""",
+    "Scales Row 1 upper offsets")
+replace_menu_fragment(scales_mode,
+    """    public void onSecondRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+        if (index == 0)
+        {
+            if (this.isPush2)
+                this.scales.prevScale ();
+            else
+                this.scales.nextScale ();
+        }
+        else if (index == 7)
+            this.scales.toggleChromatic ();
+        else
+            this.scales.setScaleOffsetByIndex (index + 5);
+        this.update ();
+    }""",
+    """    public void onSecondRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+        if (index == 0)
+        {
+            if (this.isPush2)
+                this.scales.prevScale ();
+            else
+                this.scales.nextScale ();
+        }
+        else if (index == 7)
+            this.scales.toggleChromatic ();
+        else
+            this.scales.setScaleOffsetByIndex (index - 1);
+        this.update ();
+    }""",
+    "Scales Row 2 lower offsets")
+replace_menu_fragment(scales_mode,
+    """            final int offset = this.scales.getScaleOffsetIndex ();
+            return this.colorManager.getColorIndex (offset == index - 1 ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON);
+        }
+
+        index = this.isButtonRow (1, buttonID);""",
+    """            final int offset = this.scales.getScaleOffsetIndex ();
+            return this.colorManager.getColorIndex (offset == index + 5 ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON);
+        }
+
+        index = this.isButtonRow (1, buttonID);""",
+    "Scales Row 1 LED state")
+replace_menu_fragment(scales_mode,
+    """            final int offset = this.scales.getScaleOffsetIndex ();
+            return this.colorManager.getColorIndex (offset == index - 1 + 6 ? AbstractMode.BUTTON_COLOR2_HI : AbstractMode.BUTTON_COLOR2_ON);""",
+    """            final int offset = this.scales.getScaleOffsetIndex ();
+            return this.colorManager.getColorIndex (offset == index - 1 ? AbstractMode.BUTTON_COLOR2_HI : AbstractMode.BUTTON_COLOR2_ON);""",
+    "Scales Row 2 LED state")
+
+
+fixed_mode = "src/main/java/de/mossgrabers/controller/ableton/push/mode/FixedMode.java"
+replace_menu_fragment(fixed_mode,
+    """    public void onFirstRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+        this.surface.getConfiguration ().setNewClipLength (index);
+        this.surface.getModeManager ().restore ();
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void onSecondRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+        this.newCommands[index].execute ();
+        this.surface.getModeManager ().restore ();
+    }""",
+    """    public void onFirstRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+        this.newCommands[index].execute ();
+        this.surface.getModeManager ().restore ();
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void onSecondRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+        this.surface.getConfiguration ().setNewClipLength (index);
+        this.surface.getModeManager ().restore ();
+    }""",
+    "FixedMode row actions")
+replace_menu_fragment(fixed_mode,
+    """        final int index = this.isButtonRow (0, buttonID);
+        if (index >= 0)
+        {
+            final Configuration configuration = this.surface.getConfiguration ();
+            return this.colorManager.getColorIndex (configuration.getNewClipLength () == index ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON);
+        }""",
+    """        final int index = this.isButtonRow (1, buttonID);
+        if (index >= 0)
+        {
+            final Configuration configuration = this.surface.getConfiguration ();
+            return this.colorManager.getColorIndex (configuration.getNewClipLength () == index ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON);
+        }""",
+    "FixedMode lower-row length LED feedback")
+
+
+quantize_mode = "src/main/java/de/mossgrabers/controller/ableton/push/mode/QuantizeMode.java"
+replace_menu_fragment(quantize_mode,
+    """    public void onFirstRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+
+        final ITrack cursorTrack = this.model.getCursorTrack ();
+        if (!cursorTrack.doesExist ())
+            return;
+
+        switch (index)
+        {
+            case 0, 1, 2, 3, 4:
+                cursorTrack.setRecordQuantizationGrid (RecordQuantization.values ()[index]);
+                break;
+
+            case 6:
+                cursorTrack.toggleRecordQuantizationNoteLength ();
+                break;
+
+            default:
+                // Not used
+                break;
+        }
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void onSecondRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+
+        if (index == 1)
+            this.surface.getModeManager ().setTemporary (Modes.GROOVE);
+    }""",
+    """    public void onFirstRow (final int index, final ButtonEvent event)
+    {
+        if (event == ButtonEvent.UP && index == 1)
+            this.surface.getModeManager ().setTemporary (Modes.GROOVE);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void onSecondRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+
+        final ITrack cursorTrack = this.model.getCursorTrack ();
+        if (!cursorTrack.doesExist ())
+            return;
+
+        switch (index)
+        {
+            case 0, 1, 2, 3, 4:
+                cursorTrack.setRecordQuantizationGrid (RecordQuantization.values ()[index]);
+                break;
+
+            case 6:
+                cursorTrack.toggleRecordQuantizationNoteLength ();
+                break;
+
+            default:
+                // Not used
+                break;
+        }
+    }""",
+    "Quantize row actions")
+replace_menu_fragment(quantize_mode,
+    """        int index = this.isButtonRow (0, buttonID);
+        if (index >= 0)
+        {
+            final RecordQuantization [] values = RecordQuantization.values ();
+            final ITrack cursorTrack = this.model.getCursorTrack ();
+            final RecordQuantization recQuant = cursorTrack.doesExist () ? cursorTrack.getRecordQuantizationGrid () : RecordQuantization.RES_OFF;
+            if (index < values.length)
+                return values[index] == recQuant ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+            if (index == 6)
+                return cursorTrack.isRecordQuantizationNoteLength () ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+            return AbstractFeatureGroup.BUTTON_COLOR_OFF;
+        }
+
+        index = this.isButtonRow (1, buttonID);""",
+    """        int index = this.isButtonRow (1, buttonID);
+        if (index >= 0)
+        {
+            final RecordQuantization [] values = RecordQuantization.values ();
+            final ITrack cursorTrack = this.model.getCursorTrack ();
+            final RecordQuantization recQuant = cursorTrack.doesExist () ? cursorTrack.getRecordQuantizationGrid () : RecordQuantization.RES_OFF;
+            if (index < values.length)
+                return values[index] == recQuant ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+            if (index == 6)
+                return cursorTrack.isRecordQuantizationNoteLength () ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+            return AbstractFeatureGroup.BUTTON_COLOR_OFF;
+        }
+
+        index = this.isButtonRow (0, buttonID);""",
+    "Quantize row LED feedback")
+
+
+
+# PUSHdriver custom palette: 64 static Push 1 pad colors, shared with Bitwig RGB.
+# RGB values are read from the pinned upstream hardware palette so the DAW
+# palette cannot drift away from the controller's actual LED colors.
+import re
+
+push_color_manager = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushColorManager.java"
+push_color_source = push_color_manager.read_text()
+palette_match = re.search(r"DEFAULT_PALETTE\s*=\s*\{([\s\S]*?)\n\s*\};", push_color_source)
+if palette_match is None:
+    raise SystemExit("Push 1 color palette: DEFAULT_PALETTE was not found")
+push_rgb = re.findall(r"\{\s*0x([0-9A-Fa-f]+),\s*0x([0-9A-Fa-f]+),\s*0x([0-9A-Fa-f]+)\s*\}", palette_match.group(1))
+if len(push_rgb) < 64:
+    raise SystemExit(f"Push 1 color palette: expected at least 64 RGB entries, found {len(push_rgb)}")
+
+push1_color_names = [
+    ("COLOR_OFF", "Black"),
+    ("DAW_COLOR_DARK_GRAY", "Charcoal"),
+    ("DAW_COLOR_GRAY", "Gray"),
+    ("DAW_COLOR_GRAY_HALF", "White"),
+    ("DAW_COLOR_LIGHT_GRAY", "Coral"),
+    ("DAW_COLOR_SILVER", "Red"),
+    ("DAW_COLOR_DARK_BROWN", "Dark Red"),
+    ("DAW_COLOR_BROWN", "Deep Red"),
+    ("DAW_COLOR_DARK_BLUE", "Peach"),
+    ("DAW_COLOR_PURPLE_BLUE", "Orange"),
+    ("DAW_COLOR_PURPLE", "Brown"),
+    ("DAW_COLOR_PINK", "Dark Brown"),
+    ("DAW_COLOR_RED", "Lemon"),
+    ("DAW_COLOR_ORANGE", "Yellow"),
+    ("DAW_COLOR_LIGHT_ORANGE", "Olive"),
+    ("DAW_COLOR_MOSS_GREEN", "Dark Olive"),
+    ("DAW_COLOR_GREEN", "Chartreuse"),
+    ("DAW_COLOR_COLD_GREEN", "Lime"),
+    ("DAW_COLOR_BLUE", "Forest Green"),
+    ("DAW_COLOR_LIGHT_PURPLE", "Deep Forest"),
+    ("DAW_COLOR_LIGHT_PINK", "Bright Green"),
+    ("DAW_COLOR_ROSE", "Green"),
+    ("DAW_COLOR_REDDISH_BROWN", "Dark Green"),
+    ("DAW_COLOR_LIGHT_BROWN", "Deep Green"),
+    ("DAW_COLOR_LIGHT_GREEN", "Mint"),
+    ("DAW_COLOR_BLUISH_GREEN", "Neon Green"),
+    ("DAW_COLOR_GREEN_BLUE", "Deep Moss"),
+    ("DAW_COLOR_LIGHT_BLUE", "Night Green"),
+    ("PUSH1_COLOR_28_MINT_GREEN", "Mint Green"),
+    ("PUSH1_COLOR_29_SPRING_GREEN", "Spring Green"),
+    ("PUSH1_COLOR_30_DARK_TEAL", "Dark Teal"),
+    ("PUSH1_COLOR_31_DEEP_TEAL", "Deep Teal"),
+    ("PUSH1_COLOR_32_AQUA_MINT", "Aqua Mint"),
+    ("PUSH1_COLOR_33_AQUA", "Aqua"),
+    ("PUSH1_COLOR_34_DEEP_AQUA", "Deep Aqua"),
+    ("PUSH1_COLOR_35_NIGHT_TEAL", "Night Teal"),
+    ("PUSH1_COLOR_36_SKY_BLUE", "Sky Blue"),
+    ("PUSH1_COLOR_37_AZURE", "Azure"),
+    ("PUSH1_COLOR_38_DEEP_TEAL_BLUE", "Deep Teal Blue"),
+    ("PUSH1_COLOR_39_MIDNIGHT_BLUE", "Midnight Blue"),
+    ("PUSH1_COLOR_40_CORNFLOWER", "Cornflower"),
+    ("PUSH1_COLOR_41_BLUE", "Blue"),
+    ("PUSH1_COLOR_42_NAVY", "Navy"),
+    ("PUSH1_COLOR_43_MIDNIGHT_NAVY", "Midnight Navy"),
+    ("PUSH1_COLOR_44_PERIWINKLE", "Periwinkle"),
+    ("PUSH1_COLOR_45_ROYAL_BLUE", "Royal Blue"),
+    ("PUSH1_COLOR_46_DEEP_BLUE", "Deep Blue"),
+    ("PUSH1_COLOR_47_DARK_NAVY", "Dark Navy"),
+    ("PUSH1_COLOR_48_VIOLET", "Violet"),
+    ("PUSH1_COLOR_49_PURPLE", "Purple"),
+    ("PUSH1_COLOR_50_DEEP_PURPLE", "Deep Purple"),
+    ("PUSH1_COLOR_51_DARK_PURPLE", "Dark Purple"),
+    ("PUSH1_COLOR_52_MAGENTA", "Magenta"),
+    ("PUSH1_COLOR_53_FUCHSIA", "Fuchsia"),
+    ("PUSH1_COLOR_54_DEEP_MAGENTA", "Deep Magenta"),
+    ("PUSH1_COLOR_55_DARK_MAGENTA", "Dark Magenta"),
+    ("PUSH1_COLOR_56_HOT_PINK", "Hot Pink"),
+    ("PUSH1_COLOR_57_PINK", "Pink"),
+    ("PUSH1_COLOR_58_DEEP_PINK", "Deep Pink"),
+    ("PUSH1_COLOR_59_WINE", "Wine"),
+    ("PUSH1_COLOR_60_VERMILION", "Vermilion"),
+    ("PUSH1_COLOR_61_BURNT_ORANGE", "Burnt Orange"),
+    ("PUSH1_COLOR_62_OCHRE", "Ochre"),
+    ("PUSH1_COLOR_63_OLIVE_GREEN", "Olive Green"),
+]
+daw_color = root / "src/main/java/de/mossgrabers/framework/daw/DAWColor.java"
+daw_source = daw_color.read_text()
+enum_start = daw_source.index("{", daw_source.index("public enum DAWColor")) + 1
+enum_end = daw_source.index("\n\n\n    private static final List", enum_start)
+enum_entries = []
+for index, (constant, display_name) in enumerate(push1_color_names):
+    red, green, blue = (int(component, 16) for component in push_rgb[index])
+    suffix = ";" if index == len(push1_color_names) - 1 else ","
+    enum_entries.append(
+        f'    /** Push 1 palette color {index}: {display_name}. */\n'
+        f'    {constant}("{display_name}", new ColorEx ({red / 255.0:.12g}, {green / 255.0:.12g}, {blue / 255.0:.12g})){suffix}'
+    )
+daw_source = daw_source[:enum_start] + "\n" + "\n".join(enum_entries) + daw_source[enum_end:]
+daw_color.write_text(daw_source)
+
+# The enum order is the physical Push 1 palette order: Bitwig RGB and pad LED
+# index are therefore a one-to-one mapping for all 64 choices.
+registration_start = push_color_source.index("        this.registerColorIndex (DAWColor.COLOR_OFF,")
+registration_end_marker = "        this.registerColorIndex (DAWColor.DAW_COLOR_LIGHT_BLUE, isPush2 ? 96 : 41);"
+registration_end = push_color_source.index(registration_end_marker, registration_start) + len(registration_end_marker)
+registration = (
+    "        for (int i = 0; i < DAWColor.values ().length; i++)\n"
+    "            this.registerColorIndex (DAWColor.values ()[i], i);"
+)
+push_color_source = push_color_source[:registration_start] + registration + push_color_source[registration_end:]
+push_color_manager.write_text(push_color_source)
+

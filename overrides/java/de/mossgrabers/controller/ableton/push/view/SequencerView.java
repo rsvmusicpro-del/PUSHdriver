@@ -7,13 +7,18 @@ package de.mossgrabers.controller.ableton.push.view;
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.framework.controller.ButtonID;
+import de.mossgrabers.framework.controller.hardware.IHwButton;
 import de.mossgrabers.framework.daw.IModel;
+import de.mossgrabers.framework.controller.grid.IPadGrid;
 import de.mossgrabers.framework.daw.clip.INoteClip;
 import de.mossgrabers.framework.daw.clip.IStepInfo;
 import de.mossgrabers.framework.daw.clip.NotePosition;
+import de.mossgrabers.framework.daw.clip.StepState;
+import de.mossgrabers.framework.daw.constants.Resolution;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.view.sequencer.AbstractDrumView;
 import de.mossgrabers.framework.view.Views;
+import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 import de.mossgrabers.framework.view.sequencer.AbstractNoteSequencerView;
 
 import java.util.List;
@@ -96,6 +101,46 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             }
         }
         super.drawGrid ();
+
+        // AbstractNoteSequencerView normally colors empty pads with their scale
+        // color before it considers the playhead highlight. Drum4 uses the
+        // sequencer highlight palette for every pad in the active column. Apply
+        // that same full-column treatment here, including the root/fundamental
+        // row, without changing any note data or the page-selector row.
+        if (!this.isActive () || !this.model.getTransport ().isPlaying ())
+            return;
+
+        final INoteClip clip = this.getClip ();
+        final int stepsPerPage = this.numDisplayCols;
+        final int currentStep = clip.getCurrentStep ();
+        if (!clip.doesExist () || stepsPerPage <= 0 || currentStep < 0)
+            return;
+
+        final int playheadColumn = currentStep - clip.getEditPage () * stepsPerPage;
+        if (playheadColumn < 0 || playheadColumn >= stepsPerPage)
+            return;
+
+        final IPadGrid gridPad = this.surface.getPadGrid ();
+        final int channel = this.configuration.getMidiEditChannel ();
+        final List<NotePosition> editNotes = this.getEditNotes ();
+        final NotePosition notePosition = new NotePosition (channel, playheadColumn, 0);
+        for (int row = 0; row < this.numSequencerRows; row++)
+        {
+            final int mappedNote = this.keyManager.map (row);
+            notePosition.setNote (mappedNote);
+            final IStepInfo stepInfo = mappedNote < 0 ? null : clip.getStep (notePosition);
+            final boolean isSelected = mappedNote >= 0 && this.isEditOrContinuation (channel, playheadColumn, mappedNote, editNotes);
+            final String color;
+            if (isSelected)
+                color = AbstractSequencerView.COLOR_STEP_SELECTED;
+            else if (this.model.hasRecordingState ())
+                color = AbstractSequencerView.COLOR_STEP_HILITE_RECORD;
+            else if (stepInfo == null || stepInfo.getState () == StepState.OFF)
+                color = AbstractSequencerView.COLOR_STEP_HILITE_NO_CONTENT;
+            else
+                color = AbstractSequencerView.COLOR_STEP_HILITE_CONTENT;
+            gridPad.lightEx (playheadColumn, this.numDisplayRows - 1 - row, color);
+        }
     }
 
 
@@ -215,6 +260,40 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             return true;
         }
 
-        return super.handleSequencerAreaButtonCombinations (clip, notePosition, row, velocity);
+        // Preserve the upstream duplicate/mute gestures, which return before
+        // its long-press scan. The inherited scan uses row * clip.getNumSteps()
+        // as a physical pad offset; Bitwig reports the full clip length here
+        // (often 128), but the Push 1 grid has only eight columns per row.
+        if (this.isButtonCombination (ButtonID.DUPLICATE) || this.isButtonCombination (ButtonID.MUTE))
+            return super.handleSequencerAreaButtonCombinations (clip, notePosition, row, velocity);
+
+        // A long-pressed earlier step in this physical row stretches the note
+        // to the released column. Resolve the source pad using the hardware
+        // grid width, never the clip's global step count.
+        final int step = notePosition.getStep ();
+        final int padRowOffset = row * this.numDisplayCols;
+        final int note = notePosition.getNote ();
+        for (int sourceStep = 0; sourceStep < step; sourceStep++)
+        {
+            final int padIndex = padRowOffset + sourceStep;
+            if (padIndex < 0 || padIndex >= 64)
+                continue;
+
+            final IHwButton button = this.surface.getButton (ButtonID.get (ButtonID.PAD1, padIndex));
+            if (button == null || !button.isLongPressed ())
+                continue;
+
+            final NotePosition sourcePosition = new NotePosition (notePosition);
+            sourcePosition.setStep (sourceStep);
+            button.setConsumed ();
+            final double duration = (step - sourceStep + 1) * Resolution.getValueAt (this.getResolutionIndex ());
+            if (note >= 0 && clip.getStep (sourcePosition).getState () == StepState.START)
+                clip.updateStepDuration (sourcePosition, duration);
+            else
+                clip.setStep (sourcePosition, velocity, duration);
+            return true;
+        }
+
+        return false;
     }
 }

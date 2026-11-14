@@ -181,6 +181,33 @@ Rack-chain navigation remains inactive because API 17 does not expose a
 reliable selected-chain cursor for safe previous/next navigation. No MIDI
 IDs or alternate controller dispatcher are introduced.
 
+## Device mode: physical row assignment and color language
+
+Device mode deliberately assigns the two physical button rows according to
+their LED capabilities:
+
+- **ROW1 / CC 20–27 — below the LCD:** the RGB row carries the eight Device
+  actions, in order: On (green), Parameters (cyan), Expanded (blue), Chains
+  (orchid/violet), Banks (yellow), Pin Device (magenta), Window (white), and
+  Up (red). Each action has its own hue; stateful actions use the dim/bright
+  intensity of that hue. Up remains red as a hierarchy action.
+- **ROW2 / CC 102–109 — above the LCD:** the static CC row selects the eight
+  visible devices or parameter pages. Existing entries use dim green and the
+  selected entry uses bright green; unavailable entries are off. This row
+  uses only the first-row static palette. Never send PUSH1_COLOR2_* RGB
+  indices to ROW2: several overlapping values are blink commands.
+- **Device Chains:** chain selectors also use ROW2's static green/off
+  feedback. The inherited Device actions remain on ROW1's RGB palette.
+- **LCD:** the first text row labels the selector row above the display; the
+  two middle rows show parameter names and values; the last row labels the
+  eight action buttons below the display. Device/page selection and the
+  action legends therefore follow the new physical positions.
+
+The virtual runtime checks the two physical row assignments, all eight
+distinct action hues, and the static-only selector feedback. These are native
+Push 1 palette indices; no Push 2 palette or custom RGB SysEx is used.
+
+
 ## Interactive virtual Push 1 simulator
 
 The repository includes an optional desktop surface backed by the production
