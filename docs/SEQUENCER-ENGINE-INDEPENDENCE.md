@@ -112,3 +112,11 @@ External projects are useful for validation, not as production engines:
 6. Run all regression suites and compare the public behavior matrix above before considering the refactor complete.
 
 No production behavior should be removed or intentionally redesigned as part of the isolation refactor. Any UX improvement is a separate opt-in change after parity is proven.
+
+## Implemented isolation and color safeguards
+
+The concrete Push 1 views remain separate instances on their distinct upstream bases: SequencerView extends AbstractNoteSequencerView; PolySequencerView extends AbstractPolySequencerView. Their mutable note selection, edit-step, duration, page-follow and gesture fields are instance-owned. They share the Bitwig note clip only as the single DAW document, not as a private engine state cache.
+
+API 17 has no removeNoteObserver on the track bank. The assembly step therefore routes the upstream Poly key-manager observer only when that exact Poly view is the active view (ViewManager.getActive() == this). This prevents the inactive Poly instance from consuming note feedback and contaminating its pressed-key state while the classic sequencer or another view is active. The observer registration itself remains host-lifetime because API 17 exposes no removal method; this is an explicit compatibility constraint, not a claim that the listener is unregistered.
+
+The Poly keyboard fundamental is evaluated before transient selection/playback highlighting. Its pad color is always resolved through the selected track's DAW color path, so selecting or physically holding the fundamental cannot replace the track identity color. A Python regression test protects both this priority and the active-view observer routing.
