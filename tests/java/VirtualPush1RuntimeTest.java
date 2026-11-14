@@ -110,6 +110,8 @@ public final class VirtualPush1RuntimeTest
     private static boolean cursorDeviceExists;
     private static boolean deviceSlotExists;
     private static boolean deviceCapabilitiesSupported = true;
+    /** Return null for an empty ILayerBank slot to model hosts that do so. */
+    private static boolean returnNullForLayerItems;
 
     private static final class State
     {
@@ -257,6 +259,23 @@ public final class VirtualPush1RuntimeTest
         final PushControllerSetup setup = new PushControllerSetup (host, factory, global, document);
         setup.init ();
         setup.startup ();
+
+        // Regression: an empty API layer slot may be represented by null.
+        // A Push 1 second-row mute/solo action must ignore it rather than crash.
+        final var startupModes = setup.getSurface ().getModeManager ();
+        require (startupModes.get (Modes.DEVICE_LAYER) != null,
+            "Device Layer mode was not registered for empty-slot regression coverage");
+        startupModes.setActive (Modes.DEVICE_LAYER);
+        returnNullForLayerItems = true;
+        try
+        {
+            midi.device ().tapButton (VirtualPush1Device.BOTTOM_ROW_FIRST);
+        }
+        finally
+        {
+            returnNullForLayerItems = false;
+        }
+        startupModes.setActive (Modes.TRACK);
 
         // Match DrivenByMoss AbstractHwButton's 300 ms long-press contract.
         // A short tap must never be upgraded to LONG after the release.
@@ -2846,6 +2865,8 @@ public final class VirtualPush1RuntimeTest
 
     private static Object defaultValue (final Class<?> type, final Type genericType)
     {
+        if (returnNullForLayerItems && type == de.mossgrabers.framework.daw.data.ILayer.class)
+            return null;
         if (type == void.class) return null;
         if (type == boolean.class) return false;
         if (type == byte.class) return (byte) 0;
