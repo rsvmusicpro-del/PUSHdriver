@@ -54,6 +54,13 @@ public class DeviceChainsMode extends DeviceParamsMode
 
 
     /** {@inheritDoc} */
+    private boolean isAvailableChain (final String [] slotChains, final int index)
+    {
+        return slotChains != null && index >= 0 && index < slotChains.length
+            && slotChains[index] != null && !slotChains[index].isBlank ();
+    }
+
+
     @Override
     public void onSecondRow (final int index, final ButtonEvent event)
     {
@@ -63,12 +70,10 @@ public class DeviceChainsMode extends DeviceParamsMode
         if (event == ButtonEvent.UP)
         {
             final ICursorDevice cd = this.model.getCursorDevice ();
-            if (!cd.doesExist ())
-                return;
-            if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+            if (!cd.doesExist () || !this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
                 return;
             final String [] slotChains = cd.getSlotChains ();
-            if (slotChains == null || index >= slotChains.length || slotChains[index] == null || slotChains[index].isBlank ())
+            if (!this.isAvailableChain (slotChains, index))
                 return;
             cd.selectSlotChain (slotChains[index]);
             this.setSelectorContext (SelectorContext.DEVICES);
@@ -92,7 +97,7 @@ public class DeviceChainsMode extends DeviceParamsMode
             if (!cursorDevice.doesExist () || !this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
                 return PushColorManager.PUSH1_COLOR_BLACK;
             final String [] slotChains = cursorDevice.getSlotChains ();
-            return slotChains != null && index < slotChains.length
+            return this.isAvailableChain (slotChains, index)
                 ? PushColorManager.PUSH1_COLOR_GREEN_LO
                 : PushColorManager.PUSH1_COLOR_BLACK;
         }
@@ -114,7 +119,7 @@ public class DeviceChainsMode extends DeviceParamsMode
         final String [] slotChains = this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS) ? cd.getSlotChains () : new String [0];
         for (int i = 0; i < 8; i++)
         {
-            final String chain = slotChains != null && i < slotChains.length && slotChains[i] != null ? slotChains[i] : "";
+            final String chain = this.isAvailableChain (slotChains, i) ? slotChains[i] : "";
             display.setCell (0, i, chain);
         }
 
@@ -140,9 +145,9 @@ public class DeviceChainsMode extends DeviceParamsMode
         for (int i = 0; i < 8; i++)
         {
             final boolean isTopMenuOn = this.getTopMenuEnablement (cd, hasPinning, i);
-            final String bottomMenu = slotChains != null && i < slotChains.length ? slotChains[i] : "";
+            final String bottomMenu = this.isAvailableChain (slotChains, i) ? slotChains[i] : "";
             final String bottomMenuIcon = "";
-            final boolean isBottomMenuOn = slotChains != null && i < slotChains.length;
+            final boolean isBottomMenuOn = this.isAvailableChain (slotChains, i);
             display.addParameterElement (this.hostMenu[i], isTopMenuOn, bottomMenu, bottomMenuIcon, bottomMenuColor, isBottomMenuOn, "", 0, "", false, -1);
         }
     }
