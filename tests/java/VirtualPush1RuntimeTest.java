@@ -1036,12 +1036,13 @@ public final class VirtualPush1RuntimeTest
 
         for (int note = 36; note <= 39; note++)
         {
-            polySequencerView.onGridNote (note, 100);
-            polySequencerView.onGridNote (note, 0);
+            final int column = note - 36;
+            midi.device ().pressPad (0, column, 100);
+            midi.device ().releasePad (0, column);
         }
-        // Hardware pad 92 is the first step (step zero) in the upper grid.
-        polySequencerView.onGridNote (92, 100);
-        polySequencerView.onGridNote (92, 0);
+        // Physical pad 92 (row 7, column 0) is the first step in the upper grid.
+        midi.device ().pressPad (7, 0, 100);
+        midi.device ().releasePad (7, 0);
         for (int note = 36; note <= 39; note++)
             require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
                 "Poly Sequencer did not write selected MIDI note " + note + " to the first step");
@@ -1060,16 +1061,16 @@ public final class VirtualPush1RuntimeTest
             "Poly Sequencer playhead hid the selected long-note continuation color");
 
         // A second step tap must add notes without toggling existing notes off.
-        polySequencerView.onGridNote (92, 100);
-        polySequencerView.onGridNote (92, 0);
+        midi.device ().pressPad (7, 0, 100);
+        midi.device ().releasePad (7, 0);
         for (int note = 36; note <= 39; note++)
             require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
                 "Poly Sequencer erased an existing note while adding to an occupied step");
 
         polySequencerView.onGridNoteLongPress (92);
         polySequencerView.onGridNote (92, 0);
-        polySequencerView.onGridNote (36, 100);
-        polySequencerView.onGridNote (36, 0);
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
         require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, 36)).getState () == StepState.OFF,
             "Poly Sequencer did not remove the tapped note from the edited step");
         for (int note = 37; note <= 39; note++)
