@@ -342,6 +342,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             final int childPosition = cd.getPosition ();
             final boolean childNested = cd.isNested ();
             final boolean childHasLayers = cd.hasLayers ();
+            this.releaseAllTouchedParameters ();
             cd.selectParent ();
             this.awaitParentCursor (cd, modeManager, deviceParamsMode, childName, childPosition,
                 childNested, childHasLayers, transition, 0);
