@@ -1002,9 +1002,9 @@ public final class VirtualPush1RuntimeTest
         require (Math.abs (musicalModel.stepLength () - Resolution.values ()[4].getValue ()) < 0.000001,
             "Sequencer resolution selection did not update the clip step length");
 
-        // Exercise the production Poly Sequencer's persistent note-selection,
-        // additive step programming, per-note removal, Scale mapping and both
-        // whole-step and individual-note duration gestures.
+        // Exercise the production DrivenByMoss Poly Sequencer interaction:
+        // lower pads select/perform notes, upper pads toggle complete steps,
+        // and the Push long-note continuation feedback remains intact.
         viewManager.setActive (Views.POLY_SEQUENCER);
         final PolySequencerView polySequencerView = (PolySequencerView) viewManager.get (Views.POLY_SEQUENCER);
         scaleModel[0].setChromatic (true);
@@ -1025,9 +1025,6 @@ public final class VirtualPush1RuntimeTest
         require (expectedRootColor.equals (rootColor),
             "Poly Sequencer fundamental did not retain the selected track color");
 
-        // Exercise the real Push MIDI path: the lower keyboard must send note
-        // on/off state, while the fundamental keeps the track color both held
-        // and persistently selected.
         midi.device ().pressPad (0, 0, 100);
         require (polySequencerView.getKeyManager ().isKeyPressed (mappedRoot),
             "Poly Sequencer lower pad did not trigger its mapped MIDI note");
@@ -1037,26 +1034,29 @@ public final class VirtualPush1RuntimeTest
         midi.device ().releasePad (0, 0);
         require (!polySequencerView.getKeyManager ().isKeyPressed (mappedRoot),
             "Poly Sequencer lower pad did not release its mapped MIDI note");
-        final String selectedRootColor = (String) polyGridColor.invoke (polySequencerView, true, false, rootTrack, 36);
-        require (expectedRootColor.equals (selectedRootColor),
-            "Poly Sequencer selected fundamental lost the selected track color");
 
-        for (int note = 36; note <= 39; note++)
+        // Select a four-note chord on the lower keyboard, then program step 0.
+        for (int column = 0; column < 4; column++)
         {
-            final int column = note - 36;
             midi.device ().pressPad (0, column, 100);
             midi.device ().releasePad (0, column);
         }
-        // Physical pad 92 (row 7, column 0) is the first step in the upper grid.
         midi.device ().pressPad (7, 0, 100);
         midi.device ().releasePad (7, 0);
         for (int note = 36; note <= 39; note++)
             require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
-                "Poly Sequencer did not write selected MIDI note " + note + " to the first step");
+                "DrivenByMoss Poly Sequencer did not program selected MIDI note " + note + " in the first step");
 
-        // The Poly Sequencer edit highlight must follow a selected long note
-        // through its continuation pads, including while the playhead is there.
+        // The upstream Poly gesture toggles an occupied step off as a unit.
+        midi.device ().pressPad (7, 0, 100);
+        midi.device ().releasePad (7, 0);
+        for (int note = 36; note <= 39; note++)
+            require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.OFF,
+                "DrivenByMoss Poly Sequencer did not clear the occupied step");
+
+        // Restore one long note and verify selected continuation feedback.
         final NotePosition polyLongPosition = new NotePosition (0, 0, 37);
+        musicalModel.noteClip ().toggleStep (polyLongPosition, 100);
         musicalModel.noteClip ().updateStepDuration (polyLongPosition, 4 * Resolution.getValueAt (polySequencerView.getResolutionIndex ()));
         final IStepInfo polyContinuation = musicalModel.noteClip ().getStep (new NotePosition (0, 1, 37));
         require (polyContinuation.getState () == StepState.CONTINUE,
@@ -1068,60 +1068,6 @@ public final class VirtualPush1RuntimeTest
             polySequencerView, polyContinuation, true, 1, List.of (polyLongPosition));
         require ("COLOR_STEP_SELECTED".equals (polySelectedColor),
             "Poly Sequencer playhead hid the selected long-note continuation color");
-
-        // A second step tap must add notes without toggling existing notes off.
-        midi.device ().pressPad (7, 0, 100);
-        midi.device ().releasePad (7, 0);
-        for (int note = 36; note <= 39; note++)
-            require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
-                "Poly Sequencer erased an existing note while adding to an occupied step");
-
-        polySequencerView.onGridNoteLongPress (92);
-        polySequencerView.onGridNote (92, 0);
-        midi.device ().pressPad (0, 0, 100);
-        midi.device ().releasePad (0, 0);
-        require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, 36)).getState () == StepState.OFF,
-            "Poly Sequencer did not remove the tapped note from the edited step");
-        for (int note = 37; note <= 39; note++)
-            require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
-                "Poly Sequencer removed a neighbouring note while editing one pitch");
-
-        // Select notes on both sides of a delay longer than the former
-        // 500 ms note-memory timeout. All four pitches must remain selected.
-        Thread.sleep (550);
-
-        // Seed the selected-note target to isolate the individual-duration
-        // path; the virtual button proxy models the held source-step gesture.
-        final java.lang.reflect.Field durationEditNote = PolySequencerView.class.getDeclaredField ("durationEditNote");
-        durationEditNote.setAccessible (true);
-        final java.lang.reflect.Method changePolyLength = AbstractPolySequencerView.class.getDeclaredMethod (
-            "changeLengthOfNotes", INoteClip.class, NotePosition.class);
-        changePolyLength.setAccessible (true);
-        final IHwButton sourceStepButton = surface.getButton (ButtonID.get (ButtonID.PAD1, 56));
-        sourceStepButton.trigger (ButtonEvent.DOWN);
-        sourceStepButton.trigger (ButtonEvent.LONG);
-        // Long-press opens the step editor and initializes its note selection;
-        // choose the individual pitch after that edit context is established.
-        durationEditNote.setInt (polySequencerView, 37);
-        changePolyLength.invoke (polySequencerView, musicalModel.noteClip (), new NotePosition (0, 2, 0));
-        sourceStepButton.trigger (ButtonEvent.UP);
-        final double individualDuration = 3 * Resolution.getValueAt (polySequencerView.getResolutionIndex ());
-        require (Math.abs (musicalModel.noteClip ().getStep (new NotePosition (0, 0, 37)).getDuration () - individualDuration) < 0.000001,
-            "Poly Sequencer did not resize the selected note's duration");
-        require (Math.abs (musicalModel.noteClip ().getStep (new NotePosition (0, 0, 38)).getDuration () - 0.25) < 0.000001,
-            "Poly Sequencer individual-note resize changed a neighbouring note");
-
-        // With no individual note selected, the existing whole-step duration
-        // gesture must continue to resize every note in the source step.
-        durationEditNote.setInt (polySequencerView, -1);
-        sourceStepButton.trigger (ButtonEvent.DOWN);
-        sourceStepButton.trigger (ButtonEvent.LONG);
-        changePolyLength.invoke (polySequencerView, musicalModel.noteClip (), new NotePosition (0, 3, 0));
-        sourceStepButton.trigger (ButtonEvent.UP);
-        final double wholeStepDuration = 4 * Resolution.getValueAt (polySequencerView.getResolutionIndex ());
-        for (int note = 37; note <= 39; note++)
-            require (Math.abs (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getDuration () - wholeStepDuration) < 0.000001,
-                "Poly Sequencer whole-step length gesture did not resize every note");
 
         // Changing the active Scale changes the keyboard mapping, not notes
         // already committed to the clip (including pitches outside the Scale).
