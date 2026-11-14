@@ -1399,11 +1399,15 @@ public final class VirtualPush1RuntimeTest
             VirtualPush1Device.DELETE, VirtualPush1Device.STOP
         };
         final long fuzzBaseSeed = 0x505553483146555AL;
+        final String replaySeedProperty = System.getProperty ("push1.fuzz.seed");
+        final int fuzzSeedCount = replaySeedProperty == null ? 4 : 1;
         int fuzzedScenarios = 0;
         int fuzzedActions = 0;
-        for (int seedIndex = 0; seedIndex < 4; seedIndex++)
+        for (int seedIndex = 0; seedIndex < fuzzSeedCount; seedIndex++)
         {
-            final long seed = fuzzBaseSeed + seedIndex * 0x9E3779B97F4A7C15L;
+            final long seed = replaySeedProperty == null
+                ? fuzzBaseSeed + seedIndex * 0x9E3779B97F4A7C15L
+                : Long.decode (replaySeedProperty);
             final long [] randomState = { seed };
             for (final Views fuzzView: allPushViews)
             {
