@@ -601,9 +601,8 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         }
 
         // The eight action labels now align with the action row below the LCD.
-        final String [] actionLabels = { "On", "Params", "Expand", "Chains", "Banks", "Pin", "Window", "Up" };
-        for (int i = 0; i < actionLabels.length; i++)
-            display.setCell (3, i, i == 4 ? actionLabels[i] + (this.getSelectorContext () == SelectorContext.DEVICES ? " D" : " P") : actionLabels[i]);
+        for (int i = 0; i < this.hostMenu.length; i++)
+            display.setCell (3, i, i == 4 ? this.hostMenu[i] + (this.getSelectorContext () == SelectorContext.DEVICES ? " D" : " P") : this.hostMenu[i]);
     }
 
     /** {@inheritDoc} */
