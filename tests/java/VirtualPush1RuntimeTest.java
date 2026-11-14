@@ -711,8 +711,8 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page Out");
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Parameter page In");
-        requireAction ("parameterPage.selectPreviousPage", "Out did not use upstream previous-page navigation");
-        requireAction ("parameterPage.selectNextPage", "In did not use upstream next-page navigation");
+        requireAction ("parameterPage.scrollBackwards", "Out did not use upstream parameter-bank navigation");
+        requireAction ("parameterPage.scrollForwards", "In did not use upstream parameter-bank navigation");
         deviceParamsMode.setShowDevices (true);
 
         // Device Chains is an upstream submode: top row selects a chain and
@@ -2347,6 +2347,19 @@ public final class VirtualPush1RuntimeTest
     {
         return (IParameterBank) Proxy.newProxyInstance (IParameterBank.class.getClassLoader (),
             new Class<?> [] { IParameterBank.class }, (proxy, method, args) -> {
+                if (List.of ("scrollBackwards", "scrollForwards", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
+                {
+                    MODEL_ACTIONS.add ("parameterPage." + method.getName ());
+                    switch (method.getName ())
+                    {
+                        case "scrollBackwards": parameterPageIndex = Math.max (0, parameterPageIndex - 1); break;
+                        case "scrollForwards": parameterPageIndex = Math.min (3, parameterPageIndex + 1); break;
+                        case "selectPreviousPage": parameterPageIndex = Math.max (0, parameterPageIndex - 1); break;
+                        case "selectNextPage": parameterPageIndex = Math.min (3, parameterPageIndex + 1); break;
+                        default: break;
+                    }
+                    return null;
+                }
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
