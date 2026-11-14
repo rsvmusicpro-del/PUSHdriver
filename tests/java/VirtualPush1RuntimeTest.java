@@ -116,6 +116,7 @@ public final class VirtualPush1RuntimeTest
     private static boolean cursorDeviceExists;
     private static boolean deviceSlotExists;
     private static boolean virtualDeviceParametersExist;
+    private static String [] virtualSlotChains = { "Chain 1", "Chain 2" };
     // Model API capabilities independently; Bitwig hosts may support one feature but not another.
     private static final EnumSet<Capability> SUPPORTED_CAPABILITIES = EnumSet.allOf (Capability.class);
     /** Return null for an empty ILayerBank slot to model hosts that do so. */
@@ -817,6 +818,29 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Device Banks to Devices");
         require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
             "Banks did not cycle from Chains back to Devices");
+
+        // Empty, null and whitespace-only chain slots must be dark and inert,
+        // with identical semantics in the LED, text and graphic render paths.
+        deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
+        require (modes.isActive (Modes.DEVICE_CHAINS), "Chains action did not enter the Chains selector");
+        final DeviceParamsMode chainsMode = (DeviceParamsMode) modes.get (Modes.DEVICE_CHAINS);
+        virtualSlotChains = new String [] { "Chain 1", null, "   ", "Chain 4" };
+        require (chainsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 0)) == PushColorManager.PUSH1_COLOR_GREEN_LO,
+            "A named chain must be shown as available");
+        require (chainsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "A null chain slot must be dark");
+        require (chainsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 2)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "A whitespace-only chain slot must be dark");
+        MODEL_ACTIONS.clear ();
+        chainsMode.onSecondRow (1, ButtonEvent.UP);
+        chainsMode.onSecondRow (2, ButtonEvent.UP);
+        require (MODEL_ACTIONS.stream ().noneMatch (action -> action.startsWith ("device.selectSlotChain:")),
+            "Null and whitespace-only chain slots must not be selectable");
+        chainsMode.onSecondRow (0, ButtonEvent.UP);
+        requireAction ("device.selectSlotChain:Chain 1", "A valid chain slot must remain selectable");
+        require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
+            "Selecting a valid chain must return to the Devices selector");
+        virtualSlotChains = new String [] { "Chain 1", "Chain 2" };
 
         // Every device-selector position is exercised through production MIDI.
         // Selecting the current device opens its parameter pages.
@@ -2347,7 +2371,7 @@ public final class VirtualPush1RuntimeTest
                     case "getSlotChains":
                         if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
                             throw new AssertionError ("Unsupported slot-chain capability was queried");
-                        return new String [] { "Chain 1", "Chain 2" };
+                        return virtualSlotChains.clone ();
                     case "selectSlotChain":
                         if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
                             throw new AssertionError ("Unsupported slot-chain capability was invoked");
