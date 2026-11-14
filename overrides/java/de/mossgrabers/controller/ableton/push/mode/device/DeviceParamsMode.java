@@ -262,7 +262,9 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         int index = this.isButtonRow (0, buttonID);
         if (index >= 0)
         {
-            final int unavailable = PushColorManager.PUSH1_COLOR2_GREY_LO;
+            // Row 1 uses Push 1's dedicated steady-color command set. COLOR2
+            // indices here overlap the first-row blink commands (e.g. 21/23).
+            final int unavailable = PushColorManager.PUSH1_COLOR_BLACK;
             if (!cd.doesExist ())
                 return unavailable;
 
@@ -272,8 +274,8 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 if (!bank.getItem (index).doesExist ())
                     return unavailable;
                 return index == cd.getIndex ()
-                    ? PushColorManager.PUSH1_COLOR2_GREEN_HI
-                    : PushColorManager.PUSH1_COLOR2_GREEN_LO;
+                    ? PushColorManager.PUSH1_COLOR_GREEN_HI
+                    : PushColorManager.PUSH1_COLOR_GREEN_LO;
             }
 
             final IParameterPageBank bank = cd.getParameterPageBank ();
