@@ -1431,7 +1431,13 @@ public final class VirtualPush1RuntimeTest
                         case "setStep":
                         {
                             final NotePosition position = (NotePosition) args[0];
-                            this.steps.put (this.key (position), StepState.START);
+                            final String key = this.key (position);
+                            this.steps.put (key, StepState.START);
+                            // INoteClip.setStep(position, velocity, duration)
+                            // persists the supplied duration in Bitwig. Keep the
+                            // virtual host model faithful when that overload is used.
+                            if (args.length > 2 && args[2] instanceof Number duration)
+                                this.durations.put (key, duration.doubleValue ());
                             this.lastToggle = new NotePosition (position);
                             return null;
                         }
