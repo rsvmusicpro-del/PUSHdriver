@@ -1267,7 +1267,7 @@ public final class VirtualPush1RuntimeTest
             setup.flush ();
             hardware.flush ();
             for (int row = 0; row < 4; row++)
-                require (midi.device ().getLcdRow (row).length () == Push1DisplayLayout.DISPLAY_COLUMNS,
+                require (midi.device ().getLcdRow (row).length () == Push1DisplayLayout.COLUMNS,
                     "View " + viewID + " did not produce a complete Push 1 LCD row " + row);
         }
         musicalModel.setCanHoldNotes (false);
