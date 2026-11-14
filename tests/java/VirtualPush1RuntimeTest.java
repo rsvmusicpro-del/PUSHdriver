@@ -939,6 +939,15 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 6);
         sequencerView.updateControlSurface ();
 
+        // Out-of-range MIDI notes must never be interpreted as physical pads.
+        final StepState classicBeforeInvalidInput = musicalModel.noteClip ().getStep (new NotePosition (0, 0, 36)).getState ();
+        sequencerView.onGridNote (35, 100);
+        sequencerView.onGridNote (100, 0);
+        sequencerView.onGridNoteLongPress (35);
+        sequencerView.onGridNoteLongPress (100);
+        require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, 36)).getState () == classicBeforeInvalidInput,
+            "Classic Sequencer treated a non-pad MIDI note as a Push 1 pad");
+
         // Physical MIDI pad taps must still create and remove a classic sequencer note.
         final int classicPadNote = sequencerView.getKeyManager ().map (3);
         final NotePosition classicPadPosition = new NotePosition (0, 1, classicPadNote);
@@ -1013,6 +1022,13 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 6);
         polySequencerView.updateControlSurface ();
 
+        // The poly view must reject unrelated MIDI notes before calculating
+        // physical pad coordinates or touching the persistent selection.
+        polySequencerView.onGridNote (35, 100);
+        polySequencerView.onGridNote (100, 0);
+        polySequencerView.onGridNoteLongPress (35);
+        polySequencerView.onGridNoteLongPress (100);
+
         final ITrack rootTrack = newClipModel.cursorTrack ();
         final int mappedRoot = polySequencerView.getKeyManager ().map (36);
         require (mappedRoot >= 0 && Math.floorMod (mappedRoot, 12) == scaleModel[0].getScaleOffset (),
@@ -1081,6 +1097,20 @@ public final class VirtualPush1RuntimeTest
         for (int note = 37; note <= 39; note++)
             require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
                 "Poly Sequencer removed a neighbouring note while editing one pitch");
+
+        // Leaving and re-entering Poly Sequencer must discard only the
+        // transient step editor, not the persistent note selection. Otherwise
+        // a later keyboard tap can unexpectedly delete a note from the old step.
+        viewManager.setActive (Views.SEQUENCER);
+        viewManager.setActive (Views.POLY_SEQUENCER);
+        final java.lang.reflect.Field editingStepField = PolySequencerView.class.getDeclaredField ("editingStep");
+        editingStepField.setAccessible (true);
+        require (editingStepField.getInt (polySequencerView) == -1,
+            "Poly Sequencer retained a stale step editor after reactivation");
+        midi.device ().pressPad (0, 1, 100);
+        midi.device ().releasePad (0, 1);
+        require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, 37)).getState () == StepState.START,
+            "Poly Sequencer removed a note after returning from another view");
 
         // Select notes on both sides of a delay longer than the former
         // 500 ms note-memory timeout. All four pitches must remain selected.

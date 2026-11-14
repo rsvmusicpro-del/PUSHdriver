@@ -51,6 +51,20 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
 
 
     /**
+     * Ignore MIDI notes outside the Push 1's physical 8x8 pad matrix.
+     * The host can deliver unrelated note events to the view; treating them
+     * as pad indices would address invalid buttons or clip positions.
+     */
+    @Override
+    public void onGridNote (final int note, final int velocity)
+    {
+        if (note < 36 || note > 99)
+            return;
+        super.onGridNote (note, velocity);
+    }
+
+
+    /**
      * Keep the visible sequencer page locked to Bitwig's live playhead while
      * auto-follow is enabled. The inherited renderer paints the moving step
      * and the top-row page indicators using the existing Push 1 LED colors.
@@ -205,6 +219,8 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             return;
 
         final int index = note - 36;
+        if (index < 0 || index >= 64)
+            return;
         this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();
 
         final int y = index / 8;

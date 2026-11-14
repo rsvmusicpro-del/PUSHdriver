@@ -51,6 +51,30 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
 
 
     /**
+     * Clear transient step editing whenever this view is re-entered. The
+     * persistent pitch selection is intentionally retained across views.
+     */
+    @Override
+    public void onActivate ()
+    {
+        this.clearStepEditor ();
+        super.onActivate ();
+    }
+
+
+    /**
+     * Ignore MIDI notes outside the Push 1's physical 8x8 pad matrix.
+     */
+    @Override
+    public void onGridNote (final int note, final int velocity)
+    {
+        if (note < 36 || note > 99)
+            return;
+        super.onGridNote (note, velocity);
+    }
+
+
+    /**
      * Keep selected notes after the physical pad is released. Select+pad toggles
      * a note in the selection without forwarding the pad as a played note.
      * While a step is being edited, ordinary note-pad taps remove that pitch
@@ -141,17 +165,19 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
         final int step = this.numColumns * (this.numRows - 1 - y) + x;
         final int channel = this.configuration.getMidiEditChannel ();
 
+        // Consume the release belonging to a long-press before inspecting
+        // modifier state. Shift/Select may change while the pad is held; the
+        // release must never be reinterpreted as a different gesture.
+        if (this.longPressStepPendingRelease)
+        {
+            final boolean isLongPressRelease = step == this.editingStep;
+            this.longPressStepPendingRelease = false;
+            if (isLongPressRelease)
+                return;
+        }
+
         if (this.handleSequencerAreaButtonCombinations (clip, channel, step))
             return;
-
-        // The release following a long-press is an edit gesture, not a step tap.
-        if (this.longPressStepPendingRelease && step == this.editingStep)
-        {
-            this.longPressStepPendingRelease = false;
-            return;
-        }
-        if (this.longPressStepPendingRelease && step != this.editingStep)
-            this.longPressStepPendingRelease = false;
 
         // A normal tap on another step exits the previous step's note editor.
         if (this.editingStep >= 0 && this.editingStep != step)
@@ -237,12 +263,16 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
             return;
 
         final int index = note - 36;
-        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();
+        if (index < 0 || index >= 64)
+            return;
         final IHwButton button = this.surface.getButton (ButtonID.get (ButtonID.PAD1, index));
+        if (button == null)
+            return;
+        button.setConsumed ();
 
         final int x = index % this.numColumns;
         final int y = index / this.numColumns;
-        if (y < this.numRows - this.numSequencerRows)
+        if (x < 0 || x >= this.numColumns || y < this.numRows - this.numSequencerRows || y >= this.numRows)
             return;
 
         this.editingStep = this.numColumns * (this.numRows - 1 - y) + x;
@@ -356,7 +386,7 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
             final int y = this.numRows - 1 - sourceStep / this.numColumns;
             final int pad = y * this.numColumns + x;
             final IHwButton button = this.surface.getButton (ButtonID.get (ButtonID.PAD1, pad));
-            if (!button.isLongPressed ())
+            if (button == null || !button.isLongPressed ())
                 continue;
 
             button.setConsumed ();
