@@ -238,6 +238,133 @@ sequencer_colors.write_text(source.replace(highlight,
     "                if (highlight)\n"
     "                    return this.model.hasRecordingState () ? COLOR_STEP_HILITE_RECORD : COLOR_STEP_HILITE_CONTENT;", 2))
 
+
+
+# Selected notes must remain visible when the playhead crosses them. The same
+# rule applies to sustained notes: every continuation pad inherits its start's
+# edit highlight until the note ends.
+source = sequencer_colors.read_text()
+old = """                if (highlight)
+                    return this.model.hasRecordingState () ? COLOR_STEP_HILITE_RECORD : COLOR_STEP_HILITE_CONTENT;
+                if (isEdit (channel, step, note, editNotes))
+                    return COLOR_STEP_SELECTED;"""
+new = """                if (isEditOrContinuation (channel, step, note, editNotes))
+                    return COLOR_STEP_SELECTED;
+                if (highlight)
+                    return this.model.hasRecordingState () ? COLOR_STEP_HILITE_RECORD : COLOR_STEP_HILITE_CONTENT;"""
+replace_once(sequencer_colors, old, new, "Classic sequencer selected-note priority")
+
+poly_sequencer = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractPolySequencerView.java"
+source = poly_sequencer.read_text()
+old = """                if (hilite)
+                    return COLOR_STEP_HILITE_CONTENT;
+                if (isChordEdit (channel, step, editNotes))
+                    return COLOR_STEP_SELECTED;"""
+new = """                if (isChordEdit (channel, step, editNotes))
+                    return COLOR_STEP_SELECTED;
+                if (hilite)
+                    return COLOR_STEP_HILITE_CONTENT;"""
+if source.count(old) != 2:
+    raise SystemExit("AbstractPolySequencerView: expected two selected-step color branches")
+poly_sequencer.write_text(source.replace(old, new))
+
+replace_once(poly_sequencer,
+    """    protected static boolean isChordEdit (final int channel, final int step, final List<NotePosition> editNotes)
+    {
+        for (final NotePosition editNote: editNotes)
+        {
+            if (editNote.getChannel () == channel && editNote.getStep () == step)
+                return true;
+        }
+        return false;
+    }""",
+    """    protected boolean isChordEdit (final int channel, final int step, final List<NotePosition> editNotes)
+    {
+        final INoteClip clip = this.getClip ();
+        for (final NotePosition editNote: editNotes)
+        {
+            if (editNote.getChannel () != channel || editNote.getStep () > step)
+                continue;
+
+            final NotePosition position = new NotePosition (channel, step, editNote.getNote ());
+            for (int sourceStep = step; sourceStep >= editNote.getStep (); sourceStep--)
+            {
+                position.setStep (sourceStep);
+                final StepState state = clip.getStep (position).getState ();
+                if (state == StepState.START)
+                {
+                    if (sourceStep == editNote.getStep ())
+                        return true;
+                    break;
+                }
+                if (state == StepState.OFF)
+                    break;
+            }
+        }
+        return false;
+    }""",
+    "Poly sequencer edit highlight spans note continuations")
+
+replace_once(sequencer_colors,
+    """    protected static boolean isEdit (final int channel, final int step, final int note, final List<NotePosition> editNotes)
+    {
+        for (final NotePosition editNote: editNotes)
+        {
+            if (editNote.getChannel () == channel && editNote.getStep () == step && editNote.getNote () == note)
+                return true;
+        }
+        return false;
+    }""",
+    """    protected static boolean isEdit (final int channel, final int step, final int note, final List<NotePosition> editNotes)
+    {
+        for (final NotePosition editNote: editNotes)
+        {
+            if (editNote.getChannel () == channel && editNote.getStep () == step && editNote.getNote () == note)
+                return true;
+        }
+        return false;
+    }
+
+
+    /**
+     * Test if a displayed continuation belongs to a note selected for editing.
+     *
+     * @param channel The MIDI channel
+     * @param step The displayed step
+     * @param note The MIDI note
+     * @param editNotes The currently edited notes
+     * @return True if the step belongs to an edited note
+     */
+    protected boolean isEditOrContinuation (final int channel, final int step, final int note, final List<NotePosition> editNotes)
+    {
+        if (isEdit (channel, step, note, editNotes))
+            return true;
+
+        final INoteClip clip = this.getClip ();
+        final NotePosition position = new NotePosition (channel, step, note);
+        for (final NotePosition editNote: editNotes)
+        {
+            if (editNote.getChannel () != channel || editNote.getNote () != note || editNote.getStep () >= step)
+                continue;
+
+            for (int sourceStep = step; sourceStep > editNote.getStep (); sourceStep--)
+            {
+                position.setStep (sourceStep);
+                final StepState state = clip.getStep (position).getState ();
+                if (state == StepState.START)
+                {
+                    if (sourceStep == editNote.getStep ())
+                        return true;
+                    break;
+                }
+                if (state == StepState.OFF)
+                    break;
+            }
+        }
+        return false;
+    }""",
+    "Classic sequencer edit highlight spans note continuations")
+
 drum_view = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractDrumView.java"
 replace_once(drum_view,
     '    public static final String COLOR_PAD_SELECTED    = "COLOR_PAD_SELECTED";\n',
