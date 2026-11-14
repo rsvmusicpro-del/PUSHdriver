@@ -25,3 +25,8 @@ This is a source-ownership gate, not a claim that static analysis can prove ever
 ## Root cause
 
 The old guard only searched for three named files under `overrides/java/.../mode/device`. The assembly script can also mutate upstream classes directly with `replace_once`, and it overlays all files in `overrides/java`. Neither path had a complete, reviewed ownership inventory. The virtual tests were behavior-oriented: if their expected row roles mirrored the implementation, the simulator could confirm the same incorrect contract. The new gate independently checks ownership and patch-surface drift before runtime tests.
+
+
+## In/Out adapter boundary
+
+The Push 1 In/Out command classes may choose which existing upstream item/page method to call, based on the upstream mode's own state. They must not own filter-column cursors, duplicate navigation state, or add new methods to Device/Browser mode classes. The virtual runtime test asserts device selection, parameter-bank scrolling and Browser content-type paging through those upstream methods.
