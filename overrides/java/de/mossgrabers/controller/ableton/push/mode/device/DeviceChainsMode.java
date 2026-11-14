@@ -88,11 +88,11 @@ public class DeviceChainsMode extends DeviceParamsMode
         {
             final ICursorDevice cursorDevice = this.model.getCursorDevice ();
             if (!cursorDevice.doesExist ())
-                return PushColorManager.PUSH1_COLOR2_GREY_LO;
+                return PushColorManager.PUSH1_COLOR_BLACK;
             final String [] slotChains = cursorDevice.getSlotChains ();
             return index < slotChains.length
-                ? PushColorManager.PUSH1_COLOR2_GREEN_LO
-                : PushColorManager.PUSH1_COLOR2_GREY_LO;
+                ? PushColorManager.PUSH1_COLOR_GREEN_LO
+                : PushColorManager.PUSH1_COLOR_BLACK;
         }
 
         // The bottom row remains the inherited Device action/hierarchy row.
