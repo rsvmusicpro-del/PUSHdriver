@@ -408,6 +408,17 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Lower-row Session view selection");
         require (surface.getViewManager ().getActiveID () == Views.SESSION,
             "Session view options displayed on the lower LCD row must use the lower physical row");
+
+        modes.setActive (Modes.ADD_TRACK);
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Upper-row Instrument favorite");
+        require (MODEL_ACTIONS.contains ("track.addChannel:INSTRUMENT"),
+            "Instrument favorites displayed in the upper LCD row must use the upper physical row");
+        modes.setActive (Modes.ADD_TRACK);
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Lower-row Audio favorite");
+        require (MODEL_ACTIONS.contains ("track.addChannel:AUDIO"),
+            "Audio favorites displayed in the lower LCD row must use the lower physical row");
         midi.device ().tapButton (VirtualPush1Device.NOTE);
         require (Views.isNoteView (surface.getViewManager ().getActiveID ()), "Note CC did not select a note view");
         midi.device ().tapButton (VirtualPush1Device.SESSION);
@@ -1605,6 +1616,11 @@ public final class VirtualPush1RuntimeTest
                             case "select" -> { MODEL_ACTIONS.add ("device.select"); yield null; }
                             default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                         });
+                if (method.getName ().equals ("addChannel"))
+                {
+                    MODEL_ACTIONS.add ("track.addChannel:" + args[0]);
+                    return null;
+                }
                 if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("device." + method.getName ());
