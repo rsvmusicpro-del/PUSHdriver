@@ -30,3 +30,18 @@ The old guard only searched for three named files under `overrides/java/.../mode
 ## In/Out adapter boundary
 
 The Push 1 In/Out command classes may choose which existing upstream item/page method to call, based on the upstream mode's own state. They must not own filter-column cursors, duplicate navigation state, or add new methods to Device/Browser mode classes. The virtual runtime test asserts device selection, parameter-bank scrolling and Browser content-type paging through those upstream methods.
+
+
+## Current intentional project-owned classes
+
+These are explicit, reviewed overlays or additions, not parallel classes loaded alongside an upstream class:
+
+| File | Ownership role |
+|---|---|
+| `PageLeftCommand`, `PageRightCommand` | Push 1 In/Out command adapter. They call existing upstream mode item/page methods; they do not maintain Device or Browser state. |
+| `PushCursorCommand` | Shift-aware arrow routing through the active mode's existing navigation API and the scene bank. |
+| `SequencerView`, `PolySequencerView` | Push 1-specific sequencer presentation and note/step editing built on DrivenByMoss abstract sequencer views. They replace the upstream concrete view classes at the same FQCN. |
+| `PushNewCommand` | New Push 1 clip-launcher command extending the upstream New command; not a second mode. |
+| `Push1DisplayGlyphs`, `Push1DisplayLayout`, `Push1DisplayProtocol`, `Push1DisplayText`, `Push1DisplayValueFormatter`, `Push1FirmwareVersion` | New Push 1 LCD/protocol support types; no upstream class is shadowed. |
+
+The two sequencer views are the largest remaining full-class overlays. They are not simultaneously registered beside another class with the same FQCN, but they can drift from future upstream changes. Their exact allowlist entry and the production runtime bench are mandatory until they can be reduced to smaller extension points.
