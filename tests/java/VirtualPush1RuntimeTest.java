@@ -115,6 +115,10 @@ public final class VirtualPush1RuntimeTest
     private static int parameterPageIndex = 1;
     private static boolean cursorDeviceExists;
     private static boolean deviceSlotExists;
+    private static String virtualCursorDeviceName = "Virtual Device";
+    private static int virtualCursorDevicePosition = 4;
+    private static boolean virtualCursorDeviceNested;
+    private static boolean virtualCursorDeviceHasLayers;
     private static boolean virtualDeviceParametersExist;
     private static String [] virtualSlotChains = { "Chain 1", "Chain 2" };
     private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
@@ -244,7 +248,7 @@ public final class VirtualPush1RuntimeTest
                         final ITrackBank trackBank = trackBankProxy (mixerModel);
                         final ISceneBank sceneBank = mixerModel.sceneBank ();
                         final IParameterBank parameterBank = parameterBankProxy ();
-                        final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank);
+                        final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank, state);
                         return Proxy.newProxyInstance (IModel.class.getClassLoader (),
                             new Class<?> [] { IModel.class }, (p, m, a) -> switch (m.getName ())
                             {
@@ -802,6 +806,39 @@ public final class VirtualPush1RuntimeTest
             "Parameter-page selection must release the originally touched parameter exactly once");
         requireAction ("parameterPage.selectPage:2", "Selecting a page must still reach the API-17 page bank");
         deviceParamsMode.setShowDevices (true);
+
+        // Parent selection must wait for Bitwig's asynchronous cursor update.
+        virtualCursorDeviceName = "Nested Child";
+        virtualCursorDevicePosition = 3;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceHasLayers = false;
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
+            "Parent channel must not be selected before the Bitwig cursor reports the parent");
+        drainScheduled (state, 73);
+        requireAction ("cursorDevice.selectParent", "Up must request exactly one parent transition");
+        requireAction ("cursorDevice.selectChannel", "The confirmed parent must select its hosting channel");
+        require (!deviceParamsMode.isShowDevices (),
+            "A confirmed parent transition must leave the selector on its parameter pages");
+
+        // A later device selection invalidates the pending parent callback.
+        deviceParamsMode.setShowDevices (true);
+        virtualCursorDeviceName = "Nested Child";
+        virtualCursorDevicePosition = 3;
+        virtualCursorDeviceNested = true;
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        deviceParamsMode.onSecondRow (1, ButtonEvent.UP);
+        virtualCursorDeviceName = "Different Device";
+        virtualCursorDevicePosition = 9;
+        drainScheduled (state, 73);
+        require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
+            "A stale parent callback must not select the channel of a newer cursor device");
+        virtualCursorDeviceName = "Virtual Device";
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceHasLayers = false;
         virtualDeviceParametersExist = false;
 
         // Confirm the physical MIDI bindings now dispatch actions on ROW1 and
@@ -2343,7 +2380,7 @@ public final class VirtualPush1RuntimeTest
         }
     }
 
-    private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters)
+    private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters, final State state)
     {
         final IDeviceBank devices = (IDeviceBank) Proxy.newProxyInstance (
             IDeviceBank.class.getClassLoader (), new Class<?> [] { IDeviceBank.class },
@@ -2421,6 +2458,22 @@ public final class VirtualPush1RuntimeTest
                 {
                     case "doesExist": return Boolean.valueOf (cursorDeviceExists);
                     case "getIndex": return Integer.valueOf (deviceIndex);
+                    case "getPosition": return Integer.valueOf (virtualCursorDevicePosition);
+                    case "getName": return virtualCursorDeviceName;
+                    case "isNested": return Boolean.valueOf (virtualCursorDeviceNested);
+                    case "hasLayers": return Boolean.valueOf (virtualCursorDeviceHasLayers);
+                    case "selectParent":
+                        MODEL_ACTIONS.add ("cursorDevice.selectParent");
+                        state.scheduled.add (new ScheduledTask (73, () -> {
+                            virtualCursorDeviceName = "Virtual Parent";
+                            virtualCursorDevicePosition = Math.max (0, virtualCursorDevicePosition - 1);
+                            virtualCursorDeviceNested = false;
+                            virtualCursorDeviceHasLayers = false;
+                        }));
+                        return null;
+                    case "selectChannel":
+                        MODEL_ACTIONS.add ("cursorDevice.selectChannel");
+                        return null;
                     case "getParameterBank": return parameters;
                     case "getDeviceBank": return devices;
                     case "getParameterPageBank": return pages;
