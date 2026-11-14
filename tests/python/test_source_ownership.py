@@ -69,5 +69,14 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_forbidden_navigation(source), [])
 
 
+    def test_duplicate_settings_identifier_is_detected(self):
+        source = 'settings.getEnumSetting("Mode", CATEGORY_RIBBON, options, "X")\nsettings.getRangeSetting("Mode", CATEGORY_RIBBON, 0, 10, 1, "", 2)\n'
+        self.assertEqual(MODULE.duplicate_setting_ids(source), ["CATEGORY_RIBBON::Mode"])
+
+    def test_duplicate_push_button_midi_id_is_detected(self):
+        source = "static final int PUSH_BUTTON_A = 0x10;\nstatic final int PUSH_BUTTON_B = 16;\n"
+        self.assertEqual(MODULE.duplicate_button_ids(source), ["PUSH_BUTTON_A, PUSH_BUTTON_B"])
+
+
 if __name__ == "__main__":
     unittest.main()

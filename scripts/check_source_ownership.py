@@ -86,6 +86,24 @@ def validate_override_inventory(actual):
   if "/mode/" in f"/{p}": errors.append(f"Project-owned mode implementation is forbidden: {p}")
   if Path(p).name in FORBIDDEN: errors.append(f"Project-owned Device/Browser implementation is forbidden: {p}")
  return errors
+def duplicate_setting_ids(source):
+ entries=re.findall(r'get(?:Boolean|Enum|Integer|Range|Color|Signal|String|Number)Setting\s*\(\s*"([^"]*)"\s*,\s*(CATEGORY_[A-Z0-9_]+)',source)
+ counts={}
+ for name,category in entries:
+  key=(category,name)
+  counts[key]=counts.get(key,0)+1
+ return sorted(f"{category}::{name}" for (category,name),count in counts.items() if count>1)
+
+
+def duplicate_button_ids(source):
+ entries=re.findall(r'\b(PUSH_BUTTON_[A-Z0-9_]+)\s*=\s*(0x[0-9a-fA-F]+|\d+)\s*;',source)
+ counts={}
+ for name,value in entries:
+  number=int(value,0)
+  counts.setdefault(number,[]).append(name)
+ return sorted(", ".join(names) for names in counts.values() if len(names)>1)
+
+
 def validate_unique_types(files):
  owners={}; errors=[]
  for path in files:
@@ -106,10 +124,11 @@ def main():
  errors += validate_override_inventory(actual_overrides)
  for rel in sorted(actual_overrides):
   own=root/rel; upstream=UPSTREAM/"src/main/java"/rel
-  if upstream.is_file():
-   try:
-    if java_types(own)!=java_types(upstream): errors.append(f"Override changes upstream type identity: {rel}")
-   except ValueError as e: errors.append(str(e))
+  try:
+   errors += validate_forbidden_navigation(own.read_text(encoding="utf-8"))
+   if upstream.is_file() and java_types(own)!=java_types(upstream):
+    errors.append(f"Override changes upstream type identity: {rel}")
+  except ValueError as e: errors.append(str(e))
  prepare=(ROOT/"scripts/prepare_push1.py").read_text(encoding="utf-8")
  targets=patch_targets(prepare)
  if targets!=PATCH_TARGET_ALLOWLIST:
@@ -118,6 +137,17 @@ def main():
  if not ASSEMBLED.exists(): errors.append("Assembled Java tree missing; run scripts/prepare_push1.py first.")
  else:
   errors += validate_unique_types(list(ASSEMBLED.rglob("*.java")))
+  config_file=ASSEMBLED/"de/mossgrabers/controller/ableton/push/PushConfiguration.java"
+  surface_file=ASSEMBLED/"de/mossgrabers/controller/ableton/push/controller/PushControlSurface.java"
+  if config_file.is_file():
+   config_source=config_file.read_text(encoding="utf-8")
+   duplicate_settings=duplicate_setting_ids(config_source)
+   if duplicate_settings: errors.append(f"Duplicate settings identifiers: {duplicate_settings}")
+   if not re.search(r"if\s*\(this\.isPush2\)\s*this\.activatePush2PadSettings\s*\(globalSettings\)\s*;\s*else\s*this\.activatePush1PadSettings\s*\(globalSettings\)\s*;",config_source):
+    errors.append("Push 1 and Push 2 pad settings are no longer mutually exclusive.")
+  if surface_file.is_file():
+   duplicate_buttons=duplicate_button_ids(surface_file.read_text(encoding="utf-8"))
+   if duplicate_buttons: errors.append(f"Duplicate Push button MIDI identifiers: {duplicate_buttons}")
   built=ASSEMBLED/"de/mossgrabers/controller/ableton/push/mode/device"
   upstream=UPSTREAM/"src/main/java/de/mossgrabers/controller/ableton/push/mode/device"
   if built.exists() and upstream.exists():
