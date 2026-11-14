@@ -1666,6 +1666,15 @@ public final class VirtualPush1RuntimeTest
                     case "getParameterBank": return parameters;
                     case "getDeviceBank": return devices;
                     case "getParameterPageBank": return pages;
+                    case "toggleEnabledState":
+                        MODEL_ACTIONS.add ("cursorDevice.toggleEnabledState");
+                        return null;
+                    case "toggleExpanded":
+                        MODEL_ACTIONS.add ("cursorDevice.toggleExpanded");
+                        return null;
+                    case "toggleWindowOpen":
+                        MODEL_ACTIONS.add ("cursorDevice.toggleWindowOpen");
+                        return null;
                     case "toggleParameterPageSectionVisible":
                         if (!deviceCapabilitiesSupported)
                             throw new AssertionError ("Unsupported parameter-page-section capability was invoked");
