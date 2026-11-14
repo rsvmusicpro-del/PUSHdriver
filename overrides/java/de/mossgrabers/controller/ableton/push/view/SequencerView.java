@@ -6,6 +6,7 @@ package de.mossgrabers.controller.ableton.push.view;
 
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
+import de.mossgrabers.controller.ableton.push.engine.sequencer.ClassicSequencerEngine;
 import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.controller.hardware.IHwButton;
 import de.mossgrabers.framework.daw.IModel;
@@ -30,12 +31,18 @@ import java.util.List;
  */
 public class SequencerView extends AbstractNoteSequencerView<PushControlSurface, PushConfiguration>
 {
-    /**
-     * When enabled, keep the visible page synchronized with the playing page.
-     * A manual page selection disables following until the playing page is
-     * selected again. This mirrors Push 1's page-lock/auto-follow behavior.
-     */
-    private boolean followPlayhead = true;
+    /** The feature-local classic sequencer engine. */
+    private final ClassicSequencerEngine engine = new ClassicSequencerEngine ();
+
+
+    /** Synchronize engine ownership with DrivenByMoss' active-view lifecycle. */
+    private void synchronizeEngineLifecycle ()
+    {
+        if (this.isActive ())
+            this.engine.activate ();
+        else
+            this.engine.deactivate ();
+    }
 
 
     /**
@@ -58,7 +65,8 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void drawGrid ()
     {
-        if (this.followPlayhead && this.isActive () && this.model.getTransport ().isPlaying ())
+        this.synchronizeEngineLifecycle ();
+        if (this.engine.shouldFollowPlayhead () && this.model.getTransport ().isPlaying ())
         {
             final INoteClip clip = this.getClip ();
             // The note-clip adapter remains available for empty slots. Do not
@@ -154,28 +162,10 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
         final int pressedPage = this.loopPadPressed;
         super.handleLoopArea (pad, velocity);
 
-        // The base handler stores the first pressed pad and processes gestures
-        // on release. Do not alter follow state on pad-down or stray releases.
-        if (velocity > 0 || pressedPage < 0)
-            return;
-
-        if (pad != pressedPage)
-        {
-            // A two-page loop gesture changes the loop range, not the page lock.
-            this.followPlayhead = true;
-            return;
-        }
-
+        // The engine owns page-lock policy; the view supplies current host state.
         final INoteClip clip = this.getClip ();
-        if (!clip.doesExist ())
-        {
-            this.followPlayhead = false;
-            return;
-        }
-
-        final int stepsPerPage = this.numDisplayCols;
-        final int currentStep = clip.getCurrentStep ();
-        this.followPlayhead = stepsPerPage > 0 && currentStep >= 0 && currentStep / stepsPerPage == pad;
+        this.engine.onPageGesture (pressedPage, pad, velocity, clip.doesExist (),
+                this.numDisplayCols, clip.getCurrentStep ());
     }
 
 
@@ -183,7 +173,8 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void onLeft (final ButtonEvent event)
     {
-        this.followPlayhead = false;
+        this.synchronizeEngineLifecycle ();
+        this.engine.onManualPageNavigation ();
         super.onLeft (event);
     }
 
@@ -192,7 +183,8 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void onRight (final ButtonEvent event)
     {
-        this.followPlayhead = false;
+        this.synchronizeEngineLifecycle ();
+        this.engine.onManualPageNavigation ();
         super.onRight (event);
     }
 
@@ -201,7 +193,8 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void onGridNoteLongPress (final int note)
     {
-        if (!this.isActive ())
+        this.synchronizeEngineLifecycle ();
+        if (!this.engine.isActive ())
             return;
 
         final int index = note - 36;

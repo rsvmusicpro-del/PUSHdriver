@@ -6,6 +6,7 @@ package de.mossgrabers.controller.ableton.push.view;
 
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
+import de.mossgrabers.controller.ableton.push.engine.sequencer.PolySequencerEngine;
 import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.clip.INoteClip;
@@ -23,6 +24,25 @@ import de.mossgrabers.framework.daw.data.ITrack;
  */
 public class PolySequencerView extends AbstractPolySequencerView<PushControlSurface, PushConfiguration>
 {
+    /** The feature-local Push 1 Poly Sequencer engine. */
+    private final PolySequencerEngine engine = new PolySequencerEngine ();
+
+    private void synchronizeEngineLifecycle ()
+    {
+        if (this.isActive ())
+            this.engine.activate ();
+        else
+            this.engine.deactivate ();
+    }
+
+    @Override
+    public void drawGrid ()
+    {
+        this.synchronizeEngineLifecycle ();
+        super.drawGrid ();
+    }
+
+
     /**
      * Constructor.
      *
@@ -40,10 +60,13 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
     @Override
     public void onGridNoteLongPress (final int note)
     {
-        if (!this.isActive ())
+        this.synchronizeEngineLifecycle ();
+        if (!this.engine.isActive () || !this.engine.isHardwarePadNote (note))
             return;
 
         final int index = note - 36;
+        if (!this.engine.isHardwarePadIndex (index))
+            return;
         this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();
 
         final int x = index % this.numColumns;
@@ -53,7 +76,9 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
             return;
 
         final INoteClip clip = this.getClip ();
-        final int step = this.numColumns * (this.numRows - 1 - y) + x;
+        final int step = this.engine.stepForPad (x, y, this.numColumns, this.numRows);
+        if (step < 0)
+            return;
         final NotePosition notePosition = new NotePosition (this.configuration.getMidiEditChannel (), step, 0);
 
         this.clearEditNotes ();
@@ -70,6 +95,10 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
     @Override
     protected boolean handleSequencerAreaButtonCombinations (final INoteClip clip, final int channel, final int step)
     {
+        this.synchronizeEngineLifecycle ();
+        if (!this.engine.isActive ())
+            return true;
+
         final boolean isSelectPressed = this.surface.isSelectPressed ();
         final NotePosition notePosition = new NotePosition (channel, step, 0);
 
@@ -115,7 +144,7 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
         if (isKeyboardEnabled)
         {
             final int mappedNote = this.keyManager.map (note);
-            if (mappedNote >= 0 && Math.floorMod (mappedNote, 12) == this.scales.getScaleOffset ())
+            if (this.engine.isScaleFundamental (mappedNote, this.scales.getScaleOffset ()))
                 return this.getPadColor (note, this.useDawColors ? track : null);
         }
 

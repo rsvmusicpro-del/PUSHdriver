@@ -30,6 +30,7 @@ test_sources = (
     root / "tests/java/VirtualPush1DisplayValueFormatterTest.java",
     root / "tests/java/VirtualPush1DisplayTextTest.java",
     root / "tests/java/VirtualPush1RuntimeTest.java",
+    root / "tests/java/SequencerEngineTest.java",
     root / "tests/java/VirtualPush1Simulator.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java",
@@ -57,6 +58,7 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
                 raise SystemExit(f"{option[:-1]} must be a positive integer")
             command.append(f"-D{property_name}={value}")
     subprocess.run(["java", "-cp", runtime_classpath, "VirtualPush1MidiConcurrencyTest"], cwd=root, check=True)
+    subprocess.run(["java", "-cp", runtime_classpath, "SequencerEngineTest"], cwd=root, check=True)
     command.extend(["-cp", runtime_classpath, "VirtualPush1RuntimeTest"])
     if "--gui" in sys.argv:
         command.append("--gui")
