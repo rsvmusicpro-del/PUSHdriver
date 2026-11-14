@@ -20,7 +20,7 @@ The project already has two distinct concrete views:
 
 They are not two names for one concrete class. Both inherit the shared `AbstractSequencerView`, which owns common clip access, note-edit handoff, sequencer-active state, resolution handling and page helpers.
 
-The concrete classic view currently owns playhead-follow state and its note-grid gestures. The concrete poly view owns its persistent pitch selection, selected-note duration editing and step-editor lifecycle. The upstream poly base also registers track-selection and note observers in its constructor. The observer callbacks capture the view's key manager; that registration and its lifecycle need explicit verification when both views are retained by the view manager.
+The concrete classic view currently owns playhead-follow state and its note-grid gestures. The concrete poly view owns its persistent pitch selection, selected-note duration editing and step-editor lifecycle. The upstream poly base registers track-selection and note observers in its constructor. The track-selection observer can be removed through the inherited `IBank.removeSelectionObserver`, but the pinned API-17 `ITrackBank` exposes `addNoteObserver` without a corresponding `removeNoteObserver`. The observer callback therefore has no public unregister path in this API version and captures the view's key manager for the lifetime of the track bank. This is a concrete lifecycle hazard, not just a theoretical concern. The replacement must avoid installing one permanent note observer per engine: use one shared, long-lived observer at the existing controller/model boundary and route events only to the active engine, or use a verified API-17-safe active guard without retaining dead view instances. The selection observer should be stored as a stable field and explicitly removed when its owner can be deactivated.
 
 A particularly important shared boundary is `AbstractSequencerView.getClip()`: it obtains the model's note-clip adapter for the view's configured clip dimensions. This is the correct shared DAW data boundary and must not be replaced with duplicate clip adapters or parallel MIDI stores.
 
@@ -28,7 +28,7 @@ The shared note editor is another intentional integration boundary: `editNote()`
 
 ## Failure mechanisms to address
 
-1. **Observer lifetime:** Poly Sequencer installs track observers from its constructor. If the view is not disposed or observers are not scoped, inactive instances may continue receiving note/selection events.
+1. **Observer lifetime (confirmed API limitation):** Poly Sequencer installs a track-selection observer and a note observer from its constructor. API 17 allows removing the selection observer, but has no `removeNoteObserver`; the note callback can retain the view indefinitely and continue calling its key manager after mode changes.
 2. **Mode-local state surviving deactivation:** Poly selection (`noteMemory`), `editingStep`, `durationEditNote` and pending long-press release are local fields but need a deterministic reset policy on mode exit, track change, clip change and note-editor handoff.
 3. **Shared hardware event stream:** Both view objects receive events through one Push surface. The dispatcher must guarantee that only the active view mutates its engine state. Long-press callbacks must obey the same active-view gate.
 4. **Shared DAW clip state:** Edit page, loop, step length, note content and playhead are properties of the selected clip. They should remain shared and must not be shadow-copied into two private engines.
