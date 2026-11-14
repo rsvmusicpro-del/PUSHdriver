@@ -824,20 +824,20 @@ public final class VirtualPush1RuntimeTest
         // in both the selector feedback and the production selection handler.
         deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
         require (modes.isActive (Modes.DEVICE_CHAINS), "Chains action did not enter the Chains selector");
-        final DeviceParamsMode chainsMode = (DeviceParamsMode) modes.get (Modes.DEVICE_CHAINS);
+        final DeviceParamsMode chainSelectorMode = (DeviceParamsMode) modes.get (Modes.DEVICE_CHAINS);
         virtualSlotChains = new String [] { "Chain 1", null, "   ", "Chain 4" };
-        require (chainsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 0)) == PushColorManager.PUSH1_COLOR_GREEN_LO,
+        require (chainSelectorMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 0)) == PushColorManager.PUSH1_COLOR_GREEN_LO,
             "A named chain must be shown as available");
-        require (chainsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1)) == PushColorManager.PUSH1_COLOR_BLACK,
+        require (chainSelectorMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1)) == PushColorManager.PUSH1_COLOR_BLACK,
             "A null chain slot must be dark");
-        require (chainsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 2)) == PushColorManager.PUSH1_COLOR_BLACK,
+        require (chainSelectorMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 2)) == PushColorManager.PUSH1_COLOR_BLACK,
             "A whitespace-only chain slot must be dark");
         MODEL_ACTIONS.clear ();
-        chainsMode.onSecondRow (1, ButtonEvent.UP);
-        chainsMode.onSecondRow (2, ButtonEvent.UP);
+        chainSelectorMode.onSecondRow (1, ButtonEvent.UP);
+        chainSelectorMode.onSecondRow (2, ButtonEvent.UP);
         require (MODEL_ACTIONS.stream ().noneMatch (action -> action.startsWith ("device.selectSlotChain:")),
             "Null and whitespace-only chain slots must not be selectable");
-        chainsMode.onSecondRow (0, ButtonEvent.UP);
+        chainSelectorMode.onSecondRow (0, ButtonEvent.UP);
         requireAction ("device.selectSlotChain:Chain 1", "A valid chain slot must remain selectable");
         require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
             "Selecting a valid chain must return to the Devices selector");
