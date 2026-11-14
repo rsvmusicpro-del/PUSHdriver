@@ -25,11 +25,7 @@ ROW1 must use only the Push 1 static CC palette. ROW2 uses the RGB-capable palet
 
 ## Bitwig-specific integration
 
-The complete upstream mode remains authoritative. `scripts/prepare_push1.py` adds only the small Push 1 In/Out adapter methods to the assembled upstream DeviceParamsMode:
-- In/Out navigate the device bank while device selectors are visible.
-- In/Out navigate parameter pages while parameter pages are visible.
-- The corresponding button LED availability is derived from the same bank boundaries.
-- No second Device state machine or duplicated DeviceParamsMode class is maintained.
+The complete upstream modes remain authoritative. No project-owned DeviceParamsMode, DeviceChainsMode or DeviceBrowserMode class is allowed. DeviceParamsMode is assembled from pinned upstream source without injected navigation methods. Push 1 In/Out is only a command adapter: it dispatches to the existing upstream item/page methods according to the upstream selector state. Browser In/Out likewise delegates to the upstream content-type page methods. No PUSHdriver filter-column state or navigation methods are injected into DeviceBrowserMode; only defensive guards for transient/empty Bitwig browser banks remain.
 
 The existing Push 1 setup continues to route the physical In/Out controls into the active Device/Browser context while preserving their established behavior in Session and sequencer contexts. Optional Bitwig API capabilities must be checked before invoking parameter-section, pinning or slot-chain operations.
 
@@ -52,3 +48,6 @@ CI builds the extension and runs the virtual API-17 host tests on Linux and Inte
 - Removed the three project Device-family overrides from `overrides/java/.../mode/device/`.
 - Replaced Device-specific virtual assertions that encoded the reversed row mapping with assertions for the native Ableton mapping.
 - Reworked the LED guard so it checks the pinned upstream implementation instead of expecting a project override to exist.
+
+
+Physical direction is fixed by the Push 1 contract: In (CC62 / left) advances to the next device or parameter page; Out (CC63 / right) moves to the previous device or page. The In/Out command adapter delegates to the upstream DeviceParamsMode methods and maintains no independent navigation state.
