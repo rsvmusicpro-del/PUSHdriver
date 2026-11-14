@@ -180,6 +180,19 @@ replace_once(push_surface,
     "        }",
     "Push 1 firmware inquiry parser")
 
+# API banks may return null for an empty layer slot. DeviceLayerMode already
+# checks existence before selecting a first-row item, and must do the same
+# before applying mute/solo to a second-row selector.
+device_layer_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceLayerMode.java"
+replace_once(device_layer_mode,
+    "            final ILayer layer = this.bank.getItem (offset + index);\n"
+    "            if (this.configuration.isMuteState ())\n",
+    "            final ILayer layer = this.bank.getItem (offset + index);\n"
+    "            if (layer == null || !layer.doesExist ())\n"
+    "                return;\n"
+    "            if (this.configuration.isMuteState ())\n",
+    "DeviceLayerMode empty-slot mute/solo guard")
+
 configuration_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/ConfigurationMode.java"
 replace_once(configuration_mode,
     "import de.mossgrabers.framework.daw.data.IItem;\n",
