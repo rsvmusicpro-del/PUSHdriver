@@ -46,7 +46,7 @@ expected_top = """    private static final Views [] VIEWS_TOP =
         null,
         Views.RAINDROPS
     };"""
-expected_bottom = """    private static final Views [] VIEWS =
+expected_bottom = """    private static final Views [] VIEWS     =
     {
         Views.PLAY,
         Views.CHORDS,
