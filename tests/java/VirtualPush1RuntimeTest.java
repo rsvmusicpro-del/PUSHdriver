@@ -976,6 +976,8 @@ public final class VirtualPush1RuntimeTest
         // The selected note and its continuation must keep the edit color even
         // when the playhead highlight is active on that same pad column.
         final IStepInfo classicContinuation = musicalModel.noteClip ().getStep (new NotePosition (0, 1, durationNote));
+        require (classicContinuation.getState () == StepState.CONTINUE,
+            "Virtual clip model did not expose the classic long-note continuation");
         final java.lang.reflect.Method classicStepColor = Class.forName (
             "de.mossgrabers.framework.view.sequencer.AbstractSequencerView").getDeclaredMethod (
                 "getStepColor", IStepInfo.class, boolean.class, int.class, int.class, int.class, int.class, List.class);
@@ -1053,6 +1055,8 @@ public final class VirtualPush1RuntimeTest
         final NotePosition polyLongPosition = new NotePosition (0, 0, 37);
         musicalModel.noteClip ().updateStepDuration (polyLongPosition, 4 * Resolution.getValueAt (polySequencerView.getResolutionIndex ()));
         final IStepInfo polyContinuation = musicalModel.noteClip ().getStep (new NotePosition (0, 1, 37));
+        require (polyContinuation.getState () == StepState.CONTINUE,
+            "Virtual clip model did not expose the Poly Sequencer long-note continuation");
         final java.lang.reflect.Method polyStepColor = AbstractPolySequencerView.class.getDeclaredMethod (
             "getStepColor", IStepInfo.class, boolean.class, int.class, List.class);
         polyStepColor.setAccessible (true);
