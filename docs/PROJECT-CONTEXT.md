@@ -41,7 +41,7 @@ excluded from the packaged extension.
 ## Functional scope already adapted
 
 The branch history records work on Push 1-specific navigation and Shift page
-semantics, In/Out device/browser navigation, New clip behavior, Note/Session
+semantics, arrow-based device selection, In/Out parameter-page/browser navigation, New clip behavior, Note/Session
 workflows, Drum/Drum64 note behavior, sequencer page-follow and playhead
 safety, Note Repeat guards, LED color behavior, firmware inquiry parsing,
 Linux MIDI discovery, and fixed-width LCD safety. The existing DrivenByMoss

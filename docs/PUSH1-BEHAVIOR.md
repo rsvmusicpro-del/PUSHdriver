@@ -15,7 +15,7 @@ This document describes the behavior implemented on branch `custom` at the time 
 |---|---|---|
 | 8×8 pads | Notes 36–99, velocity 1–127; polyphonic aftertouch while held | Active Push view (note, drum, sequencer, session, etc.) |
 | Main buttons | Momentary CC, pressed 127 / released 0; IDs match the independent Push 1 CC map | Setup command bindings and active mode/view |
-| In/Out | CC 62 (In) / CC 63 (Out) | Device next/previous and parameter-page next/previous in Device mode; Browser filter columns use row buttons/encoders, while Shift+Left/Right page Browser content types |
+| In/Out | CC 62 (In) / CC 63 (Out) | Parameter-page previous/next in Device mode (inactive while the device list is shown); Browser filter-column navigation; Session track-bank pages and Sequencer page behavior remain native |
 | Four arrows | CC 44–47 | Previous/next item horizontally; previous/next scene vertically; Shift changes to page navigation; does not launch clips/scenes |
 | Encoders | Relative two's-complement CC 71–79; touch notes 0–8, release as Note On velocity 0 | Active mode's continuous controls and touch handling |
 | Small encoders | Relative two's-complement CC 14–15; touch notes 9–10, release as Note On velocity 0 | Existing Push command mappings |
@@ -35,7 +35,7 @@ The full physical ID declarations live in the pinned upstream `PushControlSurfac
 ## Characterized mode-specific adaptations
 
 - **Navigation:** Left/Right use active-mode item selection, or item pages with Shift. Up/Down scroll scenes, or scene pages with Shift. Scene Play uses a 64-scene bank; ordinary Session navigation uses the track bank's scene bank. Arrow LED availability follows the same granularity as execution.
-- **In/Out:** CC 62/63 navigate device/parameter pages in Device mode and filter columns in Browser mode. Rack-chain mode remains inactive because API 17 does not provide a safe selected-chain cursor. Existing Session/sequencer fallbacks are retained.
+- **In/Out:** CC 62/63 navigate parameter pages in Device mode (and are inactive while the device list is shown, leaving device selection exclusively to Left/Right). They navigate Browser filter columns; Session track-bank pages and Sequencer page behavior remain native. Rack-chain mode remains inactive because API 17 does not provide a safe selected-chain cursor.
 - **New:** the selected cursor track is checked for an available slot before playback is changed. If the track is playing, that track is stopped and a note clip is created with the inherited clip length and overdub rules. Other tracks are not stopped.
 - **Note Repeat:** optional MIDI note-repeat services may be absent. Configuration knobs and Groove controls remain usable; only operations requiring the missing service are guarded.
 - **Second row:** defaults to Mute.

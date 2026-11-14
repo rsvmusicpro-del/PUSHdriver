@@ -562,22 +562,17 @@ public final class VirtualPush1RuntimeTest
         require (sceneIndex == 15, "Session scene navigation moved beyond the last scene");
         navigationContext = false;
 
-        // In/Out are separate from arrows: first navigate devices, then
-        // parameter pages, using the actual DeviceParamsMode production path.
+        // In/Out must not duplicate arrow-based device selection. They are
+        // reserved for parameter-page navigation while the parameter panel is shown.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Device mode");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Device button did not activate Device mode for In/Out tests");
+        final DeviceParamsMode inOutDeviceMode = (DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS);
+        inOutDeviceMode.setShowDevices (true);
         MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In");
-        requireAction ("device.selectPreviousItem", "In must select the previous device");
-        requireAction ("device.selectNextItem", "Out must select the next device");
-        deviceIndex = 0;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device page lower boundary");
-        require (deviceIndex == 0, "In moved before the first device");
-        deviceIndex = 15;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device page upper boundary");
-        require (deviceIndex == 15, "Out moved beyond the last device");
-        ((DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS)).setShowDevices (false);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out while device list is shown");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In while device list is shown");
+        require (MODEL_ACTIONS.isEmpty (), "In/Out duplicated arrow-based device selection while the device list was shown");
+        inOutDeviceMode.setShowDevices (false);
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out parameter page");
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In parameter page");

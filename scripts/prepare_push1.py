@@ -1080,9 +1080,9 @@ if "isPush2" in setup_source or "Push2Display" in setup_source or "Push 2" in se
     raise SystemExit("PushControllerSetup still contains Push 2 runtime references")
 setup.write_text(setup_source)
 
-# Map the physical Push 1 Page Left/Right CC controls to their Ableton In/Out
-# roles in Device and Browser modes. Preserve their established Session and
-# sequencer page behavior in all other contexts.
+# Map the physical Push 1 Page Left/Right CC controls to In/Out. In Device
+# mode they navigate parameter pages only (device selection stays on arrows);
+# in Browser they navigate filter columns. Preserve Session/sequencer behavior.
 replace_once(setup,
     'this.addButton (ButtonID.PAGE_LEFT, "Page Left"',
     'this.addButton (ButtonID.PAGE_LEFT, "Out"',
@@ -1238,43 +1238,36 @@ replace_once(device_params_mode,
      */
     public void selectPreviousInOutItem ()
     {
-        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-        if (this.showDevices)
-            cursorDevice.getDeviceBank ().selectPreviousItem ();
-        else
-            cursorDevice.getParameterPageBank ().selectPreviousPage ();
+        if (!this.showDevices)
+            this.model.getCursorDevice ().getParameterPageBank ().selectPreviousPage ();
     }
 
 
     /** {@inheritDoc} */
     public void selectNextInOutItem ()
     {
-        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-        if (this.showDevices)
-            cursorDevice.getDeviceBank ().selectNextItem ();
-        else
-            cursorDevice.getParameterPageBank ().selectNextPage ();
+        if (!this.showDevices)
+            this.model.getCursorDevice ().getParameterPageBank ().selectNextPage ();
     }
 
 
-    /** Check whether Out has a previous device or parameter-page bank. */
+    /** Check whether Out has a previous parameter page. */
     public boolean hasPreviousInOutItem ()
     {
-        if (this.showDevices)
-            return this.model.getCursorDevice ().getDeviceBank ().canScrollBackwards ();
-        return this.model.getCursorDevice ().getParameterPageBank ().canScrollPageBackwards ();
+        return !this.showDevices && this.model.getCursorDevice ().getParameterPageBank ().canScrollPageBackwards ();
     }
 
 
-    /** Check whether In has a next device or parameter-page bank. */
+    /** Check whether In has a next parameter page. */
     public boolean hasNextInOutItem ()
     {
-        if (this.showDevices)
-            return this.model.getCursorDevice ().getDeviceBank ().canScrollForwards ();
-        return this.model.getCursorDevice ().getParameterPageBank ().canScrollPageForwards ();
+        return !this.showDevices && this.model.getCursorDevice ().getParameterPageBank ().canScrollPageForwards ();
     }
 """,
-    "Push 1 In/Out-only device and parameter-page navigation")
+    "Push 1 In/Out parameter-page navigation")
+
+# PageLeftCommand and PageRightCommand are maintained in overrides/java.
+# They already route Browser and Device In/Out controls; do not patch them again.
 
 # Keep the physical Push 1 New button on its native dedicated binding, while
 # stopping the cursor track's current clip before preparing its next note clip.
