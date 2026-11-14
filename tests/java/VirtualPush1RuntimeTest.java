@@ -896,6 +896,13 @@ public final class VirtualPush1RuntimeTest
             "Parent selection must release the touched child parameter exactly once");
         require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
             "Parent channel must not be selected before the Bitwig cursor reports the parent");
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onKnobTouch (1, true);
+        deviceParamsMode.onKnobValue (1, 7);
+        deviceParamsMode.onKnobTouch (1, false);
+        require (MODEL_ACTIONS.stream ().noneMatch (action -> action.startsWith ("parameter.touch:1:")
+                || action.startsWith ("parameter.changeValue:1:")),
+            "Encoder touch/value events must not edit the old child while parent cursor return is pending");
         drainScheduled (state, 73);
         requireAction ("cursorDevice.selectParent", "Up must request exactly one parent transition");
         requireAction ("cursorDevice.selectChannel", "The confirmed parent must select its hosting channel");
@@ -2718,6 +2725,10 @@ public final class VirtualPush1RuntimeTest
                             case "doesExist" -> Boolean.valueOf (virtualDeviceParametersExist);
                             case "touchValue" -> {
                                 MODEL_ACTIONS.add ("parameter.touch:" + parameterIndex + ":" + a[0]);
+                                yield null;
+                            }
+                            case "changeValue" -> {
+                                MODEL_ACTIONS.add ("parameter.changeValue:" + parameterIndex + ":" + a[0]);
                                 yield null;
                             }
                             default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());

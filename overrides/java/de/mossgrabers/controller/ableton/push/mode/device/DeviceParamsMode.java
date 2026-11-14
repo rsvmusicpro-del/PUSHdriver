@@ -58,6 +58,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     private SelectorContext        selectorContext = SelectorContext.DEVICES;
     private final IParameter []    touchedParameters = new IParameter [8];
     private long hierarchyTransitionGeneration;
+    private boolean hierarchyTransitionPending;
 
 
     /**
@@ -222,6 +223,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     {
         // Invalidate delayed cursor callbacks before another mode owns the surface.
         this.hierarchyTransitionGeneration++;
+        this.hierarchyTransitionPending = false;
         this.releaseAllTouchedParameters ();
         super.onDeactivate ();
     }
@@ -231,7 +233,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     @Override
     public void onKnobTouch (final int index, final boolean isTouched)
     {
-        if (index < 0 || index >= this.touchedParameters.length)
+        if (this.hierarchyTransitionPending || index < 0 || index >= this.touchedParameters.length)
             return;
 
         if (isTouched)
@@ -269,10 +271,23 @@ public class DeviceParamsMode extends BaseMode<IParameter>
 
     /** {@inheritDoc} */
     @Override
+    public void onKnobValue (final int index, final int value)
+    {
+        // While Bitwig is resolving selectParent(), the parameter provider can
+        // still point at the child. Do not let encoder movement edit that stale
+        // target; normal encoder dispatch resumes as soon as the cursor settles.
+        if (!this.hierarchyTransitionPending)
+            super.onKnobValue (index, value);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
     public void onFirstRow (final int index, final ButtonEvent event)
     {
         if (event != ButtonEvent.DOWN) return;
         this.hierarchyTransitionGeneration++;
+        this.hierarchyTransitionPending = false;
         final ICursorDevice device = this.model.getCursorDevice ();
         switch (index)
         {
@@ -308,6 +323,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     protected void moveUp ()
     {
         final long transition = ++this.hierarchyTransitionGeneration;
+        this.hierarchyTransitionPending = false;
         final ModeManager modeManager = this.surface.getModeManager ();
         if (this.getSelectorContext () == SelectorContext.CHAINS || this.getSelectorContext () == SelectorContext.PAGES)
         {
@@ -340,6 +356,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             // or mode transition supersedes this request.
             final String childState = this.getCursorStateFingerprint (cd);
             this.releaseAllTouchedParameters ();
+            this.hierarchyTransitionPending = true;
             cd.selectParent ();
             this.awaitParentCursor (cd, modeManager, deviceParamsMode, childState, transition, 0);
             return;
@@ -453,10 +470,15 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 // Recover the selector context without issuing a channel
                 // selection against a cursor whose parent transition was not
                 // confirmed. A late Bitwig update will still refresh the view.
-                this.setSelectorContext (SelectorContext.DEVICES);
+                {
+                    this.hierarchyTransitionPending = false;
+                    this.setSelectorContext (SelectorContext.DEVICES);
+                }
             return;
         }
 
+        this.hierarchyTransitionPending = false;
+        deviceParamsMode.releaseAllTouchedParameters ();
         if (cd.hasLayers ())
             modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
         else
@@ -532,6 +554,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     {
         if (event == ButtonEvent.DOWN) return;
         this.hierarchyTransitionGeneration++;
+        this.hierarchyTransitionPending = false;
         if (event == ButtonEvent.UP)
         {
             final ICursorDevice cd = this.model.getCursorDevice ();
