@@ -90,7 +90,7 @@ class SourceOwnershipTests(unittest.TestCase):
 
     def test_in_out_direction_contract_accepts_physical_mapping(self):
         errors = MODULE.validate_in_out_contract(
-            'this.addButton (ButtonID.PAGE_LEFT, "In"',
+            'this.addButton (ButtonID.PAGE_LEFT, "In" this.addButton (ButtonID.PAGE_RIGHT, "Out"',
             "deviceParamsMode.selectNextItem () deviceParamsMode.selectNextItemPage () activeMode.selectNextItemPage ()",
             "deviceParamsMode.selectPreviousItem () deviceParamsMode.selectPreviousItemPage () activeMode.selectPreviousItemPage ()",
             "PUSH_BUTTON_DEVICE_LEFT = 62; PUSH_BUTTON_DEVICE_RIGHT = 63;",
