@@ -114,5 +114,43 @@ class SourceOwnershipTests(unittest.TestCase):
 
 
 
+class Push1SequencerPlayheadTests(unittest.TestCase):
+    def test_note_sequencer_renders_the_entire_playhead_column(self):
+        view = (
+            Path(__file__).resolve().parents[2]
+            / "overrides/java/de/mossgrabers/controller/ableton/push/view/SequencerView.java"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            "currentStep - clip.getEditPage () * stepsPerPage",
+            view,
+        )
+        self.assertIn(
+            "for (int row = 0; row < this.numSequencerRows; row++)",
+            view,
+        )
+        self.assertIn(
+            "this.getStepColor (stepInfo, true, Optional.empty ()",
+            view,
+        )
+        self.assertIn(
+            "gridPad.lightEx (playheadColumn, this.numDisplayRows - 1 - row, color);",
+            view,
+        )
+
+    def test_note_sequencer_playhead_does_not_edit_clip_notes(self):
+        view = (
+            Path(__file__).resolve().parents[2]
+            / "overrides/java/de/mossgrabers/controller/ableton/push/view/SequencerView.java"
+        ).read_text(encoding="utf-8")
+        draw_grid = view.split("public void drawGrid ()", 1)[1].split(
+            "protected boolean isInXRange", 1
+        )[0]
+
+        self.assertNotIn("clip.toggleStep", draw_grid)
+        self.assertNotIn("clip.setStep", draw_grid)
+        self.assertNotIn("clip.clearStep", draw_grid)
+
+
 if __name__ == "__main__":
     unittest.main()
