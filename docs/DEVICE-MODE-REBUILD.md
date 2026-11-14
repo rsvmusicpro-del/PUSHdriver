@@ -39,7 +39,7 @@ The virtual bench must exercise the actual registered PushControllerSetup MIDI b
 1. Device button enters Device mode.
 2. ROW1 selects a device; its LED values never overlap Push 1 blink opcodes.
 3. ROW2 performs the native Ableton Device actions.
-4. ROW1 selects parameter pages.
+4. ROW1 selects parameter pages; Shift+Left/Right retains Ableton's device-swap gesture.
 5. In/Out navigate device and parameter-page banks at their boundaries.
 6. ROW2 Chains enters Device Chains; ROW1 selects a chain.
 7. Browser retains the upstream Ableton row mapping and filter/result navigation.
