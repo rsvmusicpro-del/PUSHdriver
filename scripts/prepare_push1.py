@@ -1239,9 +1239,76 @@ replace_once(browser_mode,
 """,
     "Push 1 In/Out browser filter-column navigation")
 
-# DeviceParamsMode in the maintained Push 1 override owns the context-aware
-# In/Out path. Verify it exists rather than rewriting the mode during assembly.
+# Add only the Push 1 In/Out adapter methods to the pinned upstream Ableton
+# DeviceParamsMode. The upstream class remains the sole implementation of the
+# Device workflow; this small bridge preserves PUSHdriver's physical CC62/63
+# mapping without maintaining a forked copy of the whole mode.
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
+replace_once(device_params_mode,
+    """    /** {@inheritDoc} */
+    @Override
+    public void updateDisplay1 (final ITextDisplay display)
+""",
+    """    /** Navigate the previous device or parameter page with Push 1 Out. */
+    public void selectPreviousInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist ())
+            return;
+        if (this.showDevices)
+        {
+            if (cursorDevice.getDeviceBank ().canScrollBackwards ())
+                this.selectPreviousItem ();
+        }
+        else if (cursorDevice.getParameterPageBank ().canScrollPageBackwards ())
+            cursorDevice.getParameterPageBank ().selectPreviousPage ();
+    }
+
+
+    /** Navigate the next device or parameter page with Push 1 In. */
+    public void selectNextInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist ())
+            return;
+        if (this.showDevices)
+        {
+            if (cursorDevice.getDeviceBank ().canScrollForwards ())
+                this.selectNextItem ();
+        }
+        else if (cursorDevice.getParameterPageBank ().canScrollPageForwards ())
+            cursorDevice.getParameterPageBank ().selectNextPage ();
+    }
+
+
+    /** Check whether Push 1 Out can navigate to a previous device or page. */
+    public boolean hasPreviousInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist ())
+            return false;
+        return this.showDevices ? cursorDevice.getDeviceBank ().canScrollBackwards ()
+            : cursorDevice.getParameterPageBank ().canScrollPageBackwards ();
+    }
+
+
+    /** Check whether Push 1 In can navigate to a next device or page. */
+    public boolean hasNextInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist ())
+            return false;
+        return this.showDevices ? cursorDevice.getDeviceBank ().canScrollForwards ()
+            : cursorDevice.getParameterPageBank ().canScrollPageForwards ();
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void updateDisplay1 (final ITextDisplay display)
+""",
+    "Push 1 In/Out Device-mode adapter")
+
 device_params_source = device_params_mode.read_text()
 for required_method in (
     "public void selectPreviousInOutItem ()",
