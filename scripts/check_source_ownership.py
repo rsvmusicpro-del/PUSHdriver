@@ -104,6 +104,18 @@ def duplicate_button_ids(source):
  return sorted(", ".join(names) for names in counts.values() if len(names)>1)
 
 
+def method_inventory(source):
+ return sorted(re.findall(r"^\s*(?:public|protected|private)\s+(?:(?:static|final|abstract|synchronized|native)\s+)*[\w<>, ?\[\].]+\s+(\w+)\s*\(",source,re.M))
+
+
+def validate_mode_method_inventory(project_source, upstream_source, path):
+ project_methods=method_inventory(project_source)
+ upstream_methods=method_inventory(upstream_source)
+ if project_methods==upstream_methods:
+  return []
+ return [f"Device mode method inventory differs from upstream in {path}: added={sorted(set(project_methods)-set(upstream_methods))}, removed={sorted(set(upstream_methods)-set(project_methods))}"]
+
+
 def validate_unique_types(files):
  owners={}; errors=[]
  for path in files:
@@ -153,6 +165,9 @@ def main():
   if built.exists() and upstream.exists():
    expected={p.name for p in upstream.glob("*.java")}; actual={p.name for p in built.glob("*.java")}
    if actual!=expected: errors.append(f"Device class inventory differs from upstream: extra={sorted(actual-expected)}, missing={sorted(expected-actual)}")
+   for name in sorted(actual & expected):
+    project_file=built/name; upstream_file=upstream/name
+    errors += validate_mode_method_inventory(project_file.read_text(encoding="utf-8"),upstream_file.read_text(encoding="utf-8"),name)
  if errors:
   for e in errors: print("SOURCE OWNERSHIP ERROR: "+e,file=sys.stderr)
   return 1

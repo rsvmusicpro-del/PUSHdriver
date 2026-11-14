@@ -78,5 +78,15 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertEqual(MODULE.duplicate_button_ids(source), ["PUSH_BUTTON_A, PUSH_BUTTON_B"])
 
 
+    def test_new_device_mode_method_is_rejected(self):
+        upstream = "public void selectPreviousItemPage() {}\n"
+        project = upstream + "public void navigateFilterColumn(boolean forward) {}\n"
+        self.assertTrue(MODULE.validate_mode_method_inventory(project, upstream, "DeviceBrowserMode.java"))
+
+    def test_unchanged_device_mode_method_inventory_is_allowed(self):
+        source = "public void selectPreviousItemPage() {}\nprivate boolean hasNextItemPage() { return false; }\n"
+        self.assertEqual(MODULE.validate_mode_method_inventory(source, source, "DeviceParamsMode.java"), [])
+
+
 if __name__ == "__main__":
     unittest.main()
