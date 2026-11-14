@@ -218,3 +218,27 @@ verification procedure. Important: GitHub still reports `custom` as unprotected;
 the connected integration cannot modify branch protection (HTTP 403). A
 repository administrator must require `quality-gate` and PRs in GitHub Settings
 before the server enforces the rule against bypasses or direct pushes.
+
+
+## Device mode source-of-truth reset (2026-11-14)
+
+The Device/Chains/Browser project overrides were removed from
+`overrides/java/de/mossgrabers/controller/ableton/push/mode/device/`.
+The pinned DrivenByMoss 19.2.2 Ableton Push classes are now the single
+implementation of these modes. The project retains only small build-time
+adaptations in `scripts/prepare_push1.py` for Push 1 In/Out navigation and
+Bitwig Browser bank bounds.
+
+The previous DeviceParamsMode override reversed Push 1's physical rows:
+ROW1 / CC20–27 above the LCD is the selector row, while ROW2 / CC102–109
+below the LCD is the RGB action row. The override put actions on ROW1 and
+selectors on ROW2, and supplied RGB `PUSH1_COLOR2_*` identifiers to the
+static CC palette. Those values overlap blink commands. The Device runtime
+test had copied that same incorrect mapping, so it could pass while the real
+controller was unusable.
+
+Do not recreate a second DeviceParamsMode or DeviceChainsMode under
+`overrides/java`. Any Bitwig 4.3.10 adaptation must remain a narrow,
+explicit source-assembly patch with a corresponding MIDI-level regression
+test. The candidate implementation and CI status are tracked in PR #38;
+a live Bitwig 4.3.10 + physical Push 1 qualification is still required.
