@@ -988,57 +988,8 @@ replace_once(drum64,
     "            return isRecording ? AbstractDrumView.COLOR_PAD_RECORD : AbstractDrumView.COLOR_PAD_PLAY;",
     "Drum64View LED lookup bounds")
 
-# Remove the Push Raindrops mode and its framework-only implementation completely.
-for obsolete in (
-    root / "src/main/java/de/mossgrabers/controller/ableton/push/view/RaindropsView.java",
-    root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractRaindropsView.java",
-):
-    if not obsolete.is_file():
-        raise SystemExit(f"Expected Raindrops source not found: {obsolete}")
-    obsolete.unlink()
-
-
+# Keep the upstream Raindrops view registered and available to the Push 1 Note menu.
 setup = root / "src/main/java/de/mossgrabers/controller/ableton/push/PushControllerSetup.java"
-replace_once(setup,
-    "import de.mossgrabers.controller.ableton.push.view.RaindropsView;\n", "",
-    "PushControllerSetup Raindrops import")
-replace_once(setup,
-    "        viewManager.register (Views.RAINDROPS, new RaindropsView (surface, this.model));\n", "",
-    "PushControllerSetup Raindrops registration")
-
-configuration = root / "src/main/java/de/mossgrabers/controller/ableton/push/PushConfiguration.java"
-replace_once(configuration, "        Views.RAINDROPS,\n", "",
-    "PushConfiguration Raindrops preference")
-
-note_view_select = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteViewSelectMode.java"
-replace_once(note_view_select, "        Views.RAINDROPS,\n", "        null,\n",
-    "NoteViewSelectMode Raindrops slot")
-
-layout = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/trigger/LayoutCommand.java"
-replace_once(layout,
-    "        else if (viewManager.isActive (Views.SEQUENCER))\n"
-    "            this.activatePreferredView (Views.RAINDROPS);\n"
-    "        else if (viewManager.isActive (Views.RAINDROPS))\n"
-    "            this.activatePreferredView (Views.DRUM);",
-    "        else if (viewManager.isActive (Views.SEQUENCER))\n"
-    "            this.activatePreferredView (Views.DRUM);",
-    "LayoutCommand Raindrops cycle")
-# Keep the upstream SelectPlayViewCommand unchanged: Note remains the native
-# view-selection / session-restore control and is not repurposed for Drum64.
-
-views = root / "src/main/java/de/mossgrabers/framework/view/Views.java"
-replace_once(views,
-    "    /** View for raindrops sequencer. */\n    RAINDROPS,\n",
-    "    /** Reserved to preserve the ordinal values of the remaining view IDs. */\n    UNUSED_VIEW_SLOT,\n",
-    "Views enum compatibility slot")
-for old, label in (
-    ("    /** The name of the raindrops view. */\n    public static final String              NAME_RAINDROPS      = \"Raindrop\";\n", "Views Raindrops name"),
-    ("        NOTE_VIEWS.add (RAINDROPS);\n", "Views note-view registration"),
-    ("        VIEW_NAMES.put (NAME_RAINDROPS, RAINDROPS);\n", "Views name registration"),
-    ("        SEQUENCER_VIEWS.add (RAINDROPS);\n", "Views sequencer registration"),
-):
-    replace_once(views, old, "", label)
-
 
 # Register and compile only the Push 1 extension entry point and text display.
 (root / "src/main/java/de/mossgrabers/bitwig/controller/ableton/push/Push2ControllerExtensionDefinition.java").unlink(missing_ok=True)
@@ -1470,6 +1421,30 @@ def replace_menu_fragment(path: str, old: str, new: str, label: str) -> None:
 
 
 note_view = "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteViewSelectMode.java"
+replace_menu_fragment(note_view,
+    """    private static final Views [] VIEWS_TOP =
+    {
+        Views.SEQUENCER,
+        Views.POLY_SEQUENCER,
+        Views.RAINDROPS,
+        Views.DRUM,
+        Views.DRUM4,
+        Views.DRUM8,
+        null,
+        null
+    };""",
+    """    private static final Views [] VIEWS_TOP =
+    {
+        Views.SEQUENCER,
+        Views.POLY_SEQUENCER,
+        Views.DRUM,
+        Views.DRUM4,
+        Views.DRUM8,
+        null,
+        null,
+        Views.RAINDROPS
+    };""",
+    "NoteViewSelect upper-row layout")
 replace_menu_fragment(note_view,
     """    public void onFirstRow (final int index, final ButtonEvent event)
     {

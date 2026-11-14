@@ -35,6 +35,41 @@ def require(condition: bool, message: str) -> None:
 
 
 note = read("NoteViewSelectMode.java")
+expected_top = """    private static final Views [] VIEWS_TOP =
+    {
+        Views.SEQUENCER,
+        Views.POLY_SEQUENCER,
+        Views.DRUM,
+        Views.DRUM4,
+        Views.DRUM8,
+        null,
+        null,
+        Views.RAINDROPS
+    };"""
+expected_bottom = """    private static final Views [] VIEWS     =
+    {
+        Views.PLAY,
+        Views.CHORDS,
+        Views.PIANO,
+        Views.DRUM64,
+        null,
+        null,
+        Views.CLIP_LENGTH,
+        Views.PRG_CHANGE
+    };"""
+require(expected_top in note, "Note menu upper-row choices must match the requested eight-button layout")
+require(expected_bottom in note, "Note menu lower row must preserve Play/Chords/Piano/Drum64 and fixed tools")
+note_display = method(note, "public void updateDisplay1")
+require("VIEWS_TOP[i]" in note_display and "display.setCell (0, i" in note_display,
+        "Note menu upper LCD labels must follow the upper-row view mapping")
+require("VIEWS[i]" in note_display and "display.setCell (3, i" in note_display,
+        "Note menu lower LCD labels must preserve the lower-row mapping")
+views_source = (ROOT / "src/main/java/de/mossgrabers/framework/view/Views.java").read_text()
+setup_source = (ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/PushControllerSetup.java").read_text()
+require("RAINDROPS" in views_source and "VIEW_NAMES.put (NAME_RAINDROPS, RAINDROPS)" in views_source,
+        "Raindrops must remain a registered framework view")
+require("viewManager.register (Views.RAINDROPS, new RaindropsView (surface, this.model));" in setup_source,
+        "Raindrops must remain registered in the Push controller")
 require("this.activateView (VIEWS_TOP[index]);" in method(note, "public void onFirstRow"),
         "Note View Select Row 1 must select the upper display choices")
 require("this.activateView (VIEWS[index]);" in method(note, "public void onSecondRow"),
