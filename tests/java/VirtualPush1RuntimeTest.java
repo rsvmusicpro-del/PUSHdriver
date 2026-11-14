@@ -284,6 +284,8 @@ public final class VirtualPush1RuntimeTest
         final PushControllerSetup setup = new PushControllerSetup (host, factory, global, document);
         setup.init ();
         setup.startup ();
+        require (trackBankProxy (mixerModel).getSceneBank ().getPageSize () == 8,
+            "Virtual Bitwig track bank must expose its eight-slot clip-launcher page, not the 64-scene global bank");
 
         // Regression: an empty API layer slot may be represented by null.
         // A Push 1 second-row mute/solo action must ignore it rather than crash.
@@ -1835,7 +1837,10 @@ public final class VirtualPush1RuntimeTest
         {
             // Keep four broad deterministic exploration seeds, then append every
             // historical failure promoted into the checked-in regression corpus.
-            for (int seedIndex = 0; seedIndex < 4; seedIndex++)
+            final int fuzzSeedCount = Integer.getInteger ("push1.fuzz.seeds", 16);
+            if (fuzzSeedCount < 4 || fuzzSeedCount > 1024)
+                throw new IllegalArgumentException ("push1.fuzz.seeds must be between 4 and 1024");
+            for (int seedIndex = 0; seedIndex < fuzzSeedCount; seedIndex++)
                 fuzzSeeds.add (fuzzBaseSeed + seedIndex * 0x9E3779B97F4A7C15L);
             final Path regressionCorpus = Path.of ("tests/scenarios/fuzz-seeds.txt");
             try
@@ -1864,6 +1869,9 @@ public final class VirtualPush1RuntimeTest
                     + regressionCorpus, error);
             }
         }
+        final int fuzzActionCount = Integer.getInteger ("push1.fuzz.actions", 256);
+        if (fuzzActionCount < 64 || fuzzActionCount > 100000)
+            throw new IllegalArgumentException ("push1.fuzz.actions must be between 64 and 100000");
         int fuzzedScenarios = 0;
         int fuzzedActions = 0;
         for (final long seed: fuzzSeeds)
@@ -1877,9 +1885,10 @@ public final class VirtualPush1RuntimeTest
                     modes.setActive (Modes.TRACK);
                     viewManager.setActive (fuzzView);
                     drainScheduled (state, 8);
-                    for (int actionIndex = 0; actionIndex < 64; actionIndex++)
+                    for (int actionIndex = 0; actionIndex < fuzzActionCount; actionIndex++)
                     {
-                        final int action = nextScenarioInt (randomState, 13);
+                        // Fourteen action families include rapid mode churn and command bursts.
+                        final int action = nextScenarioInt (randomState, 14);
                         final int row = nextScenarioInt (randomState, 8);
                         final int column = nextScenarioInt (randomState, 8);
                         final int pad = 36 + row * 8 + column;
@@ -1978,6 +1987,32 @@ public final class VirtualPush1RuntimeTest
                                 midi.device ().releaseButton (modifier);
                                 trace.add ("long modifier " + modifier);
                             }
+                            case 12 -> {
+                                // Rapid mode changes with interleaved commands before the next host flush.
+                                final int[] rapidModes = {
+                                    VirtualPush1Device.NOTE, VirtualPush1Device.SESSION,
+                                    VirtualPush1Device.DEVICE, VirtualPush1Device.BROWSE,
+                                    VirtualPush1Device.TRACK, VirtualPush1Device.CLIP,
+                                    VirtualPush1Device.VOLUME, VirtualPush1Device.PAN_SEND
+                                };
+                                final int burstLength = 3 + nextScenarioInt (randomState, 6);
+                                final List<Integer> burst = new java.util.ArrayList<> ();
+                                for (int burstIndex = 0; burstIndex < burstLength; burstIndex++)
+                                {
+                                    final int modeButton = rapidModes[nextScenarioInt (randomState, rapidModes.length)];
+                                    midi.device ().tapButton (modeButton);
+                                    burst.add (modeButton);
+                                    switch (nextScenarioInt (randomState, 4))
+                                    {
+                                        case 0 -> midi.device ().tapButton (VirtualPush1Device.IN);
+                                        case 1 -> midi.device ().tapButton (VirtualPush1Device.OUT);
+                                        case 2 -> midi.device ().turnEncoderBy (nextScenarioInt (randomState, 9),
+                                            nextScenarioInt (randomState, 31) - 15);
+                                        default -> midi.device ().tapButton (20 + nextScenarioInt (randomState, 8));
+                                    }
+                                }
+                                trace.add ("rapid mode/command burst " + burst);
+                            }
                             default -> {
                                 final int cc = fuzzButtonCCs[nextScenarioInt (randomState, fuzzButtonCCs.length)];
                                 midi.device ().tapButton (cc);
@@ -1989,6 +2024,14 @@ public final class VirtualPush1RuntimeTest
                         {
                             setup.flush ();
                             hardware.flush ();
+                            // Vary when delayed host callbacks are delivered.
+                            switch (nextScenarioInt (randomState, 4))
+                            {
+                                case 0 -> drainScheduled (state, 1);
+                                case 1 -> drainScheduled (state, 8);
+                                case 2 -> drainScheduled (state, 73);
+                                default -> drainScheduled (state, 100);
+                            }
                             for (int lcdRow = 0; lcdRow < 4; lcdRow++)
                                 require (midi.device ().getLcdRow (lcdRow).length () == Push1DisplayLayout.COLUMNS,
                                     "Fuzzer corrupted LCD row " + lcdRow + " in " + fuzzView);
@@ -2004,6 +2047,10 @@ public final class VirtualPush1RuntimeTest
                             "Fuzzer left pad note " + note + " held in " + fuzzView);
                     setup.flush ();
                     hardware.flush ();
+                    drainScheduled (state, 1);
+                    drainScheduled (state, 8);
+                    drainScheduled (state, 73);
+                    drainScheduled (state, 100);
                     require (state.errors.isEmpty (),
                         "Fuzzer caused Bitwig host errors in " + fuzzView + ": " + state.errors);
                     for (int lcdRow = 0; lcdRow < 4; lcdRow++)
@@ -2021,11 +2068,12 @@ public final class VirtualPush1RuntimeTest
         }
         require (fuzzedScenarios == fuzzSeeds.size () * allPushViews.length,
             "Generated scenario matrix did not cover every view and seed");
-        require (fuzzedActions == fuzzedScenarios * 64,
-            "Generated scenario matrix did not execute 64 actions per view/seed scenario");
+        require (fuzzedActions == fuzzedScenarios * fuzzActionCount,
+            "Generated scenario matrix did not execute the configured action count per view/seed scenario");
         System.out.println ("Generated Push 1 interaction scenarios passed: " + fuzzedScenarios
             + " view/seed combinations across " + fuzzSeeds.size () + " seeds, "
-            + fuzzedActions + " mixed actions (including the permanent regression corpus).");
+            + fuzzedActions + " mixed actions at " + fuzzActionCount
+            + " actions/scenario (including the permanent regression corpus).");
 
         musicalModel.setCanHoldNotes (false);
         viewManager.setActive (Views.PLAY);
@@ -2853,7 +2901,7 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getSelectedItem"))
                     return navigationContext ? Optional.of (mixer.track (Math.floorMod (trackIndex, 8))) : Optional.empty ();
                 if (method.getName ().equals ("getSceneBank"))
-                    return mixer.sceneBank ();
+                    return sceneBankProxy (); // ITrackBank exposes the 8-slot clip-launcher page, not the global 64-scene bank.
                 if (method.getName ().equals ("getItem"))
                     return mixer.track (Math.max (0, Math.min (7, (int) args[0])));
                 if (method.getName ().equals ("canEditSend"))
@@ -3100,7 +3148,9 @@ public final class VirtualPush1RuntimeTest
                         case "isPlaying" -> this.trackPlaying[index];
                         case "stop" -> { this.trackPlaying[index] = false; for (final SlotState slot : this.slotStates[index]) { slot.playing = false; slot.recording = false; } yield null; }
                         case "returnToArrangement" -> { this.trackPlaying[index] = false; yield null; }
-                        case "getSceneBank" -> this.sceneBank;
+                        // A track owns an eight-slot scene page. The model-level scene bank
+                        // remains a separate 64-scene bank used for scene navigation.
+                        case "getSceneBank" -> sceneBankProxy ();
                         case "getSlotBank" -> this.slotBanks[index];
                         case "getVu", "getVuLeft", "getVuRight", "getVuPeakLeft", "getVuPeakRight" -> 0;
                         default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());

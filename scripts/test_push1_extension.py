@@ -21,6 +21,7 @@ if api is None:
 classpath = os.pathsep.join((str(extension), str(api)))
 test_sources = (
     root / "tests/java/VirtualPush1MidiBench.java",
+    root / "tests/java/VirtualPush1MidiConcurrencyTest.java",
     root / "tests/java/VirtualPush1Device.java",
     root / "tests/java/VirtualPush1DeviceTest.java",
     root / "tests/java/VirtualPush1DisplayLayoutTest.java",
@@ -47,6 +48,15 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
     )
     if fuzz_seed is not None:
         command.append(f"-Dpush1.fuzz.seed={fuzz_seed}")
+    for option, property_name in (("--fuzz-actions=", "push1.fuzz.actions"),
+                                  ("--fuzz-seeds=", "push1.fuzz.seeds")):
+        value = next((argument.split("=", 1)[1] for argument in sys.argv[1:]
+                      if argument.startswith(option)), None)
+        if value is not None:
+            if not value.isdigit():
+                raise SystemExit(f"{option[:-1]} must be a positive integer")
+            command.append(f"-D{property_name}={value}")
+    subprocess.run(["java", "-cp", runtime_classpath, "VirtualPush1MidiConcurrencyTest"], cwd=root, check=True)
     command.extend(["-cp", runtime_classpath, "VirtualPush1RuntimeTest"])
     if "--gui" in sys.argv:
         command.append("--gui")
