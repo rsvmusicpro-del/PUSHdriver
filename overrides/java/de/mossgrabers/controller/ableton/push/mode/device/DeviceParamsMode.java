@@ -233,7 +233,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 case 3: on = PushColorManager.PUSH1_COLOR2_ORCHID_HI; off = PushColorManager.PUSH1_COLOR2_ORCHID_LO; break;
                 case 4: on = PushColorManager.PUSH1_COLOR2_YELLOW_HI; off = PushColorManager.PUSH1_COLOR2_YELLOW_LO; break;
                 case 5: on = PushColorManager.PUSH1_COLOR2_MAGENTA_HI; off = PushColorManager.PUSH1_COLOR2_MAGENTA_LO; break;
-                case 6: on = PushColorManager.PUSH1_COLOR2_PINK_HI; off = PushColorManager.PUSH1_COLOR2_PINK_LO; break;
+                case 6: on = PushColorManager.PUSH1_COLOR2_WHITE; off = PushColorManager.PUSH1_COLOR2_WHITE; break;
                 default: return PushColorManager.PUSH1_COLOR2_RED_HI;
             }
             switch (index)
