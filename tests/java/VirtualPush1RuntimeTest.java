@@ -18,6 +18,7 @@ import de.mossgrabers.framework.controller.hardware.IHwRelativeKnob;
 import de.mossgrabers.framework.controller.valuechanger.RelativeEncoding;
 import de.mossgrabers.framework.controller.hardware.IHwSurfaceFactory;
 import de.mossgrabers.framework.daw.IHost;
+import de.mossgrabers.framework.daw.constants.Capability;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.ITransport;
 import de.mossgrabers.framework.daw.data.bank.ITrackBank;
@@ -52,6 +53,7 @@ import de.mossgrabers.framework.daw.data.bank.ISceneBank;
 import de.mossgrabers.framework.daw.data.bank.ISendBank;
 import de.mossgrabers.framework.daw.data.bank.IParameterBank;
 import de.mossgrabers.framework.parameter.IParameter;
+import de.mossgrabers.framework.parameter.NoteAttribute;
 import de.mossgrabers.framework.daw.midi.ArpeggiatorMode;
 import de.mossgrabers.framework.daw.midi.IMidiAccess;
 import de.mossgrabers.framework.daw.midi.IMidiInput;
@@ -87,6 +89,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Iterator;
+import java.util.EnumSet;
 import java.util.Set;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -112,7 +115,8 @@ public final class VirtualPush1RuntimeTest
     private static int parameterPageIndex = 1;
     private static boolean cursorDeviceExists;
     private static boolean deviceSlotExists;
-    private static boolean deviceCapabilitiesSupported = true;
+    // Model API capabilities independently; Bitwig hosts may support one feature but not another.
+    private static final EnumSet<Capability> SUPPORTED_CAPABILITIES = EnumSet.allOf (Capability.class);
     /** Return null for an empty ILayerBank slot to model hosts that do so. */
     private static boolean returnNullForLayerItems;
 
@@ -165,7 +169,13 @@ public final class VirtualPush1RuntimeTest
                 {
                     case "createSurfaceFactory": return hardware;
                     case "getName": return "Virtual Bitwig API 17";
-                    case "supports": return Boolean.valueOf (deviceCapabilitiesSupported);
+                    case "supports":
+                        // HostImpl has two overloads: all note attributes are supported,
+                        // while DAW capabilities are advertised independently.
+                        if (callArgs[0] instanceof NoteAttribute) return Boolean.TRUE;
+                        if (callArgs[0] instanceof Capability capability)
+                            return Boolean.valueOf (SUPPORTED_CAPABILITIES.contains (capability));
+                        throw new AssertionError ("Unknown IHost.supports argument: " + callArgs[0]);
                     case "scheduleTask": state.scheduled.add (new ScheduledTask (((Number) callArgs[1]).longValue (), (Runnable) callArgs[0])); return null;
                     case "error":
                         if (state.errors.size () < 30)
@@ -661,7 +671,10 @@ public final class VirtualPush1RuntimeTest
         final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS);
         cursorDeviceExists = true;
         deviceSlotExists = false;
-        deviceCapabilitiesSupported = false;
+        final EnumSet<Capability> previousSupportedCapabilities = EnumSet.copyOf (SUPPORTED_CAPABILITIES);
+        SUPPORTED_CAPABILITIES.remove (Capability.HAS_PARAMETER_PAGE_SECTION);
+        SUPPORTED_CAPABILITIES.remove (Capability.HAS_SLOT_CHAINS);
+        SUPPORTED_CAPABILITIES.remove (Capability.HAS_PINNING);
         deviceParamsMode.setShowDevices (true);
         MODEL_ACTIONS.clear ();
         deviceParamsMode.onSecondRow (1, ButtonEvent.UP);
@@ -679,7 +692,29 @@ public final class VirtualPush1RuntimeTest
         require (modes.isActive (Modes.DEVICE_PARAMS),
             "Unsupported slot-chain capability unexpectedly activated Device Chains");
 
-        deviceCapabilitiesSupported = true;
+        // Each API-17 capability is independent. Removing one must not make
+        // unrelated features disappear from the virtual Bitwig host.
+        SUPPORTED_CAPABILITIES.remove (Capability.HAS_PARAMETER_PAGE_SECTION);
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (1, ButtonEvent.DOWN);
+        require (MODEL_ACTIONS.isEmpty (), "Unsupported parameter-page capability was still invoked");
+        SUPPORTED_CAPABILITIES.add (Capability.HAS_PARAMETER_PAGE_SECTION);
+
+        SUPPORTED_CAPABILITIES.remove (Capability.HAS_SLOT_CHAINS);
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
+        require (MODEL_ACTIONS.isEmpty () && !modes.isActive (Modes.DEVICE_CHAINS),
+            "Unsupported slot-chain capability was still invoked");
+        SUPPORTED_CAPABILITIES.add (Capability.HAS_SLOT_CHAINS);
+
+        SUPPORTED_CAPABILITIES.remove (Capability.HAS_PINNING);
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (5, ButtonEvent.DOWN);
+        require (MODEL_ACTIONS.isEmpty (), "Unsupported pinning capability was still invoked");
+        SUPPORTED_CAPABILITIES.add (Capability.HAS_PINNING);
+
+        SUPPORTED_CAPABILITIES.clear ();
+        SUPPORTED_CAPABILITIES.addAll (previousSupportedCapabilities);
         deviceSlotExists = true;
         deviceIndex = 4;
         require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 4)) == PushColorManager.PUSH1_COLOR_GREEN_HI,
@@ -806,7 +841,6 @@ public final class VirtualPush1RuntimeTest
 
         cursorDeviceExists = false;
         deviceSlotExists = false;
-        deviceCapabilitiesSupported = true;
 
         // Browser mode is exercised against a stateful API-17 IBrowser model:
         // filter columns, result list, content-type paging and selection state
@@ -2287,8 +2321,13 @@ public final class VirtualPush1RuntimeTest
                     case "getParameterBank": return parameters;
                     case "getDeviceBank": return devices;
                     case "getParameterPageBank": return pages;
-                    case "getSlotChains": return new String [] { "Chain 1", "Chain 2" };
+                    case "getSlotChains":
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
+                            throw new AssertionError ("Unsupported slot-chain capability was queried");
+                        return new String [] { "Chain 1", "Chain 2" };
                     case "selectSlotChain":
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
+                            throw new AssertionError ("Unsupported slot-chain capability was invoked");
                         MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
                         return null;
                     case "toggleEnabledState":
@@ -2301,21 +2340,21 @@ public final class VirtualPush1RuntimeTest
                         MODEL_ACTIONS.add ("cursorDevice.toggleWindowOpen");
                         return null;
                     case "toggleParameterPageSectionVisible":
-                        if (!deviceCapabilitiesSupported)
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_PARAMETER_PAGE_SECTION))
                             throw new AssertionError ("Unsupported parameter-page-section capability was invoked");
                         MODEL_ACTIONS.add ("cursorDevice.toggleParameterPageSectionVisible");
                         return null;
                     case "isParameterPageSectionVisible":
-                        if (!deviceCapabilitiesSupported)
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_PARAMETER_PAGE_SECTION))
                             throw new AssertionError ("Unsupported parameter-page-section state was read");
                         return Boolean.TRUE;
                     case "togglePinned":
-                        if (!deviceCapabilitiesSupported)
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_PINNING))
                             throw new AssertionError ("Unsupported pinning capability was invoked");
                         MODEL_ACTIONS.add ("cursorDevice.togglePinned");
                         return null;
                     case "isPinned":
-                        if (!deviceCapabilitiesSupported)
+                        if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_PINNING))
                             throw new AssertionError ("Unsupported pinning state was read");
                         return Boolean.TRUE;
                     default:
