@@ -349,7 +349,7 @@ replace_once(sequencer_colors,
             if (editNote.getChannel () != channel || editNote.getNote () != note || editNote.getStep () >= step)
                 continue;
 
-            for (int sourceStep = step; sourceStep > editNote.getStep (); sourceStep--)
+            for (int sourceStep = step; sourceStep >= editNote.getStep (); sourceStep--)
             {
                 position.setStep (sourceStep);
                 final StepState state = clip.getStep (position).getState ();
