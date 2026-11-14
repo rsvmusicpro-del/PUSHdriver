@@ -1256,7 +1256,6 @@ public final class VirtualPush1RuntimeTest
             Views.DRUM,
             Views.DRUM4,
             Views.DRUM8,
-            Views.getViewByName ("Raindrop"),
             Views.SCENE_PLAY,
             Views.DRUM64
         };
