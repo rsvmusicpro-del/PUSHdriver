@@ -28,6 +28,8 @@ import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.daw.data.ITrack;
 import de.mossgrabers.framework.daw.data.IDrumDevice;
 import de.mossgrabers.framework.daw.data.IDrumPad;
+import de.mossgrabers.framework.daw.data.IMarker;
+import de.mossgrabers.framework.daw.data.bank.IMarkerBank;
 import de.mossgrabers.framework.daw.data.bank.IDrumPadBank;
 import de.mossgrabers.framework.daw.clip.INoteClip;
 import de.mossgrabers.framework.daw.clip.IStepInfo;
@@ -143,6 +145,7 @@ public final class VirtualPush1RuntimeTest
         final NewClipModel newClipModel = new NewClipModel ();
         newClipModel.setTrackExists (true);
         final MusicalModel musicalModel = new MusicalModel ();
+        final MarkerModel markerModel = new MarkerModel ();
         final MixerModel mixerModel = new MixerModel ();
         final Scales [] scaleModel = new Scales [1];
         final VirtualPush1MidiBench midi = new VirtualPush1MidiBench ();
@@ -231,6 +234,7 @@ public final class VirtualPush1RuntimeTest
                                 case "getCurrentTrackBank", "getTrackBank", "getEffectTrackBank" -> trackBank;
                                 case "getSceneBank" -> sceneBank;
                                 case "getCursorDevice" -> cursorDevice;
+                                case "getMarkerBank" -> markerModel.bank ();
                                 case "getBrowser" -> browserModel.browser ();
                                 case "getNoteClip" -> musicalModel.noteClip ();
                                 case "canSelectedTrackHoldNotes" -> musicalModel.canHoldNotes ();
@@ -1371,6 +1375,38 @@ public final class VirtualPush1RuntimeTest
      * and Drum64 views. Notes, step length, clip paging and drum-pad selection
      * are retained across real Push 1 MIDI events.
      */
+    /**
+     * Minimal but non-null API-17 marker bank. MarkerMode expects every bank
+     * slot to return an IMarker proxy even when no marker exists in that slot.
+     */
+    private static final class MarkerModel
+    {
+        private final IMarker marker = (IMarker) Proxy.newProxyInstance (
+            IMarker.class.getClassLoader (), new Class<?> [] { IMarker.class },
+            (proxy, method, args) -> switch (method.getName ())
+            {
+                case "doesExist" -> false;
+                case "getName" -> "";
+                case "getPosition" -> 0.0;
+                case "getColor" -> ColorEx.BLACK;
+                default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+
+        private final IMarkerBank bank = (IMarkerBank) Proxy.newProxyInstance (
+            IMarkerBank.class.getClassLoader (), new Class<?> [] { IMarkerBank.class },
+            (proxy, method, args) -> switch (method.getName ())
+            {
+                case "getItem" -> this.marker;
+                case "getPageSize" -> 8;
+                case "getScrollPosition" -> 0;
+                case "canScrollPageBackwards", "canScrollPageForwards" -> false;
+                default -> defaultValue (method.getReturnType (), method.getGenericReturnType ());
+            });
+
+        IMarkerBank bank () { return this.bank; }
+    }
+
+
     private static final class MusicalModel
     {
         private final Map<String, StepState> steps = new java.util.HashMap<> ();
