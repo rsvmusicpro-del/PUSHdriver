@@ -28,6 +28,8 @@ jobs:
       - name: Assemble Push 1-only source tree
         run: python3 scripts/prepare_push1.py
 
+      - name: Verify 64-color Push 1 palette
+        run: python3 scripts/check_push1_color_palette.py
       - name: Enforce single-source ownership for modes, views and overrides
         run: python3 scripts/check_source_ownership.py
 
@@ -113,6 +115,8 @@ jobs:
       - name: Assemble Push 1-only source tree
         run: python3 scripts/prepare_push1.py
 
+      - name: Verify 64-color Push 1 palette
+        run: python3 scripts/check_push1_color_palette.py
       - name: Enforce single-source ownership for modes, views and overrides
         run: python3 scripts/check_source_ownership.py
 
