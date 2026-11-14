@@ -20,7 +20,7 @@ PUSHdriver therefore separates five test layers:
 
 The runtime suite now runs a deterministic SplitMix64 generator over every packaged Push 1 view. Four fixed seeds produce 56 view/seed scenarios and 3,584 mixed actions in each run. Actions mix pads, pressure, modifiers, encoders, encoder touch, ribbon, navigation, row selectors, mode buttons, transport and button holds. Invariants check that inputs are released, the LCD remains complete and the virtual Bitwig host reports no runtime errors.
 
-The generator is deliberately deterministic: a failure is reproducible from its seed. It is not yet a full QuickCheck/Hypothesis implementation and does not claim automatic shrinking to a minimal sequence. The recent action trace helps isolate a failing prefix; a future JUnit/property-test migration can add automatic shrinking.
+The generator is deliberately deterministic: a failure is reproducible from its seed. Replay one seed with `python3 scripts/run_virtual_push1.py --fuzz-seed=0x505553483146555A` (replace the value with the seed reported by the failure). It is not yet a full QuickCheck/Hypothesis implementation and does not claim automatic shrinking to a minimal sequence. The recent action trace helps isolate a failing prefix; a future JUnit/property-test migration can add automatic shrinking.
 
 ## Timing fidelity
 
