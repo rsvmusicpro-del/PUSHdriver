@@ -16,7 +16,7 @@ import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
 
-/** Push 1 In control: delegate navigation to the active upstream mode. */
+/** Push 1 Out control: delegate navigation to the active upstream mode. */
 public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface, PushConfiguration>
 {
     public PageRightCommand (final IModel model, final PushControlSurface surface)

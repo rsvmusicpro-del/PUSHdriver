@@ -709,10 +709,10 @@ public final class VirtualPush1RuntimeTest
         deviceParamsMode.setShowDevices (false);
         parameterPageIndex = 2;
         MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page Out");
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Parameter page In");
-        requireAction ("parameterBank.selectPreviousPage", "Out did not use upstream parameter-bank page navigation");
-        requireAction ("parameterBank.selectNextPage", "In did not use upstream parameter-bank page navigation");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page Out");
+        requireAction ("parameterBank.selectPreviousPage", "In did not use upstream parameter-bank page navigation");
+        requireAction ("parameterBank.selectNextPage", "Out did not use upstream parameter-bank page navigation");
         deviceParamsMode.setShowDevices (true);
 
         // Device Chains is an upstream submode: top row selects a chain and
@@ -815,12 +815,12 @@ public final class VirtualPush1RuntimeTest
 
         // In/Out delegates Browser paging to upstream content-type methods.
         final int inOutContentBefore = browserModel.contentTypeIndex ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Browser Out content type");
-        require (browserModel.contentTypeIndex () == inOutContentBefore - 1,
-            "Out did not use the upstream Browser previous-content-type method");
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Browser In content type");
+        require (browserModel.contentTypeIndex () == inOutContentBefore - 1,
+            "In did not use the upstream Browser previous-content-type method");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Browser Out content type");
         require (browserModel.contentTypeIndex () == inOutContentBefore,
-            "In did not use the upstream Browser next-content-type method");
+            "Out did not use the upstream Browser next-content-type method");
 
         final int resultBefore = browserModel.resultCursor ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Browser previous result");
