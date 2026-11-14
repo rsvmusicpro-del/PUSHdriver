@@ -132,3 +132,15 @@ Run the same unified bench on Linux and Intel macOS with Java 17. Package verifi
 - Keep the current implementation intact until the candidate passes the full acceptance matrix.
 - Build and upload a candidate `.bwextension` as a GitHub Actions artifact; do not merge automatically.
 - A green virtual bench proves the tested API-17 controller contract only. It does not prove behavior inside a live Bitwig Studio 4.3.10 process or on physical Push 1 hardware.
+
+## 8. Audit follow-up — 2026-11-14
+
+The follow-up audit adds regression coverage and guards for three race/capability edges:
+
+- Device-bank navigation, parameter-page navigation and page selection release the exact parameter instance currently under encoder touch before changing the target.
+- Parent navigation no longer assumes that Bitwig's FOLLOW_SELECTION cursor has updated after a fixed 300 ms. It polls the cursor identity/state with a bounded timeout and invalidates the callback when a later controller action or mode transition supersedes it.
+- Slot-chain selection keeps the Chains selector active until the cursor reports the resulting device. The Chains context is not offered for null/blank-only chain names, and all Chains-mode entry/render paths guard HAS_SLOT_CHAINS independently.
+
+The virtual host now models a delayed parent cursor update and a delayed slot-chain selection. It also exercises stale parent callbacks, touch release during In/Out and page selection, empty chain names, and unsupported slot-chain mode rendering.
+
+This follow-up is still a partial audit, not the exhaustive certification described by the acceptance matrix above. The remaining work includes complete nested container/layer/page transition combinations, all eight chain slots and page layouts, external Bitwig-driven cursor changes during pending transitions, full action/LED/LCD state assertions, and live Bitwig 4.3.10 plus physical Push 1 validation.
