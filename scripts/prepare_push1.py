@@ -1984,3 +1984,113 @@ replace_menu_fragment(quantize_mode,
 
         index = this.isButtonRow (0, buttonID);""",
     "Quantize row LED feedback")
+
+
+
+# PUSHdriver custom palette: 64 static Push 1 pad colors, shared with Bitwig RGB.
+# RGB values are read from the pinned upstream hardware palette so the DAW
+# palette cannot drift away from the controller's actual LED colors.
+import re
+
+push_color_manager = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushColorManager.java"
+push_color_source = push_color_manager.read_text()
+palette_match = re.search(r"DEFAULT_PALETTE\s*=\s*\{([\s\S]*?)\n\s*\};", push_color_source)
+if palette_match is None:
+    raise SystemExit("Push 1 color palette: DEFAULT_PALETTE was not found")
+push_rgb = re.findall(r"\{\s*0x([0-9A-Fa-f]+),\s*0x([0-9A-Fa-f]+),\s*0x([0-9A-Fa-f]+)\s*\}", palette_match.group(1))
+if len(push_rgb) < 64:
+    raise SystemExit(f"Push 1 color palette: expected at least 64 RGB entries, found {len(push_rgb)}")
+
+push1_color_names = [
+    ("COLOR_OFF", "Black"),
+    ("DAW_COLOR_DARK_GRAY", "Charcoal"),
+    ("DAW_COLOR_GRAY", "Gray"),
+    ("DAW_COLOR_GRAY_HALF", "White"),
+    ("DAW_COLOR_LIGHT_GRAY", "Coral"),
+    ("DAW_COLOR_SILVER", "Red"),
+    ("DAW_COLOR_DARK_BROWN", "Dark Red"),
+    ("DAW_COLOR_BROWN", "Deep Red"),
+    ("DAW_COLOR_DARK_BLUE", "Peach"),
+    ("DAW_COLOR_PURPLE_BLUE", "Orange"),
+    ("DAW_COLOR_PURPLE", "Brown"),
+    ("DAW_COLOR_PINK", "Dark Brown"),
+    ("DAW_COLOR_RED", "Lemon"),
+    ("DAW_COLOR_ORANGE", "Yellow"),
+    ("DAW_COLOR_LIGHT_ORANGE", "Olive"),
+    ("DAW_COLOR_MOSS_GREEN", "Dark Olive"),
+    ("DAW_COLOR_GREEN", "Chartreuse"),
+    ("DAW_COLOR_COLD_GREEN", "Lime"),
+    ("DAW_COLOR_BLUE", "Forest Green"),
+    ("DAW_COLOR_LIGHT_PURPLE", "Deep Forest"),
+    ("DAW_COLOR_LIGHT_PINK", "Bright Green"),
+    ("DAW_COLOR_ROSE", "Green"),
+    ("DAW_COLOR_REDDISH_BROWN", "Dark Green"),
+    ("DAW_COLOR_LIGHT_BROWN", "Deep Green"),
+    ("DAW_COLOR_LIGHT_GREEN", "Mint"),
+    ("DAW_COLOR_BLUISH_GREEN", "Neon Green"),
+    ("DAW_COLOR_GREEN_BLUE", "Deep Moss"),
+    ("DAW_COLOR_LIGHT_BLUE", "Night Green"),
+    ("PUSH1_COLOR_28_MINT_GREEN", "Mint Green"),
+    ("PUSH1_COLOR_29_SPRING_GREEN", "Spring Green"),
+    ("PUSH1_COLOR_30_DARK_TEAL", "Dark Teal"),
+    ("PUSH1_COLOR_31_DEEP_TEAL", "Deep Teal"),
+    ("PUSH1_COLOR_32_AQUA_MINT", "Aqua Mint"),
+    ("PUSH1_COLOR_33_AQUA", "Aqua"),
+    ("PUSH1_COLOR_34_DEEP_AQUA", "Deep Aqua"),
+    ("PUSH1_COLOR_35_NIGHT_TEAL", "Night Teal"),
+    ("PUSH1_COLOR_36_SKY_BLUE", "Sky Blue"),
+    ("PUSH1_COLOR_37_AZURE", "Azure"),
+    ("PUSH1_COLOR_38_DEEP_TEAL_BLUE", "Deep Teal Blue"),
+    ("PUSH1_COLOR_39_MIDNIGHT_BLUE", "Midnight Blue"),
+    ("PUSH1_COLOR_40_CORNFLOWER", "Cornflower"),
+    ("PUSH1_COLOR_41_BLUE", "Blue"),
+    ("PUSH1_COLOR_42_NAVY", "Navy"),
+    ("PUSH1_COLOR_43_MIDNIGHT_NAVY", "Midnight Navy"),
+    ("PUSH1_COLOR_44_PERIWINKLE", "Periwinkle"),
+    ("PUSH1_COLOR_45_ROYAL_BLUE", "Royal Blue"),
+    ("PUSH1_COLOR_46_DEEP_BLUE", "Deep Blue"),
+    ("PUSH1_COLOR_47_DARK_NAVY", "Dark Navy"),
+    ("PUSH1_COLOR_48_VIOLET", "Violet"),
+    ("PUSH1_COLOR_49_PURPLE", "Purple"),
+    ("PUSH1_COLOR_50_DEEP_PURPLE", "Deep Purple"),
+    ("PUSH1_COLOR_51_DARK_PURPLE", "Dark Purple"),
+    ("PUSH1_COLOR_52_MAGENTA", "Magenta"),
+    ("PUSH1_COLOR_53_FUCHSIA", "Fuchsia"),
+    ("PUSH1_COLOR_54_DEEP_MAGENTA", "Deep Magenta"),
+    ("PUSH1_COLOR_55_DARK_MAGENTA", "Dark Magenta"),
+    ("PUSH1_COLOR_56_HOT_PINK", "Hot Pink"),
+    ("PUSH1_COLOR_57_PINK", "Pink"),
+    ("PUSH1_COLOR_58_DEEP_PINK", "Deep Pink"),
+    ("PUSH1_COLOR_59_WINE", "Wine"),
+    ("PUSH1_COLOR_60_VERMILION", "Vermilion"),
+    ("PUSH1_COLOR_61_BURNT_ORANGE", "Burnt Orange"),
+    ("PUSH1_COLOR_62_OCHRE", "Ochre"),
+    ("PUSH1_COLOR_63_OLIVE_GREEN", "Olive Green"),
+]
+daw_color = root / "src/main/java/de/mossgrabers/framework/daw/DAWColor.java"
+daw_source = daw_color.read_text()
+enum_start = daw_source.index("{", daw_source.index("public enum DAWColor")) + 1
+enum_end = daw_source.index("\n\n\n    private static final List", enum_start)
+enum_entries = []
+for index, (constant, display_name) in enumerate(push1_color_names):
+    red, green, blue = (int(component, 16) for component in push_rgb[index])
+    suffix = ";" if index == len(push1_color_names) - 1 else ","
+    enum_entries.append(
+        f'    /** Push 1 palette color {index}: {display_name}. */\n'
+        f'    {constant}("{display_name}", new ColorEx ({red / 255.0:.12g}, {green / 255.0:.12g}, {blue / 255.0:.12g})){suffix}'
+    )
+daw_source = daw_source[:enum_start] + "\n" + "\n".join(enum_entries) + daw_source[enum_end:]
+daw_color.write_text(daw_source)
+
+# The enum order is the physical Push 1 palette order: Bitwig RGB and pad LED
+# index are therefore a one-to-one mapping for all 64 choices.
+registration_start = push_color_source.index("        this.registerColorIndex (DAWColor.COLOR_OFF,")
+registration_end_marker = "        this.registerColorIndex (DAWColor.DAW_COLOR_LIGHT_BLUE, isPush2 ? 96 : 41);"
+registration_end = push_color_source.index(registration_end_marker, registration_start) + len(registration_end_marker)
+registration = (
+    "        for (int i = 0; i < DAWColor.values ().length; i++)\n"
+    "            this.registerColorIndex (DAWColor.values ()[i], i);"
+)
+push_color_source = push_color_source[:registration_start] + registration + push_color_source[registration_end:]
+push_color_manager.write_text(push_color_source)
+
