@@ -2247,7 +2247,7 @@ public final class VirtualPush1RuntimeTest
                 }
                 if (List.of ("selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
-                    MODEL_ACTIONS.add ("parameterBank." + method.getName ());
+                    MODEL_ACTIONS.add ("parameterPage." + method.getName ());
                     parameterPageIndex = method.getName ().equals ("selectPreviousPage")
                         ? Math.max (0, parameterPageIndex - 1) : Math.min (3, parameterPageIndex + 1);
                     return null;
@@ -2349,7 +2349,7 @@ public final class VirtualPush1RuntimeTest
             new Class<?> [] { IParameterBank.class }, (proxy, method, args) -> {
                 if (List.of ("scrollBackwards", "scrollForwards", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
-                    MODEL_ACTIONS.add ("parameterPage." + method.getName ());
+                    MODEL_ACTIONS.add ("parameterBank." + method.getName ());
                     switch (method.getName ())
                     {
                         case "scrollBackwards": parameterPageIndex = Math.max (0, parameterPageIndex - 1); break;
