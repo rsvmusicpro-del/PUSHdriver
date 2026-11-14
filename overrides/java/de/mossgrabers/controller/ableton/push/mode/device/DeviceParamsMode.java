@@ -262,65 +262,67 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         int index = this.isButtonRow (0, buttonID);
         if (index >= 0)
         {
+            final int unavailable = PushColorManager.PUSH1_COLOR2_GREY_LO;
             if (!cd.doesExist ())
-                return super.getButtonColor (buttonID);
-
-            final int selectedColor = this.colorManager.getColorIndex (PushColorManager.PUSH_ORANGE_HI);
-            final int existsColor = this.colorManager.getColorIndex (PushColorManager.PUSH_YELLOW_LO);
-            final int offColor = this.colorManager.getColorIndex (PushColorManager.PUSH_BLACK);
+                return unavailable;
 
             if (this.showDevices)
             {
                 final IDeviceBank bank = cd.getDeviceBank ();
                 if (!bank.getItem (index).doesExist ())
-                    return offColor;
-                return index == cd.getIndex () ? selectedColor : existsColor;
+                    return unavailable;
+                return index == cd.getIndex ()
+                    ? PushColorManager.PUSH1_COLOR2_GREEN_HI
+                    : PushColorManager.PUSH1_COLOR2_GREEN_LO;
             }
+
             final IParameterPageBank bank = cd.getParameterPageBank ();
-            final int selectedItemIndex = bank.getSelectedItemIndex ();
             if (bank.getItem (index).isEmpty ())
-                return offColor;
-            return index == selectedItemIndex ? selectedColor : existsColor;
+                return unavailable;
+            return index == bank.getSelectedItemIndex ()
+                ? PushColorManager.PUSH1_COLOR2_GREEN_HI
+                : PushColorManager.PUSH1_COLOR2_GREEN_LO;
         }
 
         index = this.isButtonRow (1, buttonID);
         if (index >= 0)
         {
-            final int white = this.isPush2 ? PushColorManager.PUSH2_COLOR2_WHITE : PushColorManager.PUSH1_COLOR2_WHITE;
-            if (!cd.doesExist ())
-                return index == 7 ? white : super.getButtonColor (buttonID);
+            final int unavailable = PushColorManager.PUSH1_COLOR2_GREY_LO;
+            final int actionOn = PushColorManager.PUSH1_COLOR2_AMBER_HI;
+            final int actionOff = PushColorManager.PUSH1_COLOR2_AMBER_LO;
+            final int hierarchyOn = PushColorManager.PUSH1_COLOR2_ORCHID_HI;
+            final int hierarchyOff = PushColorManager.PUSH1_COLOR2_ORCHID_LO;
+            final int navigationOn = PushColorManager.PUSH1_COLOR2_BLUE_HI;
+            final int navigationOff = PushColorManager.PUSH1_COLOR2_BLUE_LO;
 
-            final int green = this.isPush2 ? PushColorManager.PUSH2_COLOR2_GREEN : PushColorManager.PUSH1_COLOR2_GREEN;
-            final int grey = this.isPush2 ? PushColorManager.PUSH2_COLOR2_GREY_LO : PushColorManager.PUSH1_COLOR2_GREY_LO;
-            final int orange = this.isPush2 ? PushColorManager.PUSH2_COLOR2_ORANGE : PushColorManager.PUSH1_COLOR2_ORANGE;
-            final int off = this.isPush2 ? PushColorManager.PUSH2_COLOR_BLACK : PushColorManager.PUSH1_COLOR_BLACK;
-            final int turquoise = this.isPush2 ? PushColorManager.PUSH2_COLOR2_TURQUOISE_HI : PushColorManager.PUSH1_COLOR2_TURQUOISE_HI;
+            if (!cd.doesExist ())
+                return index == 7 ? hierarchyOn : unavailable;
 
             switch (index)
             {
                 case 0:
-                    return cd.isEnabled () ? green : grey;
+                    return cd.isEnabled () ? actionOn : actionOff;
                 case 1:
                     if (!this.model.getHost ().supports (Capability.HAS_PARAMETER_PAGE_SECTION))
-                        return off;
-                    return cd.isParameterPageSectionVisible () ? orange : white;
+                        return unavailable;
+                    return cd.isParameterPageSectionVisible () ? actionOn : actionOff;
                 case 2:
-                    return cd.isExpanded () ? orange : white;
+                    return cd.isExpanded () ? actionOn : actionOff;
                 case 3:
                     if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
-                        return off;
-                    return this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS) ? orange : white;
+                        return unavailable;
+                    return this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS) ? hierarchyOn : hierarchyOff;
                 case 4:
-                    return this.showDevices ? white : orange;
+                    return this.showDevices ? navigationOff : navigationOn;
                 case 5:
                     if (!this.model.getHost ().supports (Capability.HAS_PINNING))
-                        return off;
-                    return cd.isPinned () ? turquoise : grey;
+                        return unavailable;
+                    return cd.isPinned () ? actionOn : actionOff;
                 case 6:
-                    return cd.isWindowOpen () ? turquoise : grey;
+                    return cd.isWindowOpen () ? actionOn : actionOff;
                 default:
                 case 7:
-                    return white;
+                    return hierarchyOn;
             }
         }
 
