@@ -266,14 +266,26 @@ public final class VirtualPush1RuntimeTest
         require (startupModes.get (Modes.DEVICE_LAYER) != null,
             "Device Layer mode was not registered for empty-slot regression coverage");
         startupModes.setActive (Modes.DEVICE_LAYER);
+        final boolean previousCursorDeviceExists = cursorDeviceExists;
+        cursorDeviceExists = true;
         returnNullForLayerItems = true;
         try
         {
-            midi.device ().tapButton (VirtualPush1Device.BOTTOM_ROW_FIRST);
+            // Top-row selection and all distinct Push 1 second-row paths:
+            // direct mute/solo, send-page scrolling and move-up.
+            for (final int emptyLayerButton: new int [] {
+                VirtualPush1Device.TOP_ROW_FIRST,
+                VirtualPush1Device.BOTTOM_ROW_FIRST,
+                VirtualPush1Device.BOTTOM_ROW_FIRST + 3,
+                VirtualPush1Device.BOTTOM_ROW_FIRST + 4,
+                VirtualPush1Device.BOTTOM_ROW_FIRST + 7
+            })
+                midi.device ().tapButton (emptyLayerButton);
         }
         finally
         {
             returnNullForLayerItems = false;
+            cursorDeviceExists = previousCursorDeviceExists;
         }
         startupModes.setActive (Modes.TRACK);
 
