@@ -55,7 +55,7 @@ else:
 prepare_source = (ROOT / "scripts/prepare_push1.py").read_text(encoding="utf-8")
 second_row = section(
     prepare_source,
-    "final int greenOn",
+    "final int off",
     "# Align the Push 1 physical button rows",
     "Push 1 Device second-row RGB patch recipe",
 )
