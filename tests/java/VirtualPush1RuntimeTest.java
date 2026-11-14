@@ -2625,6 +2625,8 @@ public final class VirtualPush1RuntimeTest
                 }
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
+                if (method.getName ().equals ("getSelectedChannelColorEntry"))
+                    return "DAW_COLOR_RED";
                 if (method.getName ().equals ("stop"))
                 { mixer.stopAll (); return null; }
                 if (method.getName ().equals ("getSelectedItem"))
