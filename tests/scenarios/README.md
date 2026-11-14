@@ -2,7 +2,7 @@
 
 `fuzz-seeds.txt` is the checked-in corpus for generated failures that have been fixed. The default Java runtime suite always executes the four rotating exploration seeds **and every unique seed in this file** across every packaged Push 1 view (64 mixed actions per view/seed pair).
 
-When a generated scenario fails, the runtime reports its exact seed, active view, and complete 64-action trace. Reproduce it with:
+When a generated scenario fails, the runtime reports its exact seed, active view, and complete 64-action trace, and writes a report under `target/push1-failures/`. GitHub Actions automatically uploads that directory as a platform-specific artifact when either runtime suite fails. Reproduce it with:
 
 ```bash
 python3 scripts/run_virtual_push1.py --fuzz-seed=5788624465584084314
