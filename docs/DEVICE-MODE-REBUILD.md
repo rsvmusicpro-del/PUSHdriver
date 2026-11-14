@@ -25,11 +25,7 @@ ROW1 must use only the Push 1 static CC palette. ROW2 uses the RGB-capable palet
 
 ## Bitwig-specific integration
 
-The complete upstream mode remains authoritative. `scripts/prepare_push1.py` adds only the small Push 1 In/Out adapter methods to the assembled upstream DeviceParamsMode:
-- In/Out navigate the device bank while device selectors are visible.
-- In/Out navigate parameter pages while parameter pages are visible.
-- The corresponding button LED availability is derived from the same bank boundaries.
-- No second Device state machine or duplicated DeviceParamsMode class is maintained.
+The complete upstream mode remains authoritative. No project-owned DeviceParamsMode, DeviceChainsMode or DeviceBrowserMode class is allowed. DeviceParamsMode is assembled from pinned upstream source without injected navigation methods: its native `selectPreviousItem` / `selectNextItem` and `hasPreviousItem` / `hasNextItem` already cover device-bank and parameter-page navigation. The Push 1 setup must not create a second Device state machine or shadow the upstream mode.
 
 The existing Push 1 setup continues to route the physical In/Out controls into the active Device/Browser context while preserving their established behavior in Session and sequencer contexts. Optional Bitwig API capabilities must be checked before invoking parameter-section, pinning or slot-chain operations.
 
