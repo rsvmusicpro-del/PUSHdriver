@@ -257,7 +257,7 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.SESSION) != null, "Session mode was not registered");
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
         require (modes.get (Modes.FIXED) != null, "Fixed Length menu was not registered");
-        require (modes.get (Modes.QUANTIZE) != null, "Quantize menu was not registered");
+        require (modes.get (Modes.REC_ARM) != null, "Quantize menu was not registered");
 
         // Exercise every option through the real production MIDI bindings.
         // CC20–27 are the eight physical buttons directly below the LCD, in
@@ -276,7 +276,7 @@ public final class VirtualPush1RuntimeTest
         newClipModel.setTrackExists (true);
         for (int index = 0; index < 5; index++)
         {
-            modes.setActive (Modes.QUANTIZE);
+            modes.setActive (Modes.REC_ARM);
             midi.device ().tapButton (VirtualPush1Device.BELOW_DISPLAY_ROW_FIRST + index);
             require (newClipModel.recordQuantizationIndex () == index,
                 "Quantize physical button " + (index + 1) + " selected enum "
