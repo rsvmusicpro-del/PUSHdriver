@@ -405,6 +405,31 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
 
 
     /**
+     * Increase the visibility of sustained notes and the empty playhead cell
+     * on the Push 1's low-resolution LED palette. The upstream continuation
+     * color is a low-intensity blue and the empty playhead is low-intensity
+     * green; both are difficult to distinguish under ordinary lighting.
+     * Keep selected, muted, recording and ordinary note colors unchanged.
+     *
+     * @param stepInfo The note information
+     * @param hilite True if this is the current playhead step
+     * @param step The step
+     * @param editNotes The notes currently selected for editing
+     * @return The Push 1 pad color
+     */
+    @Override
+    protected String getStepColor (final de.mossgrabers.framework.daw.clip.IStepInfo stepInfo, final boolean hilite, final int step, final java.util.List<NotePosition> editNotes)
+    {
+        final String color = super.getStepColor (stepInfo, hilite, step, editNotes);
+        if (AbstractSequencerView.COLOR_CONTENT_CONT.equals (color))
+            return AbstractSequencerView.COLOR_CONTENT;
+        if (AbstractSequencerView.COLOR_STEP_HILITE_NO_CONTENT.equals (color))
+            return AbstractSequencerView.COLOR_STEP_HILITE_CONTENT;
+        return color;
+    }
+
+
+    /**
      * Keep the selected-note feedback distinct while always giving the scale
      * root the selected track's color, including when the root is selected or
      * physically held. The scale mapping itself remains owned by Scales.
