@@ -115,6 +115,18 @@ public final class VirtualPush1RuntimeTest
     private static int parameterPageIndex = 1;
     private static boolean cursorDeviceExists;
     private static boolean deviceSlotExists;
+    private static String virtualCursorDeviceName = "Virtual Device";
+    private static int virtualCursorDevicePosition = 4;
+    private static boolean virtualCursorDeviceNested;
+    private static boolean virtualCursorDeviceHasLayers;
+    private static boolean virtualDeviceParametersExist;
+    private static String [] virtualSlotChains = { "Chain 1", "Chain 2", "Chain 3", "Chain 4", "Chain 5", "Chain 6", "Chain 7", "Chain 8" };
+    private static String [] virtualDeviceBankNames = { "Device 0", "Device 1", "Device 2", "Device 3", "Device 4", "Device 5", "Device 6", "Device 7" };
+    private static boolean virtualParentNestedAfterSelect;
+    private static boolean virtualParentHasLayersAfterSelect;
+    private static boolean virtualSuppressParentCursorUpdate;
+    private static boolean virtualSuppressChainCursorUpdate;
+    private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
     // Model API capabilities independently; Bitwig hosts may support one feature but not another.
     private static final EnumSet<Capability> SUPPORTED_CAPABILITIES = EnumSet.allOf (Capability.class);
     /** Return null for an empty ILayerBank slot to model hosts that do so. */
@@ -241,7 +253,7 @@ public final class VirtualPush1RuntimeTest
                         final ITrackBank trackBank = trackBankProxy (mixerModel);
                         final ISceneBank sceneBank = mixerModel.sceneBank ();
                         final IParameterBank parameterBank = parameterBankProxy ();
-                        final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank);
+                        final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank, state);
                         return Proxy.newProxyInstance (IModel.class.getClassLoader (),
                             new Class<?> [] { IModel.class }, (p, m, a) -> switch (m.getName ())
                             {
@@ -642,6 +654,13 @@ public final class VirtualPush1RuntimeTest
         // parameter pages, using the actual DeviceParamsMode production path.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Device mode");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Device button did not activate Device mode for In/Out tests");
+        require (modes.getActiveID () == Modes.DEVICE_PARAMS,
+            "In/Out must run in the primary Device Parameters mode, not its Chains submode");
+        require (((DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS)).isShowDevices (),
+            "In/Out device navigation must begin in DEVICES selector context");
+        // Earlier boundary checks intentionally left the virtual cursor at the
+        // last device; restore an interior position for bidirectional In/Out.
+        deviceIndex = 4;
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out");
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In");
@@ -705,6 +724,27 @@ public final class VirtualPush1RuntimeTest
         deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
         require (MODEL_ACTIONS.isEmpty () && !modes.isActive (Modes.DEVICE_CHAINS),
             "Unsupported slot-chain capability was still invoked");
+
+        // Exercise a stale/restored Chains mode directly: its input, LEDs and
+        // both display renderers must also tolerate the missing API capability.
+        final de.mossgrabers.controller.ableton.push.mode.device.DeviceChainsMode unavailableChainsMode =
+            (de.mossgrabers.controller.ableton.push.mode.device.DeviceChainsMode) modes.get (Modes.DEVICE_CHAINS);
+        modes.setActive (Modes.DEVICE_CHAINS);
+        final ITextDisplay unavailableTextDisplay = (ITextDisplay) Proxy.newProxyInstance (
+            ITextDisplay.class.getClassLoader (), new Class<?> [] { ITextDisplay.class },
+            (p, m, a) -> m.getReturnType ().isInstance (p) ? p : defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+        final IGraphicDisplay unavailableGraphicDisplay = (IGraphicDisplay) Proxy.newProxyInstance (
+            IGraphicDisplay.class.getClassLoader (), new Class<?> [] { IGraphicDisplay.class },
+            (p, m, a) -> m.getReturnType ().isInstance (p) ? p : defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+        MODEL_ACTIONS.clear ();
+        unavailableChainsMode.onSecondRow (0, ButtonEvent.UP);
+        require (unavailableChainsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 0)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "Unsupported Chains selectors must be dark");
+        unavailableChainsMode.updateDisplay1 (unavailableTextDisplay);
+        unavailableChainsMode.updateDisplay2 (unavailableGraphicDisplay);
+        require (MODEL_ACTIONS.isEmpty (),
+            "A stale Chains mode queried or invoked an unsupported slot-chain API");
+        modes.setActive (Modes.DEVICE_PARAMS);
         SUPPORTED_CAPABILITIES.add (Capability.HAS_SLOT_CHAINS);
 
         SUPPORTED_CAPABILITIES.remove (Capability.HAS_PINNING);
@@ -713,8 +753,52 @@ public final class VirtualPush1RuntimeTest
         require (MODEL_ACTIONS.isEmpty (), "Unsupported pinning capability was still invoked");
         SUPPORTED_CAPABILITIES.add (Capability.HAS_PINNING);
 
+        // Exhaust all 2^3 combinations of the optional API-17 Device
+        // capabilities. Each feature must depend only on its own flag.
+        for (int mask = 0; mask < 8; mask++)
+        {
+            SUPPORTED_CAPABILITIES.clear ();
+            if ((mask & 1) != 0) SUPPORTED_CAPABILITIES.add (Capability.HAS_PARAMETER_PAGE_SECTION);
+            if ((mask & 2) != 0) SUPPORTED_CAPABILITIES.add (Capability.HAS_SLOT_CHAINS);
+            if ((mask & 4) != 0) SUPPORTED_CAPABILITIES.add (Capability.HAS_PINNING);
+            modes.setActive (Modes.DEVICE_PARAMS);
+            deviceParamsMode.setShowDevices (true);
+            MODEL_ACTIONS.clear ();
+
+            final boolean parameterSection = (mask & 1) != 0;
+            final boolean slotChains = (mask & 2) != 0;
+            final boolean pinning = (mask & 4) != 0;
+            final int parameterColor = deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 1));
+            final int chainsColor = deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 3));
+            final int pinColor = deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 5));
+            require (parameterSection
+                    ? parameterColor != PushColorManager.PUSH1_COLOR2_GREY_LO
+                    : parameterColor == PushColorManager.PUSH1_COLOR2_GREY_LO,
+                "Parameter-section LED did not follow capability combination " + mask);
+            require (slotChains
+                    ? chainsColor != PushColorManager.PUSH1_COLOR2_GREY_LO
+                    : chainsColor == PushColorManager.PUSH1_COLOR2_GREY_LO,
+                "Chains LED did not follow capability combination " + mask);
+            require (pinning
+                    ? pinColor != PushColorManager.PUSH1_COLOR2_GREY_LO
+                    : pinColor == PushColorManager.PUSH1_COLOR2_GREY_LO,
+                "Pin LED did not follow capability combination " + mask);
+
+            deviceParamsMode.onFirstRow (1, ButtonEvent.DOWN);
+            deviceParamsMode.onFirstRow (5, ButtonEvent.DOWN);
+            deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
+            require (MODEL_ACTIONS.contains ("cursorDevice.toggleParameterPageSectionVisible") == parameterSection,
+                "Parameter-section dispatch was not isolated in capability combination " + mask);
+            require (MODEL_ACTIONS.contains ("cursorDevice.togglePinned") == pinning,
+                "Pin dispatch was not isolated in capability combination " + mask);
+            require (modes.isActive (Modes.DEVICE_CHAINS) == slotChains,
+                "Chains activation was not isolated in capability combination " + mask);
+        }
+
         SUPPORTED_CAPABILITIES.clear ();
         SUPPORTED_CAPABILITIES.addAll (previousSupportedCapabilities);
+        modes.setActive (Modes.DEVICE_PARAMS);
+        deviceParamsMode.setShowDevices (true);
         deviceSlotExists = true;
         deviceIndex = 4;
         require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 4)) == PushColorManager.PUSH1_COLOR_GREEN_HI,
@@ -762,6 +846,180 @@ public final class VirtualPush1RuntimeTest
         requireAction ("cursorDevice.togglePinned",
             "Supported pinning capability must remain actionable");
 
+        // A touched encoder must release the original parameter before a device
+        // selection changes the cursor target; the later physical release must not
+        // accidentally release a different device's parameter.
+        virtualDeviceParametersExist = true;
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onKnobTouch (0, true);
+        deviceParamsMode.onSecondRow (1, ButtonEvent.UP);
+        deviceParamsMode.onKnobTouch (0, false);
+        require (MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:true")).count () == 1,
+            "Touching a Device encoder must start automation touch exactly once");
+        require (MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:false")).count () == 1,
+            "Changing the cursor device must release the originally touched parameter exactly once");
+        // In/Out changes the cursor device too; it must release the exact old
+        // parameter before the asynchronous Bitwig cursor update is observed.
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onKnobTouch (0, true);
+        deviceParamsMode.selectNextInOutItem ();
+        deviceParamsMode.onKnobTouch (0, false);
+        require (MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:true")).count () == 1
+                && MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:false")).count () == 1,
+            "In/Out device navigation must release the originally touched parameter exactly once");
+
+        // Selecting a different parameter page also changes the encoder target.
+        deviceParamsMode.setShowDevices (false);
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onKnobTouch (0, true);
+        deviceParamsMode.onSecondRow (2, ButtonEvent.UP);
+        deviceParamsMode.onKnobTouch (0, false);
+        require (MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:true")).count () == 1
+                && MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:false")).count () == 1,
+            "Parameter-page selection must release the originally touched parameter exactly once");
+        requireAction ("parameterPage.selectPage:2", "Selecting a page must still reach the API-17 page bank");
+        deviceParamsMode.setShowDevices (true);
+
+        // Parent selection must wait for Bitwig's asynchronous cursor update.
+        virtualCursorDeviceName = "Nested Child";
+        virtualCursorDevicePosition = 3;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceHasLayers = false;
+        virtualDeviceBankNames = new String [] { "Child sibling 0", "Child sibling 1", "Child sibling 2", "Child sibling 3", "Child sibling 4", "Child sibling 5", "Child sibling 6", "Child sibling 7" };
+        virtualParentNestedAfterSelect = true;
+        virtualDeviceParametersExist = true;
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onKnobTouch (0, true);
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        deviceParamsMode.onKnobTouch (0, false);
+        require (MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:true")).count () == 1
+                && MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:false")).count () == 1,
+            "Parent selection must release the touched child parameter exactly once");
+        require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
+            "Parent channel must not be selected before the Bitwig cursor reports the parent");
+        deviceParamsMode.onKnobTouch (1, true);
+        deviceParamsMode.onKnobValue (1, 7);
+        deviceParamsMode.onKnobTouch (1, false);
+        require (MODEL_ACTIONS.stream ().noneMatch (action -> action.startsWith ("parameter.touch:1:")
+                || action.startsWith ("parameter.changeValue:1:")),
+            "Encoder touch/value events must not edit the old child while parent cursor return is pending");
+        drainScheduled (state, 73);
+        requireAction ("cursorDevice.selectParent", "Up must request exactly one parent transition");
+        requireAction ("cursorDevice.selectChannel", "The confirmed parent must select its hosting channel");
+        require (!deviceParamsMode.isShowDevices (),
+            "A confirmed parent transition must leave the selector on its parameter pages");
+        require (virtualCursorDeviceNested,
+            "Ascending one level from a deeply nested child must preserve the parent's nested state");
+
+        // Up first returns from parameter pages to devices, then ascends one
+        // additional hierarchy level on the next press.
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        require (deviceParamsMode.isShowDevices (), "Up from parent pages must return to device selectors");
+        virtualParentNestedAfterSelect = false;
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        drainScheduled (state, 73);
+        requireAction ("cursorDevice.selectParent", "A second Up must ascend from the nested parent");
+        require (!virtualCursorDeviceNested,
+            "A second parent transition must reach the outer device level");
+
+        // A parent that owns layers must enter the configured layer mode after
+        // its asynchronous cursor update, rather than leaving Device parameters
+        // attached to the child.
+        deviceParamsMode.setShowDevices (true);
+        virtualCursorDeviceName = "Layer Child";
+        virtualCursorDevicePosition = 5;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceHasLayers = false;
+        virtualParentNestedAfterSelect = false;
+        virtualParentHasLayersAfterSelect = true;
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        drainScheduled (state, 73);
+        require (modes.isActive (surface.getConfiguration ().getCurrentLayerMixMode ()),
+            "A confirmed parent with layers must enter the configured layer mode");
+        requireAction ("cursorDevice.selectChannel", "Layer-parent navigation must select its hosting channel");
+        virtualParentHasLayersAfterSelect = false;
+        modes.setActive (Modes.DEVICE_PARAMS);
+        deviceParamsMode.setShowDevices (true);
+
+        // A later device selection invalidates the pending parent callback.
+        deviceParamsMode.setShowDevices (true);
+        virtualCursorDeviceName = "Nested Child";
+        virtualCursorDevicePosition = 3;
+        virtualCursorDeviceNested = true;
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        deviceParamsMode.onSecondRow (1, ButtonEvent.UP);
+        virtualCursorDeviceName = "Different Device";
+        virtualCursorDevicePosition = 9;
+        drainScheduled (state, 73);
+        require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
+            "A stale parent callback must not select the channel of a newer cursor device");
+
+        // In/Out navigation also supersedes a pending parent transition and
+        // must release the encoder input lock for the newly targeted device.
+        virtualCursorDeviceName = "Nested Child";
+        virtualCursorDevicePosition = 3;
+        virtualCursorDeviceNested = true;
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        deviceParamsMode.selectNextInOutItem ();
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onKnobTouch (1, true);
+        deviceParamsMode.onKnobTouch (1, false);
+        require (MODEL_ACTIONS.contains ("parameter.touch:1:true")
+                && MODEL_ACTIONS.contains ("parameter.touch:1:false"),
+            "In/Out navigation must cancel pending parent state and restore encoder touch");
+        drainScheduled (state, 73);
+        require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
+            "A cancelled parent transition must not act on the cursor after In/Out navigation");
+
+        // A parent cursor that never updates must stop polling and recover the
+        // Devices selector rather than leave navigation pending forever.
+        virtualCursorDeviceName = "Stalled Child";
+        virtualCursorDevicePosition = 2;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceHasLayers = false;
+        virtualSuppressParentCursorUpdate = true;
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        drainScheduled (state, 73);
+        requireAction ("cursorDevice.selectParent", "A stalled parent test must dispatch selectParent once");
+        require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
+            "A parent timeout must not select a channel before cursor confirmation");
+        require (deviceParamsMode.isShowDevices () && modes.isActive (Modes.DEVICE_PARAMS),
+            "A parent timeout must recover to the Devices selector");
+        virtualSuppressParentCursorUpdate = false;
+
+        // A direct Bitwig selection made while a parent request is pending
+        // must be observed as the current cursor target, not leave stale UI.
+        virtualCursorDeviceName = "Pending Child";
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceNested = true;
+        virtualSuppressParentCursorUpdate = true;
+        deviceParamsMode.setShowDevices (true);
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        virtualCursorDeviceName = "External Bitwig Device";
+        virtualCursorDevicePosition = 11;
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceHasLayers = false;
+        virtualDeviceBankNames = new String [] {
+            "External sibling 0", "External sibling 1", "External sibling 2", "External sibling 3",
+            "External sibling 4", "External sibling 5", "External sibling 6", "External sibling 7"
+        };
+        drainScheduled (state, 73);
+        require (!deviceParamsMode.isShowDevices () && MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
+            "An external Bitwig cursor change during a pending parent request must refresh the active Device context");
+        virtualSuppressParentCursorUpdate = false;
+
+        virtualCursorDeviceName = "Virtual Device";
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceHasLayers = false;
+        virtualDeviceParametersExist = false;
+        deviceParamsMode.setShowDevices (true);
+
         // Confirm the physical MIDI bindings now dispatch actions on ROW1 and
         // device selection on ROW2 through the production command layer.
         MODEL_ACTIONS.clear ();
@@ -781,10 +1039,11 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Device Window action");
         requireAction ("cursorDevice.toggleWindowOpen", "ROW1 Window action was not dispatched");
 
-        // Banks toggles the selector row between device slots and parameter pages.
+        // Banks cycles the explicit selector contexts: Devices -> Pages -> Chains -> Devices.
         require (deviceParamsMode.isShowDevices (), "Device selectors should initially show device slots");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Device Banks action");
-        require (!deviceParamsMode.isShowDevices (), "Banks action did not switch to parameter pages");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Device Banks to Pages");
+        require (!deviceParamsMode.isShowDevices () && modes.isActive (Modes.DEVICE_PARAMS),
+            "Banks action did not switch from Devices to parameter pages");
         for (int i = 0; i < 8; i++)
         {
             MODEL_ACTIONS.clear ();
@@ -792,8 +1051,59 @@ public final class VirtualPush1RuntimeTest
             requireAction ("parameterPage.selectPage:" + i,
                 "Static ROW2 selector " + i + " did not select its matching parameter page");
         }
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Return to Device selectors");
-        require (deviceParamsMode.isShowDevices (), "Banks action did not restore device selectors");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Device Banks to Chains");
+        require (modes.isActive (Modes.DEVICE_CHAINS), "Banks did not advance from Pages to Chains");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Device Banks to Devices");
+        require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
+            "Banks did not cycle from Chains back to Devices");
+
+        // A slot-chain list containing only null/blank entries is not an
+        // available context and must not light the Chains action.
+        virtualSlotChains = new String [] { null, "   " };
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, 3)) == PushColorManager.PUSH1_COLOR2_GREY_LO,
+            "Chains must be disabled when the host reports no usable chain names");
+        virtualSlotChains = new String [] { "Chain 1", "Chain 2", "Chain 3", "Chain 4", "Chain 5", "Chain 6", "Chain 7", "Chain 8" };
+
+        // Empty, null and whitespace-only chain slots must be dark and inert
+        // in both the selector feedback and the production selection handler.
+        deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
+        require (modes.isActive (Modes.DEVICE_CHAINS), "Chains action did not enter the Chains selector");
+        final DeviceParamsMode chainSelectorMode = (DeviceParamsMode) modes.get (Modes.DEVICE_CHAINS);
+        virtualSlotChains = new String [] { "Chain 1", null, "   ", "Chain 4", "Chain 5", "Chain 6", "Chain 7", "Chain 8" };
+        require (chainSelectorMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 0)) == PushColorManager.PUSH1_COLOR_GREEN_LO,
+            "A named chain must be shown as available");
+        require (chainSelectorMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "A null chain slot must be dark");
+        require (chainSelectorMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 2)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "A whitespace-only chain slot must be dark");
+        MODEL_ACTIONS.clear ();
+        chainSelectorMode.onSecondRow (1, ButtonEvent.UP);
+        chainSelectorMode.onSecondRow (2, ButtonEvent.UP);
+        require (MODEL_ACTIONS.stream ().noneMatch (action -> action.startsWith ("device.selectSlotChain:")),
+            "Null and whitespace-only chain slots must not be selectable");
+        chainSelectorMode.onSecondRow (7, ButtonEvent.UP);
+        requireAction ("device.selectSlotChain:Chain 8", "The eighth chain slot must remain selectable");
+        require (modes.isActive (Modes.DEVICE_CHAINS),
+            "The Chains selector must remain active until Bitwig reports the new cursor device");
+        drainScheduled (state, 73);
+        require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
+            "Selecting a valid chain must return to the Devices selector");
+        virtualSlotChains = new String [] { "Chain 1", "Chain 2", "Chain 3", "Chain 4", "Chain 5", "Chain 6", "Chain 7", "Chain 8" };
+
+        // Whitespace and null parameter-page names must be dark and unselectable.
+        virtualParameterPages = new String [] { "Page 0", null, "   ", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
+        deviceParamsMode.setShowDevices (false);
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 1)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "A null parameter-page slot must be dark");
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 2)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "A whitespace-only parameter-page slot must be dark");
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onSecondRow (1, ButtonEvent.UP);
+        deviceParamsMode.onSecondRow (2, ButtonEvent.UP);
+        require (MODEL_ACTIONS.stream ().noneMatch (action -> action.startsWith ("parameterPage.selectPage:")),
+            "Null and whitespace-only parameter pages must not be selectable");
+        deviceParamsMode.setShowDevices (true);
+        virtualParameterPages = new String [] { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
 
         // Every device-selector position is exercised through production MIDI.
         // Selecting the current device opens its parameter pages.
@@ -805,8 +1115,8 @@ public final class VirtualPush1RuntimeTest
             {
                 require (!deviceParamsMode.isShowDevices (),
                     "Selecting the current device must open its parameter pages");
-                requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Return from parameter pages");
-                require (deviceParamsMode.isShowDevices (), "Banks action failed to restore device selectors");
+                requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Up from parameter pages");
+                require (deviceParamsMode.isShowDevices (), "Up action failed to return to device selectors");
             }
             else
                 requireAction ("device.select:" + i, "ROW2 selector " + i + " selected the wrong device slot");
@@ -814,6 +1124,14 @@ public final class VirtualPush1RuntimeTest
 
         // Enter Device Chains through the production RGB action binding, then
         // verify and use the static selector row through the production MIDI path.
+        // The earlier chain test intentionally left the virtual cursor in a
+        // chain child; reset to the parent so this second selection models a
+        // distinct asynchronous cursor return.
+        virtualCursorDeviceName = "Virtual Device";
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceHasLayers = false;
+        virtualDeviceBankNames = new String [] { "Device 0", "Device 1", "Device 2", "Device 3", "Device 4", "Device 5", "Device 6", "Device 7" };
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Device Chains action");
         require (modes.isActive (Modes.DEVICE_CHAINS), "ROW1 Chains action did not activate Device Chains");
@@ -828,11 +1146,53 @@ public final class VirtualPush1RuntimeTest
                 "Device Chains ROW2 button " + i + " used an RGB/blink color: " + color);
         }
         MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Device Chains selector");
-        requireAction ("device.selectSlotChain:Chain 1",
-            "ROW2 selector must select the matching chain and return to Device parameters");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "Device Chains selector 8");
+        requireAction ("device.selectSlotChain:Chain 8",
+            "ROW2 selector 8 must select the matching chain");
+        require (modes.isActive (Modes.DEVICE_CHAINS),
+            "Chains mode must remain active until the cursor reports the selected chain");
+        drainScheduled (state, 73);
         require (modes.isActive (Modes.DEVICE_PARAMS),
             "Selecting a Device Chain did not return to Device parameters");
+
+        for (int i = 0; i < 8; i++)
+        {
+            virtualCursorDeviceName = "Virtual Device";
+            virtualCursorDevicePosition = 4;
+            virtualCursorDeviceNested = false;
+            virtualCursorDeviceHasLayers = false;
+            virtualDeviceBankNames = new String [] {
+                "Container " + i + " sibling 0", "Container " + i + " sibling 1",
+                "Container " + i + " sibling 2", "Container " + i + " sibling 3",
+                "Container " + i + " sibling 4", "Container " + i + " sibling 5",
+                "Container " + i + " sibling 6", "Container " + i + " sibling 7"
+            };
+            modes.setActive (Modes.DEVICE_PARAMS);
+            deviceParamsMode.setShowDevices (true);
+            deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
+            MODEL_ACTIONS.clear ();
+            chainsMode.onSecondRow (i, ButtonEvent.UP);
+            requireAction ("device.selectSlotChain:Chain " + (i + 1),
+                "Chain selector slot " + i + " dispatched the wrong chain");
+            drainScheduled (state, 73);
+            require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
+                "Chain selector slot " + i + " did not return to the Devices context");
+        }
+
+        // A chain command whose cursor never changes must recover from CHAINS
+        // after the bounded wait instead of stranding the user in that context.
+        modes.setActive (Modes.DEVICE_CHAINS);
+        virtualSuppressChainCursorUpdate = true;
+        MODEL_ACTIONS.clear ();
+        chainsMode.onSecondRow (1, ButtonEvent.UP);
+        require (modes.isActive (Modes.DEVICE_CHAINS),
+            "A pending chain selection must keep the Chains context until timeout");
+        drainScheduled (state, 73);
+        require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
+            "A chain-selection timeout must recover to the Devices selector");
+        require (MODEL_ACTIONS.stream ().filter (action -> action.equals ("device.selectSlotChain:Chain 2")).count () == 1,
+            "A timed-out chain selection must dispatch exactly once");
+        virtualSuppressChainCursorUpdate = false;
 
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Device Up action");
         require (modes.isActive (Modes.TRACK), "ROW1 Up action did not return to Track mode");
@@ -2252,13 +2612,21 @@ public final class VirtualPush1RuntimeTest
         }
     }
 
-    private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters)
+    private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters, final State state)
     {
         final IDeviceBank devices = (IDeviceBank) Proxy.newProxyInstance (
             IDeviceBank.class.getClassLoader (), new Class<?> [] { IDeviceBank.class },
             (proxy, method, args) -> {
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
+                if (method.getName ().equals ("canScrollBackwards"))
+                    return Boolean.valueOf (deviceIndex > 0);
+                if (method.getName ().equals ("canScrollForwards"))
+                    return Boolean.valueOf (deviceIndex < 15);
+                if (method.getName ().equals ("canScrollPageBackwards"))
+                    return Boolean.valueOf (deviceIndex > 0);
+                if (method.getName ().equals ("canScrollPageForwards"))
+                    return Boolean.valueOf (deviceIndex < 15);
                 if (method.getName ().equals ("getItem"))
                 {
                     final int targetIndex = (int) args[0];
@@ -2267,6 +2635,8 @@ public final class VirtualPush1RuntimeTest
                         (p, m, a) -> switch (m.getName ())
                         {
                             case "doesExist" -> Boolean.valueOf (deviceSlotExists);
+                            case "getName" -> virtualDeviceBankNames[targetIndex % virtualDeviceBankNames.length];
+                            case "getPosition" -> Integer.valueOf (targetIndex);
                             case "select" -> {
                                 MODEL_ACTIONS.add ("device.select");
                                 MODEL_ACTIONS.add ("device.select:" + targetIndex);
@@ -2295,8 +2665,12 @@ public final class VirtualPush1RuntimeTest
             (proxy, method, args) -> {
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
+                if (method.getName ().equals ("canScrollPageBackwards"))
+                    return Boolean.valueOf (parameterPageIndex > 0);
+                if (method.getName ().equals ("canScrollPageForwards"))
+                    return Boolean.valueOf (parameterPageIndex < 3);
                 if (method.getName ().equals ("getItem"))
-                    return "Page " + args[0];
+                    return virtualParameterPages[(int) args[0]];
                 if (method.getName ().equals ("selectPage"))
                 {
                     MODEL_ACTIONS.add ("parameterPage.selectPage:" + args[0]);
@@ -2318,17 +2692,49 @@ public final class VirtualPush1RuntimeTest
                 {
                     case "doesExist": return Boolean.valueOf (cursorDeviceExists);
                     case "getIndex": return Integer.valueOf (deviceIndex);
+                    case "getPosition": return Integer.valueOf (virtualCursorDevicePosition);
+                    case "getName": return virtualCursorDeviceName;
+                    case "isNested": return Boolean.valueOf (virtualCursorDeviceNested);
+                    case "hasLayers": return Boolean.valueOf (virtualCursorDeviceHasLayers);
+                    case "selectParent":
+                        MODEL_ACTIONS.add ("cursorDevice.selectParent");
+                        if (!virtualSuppressParentCursorUpdate)
+                            state.scheduled.add (new ScheduledTask (73, () -> {
+                                virtualCursorDeviceName = virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
+                                virtualCursorDevicePosition = Math.max (0, virtualCursorDevicePosition - 1);
+                                virtualCursorDeviceNested = virtualParentNestedAfterSelect;
+                                virtualCursorDeviceHasLayers = virtualParentHasLayersAfterSelect;
+                                virtualDeviceBankNames = virtualParentNestedAfterSelect
+                                    ? new String [] { "Nested sibling 0", "Nested sibling 1", "Nested sibling 2", "Nested sibling 3", "Nested sibling 4", "Nested sibling 5", "Nested sibling 6", "Nested sibling 7" }
+                                    : new String [] { "Outer sibling 0", "Outer sibling 1", "Outer sibling 2", "Outer sibling 3", "Outer sibling 4", "Outer sibling 5", "Outer sibling 6", "Outer sibling 7" };
+                            }));
+                        return null;
+                    case "selectChannel":
+                        MODEL_ACTIONS.add ("cursorDevice.selectChannel");
+                        return null;
                     case "getParameterBank": return parameters;
                     case "getDeviceBank": return devices;
                     case "getParameterPageBank": return pages;
                     case "getSlotChains":
                         if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
                             throw new AssertionError ("Unsupported slot-chain capability was queried");
-                        return new String [] { "Chain 1", "Chain 2" };
+                        return virtualSlotChains.clone ();
                     case "selectSlotChain":
                         if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
                             throw new AssertionError ("Unsupported slot-chain capability was invoked");
                         MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
+                        if (!virtualSuppressChainCursorUpdate)
+                            state.scheduled.add (new ScheduledTask (73, () -> {
+                                // Simulate a chain child whose name, position and
+                                // nesting flags match the previous cursor. The
+                                // sibling-bank contents still identify the change.
+                                virtualDeviceBankNames = new String [] {
+                                    "Slot " + args[0] + " child 0", "Slot " + args[0] + " child 1",
+                                    "Slot " + args[0] + " child 2", "Slot " + args[0] + " child 3",
+                                    "Slot " + args[0] + " child 4", "Slot " + args[0] + " child 5",
+                                    "Slot " + args[0] + " child 6", "Slot " + args[0] + " child 7"
+                                };
+                            }));
                         return null;
                     case "toggleEnabledState":
                         MODEL_ACTIONS.add ("cursorDevice.toggleEnabledState");
@@ -2370,9 +2776,24 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
+                {
+                    final int parameterIndex = (int) args[0];
                     return Proxy.newProxyInstance (IParameter.class.getClassLoader (),
                         new Class<?> [] { IParameter.class },
-                        (p, m, a) -> defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+                        (p, m, a) -> switch (m.getName ())
+                        {
+                            case "doesExist" -> Boolean.valueOf (virtualDeviceParametersExist);
+                            case "touchValue" -> {
+                                MODEL_ACTIONS.add ("parameter.touch:" + parameterIndex + ":" + a[0]);
+                                yield null;
+                            }
+                            case "changeValue" -> {
+                                MODEL_ACTIONS.add ("parameter.changeValue:" + parameterIndex + ":" + a[0]);
+                                yield null;
+                            }
+                            default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
+                        });
+                }
                 return defaultValue (method.getReturnType (), method.getGenericReturnType ());
             });
     }
@@ -2425,6 +2846,8 @@ public final class VirtualPush1RuntimeTest
                 }
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
+                if (method.getName ().equals ("getSelectedChannelColorEntry"))
+                    return "DAW_COLOR_RED";
                 if (method.getName ().equals ("stop"))
                 { mixer.stopAll (); return null; }
                 if (method.getName ().equals ("getSelectedItem"))

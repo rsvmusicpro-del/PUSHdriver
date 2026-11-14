@@ -51,8 +51,14 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         "Up"
     };
 
+    public enum SelectorContext { DEVICES, PAGES, CHAINS }
+
     protected final String []      hostMenu = new String [MENU.length];
     protected boolean              showDevices;
+    private SelectorContext        selectorContext = SelectorContext.DEVICES;
+    private final IParameter []    touchedParameters = new IParameter [8];
+    private long hierarchyTransitionGeneration;
+    private boolean hierarchyTransitionPending;
 
 
     /**
@@ -95,6 +101,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     public final void setShowDevices (final boolean enable)
     {
         this.showDevices = enable;
+        this.selectorContext = enable ? SelectorContext.DEVICES : SelectorContext.PAGES;
     }
 
 
@@ -105,7 +112,120 @@ public class DeviceParamsMode extends BaseMode<IParameter>
      */
     public boolean isShowDevices ()
     {
-        return this.showDevices;
+        return this.selectorContext == SelectorContext.DEVICES;
+    }
+
+
+    protected DeviceParamsMode getPrimaryMode ()
+    {
+        return (DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS);
+    }
+
+
+    protected SelectorContext getSelectorContext ()
+    {
+        final ModeManager manager = this.surface.getModeManager ();
+        if (manager.getActiveID () == Modes.DEVICE_CHAINS)
+            return SelectorContext.CHAINS;
+        return this.getPrimaryMode ().selectorContext;
+    }
+
+
+    protected void setSelectorContext (final SelectorContext context)
+    {
+        final ModeManager manager = this.surface.getModeManager ();
+        final DeviceParamsMode primary = this.getPrimaryMode ();
+        if (context == SelectorContext.CHAINS)
+        {
+            if (primary.hasAvailableChains ())
+                manager.setActive (Modes.DEVICE_CHAINS);
+            return;
+        }
+        primary.selectorContext = context;
+        primary.showDevices = context == SelectorContext.DEVICES;
+        manager.setActive (Modes.DEVICE_PARAMS);
+    }
+
+
+    protected boolean hasAvailableChains ()
+    {
+        final ICursorDevice device = this.model.getCursorDevice ();
+        if (!device.doesExist () || !this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+            return false;
+        final String [] chains = device.getSlotChains ();
+        if (chains == null)
+            return false;
+        for (final String chain: chains)
+            if (chain != null && !chain.isBlank ())
+                return true;
+        return false;
+    }
+
+
+    private boolean isAvailablePage (final String page)
+    {
+        return page != null && !page.isBlank ();
+    }
+
+
+    protected boolean hasParameterPages ()
+    {
+        final ICursorDevice device = this.model.getCursorDevice ();
+        if (!device.doesExist ())
+            return false;
+        final IParameterPageBank pages = device.getParameterPageBank ();
+        final int count = Math.min (8, pages.getPageSize ());
+        for (int i = 0; i < count; i++)
+        {
+            final String name = pages.getItem (i);
+            if (name != null && !name.isBlank ())
+                return true;
+        }
+        return false;
+    }
+
+
+    private void cycleSelectorContext ()
+    {
+        final SelectorContext current = this.getSelectorContext ();
+        for (int step = 1; step <= 3; step++)
+        {
+            final SelectorContext candidate = SelectorContext.values ()[(current.ordinal () + step) % SelectorContext.values ().length];
+            if (candidate == SelectorContext.DEVICES || candidate == SelectorContext.PAGES && this.hasParameterPages ()
+                    || candidate == SelectorContext.CHAINS && this.hasAvailableChains ())
+            {
+                this.setSelectorContext (candidate);
+                return;
+            }
+        }
+    }
+
+
+    protected void releaseAllTouchedParameters ()
+    {
+        for (int i = 0; i < this.touchedParameters.length; i++)
+        {
+            final IParameter parameter = this.touchedParameters[i];
+            if (parameter != null)
+            {
+                parameter.touchValue (false);
+                this.touchedParameters[i] = null;
+                this.setTouchedKnob (i, false);
+                this.checkStopAutomationOnKnobRelease (false);
+            }
+        }
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void onDeactivate ()
+    {
+        // Invalidate delayed cursor callbacks before another mode owns the surface.
+        this.hierarchyTransitionGeneration++;
+        this.hierarchyTransitionPending = false;
+        this.releaseAllTouchedParameters ();
+        super.onDeactivate ();
     }
 
 
@@ -113,17 +233,51 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     @Override
     public void onKnobTouch (final int index, final boolean isTouched)
     {
-        this.setTouchedKnob (index, isTouched);
+        if (this.hierarchyTransitionPending || index < 0 || index >= this.touchedParameters.length)
+            return;
 
-        final ICursorDevice cd = this.model.getCursorDevice ();
-        final IParameter param = cd.getParameterBank ().getItem (index);
-        if (isTouched && this.surface.isDeletePressed ())
+        if (isTouched)
         {
-            this.surface.setTriggerConsumed (ButtonID.DELETE);
-            param.resetValue ();
+            if (this.touchedParameters[index] != null)
+                return;
+            final ICursorDevice cd = this.model.getCursorDevice ();
+            if (!cd.doesExist ())
+                return;
+            final IParameter parameter = cd.getParameterBank ().getItem (index);
+            if (parameter == null || !parameter.doesExist ())
+                return;
+            this.touchedParameters[index] = parameter;
+            this.setTouchedKnob (index, true);
+            if (this.surface.isDeletePressed ())
+            {
+                this.surface.setTriggerConsumed (ButtonID.DELETE);
+                parameter.resetValue ();
+            }
+            parameter.touchValue (true);
         }
-        param.touchValue (isTouched);
-        this.checkStopAutomationOnKnobRelease (isTouched);
+        else
+        {
+            final IParameter parameter = this.touchedParameters[index];
+            if (parameter != null)
+            {
+                parameter.touchValue (false);
+                this.touchedParameters[index] = null;
+            }
+            this.setTouchedKnob (index, false);
+            this.checkStopAutomationOnKnobRelease (false);
+        }
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void onKnobValue (final int index, final int value)
+    {
+        // While Bitwig is resolving selectParent(), the parameter provider can
+        // still point at the child. Do not let encoder movement edit that stale
+        // target; normal encoder dispatch resumes as soon as the cursor settles.
+        if (!this.hierarchyTransitionPending)
+            super.onKnobValue (index, value);
     }
 
 
@@ -132,8 +286,9 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     public void onFirstRow (final int index, final ButtonEvent event)
     {
         if (event != ButtonEvent.DOWN) return;
+        this.hierarchyTransitionGeneration++;
+        this.hierarchyTransitionPending = false;
         final ICursorDevice device = this.model.getCursorDevice ();
-        final ModeManager modeManager = this.surface.getModeManager ();
         switch (index)
         {
             case 0: if (device.doesExist ()) device.toggleEnabledState (); break;
@@ -143,13 +298,14 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 break;
             case 2: if (device.doesExist ()) device.toggleExpanded (); break;
             case 3:
-                if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS)) return;
-                modeManager.setActive (modeManager.isActive (Modes.DEVICE_CHAINS) ? Modes.DEVICE_PARAMS : Modes.DEVICE_CHAINS);
+                if (this.getSelectorContext () == SelectorContext.CHAINS)
+                    this.setSelectorContext (SelectorContext.DEVICES);
+                else
+                    this.setSelectorContext (SelectorContext.CHAINS);
                 break;
             case 4:
                 if (!device.doesExist ()) return;
-                if (!modeManager.isActive (Modes.DEVICE_PARAMS)) modeManager.setActive (Modes.DEVICE_PARAMS);
-                this.setShowDevices (!this.showDevices);
+                this.cycleSelectorContext ();
                 break;
             case 5:
                 if (!this.model.getHost ().supports (Capability.HAS_PINNING)) return;
@@ -166,10 +322,12 @@ public class DeviceParamsMode extends BaseMode<IParameter>
      */
     protected void moveUp ()
     {
+        final long transition = ++this.hierarchyTransitionGeneration;
+        this.hierarchyTransitionPending = false;
         final ModeManager modeManager = this.surface.getModeManager ();
-        if (modeManager.isActive (Modes.DEVICE_CHAINS))
+        if (this.getSelectorContext () == SelectorContext.CHAINS || this.getSelectorContext () == SelectorContext.PAGES)
         {
-            modeManager.setActive (Modes.DEVICE_PARAMS);
+            this.setSelectorContext (SelectorContext.DEVICES);
             return;
         }
 
@@ -192,15 +350,15 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         // Devices are shown, if nested show the layers otherwise move up to the tracks
         if (cd.isNested ())
         {
+            // Bitwig updates a FOLLOW_SELECTION cursor asynchronously. A fixed
+            // 300 ms delay can run against the child or a newer selection. Wait
+            // for the cursor identity to change and cancel if another UI action
+            // or mode transition supersedes this request.
+            final String childState = this.getCursorStateFingerprint (cd);
+            this.releaseAllTouchedParameters ();
+            this.hierarchyTransitionPending = true;
             cd.selectParent ();
-            this.model.getHost ().scheduleTask ( () -> {
-                if (cd.hasLayers ())
-                    modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
-                else
-                    modeManager.setActive (Modes.DEVICE_PARAMS);
-                deviceParamsMode.setShowDevices (false);
-                cd.selectChannel ();
-            }, 300);
+            this.awaitParentCursor (cd, modeManager, deviceParamsMode, childState, transition, 0);
             return;
         }
 
@@ -209,6 +367,124 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             this.surface.getButton (ButtonID.MASTERTRACK).trigger (ButtonEvent.DOWN);
         else
             this.surface.getButton (ButtonID.TRACK).trigger (ButtonEvent.DOWN);
+    }
+
+
+    /**
+     * Build a structural snapshot of the cursor target. API 17 does not expose a
+     * stable ID through DrivenByMoss' ICursorDevice (getID() is empty for this
+     * implementation), so include the observable hierarchy and bank contents.
+     * This distinguishes same-name devices at the same position when their
+     * sibling/page/slot structure differs.
+     *
+     * @param cd The cursor device
+     * @return A stable snapshot until Bitwig publishes a cursor update
+     */
+    private String getCursorStateFingerprint (final ICursorDevice cd)
+    {
+        final StringBuilder state = new StringBuilder (256);
+        state.append (String.valueOf (cd.getName ())).append ('|')
+            .append (cd.getPosition ()).append ('|')
+            .append (cd.isNested ()).append ('|')
+            .append (cd.hasLayers ()).append ('|')
+            .append (cd.hasSlots ()).append ('|');
+
+        if (this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+        {
+            final String [] chains = cd.getSlotChains ();
+            if (chains != null)
+                for (final String chain: chains)
+                    state.append (String.valueOf (chain)).append (';');
+        }
+        state.append ('|');
+
+        final IDeviceBank devices = cd.getDeviceBank ();
+        if (devices != null)
+            for (int i = 0; i < devices.getPageSize (); i++)
+            {
+                final IDevice device = devices.getItem (i);
+                if (device == null || !device.doesExist ())
+                    state.append ("-;");
+                else
+                    state.append (String.valueOf (device.getName ())).append ('@')
+                        .append (device.getPosition ()).append (';');
+            }
+        state.append ('|');
+
+        final IParameterPageBank pages = cd.getParameterPageBank ();
+        if (pages != null)
+        {
+            state.append ("pages:");
+            for (int i = 0; i < pages.getPageSize (); i++)
+                state.append (String.valueOf (pages.getItem (i))).append (';');
+        }
+        return state.toString ();
+    }
+
+
+    protected void selectSlotChainAndAwaitCursor (final ICursorDevice cd, final String chainName)
+    {
+        final long transition = ++this.hierarchyTransitionGeneration;
+        final String previousState = this.getCursorStateFingerprint (cd);
+        cd.selectSlotChain (chainName);
+        this.awaitSelectedChainCursor (cd, previousState, transition, 0);
+    }
+
+
+    private void awaitSelectedChainCursor (final ICursorDevice cd, final String previousState,
+        final long transition, final int attempt)
+    {
+        if (transition != this.hierarchyTransitionGeneration)
+            return;
+
+        if (!cd.doesExist () || previousState.equals (this.getCursorStateFingerprint (cd)))
+        {
+            if (attempt < 40)
+                this.model.getHost ().scheduleTask (() -> this.awaitSelectedChainCursor (cd, previousState,
+                    transition, attempt + 1), 73);
+            else
+                // Do not strand the controller in CHAINS if Bitwig rejected the
+                // selection or did not publish the cursor update in time. The
+                // cursor remains authoritative and will refresh the device view
+                // if Bitwig completes the selection later.
+                this.setSelectorContext (SelectorContext.DEVICES);
+            return;
+        }
+
+        this.setSelectorContext (SelectorContext.DEVICES);
+    }
+
+
+    private void awaitParentCursor (final ICursorDevice cd, final ModeManager modeManager,
+        final DeviceParamsMode deviceParamsMode, final String childState, final long transition, final int attempt)
+    {
+        if (transition != this.hierarchyTransitionGeneration)
+            return;
+
+        if (!cd.doesExist () || childState.equals (this.getCursorStateFingerprint (cd)))
+        {
+            if (attempt < 40)
+                this.model.getHost ().scheduleTask (() -> this.awaitParentCursor (cd, modeManager, deviceParamsMode,
+                    childState, transition, attempt + 1), 73);
+            else
+                // Recover the selector context without issuing a channel
+                // selection against a cursor whose parent transition was not
+                // confirmed. A late Bitwig update will still refresh the view.
+                {
+                    this.hierarchyTransitionPending = false;
+                    this.setSelectorContext (SelectorContext.DEVICES);
+                }
+            return;
+        }
+
+        this.hierarchyTransitionPending = false;
+        deviceParamsMode.releaseAllTouchedParameters ();
+        if (cd.hasLayers ())
+            modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
+        else
+            modeManager.setActive (Modes.DEVICE_PARAMS);
+        deviceParamsMode.setShowDevices (false);
+        cd.selectChannel ();
     }
 
 
@@ -244,9 +520,9 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                     return cd.isParameterPageSectionVisible () ? on : off;
                 case 2: return cd.isExpanded () ? on : off;
                 case 3:
-                    if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS)) return PushColorManager.PUSH1_COLOR2_GREY_LO;
-                    return this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS) ? on : off;
-                case 4: return this.showDevices ? off : on;
+                    if (!this.hasAvailableChains ()) return PushColorManager.PUSH1_COLOR2_GREY_LO;
+                    return this.getSelectorContext () == SelectorContext.CHAINS ? on : off;
+                case 4: return this.getSelectorContext () == SelectorContext.DEVICES ? off : on;
                 case 5:
                     if (!this.model.getHost ().supports (Capability.HAS_PINNING)) return PushColorManager.PUSH1_COLOR2_GREY_LO;
                     return cd.isPinned () ? on : off;
@@ -259,13 +535,14 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         {
             // ROW2 / CC102-109: static CC palette only, for device/page selection.
             if (!cd.doesExist ()) return PushColorManager.PUSH1_COLOR_BLACK;
-            if (this.showDevices)
+            if (this.getSelectorContext () == SelectorContext.DEVICES)
             {
                 if (!cd.getDeviceBank ().getItem (index).doesExist ()) return PushColorManager.PUSH1_COLOR_BLACK;
                 return index == cd.getIndex () ? PushColorManager.PUSH1_COLOR_GREEN_HI : PushColorManager.PUSH1_COLOR_GREEN_LO;
             }
             final IParameterPageBank bank = cd.getParameterPageBank ();
-            if (bank.getItem (index).isEmpty ()) return PushColorManager.PUSH1_COLOR_BLACK;
+            final String page = bank.getItem (index);
+            if (!this.isAvailablePage (page)) return PushColorManager.PUSH1_COLOR_BLACK;
             return index == bank.getSelectedItemIndex () ? PushColorManager.PUSH1_COLOR_GREEN_HI : PushColorManager.PUSH1_COLOR_GREEN_LO;
         }
         return super.getButtonColor (buttonID);
@@ -276,17 +553,31 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     public void onSecondRow (final int index, final ButtonEvent event)
     {
         if (event == ButtonEvent.DOWN) return;
+        this.hierarchyTransitionGeneration++;
+        this.hierarchyTransitionPending = false;
         if (event == ButtonEvent.UP)
         {
             final ICursorDevice cd = this.model.getCursorDevice ();
             if (!cd.doesExist ()) return;
-            if (!this.showDevices)
+            if (this.getSelectorContext () == SelectorContext.PAGES)
             {
-                cd.getParameterPageBank ().selectPage (index);
+                final IParameterPageBank pages = cd.getParameterPageBank ();
+                if (index < pages.getPageSize ())
+                {
+                    final String page = pages.getItem (index);
+                    if (this.isAvailablePage (page))
+                    {
+                        this.releaseAllTouchedParameters ();
+                        pages.selectPage (index);
+                    }
+                }
                 return;
             }
+            if (this.getSelectorContext () != SelectorContext.DEVICES)
+                return;
             if (this.isButtonCombination (ButtonID.DUPLICATE))
             {
+                this.releaseAllTouchedParameters ();
                 cd.duplicate ();
                 return;
             }
@@ -294,6 +585,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             if (!targetDevice.doesExist ()) return;
             if (this.isButtonCombination (ButtonID.DELETE))
             {
+                this.releaseAllTouchedParameters ();
                 targetDevice.remove ();
                 return;
             }
@@ -304,13 +596,14 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             }
             if (cd.getIndex () != index)
             {
+                this.releaseAllTouchedParameters ();
                 targetDevice.select ();
                 return;
             }
             final ModeManager modeManager = this.surface.getModeManager ();
             if (!cd.hasLayers ())
             {
-                ((DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS)).setShowDevices (false);
+                this.setSelectorContext (SelectorContext.PAGES);
                 return;
             }
             final Optional<?> layer = cd.getLayerBank ().getSelectedItem ();
@@ -356,7 +649,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             for (int i = 0; i < 8; i++)
             {
                 final String page = bank.getItem (i);
-                display.setCell (0, i, page.isEmpty () ? "" : (i == selected ? Push1Display.SELECT_ARROW : "") + page);
+                display.setCell (0, i, !this.isAvailablePage (page) ? "" : (i == selected ? Push1Display.SELECT_ARROW : "") + page);
             }
         }
 
@@ -370,9 +663,8 @@ public class DeviceParamsMode extends BaseMode<IParameter>
         }
 
         // The eight action labels now align with the action row below the LCD.
-        final String [] actionLabels = { "On", "Params", "Expand", "Chains", "Banks", "Pin", "Window", "Up" };
-        for (int i = 0; i < actionLabels.length; i++)
-            display.setCell (3, i, actionLabels[i]);
+        for (int i = 0; i < this.hostMenu.length; i++)
+            display.setCell (3, i, i == 4 ? this.hostMenu[i] + (this.getSelectorContext () == SelectorContext.DEVICES ? " D" : " P") : this.hostMenu[i]);
     }
 
     /** {@inheritDoc} */
@@ -414,10 +706,12 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             {
                 bottomMenuIcon = cd.getName ();
                 bottomMenu = parameterPageBank.getItem (i);
+                if (!this.isAvailablePage (bottomMenu))
+                    bottomMenu = "";
 
                 if (bottomMenu.length () > 12)
                     bottomMenu = bottomMenu.substring (0, 12);
-                isBottomMenuOn = i == selectedPage;
+                isBottomMenuOn = this.isAvailablePage (parameterPageBank.getItem (i)) && i == selectedPage;
             }
 
             final IParameter param = parameterBank.getItem (i);
@@ -437,10 +731,17 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     @Override
     public void selectPreviousItem ()
     {
-        if (this.showDevices)
+        if (this.getSelectorContext () == SelectorContext.DEVICES)
         {
             final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-            cursorDevice.getDeviceBank ().selectPreviousItem ();
+            final IDeviceBank bank = cursorDevice.getDeviceBank ();
+            if (bank.canScrollBackwards ())
+            {
+                this.hierarchyTransitionGeneration++;
+                this.hierarchyTransitionPending = false;
+                this.releaseAllTouchedParameters ();
+                bank.selectPreviousItem ();
+            }
             return;
         }
         super.selectPreviousItem ();
@@ -451,10 +752,17 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     @Override
     public void selectNextItem ()
     {
-        if (this.showDevices)
+        if (this.getSelectorContext () == SelectorContext.DEVICES)
         {
             final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-            cursorDevice.getDeviceBank ().selectNextItem ();
+            final IDeviceBank bank = cursorDevice.getDeviceBank ();
+            if (bank.canScrollForwards ())
+            {
+                this.hierarchyTransitionGeneration++;
+                this.hierarchyTransitionPending = false;
+                this.releaseAllTouchedParameters ();
+                bank.selectNextItem ();
+            }
             return;
         }
         super.selectNextItem ();
@@ -465,11 +773,20 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     @Override
     public void selectPreviousItemPage ()
     {
-        if (this.showDevices)
+        if (this.getSelectorContext () == SelectorContext.DEVICES)
         {
-            this.model.getCursorDevice ().getDeviceBank ().selectPreviousPage ();
+            final IDeviceBank bank = this.model.getCursorDevice ().getDeviceBank ();
+            if (bank.canScrollPageBackwards ())
+            {
+                this.hierarchyTransitionGeneration++;
+                this.hierarchyTransitionPending = false;
+                this.releaseAllTouchedParameters ();
+                bank.selectPreviousPage ();
+            }
             return;
         }
+        if (super.hasPreviousItemPage ())
+            this.releaseAllTouchedParameters ();
         super.selectPreviousItemPage ();
     }
 
@@ -478,11 +795,20 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     @Override
     public void selectNextItemPage ()
     {
-        if (this.showDevices)
+        if (this.getSelectorContext () == SelectorContext.DEVICES)
         {
-            this.model.getCursorDevice ().getDeviceBank ().selectNextPage ();
+            final IDeviceBank bank = this.model.getCursorDevice ().getDeviceBank ();
+            if (bank.canScrollPageForwards ())
+            {
+                this.hierarchyTransitionGeneration++;
+                this.hierarchyTransitionPending = false;
+                this.releaseAllTouchedParameters ();
+                bank.selectNextPage ();
+            }
             return;
         }
+        if (super.hasNextItemPage ())
+            this.releaseAllTouchedParameters ();
         super.selectNextItemPage ();
     }
 
@@ -491,7 +817,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     @Override
     public boolean hasPreviousItem ()
     {
-        if (this.showDevices)
+        if (this.getSelectorContext () == SelectorContext.DEVICES)
             return this.model.getCursorDevice ().getDeviceBank ().canScrollBackwards ();
         return super.hasPreviousItem ();
     }
@@ -501,7 +827,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     @Override
     public boolean hasNextItem ()
     {
-        if (this.showDevices)
+        if (this.getSelectorContext () == SelectorContext.DEVICES)
             return this.model.getCursorDevice ().getDeviceBank ().canScrollForwards ();
         return super.hasNextItem ();
     }
@@ -511,7 +837,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     @Override
     public boolean hasPreviousItemPage ()
     {
-        if (this.showDevices)
+        if (this.getSelectorContext () == SelectorContext.DEVICES)
             return this.model.getCursorDevice ().getDeviceBank ().canScrollPageBackwards ();
         return super.hasPreviousItemPage ();
     }
@@ -521,9 +847,97 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     @Override
     public boolean hasNextItemPage ()
     {
-        if (this.showDevices)
+        if (this.getSelectorContext () == SelectorContext.DEVICES)
             return this.model.getCursorDevice ().getDeviceBank ().canScrollPageForwards ();
         return super.hasNextItemPage ();
+    }
+
+
+    /** Navigate the previous item with Push 1 In/Out. */
+    public void selectPreviousInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        switch (this.getSelectorContext ())
+        {
+            case DEVICES:
+                if (cursorDevice.getDeviceBank ().canScrollBackwards ())
+                {
+                    this.hierarchyTransitionGeneration++;
+                    this.hierarchyTransitionPending = false;
+                    this.releaseAllTouchedParameters ();
+                    cursorDevice.getDeviceBank ().selectPreviousItem ();
+                }
+                break;
+            case PAGES:
+                if (cursorDevice.getParameterPageBank ().canScrollPageBackwards ())
+                {
+                    this.hierarchyTransitionGeneration++;
+                    this.hierarchyTransitionPending = false;
+                    this.releaseAllTouchedParameters ();
+                    cursorDevice.getParameterPageBank ().selectPreviousPage ();
+                }
+                break;
+            case CHAINS: break;
+            default: break;
+        }
+    }
+
+
+    /** Navigate the next item with Push 1 In/Out. */
+    public void selectNextInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        switch (this.getSelectorContext ())
+        {
+            case DEVICES:
+                if (cursorDevice.getDeviceBank ().canScrollForwards ())
+                {
+                    this.hierarchyTransitionGeneration++;
+                    this.hierarchyTransitionPending = false;
+                    this.releaseAllTouchedParameters ();
+                    cursorDevice.getDeviceBank ().selectNextItem ();
+                }
+                break;
+            case PAGES:
+                if (cursorDevice.getParameterPageBank ().canScrollPageForwards ())
+                {
+                    this.hierarchyTransitionGeneration++;
+                    this.hierarchyTransitionPending = false;
+                    this.releaseAllTouchedParameters ();
+                    cursorDevice.getParameterPageBank ().selectNextPage ();
+                }
+                break;
+            case CHAINS: break;
+            default: break;
+        }
+    }
+
+
+    /** Check whether the previous Push 1 In/Out item exists. */
+    public boolean hasPreviousInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        switch (this.getSelectorContext ())
+        {
+            case DEVICES: return cursorDevice.getDeviceBank ().canScrollBackwards ();
+            case PAGES: return cursorDevice.getParameterPageBank ().canScrollPageBackwards ();
+            case CHAINS: return false;
+            default: return false;
+        }
+    }
+
+
+    /** Check whether the next Push 1 In/Out item exists. */
+    public boolean hasNextInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        switch (this.getSelectorContext ())
+        {
+            case DEVICES: return cursorDevice.getDeviceBank ().canScrollForwards ();
+            case PAGES: return cursorDevice.getParameterPageBank ().canScrollPageForwards ();
+            case CHAINS: return false;
+            default: return false;
+        }
     }
 
 
@@ -561,7 +975,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 return this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS)
                     && this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS);
             case 4:
-                return !this.surface.getModeManager ().isActive (Modes.DEVICE_CHAINS) && !this.showDevices;
+                return this.getSelectorContext () != SelectorContext.DEVICES;
             case 5:
                 return hasPinning && cd.isPinned ();
             case 6:

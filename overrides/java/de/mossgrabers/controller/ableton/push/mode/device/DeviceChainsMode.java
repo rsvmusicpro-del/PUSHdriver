@@ -54,6 +54,13 @@ public class DeviceChainsMode extends DeviceParamsMode
 
 
     /** {@inheritDoc} */
+    private boolean isAvailableChain (final String [] slotChains, final int index)
+    {
+        return slotChains != null && index >= 0 && index < slotChains.length
+            && slotChains[index] != null && !slotChains[index].isBlank ();
+    }
+
+
     @Override
     public void onSecondRow (final int index, final ButtonEvent event)
     {
@@ -63,13 +70,12 @@ public class DeviceChainsMode extends DeviceParamsMode
         if (event == ButtonEvent.UP)
         {
             final ICursorDevice cd = this.model.getCursorDevice ();
-            if (!cd.doesExist ())
+            if (!cd.doesExist () || !this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
                 return;
             final String [] slotChains = cd.getSlotChains ();
-            if (index >= slotChains.length)
+            if (!this.isAvailableChain (slotChains, index))
                 return;
-            cd.selectSlotChain (slotChains[index]);
-            this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+            this.selectSlotChainAndAwaitCursor (cd, slotChains[index]);
             return;
         }
 
@@ -87,10 +93,10 @@ public class DeviceChainsMode extends DeviceParamsMode
         if (index >= 0)
         {
             final ICursorDevice cursorDevice = this.model.getCursorDevice ();
-            if (!cursorDevice.doesExist ())
+            if (!cursorDevice.doesExist () || !this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
                 return PushColorManager.PUSH1_COLOR_BLACK;
             final String [] slotChains = cursorDevice.getSlotChains ();
-            return index < slotChains.length
+            return this.isAvailableChain (slotChains, index)
                 ? PushColorManager.PUSH1_COLOR_GREEN_LO
                 : PushColorManager.PUSH1_COLOR_BLACK;
         }
@@ -109,14 +115,16 @@ public class DeviceChainsMode extends DeviceParamsMode
             return;
 
         // Chain selectors are now physically above the LCD (ROW2).
-        final String [] slotChains = cd.getSlotChains ();
+        final String [] slotChains = this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS) ? cd.getSlotChains () : new String [0];
         for (int i = 0; i < 8; i++)
-            display.setCell (0, i, i < slotChains.length ? slotChains[i] : "");
+        {
+            final String chain = this.isAvailableChain (slotChains, i) ? slotChains[i] : "";
+            display.setCell (0, i, chain);
+        }
 
         // The RGB action row is below the LCD.
-        final String [] actionLabels = { "On", "Params", "Expand", "Chains", "Banks", "Pin", "Window", "Up" };
-        for (int i = 0; i < actionLabels.length; i++)
-            display.setCell (3, i, actionLabels[i]);
+        for (int i = 0; i < this.hostMenu.length; i++)
+            display.setCell (3, i, i == 4 ? this.hostMenu[i] + " C" : this.hostMenu[i]);
     }
 
 
@@ -131,13 +139,13 @@ public class DeviceChainsMode extends DeviceParamsMode
         final String color = this.model.getCurrentTrackBank ().getSelectedChannelColorEntry ();
         final ColorEx bottomMenuColor = DAWColor.getColorEntry (color);
         final boolean hasPinning = this.model.getHost ().supports (Capability.HAS_PINNING);
-        final String [] slotChains = cd.getSlotChains ();
+        final String [] slotChains = this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS) ? cd.getSlotChains () : new String [0];
         for (int i = 0; i < 8; i++)
         {
             final boolean isTopMenuOn = this.getTopMenuEnablement (cd, hasPinning, i);
-            final String bottomMenu = i < slotChains.length ? slotChains[i] : "";
+            final String bottomMenu = this.isAvailableChain (slotChains, i) ? slotChains[i] : "";
             final String bottomMenuIcon = "";
-            final boolean isBottomMenuOn = i < slotChains.length;
+            final boolean isBottomMenuOn = this.isAvailableChain (slotChains, i);
             display.addParameterElement (this.hostMenu[i], isTopMenuOn, bottomMenu, bottomMenuIcon, bottomMenuColor, isBottomMenuOn, "", 0, "", false, -1);
         }
     }
