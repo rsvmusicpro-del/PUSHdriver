@@ -257,6 +257,19 @@ if source.count(old) != 2:
 sequencer_colors.write_text(source.replace(old, new))
 
 poly_sequencer = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractPolySequencerView.java"
+
+# The upstream Poly view is a persistent model observer. API 17 exposes no
+# removeNoteObserver method, so route note feedback only to the currently
+# selected view. This keeps the inactive Poly engine's KeyManager untouched
+# when the user switches to the classic sequencer or another view.
+replace_once(poly_sequencer,
+    "        tb.addNoteObserver (this.keyManager::call);",
+    "        tb.addNoteObserver ((trackIndex, note, velocity) -> {\n"
+    "            if (this.surface.getViewManager ().getActive () == this)\n"
+    "                this.keyManager.call (trackIndex, note, velocity);\n"
+    "        });",
+    "Poly sequencer active-view note observer routing")
+
 source = poly_sequencer.read_text()
 old = """                if (hilite)
                     return COLOR_STEP_HILITE_CONTENT;
