@@ -701,6 +701,28 @@ public final class VirtualPush1RuntimeTest
         SUPPORTED_CAPABILITIES.add (Capability.HAS_PARAMETER_PAGE_SECTION);
 
         SUPPORTED_CAPABILITIES.remove (Capability.HAS_SLOT_CHAINS);
+
+        // Even if a stale/restored mode activates Device Chains while the host
+        // lacks API support, every public mode surface must remain safe.
+        final de.mossgrabers.controller.ableton.push.mode.device.DeviceChainsMode unavailableChainsMode =
+            (de.mossgrabers.controller.ableton.push.mode.device.DeviceChainsMode) modes.get (Modes.DEVICE_CHAINS);
+        modes.setActive (Modes.DEVICE_CHAINS);
+        final ITextDisplay unavailableTextDisplay = (ITextDisplay) Proxy.newProxyInstance (
+            ITextDisplay.class.getClassLoader (), new Class<?> [] { ITextDisplay.class },
+            (p, m, a) -> m.getReturnType ().isInstance (p) ? p : defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+        final IGraphicDisplay unavailableGraphicDisplay = (IGraphicDisplay) Proxy.newProxyInstance (
+            IGraphicDisplay.class.getClassLoader (), new Class<?> [] { IGraphicDisplay.class },
+            (p, m, a) -> m.getReturnType ().isInstance (p) ? p : defaultValue (m.getReturnType (), m.getGenericReturnType ()));
+        MODEL_ACTIONS.clear ();
+        unavailableChainsMode.onSecondRow (0, ButtonEvent.UP);
+        require (unavailableChainsMode.getButtonColor (ButtonID.get (ButtonID.ROW2_1, 0)) == PushColorManager.PUSH1_COLOR_BLACK,
+            "Unsupported Device Chains selectors must be visibly disabled");
+        unavailableChainsMode.updateDisplay1 (unavailableTextDisplay);
+        unavailableChainsMode.updateDisplay2 (unavailableGraphicDisplay);
+        require (MODEL_ACTIONS.isEmpty (),
+            "An unavailable Device Chains mode queried or invoked unsupported slot-chain behavior");
+        modes.setActive (Modes.DEVICE_PARAMS);
+
         MODEL_ACTIONS.clear ();
         deviceParamsMode.onFirstRow (3, ButtonEvent.DOWN);
         require (MODEL_ACTIONS.isEmpty () && !modes.isActive (Modes.DEVICE_CHAINS),
