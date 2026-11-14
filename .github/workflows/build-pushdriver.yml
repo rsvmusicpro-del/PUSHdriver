@@ -112,6 +112,10 @@ jobs:
 
       - name: Assemble Push 1-only source tree
         run: python3 scripts/prepare_push1.py
+
+      - name: Enforce single-source ownership for modes, views and overrides
+        run: python3 scripts/check_source_ownership.py
+
       - name: Verify menu physical-row and LCD alignment
         run: python3 scripts/check_push1_menu_row_contract.py
 
