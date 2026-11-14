@@ -1290,6 +1290,26 @@ public final class VirtualPush1RuntimeTest
         musicalModel.setCanHoldNotes (false);
         viewManager.setActive (Views.PLAY);
 
+        // Force every registered Push mode through the production display
+        // refresh path as well. Modes not registered by the Push 1 setup are
+        // skipped; the complete registered mode inventory is discovered from
+        // the live manager rather than duplicated as a hand-maintained list.
+        int renderedModes = 0;
+        for (final Modes modeID: Modes.values ())
+        {
+            if (modes.get (modeID) == null)
+                continue;
+            modes.setActive (modeID);
+            setup.flush ();
+            hardware.flush ();
+            for (int row = 0; row < 4; row++)
+                require (midi.device ().getLcdRow (row).length () == Push1DisplayLayout.COLUMNS,
+                    "Mode " + modeID + " did not preserve the complete Push 1 LCD row " + row);
+            renderedModes++;
+        }
+        require (renderedModes > 0, "No registered Push 1 modes were exercised by the display matrix");
+        modes.setActive (Modes.TRACK);
+
         // DrivenByMoss' own setup test traverses every registered view/mode
         // pair, presses every real bound button (down/long/up), and executes
         // each bound continuous and pitchbend command.
