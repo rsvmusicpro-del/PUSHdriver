@@ -1239,9 +1239,193 @@ replace_once(browser_mode,
 """,
     "Push 1 In/Out browser filter-column navigation")
 
-# DeviceParamsMode in the maintained Push 1 override owns the context-aware
-# In/Out path. Verify it exists rather than rewriting the mode during assembly.
+# Bitwig's Browser banks can temporarily expose fewer than sixteen items while
+# filters/results refresh. The upstream Ableton renderer indexes a fixed 4x4
+# page, so bound every access against the current API bank before reading it.
+replace_once(browser_mode,
+    """                final IBrowserColumnItem [] items = browser.getFilterColumn (this.filterColumn).getItems ();
+                for (int i = 0; i < 16; i++)
+                {
+                    String text = (items[i].isSelected () ? Push1Display.SELECT_ARROW : " ") + StringUtils.shortenAndFixASCII (items[i].getName (), 18) + "                ";
+                    if (!items[i].getName ().isEmpty ())
+                    {
+                        final String hitStr = "(" + items[i].getHitCount () + ")";
+                        text = text.substring (0, 17 - hitStr.length ()) + hitStr;
+                    }
+                    display.setBlock (i % 4, i / 4, text);
+                }
+""",
+    """                final IBrowserColumn selectedColumn = browser.getFilterColumn (this.filterColumn);
+                final IBrowserColumnItem [] items = selectedColumn == null ? null : selectedColumn.getItems ();
+                for (int i = 0; i < 16; i++)
+                {
+                    if (items == null || i >= items.length || items[i] == null || !items[i].doesExist ())
+                    {
+                        display.setBlock (i % 4, i / 4, "");
+                        continue;
+                    }
+                    final String itemName = items[i].getName ();
+                    String text = (items[i].isSelected () ? Push1Display.SELECT_ARROW : " ") + StringUtils.shortenAndFixASCII (itemName, 18) + "                ";
+                    if (itemName != null && !itemName.isEmpty ())
+                    {
+                        final String hitStr = "(" + items[i].getHitCount () + ")";
+                        text = text.substring (0, 17 - hitStr.length ()) + hitStr;
+                    }
+                    display.setBlock (i % 4, i / 4, text);
+                }
+""",
+    "Push 1 Browser text filter item bounds")
+replace_once(browser_mode,
+    """                final IBrowserColumnItem [] item = browser.getFilterColumn (this.filterColumn).getItems ();
+                for (int i = 0; i < 8; i++)
+                {
+                    final String [] items = new String [6];
+                    final boolean [] selected = new boolean [6];
+                    for (int itemIndex = 0; itemIndex < 6; itemIndex++)
+                    {
+                        final int pos = i * 6 + itemIndex;
+                        final String hitText = " (" + item[pos].getHitCount () + ")";
+                        String text = item[pos].getName (12 - hitText.length ());
+                        if (!text.isEmpty ())
+                            text = text + hitText;
+                        items[itemIndex] = text;
+                        selected[itemIndex] = item[pos].isSelected ();
+                    }
+                    display.addListElement (items, selected);
+                }
+""",
+    """                final IBrowserColumn selectedColumn = browser.getFilterColumn (this.filterColumn);
+                final IBrowserColumnItem [] item = selectedColumn == null ? null : selectedColumn.getItems ();
+                for (int i = 0; i < 8; i++)
+                {
+                    final String [] items = new String [6];
+                    final boolean [] selected = new boolean [6];
+                    for (int itemIndex = 0; itemIndex < 6; itemIndex++)
+                    {
+                        final int pos = i * 6 + itemIndex;
+                        if (item == null || pos >= item.length || item[pos] == null || !item[pos].doesExist ())
+                        {
+                            items[itemIndex] = "";
+                            selected[itemIndex] = false;
+                            continue;
+                        }
+                        final String hitText = " (" + item[pos].getHitCount () + ")";
+                        String text = item[pos].getName (12 - hitText.length ());
+                        if (!text.isEmpty ())
+                            text = text + hitText;
+                        items[itemIndex] = text;
+                        selected[itemIndex] = item[pos].isSelected ();
+                    }
+                    display.addListElement (items, selected);
+                }
+""",
+    "Push 1 Browser graphic filter item bounds")
+
+replace_once(browser_mode,
+    """if (!results[0].doesExist ())
+                {
+                    display.clear ().setBlock (1, 1, "       No results").setBlock (1, 2, "available...").allDone ();
+                    return;
+                }""",
+    """if (results == null || results.length == 0 || results[0] == null || !results[0].doesExist ())
+                {
+                    display.clear ().setBlock (1, 1, "       No results").setBlock (1, 2, "available...").allDone ();
+                    return;
+                }""",
+    "Push 1 Browser text empty result guard")
+replace_once(browser_mode,
+    """if (!results[0].doesExist ())
+                {
+                    for (int i = 0; i < 8; i++)
+                        display.addOptionElement (i == 3 ? "No results available..." : "", "", false, "", "", false, false);
+                    return;
+                }""",
+    """if (results == null || results.length == 0 || results[0] == null || !results[0].doesExist ())
+                {
+                    for (int i = 0; i < 8; i++)
+                        display.addOptionElement (i == 3 ? "No results available..." : "", "", false, "", "", false, false);
+                    return;
+                }""",
+    "Push 1 Browser graphic empty result guard")
+replace_once(browser_mode,
+    "if (i < results.length)\n                        display.setBlock",
+    "if (i < results.length && results[i] != null && results[i].doesExist ())\n                        display.setBlock",
+    "Push 1 Browser text result item guard")
+replace_once(browser_mode,
+    "items[item] = pos < results.length ? results[pos].getName (14) : \"\";\n                        selected[item] = pos < results.length && results[pos].isSelected ();",
+    "items[item] = pos < results.length && results[pos] != null && results[pos].doesExist () ? results[pos].getName (14) : \"\";\n                        selected[item] = pos < results.length && results[pos] != null && results[pos].doesExist () && results[pos].isSelected ();",
+    "Push 1 Browser graphic result item guard")
+
+# Add only the Push 1 In/Out adapter methods to the pinned upstream Ableton
+# DeviceParamsMode. The upstream class remains the sole implementation of the
+# Device workflow; this small bridge preserves PUSHdriver's physical CC62/63
+# mapping without maintaining a forked copy of the whole mode.
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
+replace_once(device_params_mode,
+    """    /** {@inheritDoc} */
+    @Override
+    public void updateDisplay1 (final ITextDisplay display)
+""",
+    """    /** Navigate the previous device or parameter page with Push 1 Out. */
+    public void selectPreviousInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist ())
+            return;
+        if (this.showDevices)
+        {
+            if (cursorDevice.getDeviceBank ().canScrollBackwards ())
+                this.selectPreviousItem ();
+        }
+        else if (cursorDevice.getParameterPageBank ().canScrollPageBackwards ())
+            cursorDevice.getParameterPageBank ().selectPreviousPage ();
+    }
+
+
+    /** Navigate the next device or parameter page with Push 1 In. */
+    public void selectNextInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist ())
+            return;
+        if (this.showDevices)
+        {
+            if (cursorDevice.getDeviceBank ().canScrollForwards ())
+                this.selectNextItem ();
+        }
+        else if (cursorDevice.getParameterPageBank ().canScrollPageForwards ())
+            cursorDevice.getParameterPageBank ().selectNextPage ();
+    }
+
+
+    /** Check whether Push 1 Out can navigate to a previous device or page. */
+    public boolean hasPreviousInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist ())
+            return false;
+        return this.showDevices ? cursorDevice.getDeviceBank ().canScrollBackwards ()
+            : cursorDevice.getParameterPageBank ().canScrollPageBackwards ();
+    }
+
+
+    /** Check whether Push 1 In can navigate to a next device or page. */
+    public boolean hasNextInOutItem ()
+    {
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist ())
+            return false;
+        return this.showDevices ? cursorDevice.getDeviceBank ().canScrollForwards ()
+            : cursorDevice.getParameterPageBank ().canScrollPageForwards ();
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void updateDisplay1 (final ITextDisplay display)
+""",
+    "Push 1 In/Out Device-mode adapter")
+
 device_params_source = device_params_mode.read_text()
 for required_method in (
     "public void selectPreviousInOutItem ()",
