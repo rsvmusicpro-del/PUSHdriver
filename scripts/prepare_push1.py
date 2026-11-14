@@ -1111,13 +1111,13 @@ setup.write_text(setup_source)
 # roles in Device and Browser modes. Preserve their established Session and
 # sequencer page behavior in all other contexts.
 replace_once(setup,
+    'this.addButton (ButtonID.PAGE_LEFT, "Page Left"',
     'this.addButton (ButtonID.PAGE_LEFT, "In"',
-    'this.addButton (ButtonID.PAGE_LEFT, "Out"',
-    "Push 1 Out button label")
-replace_once(setup,
-    'this.addButton (ButtonID.PAGE_RIGHT, "Out"',
-    'this.addButton (ButtonID.PAGE_RIGHT, "In"',
     "Push 1 In button label")
+replace_once(setup,
+    'this.addButton (ButtonID.PAGE_RIGHT, "Page Right"',
+    'this.addButton (ButtonID.PAGE_RIGHT, "Out"',
+    "Push 1 Out button label")
 replace_once(setup,
     """PushControlSurface.PUSH_BUTTON_DEVICE_LEFT, () -> {
 
