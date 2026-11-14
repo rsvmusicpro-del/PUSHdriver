@@ -1610,3 +1610,230 @@ for group, artifact in (
         raise SystemExit(f"Could not isolate dependency {group}:{artifact}")
     text = text[:start] + text[end + len("</dependency>"):]
 pom.write_text(text)
+
+
+# Keep Push 1 physical button rows aligned with the corresponding LCD halves.
+# Row 1 is always the upper display half; Row 2 is always the lower half.
+# These are narrow adaptations of the pinned upstream menu modes, not global
+# row-dispatch changes (which would alter unrelated modes and commands).
+def patch_menu_mode(path: str, old: str, new: str, label: str) -> None:
+    replace_once(root / path, old, new, label)
+
+
+# Note View Select: VIEWS_TOP is rendered in the upper half, VIEWS in the
+# lower half. Swap the row callbacks and their LED-state lookup accordingly.
+note_view = "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteViewSelectMode.java"
+patch_menu_mode(note_view,
+    "    public void onFirstRow (final int index, final ButtonEvent event)\\n"
+    "    {\\n"
+    "        if (event == ButtonEvent.UP)\\n"
+    "            this.activateView (VIEWS[index]);\\n"
+    "    }",
+    "    public void onFirstRow (final int index, final ButtonEvent event)\\n"
+    "    {\\n"
+    "        if (event == ButtonEvent.UP)\\n"
+    "            this.activateView (VIEWS_TOP[index]);\\n"
+    "    }",
+    "NoteViewSelect Row 1 upper choices")
+patch_menu_mode(note_view,
+    "    public void onSecondRow (final int index, final ButtonEvent event)\\n"
+    "    {\\n"
+    "        if (event == ButtonEvent.UP)\\n"
+    "            this.activateView (VIEWS_TOP[index]);\\n"
+    "    }",
+    "    public void onSecondRow (final int index, final ButtonEvent event)\\n"
+    "    {\\n"
+    "        if (event == ButtonEvent.UP)\\n"
+    "            this.activateView (VIEWS[index]);\\n"
+    "    }",
+    "NoteViewSelect Row 2 lower choices")
+patch_menu_mode(note_view,
+    "        if (index >= 0)\\n"
+    "        {\\n"
+    "            final ViewManager viewManager = this.surface.getViewManager ();\\n"
+    "            if (VIEWS[index] == null)\\n"
+    "                return AbstractFeatureGroup.BUTTON_COLOR_OFF;\\n"
+    "            return viewManager.isActive (VIEWS[index]) ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;\\n"
+    "        }\\n\\n"
+    "        index = this.isButtonRow (1, buttonID);\\n"
+    "        if (index >= 0)\\n"
+    "        {\\n"
+    "            final ViewManager viewManager = this.surface.getViewManager ();\\n"
+    "            if (VIEWS_TOP[index] == null)\\n"
+    "                return AbstractFeatureGroup.BUTTON_COLOR_OFF;\\n"
+    "            return viewManager.isActive (VIEWS_TOP[index]) ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;\\n"
+    "        }",
+    "        if (index >= 0)\\n"
+    "        {\\n"
+    "            final ViewManager viewManager = this.surface.getViewManager ();\\n"
+    "            if (VIEWS_TOP[index] == null)\\n"
+    "                return AbstractFeatureGroup.BUTTON_COLOR_OFF;\\n"
+    "            return viewManager.isActive (VIEWS_TOP[index]) ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;\\n"
+    "        }\\n\\n"
+    "        index = this.isButtonRow (1, buttonID);\\n"
+    "        if (index >= 0)\\n"
+    "        {\\n"
+    "            final ViewManager viewManager = this.surface.getViewManager ();\\n"
+    "            if (VIEWS[index] == null)\\n"
+    "                return AbstractFeatureGroup.BUTTON_COLOR_OFF;\\n"
+    "            return viewManager.isActive (VIEWS[index]) ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;\\n"
+    "        }",
+    "NoteViewSelect row LED alignment")
+
+
+# Session View: the upstream menu placed every choice in the lower display
+# half and only wired Row 1. Put Session/Flipped/Scenes in the upper half and
+# keep Markers/Clips in the lower half, moving their actions to Row 2.
+session_view = "src/main/java/de/mossgrabers/controller/ableton/push/mode/SessionViewSelectMode.java"
+patch_menu_mode(session_view,
+    "            case 6:\\n"
+    "                this.surface.getModeManager ().setActive (Modes.MARKERS);\\n"
+    "                break;\\n\\n"
+    "            case 7:\\n"
+    "                this.surface.getModeManager ().restore ();\\n"
+    "                configuration.toggleScenesClipMode ();\\n"
+    "                break;\\n\\n",
+    "",
+    "SessionView move lower-half actions off Row 1")
+session_text = root / session_view
+source = session_text.read_text()
+needle = "    /** {@inheritDoc} */\\n    @Override\\n    public void updateDisplay1 (final ITextDisplay display)"
+insert = """    /** {@inheritDoc} */
+    @Override
+    public void onSecondRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+        if (index == 6)
+            this.surface.getModeManager ().setActive (Modes.MARKERS);
+        else if (index == 7)
+        {
+            this.surface.getModeManager ().restore ();
+            this.surface.getConfiguration ().toggleScenesClipMode ();
+        }
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void updateDisplay1 (final ITextDisplay display)"""
+if source.count(needle) != 1:
+    raise SystemExit("SessionView: expected display insertion point exactly once")
+source = source.replace(needle, insert, 1)
+session_text.write_text(source)
+patch_menu_mode(session_view,
+    "                display.setCell (3, i, (this.isSelected (viewManager, i) ? Push1Display.SELECT_ARROW : \"\") + VIEW_NAMES[i]);",
+    "                display.setCell (0, i, (this.isSelected (viewManager, i) ? Push1Display.SELECT_ARROW : \"\") + VIEW_NAMES[i]);",
+    "SessionView upper-half view labels")
+patch_menu_mode(session_view,
+    "            display.addOptionElement (\"\", \"\", false, i == 0 ? \"Session view\" : \"\", VIEW_NAMES[i], isMenuBottomSelected, false);",
+    "            display.addOptionElement (i == 0 ? \"Session view\" : \"\", VIEW_NAMES[i], isMenuBottomSelected, \"\", \"\", false, false);",
+    "SessionView upper-half graphic choices")
+# Session view LEDs now have independent row ownership.
+patch_menu_mode(session_view,
+    "        final int index = this.isButtonRow (0, buttonID);",
+    "        int index = this.isButtonRow (0, buttonID);",
+    "SessionView mutable row index")
+patch_menu_mode(session_view,
+    "            if (index == 6)\\n"
+    "                return AbstractFeatureGroup.BUTTON_COLOR_ON;\\n"
+    "            if (index == 7)\\n"
+    "            {\\n"
+    "                final boolean isOn = this.surface.getModeManager ().isActive (Modes.SESSION);\\n"
+    "                return isOn ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;\\n"
+    "            }\\n"
+    "            return AbstractFeatureGroup.BUTTON_COLOR_OFF;\\n"
+    "        }\\n\\n"
+    "        return AbstractFeatureGroup.BUTTON_COLOR_OFF;",
+    "            return AbstractFeatureGroup.BUTTON_COLOR_OFF;\\n"
+    "        }\\n\\n"
+    "        index = this.isButtonRow (1, buttonID);\\n"
+    "        if (index == 6)\\n"
+    "            return AbstractFeatureGroup.BUTTON_COLOR_ON;\\n"
+    "        if (index == 7)\\n"
+    "        {\\n"
+    "            final boolean isOn = this.surface.getModeManager ().isActive (Modes.SESSION);\\n"
+    "            return isOn ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;\\n"
+    "        }\\n"
+    "        return AbstractFeatureGroup.BUTTON_COLOR_OFF;",
+    "SessionView lower-row LED ownership")
+
+
+# Scales: the upper display row contains base-note offsets 6..11, while the
+# lower display row contains offsets 0..5. Keep the two scale-navigation
+# buttons and the lower-row Chromatic toggle in their existing positions.
+scales_mode = "src/main/java/de/mossgrabers/controller/ableton/push/mode/ScalesMode.java"
+patch_menu_mode(scales_mode,
+    "        else if (index > 0 && index < 7)\\n"
+    "            this.scales.setScaleOffsetByIndex (index - 1);",
+    "        else if (index > 0 && index < 7)\\n"
+    "            this.scales.setScaleOffsetByIndex (index + 5);",
+    "Scales Row 1 upper base-note offsets")
+patch_menu_mode(scales_mode,
+    "        else\\n"
+    "            this.scales.setScaleOffsetByIndex (index + 5);",
+    "        else\\n"
+    "            this.scales.setScaleOffsetByIndex (index - 1);",
+    "Scales Row 2 lower base-note offsets")
+patch_menu_mode(scales_mode,
+    "            return this.colorManager.getColorIndex (offset == index - 1 ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON);",
+    "            return this.colorManager.getColorIndex (offset == index + 5 ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON);",
+    "Scales Row 1 upper LED state")
+patch_menu_mode(scales_mode,
+    "            return this.colorManager.getColorIndex (offset == index - 1 + 6 ? AbstractMode.BUTTON_COLOR2_HI : AbstractMode.BUTTON_COLOR2_ON);",
+    "            return this.colorManager.getColorIndex (offset == index - 1 ? AbstractMode.BUTTON_COLOR2_HI : AbstractMode.BUTTON_COLOR2_ON);",
+    "Scales Row 2 lower LED state")
+
+
+# Fixed Length: the upper half offers Create Clip; the lower half selects the
+# persistent New Clip Length. The two callbacks and LED feedback must match.
+fixed_mode = "src/main/java/de/mossgrabers/controller/ableton/push/mode/FixedMode.java"
+patch_menu_mode(fixed_mode,
+    "        this.surface.getConfiguration ().setNewClipLength (index);\\n"
+    "        this.surface.getModeManager ().restore ();",
+    "        this.newCommands[index].execute ();\\n"
+    "        this.surface.getModeManager ().restore ();",
+    "FixedMode Row 1 Create Clip action")
+patch_menu_mode(fixed_mode,
+    "        this.newCommands[index].execute ();\\n"
+    "        this.surface.getModeManager ().restore ();",
+    "        this.surface.getConfiguration ().setNewClipLength (index);\\n"
+    "        this.surface.getModeManager ().restore ();",
+    "FixedMode Row 2 New Clip Length action")
+patch_menu_mode(fixed_mode,
+    "        final int index = this.isButtonRow (0, buttonID);\\n"
+    "        if (index >= 0)\\n"
+    "        {\\n"
+    "            final Configuration configuration = this.surface.getConfiguration ();\\n"
+    "            return this.colorManager.getColorIndex (configuration.getNewClipLength () == index ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON);\\n"
+    "        }\\n\\n"
+    "        return this.colorManager.getColorIndex (AbstractFeatureGroup.BUTTON_COLOR_ON);",
+    "        final int index = this.isButtonRow (1, buttonID);\\n"
+    "        if (index >= 0)\\n"
+    "        {\\n"
+    "            final Configuration configuration = this.surface.getConfiguration ();\\n"
+    "            return this.colorManager.getColorIndex (configuration.getNewClipLength () == index ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON);\\n"
+    "        }\\n\\n"
+    "        return this.colorManager.getColorIndex (AbstractFeatureGroup.BUTTON_COLOR_ON);",
+    "FixedMode lower-row length LED feedback")
+
+
+# Record Quantize: top-row Quantize/Groove controls and lower-row Record
+# Quantization/Note Length controls were wired to the opposite physical rows.
+quantize_mode = "src/main/java/de/mossgrabers/controller/ableton/push/mode/QuantizeMode.java"
+source = (root / quantize_mode).read_text()
+first_start = source.index("    public void onFirstRow (final int index, final ButtonEvent event)")
+second_start = source.index("    public void onSecondRow (final int index, final ButtonEvent event)")
+color_start = source.index("    public String getButtonColorID (final ButtonID buttonID)")
+first_method = source[first_start:second_start]
+second_method = source[second_start:color_start]
+source = source[:first_start] + second_method + first_method + source[color_start:]
+(root / quantize_mode).write_text(source)
+patch_menu_mode(quantize_mode,
+    "        int index = this.isButtonRow (0, buttonID);",
+    "        int index = this.isButtonRow (1, buttonID);",
+    "Quantize lower-row LED lookup")
+patch_menu_mode(quantize_mode,
+    "        index = this.isButtonRow (1, buttonID);",
+    "        index = this.isButtonRow (0, buttonID);",
+    "Quantize upper-row LED lookup")
