@@ -970,6 +970,28 @@ public final class VirtualPush1RuntimeTest
             "A parent timeout must recover to the Devices selector");
         virtualSuppressParentCursorUpdate = false;
 
+        // A direct Bitwig selection made while a parent request is pending
+        // must be observed as the current cursor target, not leave stale UI.
+        virtualCursorDeviceName = "Pending Child";
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceNested = true;
+        virtualSuppressParentCursorUpdate = true;
+        deviceParamsMode.setShowDevices (true);
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        virtualCursorDeviceName = "External Bitwig Device";
+        virtualCursorDevicePosition = 11;
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceHasLayers = false;
+        virtualDeviceBankNames = new String [] {
+            "External sibling 0", "External sibling 1", "External sibling 2", "External sibling 3",
+            "External sibling 4", "External sibling 5", "External sibling 6", "External sibling 7"
+        };
+        drainScheduled (state, 73);
+        require (!deviceParamsMode.isShowDevices () && MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
+            "An external Bitwig cursor change during a pending parent request must refresh the active Device context");
+        virtualSuppressParentCursorUpdate = false;
+
         virtualCursorDeviceName = "Virtual Device";
         virtualCursorDevicePosition = 4;
         virtualCursorDeviceNested = false;
