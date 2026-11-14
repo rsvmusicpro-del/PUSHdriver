@@ -281,9 +281,11 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             final IParameterPageBank bank = cd.getParameterPageBank ();
             if (bank.getItem (index).isEmpty ())
                 return unavailable;
+            // Parameter pages share the physical first row with device slots.
+            // Keep their LEDs on the steady first-row palette as well.
             return index == bank.getSelectedItemIndex ()
-                ? PushColorManager.PUSH1_COLOR2_GREEN_HI
-                : PushColorManager.PUSH1_COLOR2_GREEN_LO;
+                ? PushColorManager.PUSH1_COLOR_GREEN_HI
+                : PushColorManager.PUSH1_COLOR_GREEN_LO;
         }
 
         index = this.isButtonRow (1, buttonID);
