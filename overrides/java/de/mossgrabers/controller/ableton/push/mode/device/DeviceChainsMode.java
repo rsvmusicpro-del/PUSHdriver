@@ -75,8 +75,7 @@ public class DeviceChainsMode extends DeviceParamsMode
             final String [] slotChains = cd.getSlotChains ();
             if (!this.isAvailableChain (slotChains, index))
                 return;
-            cd.selectSlotChain (slotChains[index]);
-            this.setSelectorContext (SelectorContext.DEVICES);
+            this.selectSlotChainAndAwaitCursor (cd, slotChains[index]);
             return;
         }
 
