@@ -252,7 +252,9 @@ new = """                if (isEditOrContinuation (channel, step, note, editNote
                     return COLOR_STEP_SELECTED;
                 if (highlight)
                     return this.model.hasRecordingState () ? COLOR_STEP_HILITE_RECORD : COLOR_STEP_HILITE_CONTENT;"""
-replace_once(sequencer_colors, old, new, "Classic sequencer selected-note priority")
+if source.count(old) != 2:
+    raise SystemExit("AbstractSequencerView: expected two selected-note color branches")
+sequencer_colors.write_text(source.replace(old, new))
 
 poly_sequencer = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractPolySequencerView.java"
 source = poly_sequencer.read_text()
