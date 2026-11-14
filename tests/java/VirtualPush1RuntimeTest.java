@@ -811,6 +811,7 @@ public final class VirtualPush1RuntimeTest
             (proxy, method, displayArgs) -> defaultValue (method.getReturnType (), method.getGenericReturnType ()));
         browserModel.setInfoText (null);
         browserMode.updateDisplay1 (browserDisplay);
+        browserMode.updateDisplay2 (browserGraphicDisplay);
         browserModel.setInfoText ("Insert device: Choose a category");
         browserModel.setFilterItemCount (2);
         midi.device ().touchEncoder (0, true);
