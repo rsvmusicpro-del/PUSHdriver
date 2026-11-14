@@ -105,7 +105,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             final int mappedNote = this.keyManager.map (row);
             notePosition.setNote (mappedNote);
             final IStepInfo stepInfo = mappedNote < 0 ? null : clip.getStep (notePosition);
-            final String color = this.getStepColor (stepInfo, true, Optional.empty (), channel, playheadColumn, mappedNote, editNotes);
+            final String color = this.model.hasRecordingState () ? AbstractSequencerView.COLOR_STEP_HILITE_RECORD : this.getStepColor (stepInfo, true, Optional.empty (), channel, playheadColumn, mappedNote, editNotes);
             gridPad.lightEx (playheadColumn, this.numDisplayRows - 1 - row, color);
         }
     }
