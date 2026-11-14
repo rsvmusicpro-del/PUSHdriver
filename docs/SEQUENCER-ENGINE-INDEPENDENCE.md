@@ -136,9 +136,11 @@ The first production slice introduces a Java 17 engine kernel under
 - `SequencerEngine` defines an explicit activation contract and immutable
   `ActivationToken` record.
 - `AbstractSequencerEngine` serializes lifecycle transitions and advances a
-  monotonic generation on activation/deactivation. Deferred work captures the
-  token and calls `accepts(token)` before applying its result; stale work from
-  an earlier activation is rejected.
+  monotonic generation on activation/deactivation. Deferred work can capture the
+  token and call `accepts(token)` before applying its result; stale work from
+  an earlier activation is rejected. The new sequencer adapters use this
+  lifecycle contract for ownership; wiring every existing delayed callback to
+  tokens remains part of the later per-domain migration.
 - `ClassicSequencerEngine` owns Push-specific page-follow/page-lock state.
   The view acts as the Bitwig/Push adapter for page and playhead inputs.
 - `PolySequencerEngine` owns Push grid bounds, bottom-up step coordinate

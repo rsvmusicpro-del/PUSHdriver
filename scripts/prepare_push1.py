@@ -1072,6 +1072,11 @@ for relative in (
     "src/main/java/de/mossgrabers/controller/ableton/push/view/PolySequencerView.java",
 ):
     source_file = root / relative
+    source = source_file.read_text ()
+    # Project-owned sequencer engines validate their own Push pad indices.
+    # Keep this assembly patch idempotent when an override already owns that guard.
+    if "this.engine.isHardwarePadIndex (index)" in source or "if (index < 0 || index >= 64)" in source:
+        continue
     replace_once(source_file,
         "        final int index = note - 36;\n"
         "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
