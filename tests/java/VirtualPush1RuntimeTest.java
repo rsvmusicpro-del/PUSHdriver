@@ -123,6 +123,7 @@ public final class VirtualPush1RuntimeTest
     private static String [] virtualSlotChains = { "Chain 1", "Chain 2", "Chain 3", "Chain 4", "Chain 5", "Chain 6", "Chain 7", "Chain 8" };
     private static String [] virtualDeviceBankNames = { "Device 0", "Device 1", "Device 2", "Device 3", "Device 4", "Device 5", "Device 6", "Device 7" };
     private static boolean virtualParentNestedAfterSelect;
+    private static boolean virtualParentHasLayersAfterSelect;
     private static boolean virtualSuppressParentCursorUpdate;
     private static boolean virtualSuppressChainCursorUpdate;
     private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
@@ -921,6 +922,26 @@ public final class VirtualPush1RuntimeTest
         requireAction ("cursorDevice.selectParent", "A second Up must ascend from the nested parent");
         require (!virtualCursorDeviceNested,
             "A second parent transition must reach the outer device level");
+
+        // A parent that owns layers must enter the configured layer mode after
+        // its asynchronous cursor update, rather than leaving Device parameters
+        // attached to the child.
+        deviceParamsMode.setShowDevices (true);
+        virtualCursorDeviceName = "Layer Child";
+        virtualCursorDevicePosition = 5;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceHasLayers = false;
+        virtualParentNestedAfterSelect = false;
+        virtualParentHasLayersAfterSelect = true;
+        MODEL_ACTIONS.clear ();
+        deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        drainScheduled (state, 73);
+        require (modes.isActive (surface.getConfiguration ().getCurrentLayerMixMode ()),
+            "A confirmed parent with layers must enter the configured layer mode");
+        requireAction ("cursorDevice.selectChannel", "Layer-parent navigation must select its hosting channel");
+        virtualParentHasLayersAfterSelect = false;
+        modes.setActive (Modes.DEVICE_PARAMS);
+        deviceParamsMode.setShowDevices (true);
 
         // A later device selection invalidates the pending parent callback.
         deviceParamsMode.setShowDevices (true);
@@ -2682,7 +2703,7 @@ public final class VirtualPush1RuntimeTest
                                 virtualCursorDeviceName = virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
                                 virtualCursorDevicePosition = Math.max (0, virtualCursorDevicePosition - 1);
                                 virtualCursorDeviceNested = virtualParentNestedAfterSelect;
-                                virtualCursorDeviceHasLayers = false;
+                                virtualCursorDeviceHasLayers = virtualParentHasLayersAfterSelect;
                                 virtualDeviceBankNames = virtualParentNestedAfterSelect
                                     ? new String [] { "Nested sibling 0", "Nested sibling 1", "Nested sibling 2", "Nested sibling 3", "Nested sibling 4", "Nested sibling 5", "Nested sibling 6", "Nested sibling 7" }
                                     : new String [] { "Outer sibling 0", "Outer sibling 1", "Outer sibling 2", "Outer sibling 3", "Outer sibling 4", "Outer sibling 5", "Outer sibling 6", "Outer sibling 7" };
