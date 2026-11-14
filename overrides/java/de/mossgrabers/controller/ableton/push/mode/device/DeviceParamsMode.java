@@ -155,6 +155,12 @@ public class DeviceParamsMode extends BaseMode<IParameter>
     }
 
 
+    private boolean isAvailablePage (final String page)
+    {
+        return page != null && !page.isBlank ();
+    }
+
+
     protected boolean hasParameterPages ()
     {
         final ICursorDevice device = this.model.getCursorDevice ();
@@ -392,7 +398,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             }
             final IParameterPageBank bank = cd.getParameterPageBank ();
             final String page = bank.getItem (index);
-            if (page == null || page.isEmpty ()) return PushColorManager.PUSH1_COLOR_BLACK;
+            if (!this.isAvailablePage (page)) return PushColorManager.PUSH1_COLOR_BLACK;
             return index == bank.getSelectedItemIndex () ? PushColorManager.PUSH1_COLOR_GREEN_HI : PushColorManager.PUSH1_COLOR_GREEN_LO;
         }
         return super.getButtonColor (buttonID);
@@ -413,7 +419,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
                 if (index < pages.getPageSize ())
                 {
                     final String page = pages.getItem (index);
-                    if (page != null && !page.isBlank ())
+                    if (this.isAvailablePage (page))
                         pages.selectPage (index);
                 }
                 return;
@@ -494,7 +500,7 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             for (int i = 0; i < 8; i++)
             {
                 final String page = bank.getItem (i);
-                display.setCell (0, i, page == null || page.isEmpty () ? "" : (i == selected ? Push1Display.SELECT_ARROW : "") + page);
+                display.setCell (0, i, !this.isAvailablePage (page) ? "" : (i == selected ? Push1Display.SELECT_ARROW : "") + page);
             }
         }
 
@@ -552,12 +558,12 @@ public class DeviceParamsMode extends BaseMode<IParameter>
             {
                 bottomMenuIcon = cd.getName ();
                 bottomMenu = parameterPageBank.getItem (i);
-                if (bottomMenu == null)
+                if (!this.isAvailablePage (bottomMenu))
                     bottomMenu = "";
 
                 if (bottomMenu.length () > 12)
                     bottomMenu = bottomMenu.substring (0, 12);
-                isBottomMenuOn = i == selectedPage;
+                isBottomMenuOn = this.isAvailablePage (parameterPageBank.getItem (i)) && i == selectedPage;
             }
 
             final IParameter param = parameterBank.getItem (i);
