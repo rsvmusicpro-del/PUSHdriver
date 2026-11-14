@@ -1321,6 +1321,23 @@ replace_once(browser_mode,
 """,
     "Push 1 Browser graphic filter item bounds")
 
+replace_once(browser_mode,
+    "if (!results[0].doesExist ())",
+    "if (results == null || results.length == 0 || results[0] == null || !results[0].doesExist ())",
+    "Push 1 Browser text empty result guard")
+replace_once(browser_mode,
+    "if (!results[0].doesExist ())",
+    "if (results == null || results.length == 0 || results[0] == null || !results[0].doesExist ())",
+    "Push 1 Browser graphic empty result guard")
+replace_once(browser_mode,
+    "if (i < results.length)\n                        display.setBlock",
+    "if (i < results.length && results[i] != null && results[i].doesExist ())\n                        display.setBlock",
+    "Push 1 Browser text result item guard")
+replace_once(browser_mode,
+    "items[item] = pos < results.length ? results[pos].getName (14) : \"\";\n                        selected[item] = pos < results.length && results[pos].isSelected ();",
+    "items[item] = pos < results.length && results[pos] != null && results[pos].doesExist () ? results[pos].getName (14) : \"\";\n                        selected[item] = pos < results.length && results[pos] != null && results[pos].doesExist () && results[pos].isSelected ();",
+    "Push 1 Browser graphic result item guard")
+
 # Add only the Push 1 In/Out adapter methods to the pinned upstream Ableton
 # DeviceParamsMode. The upstream class remains the sole implementation of the
 # Device workflow; this small bridge preserves PUSHdriver's physical CC62/63
