@@ -25,6 +25,16 @@ def main() -> int:
         help="Open the Swing virtual Push 1 after the automated tests pass.",
     )
     parser.add_argument(
+        "--fuzz-actions",
+        type=int,
+        help="Number of generated actions per view/seed scenario (default: 256).",
+    )
+    parser.add_argument(
+        "--fuzz-seeds",
+        type=int,
+        help="Number of rotating deterministic seeds (default: 16, plus regression corpus).",
+    )
+    parser.add_argument(
         "--fuzz-seed",
         help="Replay one generated interaction seed (decimal or 0x-prefixed hexadecimal).",
     )
@@ -54,6 +64,10 @@ def main() -> int:
         test_command.append("--gui")
     if args.fuzz_seed is not None:
         test_command.append(f"--fuzz-seed={args.fuzz_seed}")
+    if args.fuzz_actions is not None:
+        test_command.append(f"--fuzz-actions={args.fuzz_actions}")
+    if args.fuzz_seeds is not None:
+        test_command.append(f"--fuzz-seeds={args.fuzz_seeds}")
     run(test_command)
 
     print("\nAbleton Push 1 virtual test bench completed successfully.", flush=True)
