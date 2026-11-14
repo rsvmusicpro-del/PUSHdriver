@@ -391,11 +391,14 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
         if (isKeyboardEnabled)
         {
             final int mappedNote = this.keyManager.map (note);
-            if (mappedNote >= 0 && (this.noteMemory.containsKey (Integer.valueOf (mappedNote)) || this.durationEditNote == mappedNote))
-                return isRecording ? AbstractPlayView.COLOR_RECORD : AbstractPlayView.COLOR_PLAY;
-
+            // The scale fundamental is a track-identity color, not a transient
+            // selection/playback color. Test it first so selecting or holding
+            // the root never hides the track color.
             if (mappedNote >= 0 && Math.floorMod (mappedNote, 12) == this.scales.getScaleOffset ())
                 return this.getPadColor (note, this.useDawColors ? track : null);
+
+            if (mappedNote >= 0 && (this.noteMemory.containsKey (Integer.valueOf (mappedNote)) || this.durationEditNote == mappedNote))
+                return isRecording ? AbstractPlayView.COLOR_RECORD : AbstractPlayView.COLOR_PLAY;
         }
 
         return super.getGridColor (isKeyboardEnabled, isRecording, track, note);
