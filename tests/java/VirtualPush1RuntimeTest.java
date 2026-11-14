@@ -655,6 +655,16 @@ public final class VirtualPush1RuntimeTest
             "Supported parameter-page-section capability must remain actionable");
         requireAction ("cursorDevice.togglePinned",
             "Supported pinning capability must remain actionable");
+
+        // Confirm the physical MIDI bindings now dispatch actions on ROW1 and
+        // device selection on ROW2 through the production command layer.
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Device On action row");
+        requireAction ("cursorDevice.toggleEnabledState", "The lower RGB row must dispatch Device actions");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Device selector row");
+        requireAction ("device.select", "The upper static row must select devices");
+
         cursorDeviceExists = false;
         deviceSlotExists = false;
         deviceCapabilitiesSupported = true;
