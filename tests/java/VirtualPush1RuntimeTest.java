@@ -836,8 +836,14 @@ public final class VirtualPush1RuntimeTest
         virtualCursorDevicePosition = 3;
         virtualCursorDeviceNested = true;
         virtualCursorDeviceHasLayers = false;
+        virtualDeviceParametersExist = true;
         MODEL_ACTIONS.clear ();
+        deviceParamsMode.onKnobTouch (0, true);
         deviceParamsMode.onFirstRow (7, ButtonEvent.DOWN);
+        deviceParamsMode.onKnobTouch (0, false);
+        require (MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:true")).count () == 1
+                && MODEL_ACTIONS.stream ().filter (action -> action.equals ("parameter.touch:0:false")).count () == 1,
+            "Parent selection must release the touched child parameter exactly once");
         require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
             "Parent channel must not be selected before the Bitwig cursor reports the parent");
         drainScheduled (state, 73);
