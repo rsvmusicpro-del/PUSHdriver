@@ -1035,6 +1035,15 @@ public final class VirtualPush1RuntimeTest
         require (!polySequencerView.getKeyManager ().isKeyPressed (mappedRoot),
             "Poly Sequencer lower pad did not release its mapped MIDI note");
 
+        // Isolate step 0 from notes created by earlier sequencer scenarios.
+        final NotePosition clearPolyStep = new NotePosition (0, 0, 0);
+        for (int note = 0; note < 128; note++)
+        {
+            clearPolyStep.setNote (note);
+            if (musicalModel.noteClip ().getStep (clearPolyStep).getState () != StepState.OFF)
+                musicalModel.noteClip ().clearStep (clearPolyStep);
+        }
+
         // Select a four-note chord on the lower keyboard, then program step 0.
         for (int column = 0; column < 4; column++)
         {
