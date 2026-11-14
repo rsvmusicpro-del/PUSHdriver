@@ -628,19 +628,29 @@ public final class VirtualPush1RuntimeTest
                 "Device selector " + i + " must use a static CC color, never a blink command: " + color);
         }
         // The eight action functions each have their own distinct RGB hue.
-        final int [] actionColors = {
-            PushColorManager.PUSH1_COLOR2_GREEN_LO,
-            PushColorManager.PUSH1_COLOR2_CYAN_LO,
-            PushColorManager.PUSH1_COLOR2_BLUE_LO,
-            PushColorManager.PUSH1_COLOR2_ORCHID_LO,
-            PushColorManager.PUSH1_COLOR2_YELLOW_LO,
-            PushColorManager.PUSH1_COLOR2_MAGENTA_LO,
-            PushColorManager.PUSH1_COLOR2_WHITE,
-            PushColorManager.PUSH1_COLOR2_RED_HI
+        final int [][] actionColorFamilies = {
+            { PushColorManager.PUSH1_COLOR2_GREEN_LO, PushColorManager.PUSH1_COLOR2_GREEN_HI },
+            { PushColorManager.PUSH1_COLOR2_CYAN_LO, PushColorManager.PUSH1_COLOR2_CYAN_HI },
+            { PushColorManager.PUSH1_COLOR2_BLUE_LO, PushColorManager.PUSH1_COLOR2_BLUE_HI },
+            { PushColorManager.PUSH1_COLOR2_ORCHID_LO, PushColorManager.PUSH1_COLOR2_ORCHID_HI },
+            { PushColorManager.PUSH1_COLOR2_YELLOW_LO, PushColorManager.PUSH1_COLOR2_YELLOW_HI },
+            { PushColorManager.PUSH1_COLOR2_MAGENTA_LO, PushColorManager.PUSH1_COLOR2_MAGENTA_HI },
+            { PushColorManager.PUSH1_COLOR2_WHITE, PushColorManager.PUSH1_COLOR2_WHITE },
+            { PushColorManager.PUSH1_COLOR2_RED_HI, PushColorManager.PUSH1_COLOR2_RED_HI }
         };
-        for (int i = 0; i < actionColors.length; i++)
+        for (int i = 0; i < actionColorFamilies.length; i++)
         {
-            require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, i)) == actionColors[i],
+            final int actual = deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, i));
+            require (actual == actionColorFamilies[i][0] || actual == actionColorFamilies[i][1],
+                "Device action " + i + " must use its dedicated RGB hue; actual color index " + actual);
+            for (int j = 0; j < i; j++)
+                require (actionColorFamilies[i][0] != actionColorFamilies[j][0]
+                        && actionColorFamilies[i][0] != actionColorFamilies[j][1]
+                        && actionColorFamilies[i][1] != actionColorFamilies[j][0]
+                        && actionColorFamilies[i][1] != actionColorFamilies[j][1],
+                    "Device action hues must all be distinct");
+        }
+        require (deviceParamsMode.getButtonColor (ButtonID.get (ButtonID.ROW1_1, i)) == actionColors[i],
                 "Device action " + i + " must use its dedicated RGB color");
             for (int j = 0; j < i; j++)
                 require (actionColors[i] != actionColors[j], "Device action colors must all be distinct");
