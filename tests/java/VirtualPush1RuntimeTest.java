@@ -665,10 +665,51 @@ public final class VirtualPush1RuntimeTest
         // device selection on ROW2 through the production command layer.
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Device On action row");
-        requireAction ("cursorDevice.toggleEnabledState", "The lower RGB row must dispatch Device actions");
+        requireAction ("cursorDevice.toggleEnabledState", "The lower RGB row must dispatch Device On");
+
         MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST, "Device selector row");
-        requireAction ("device.select", "The upper static row must select devices");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "Device Parameters action");
+        requireAction ("cursorDevice.toggleParameterPageSectionVisible", "ROW1 Parameters action was not dispatched");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2, "Device Expanded action");
+        requireAction ("cursorDevice.toggleExpanded", "ROW1 Expanded action was not dispatched");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 5, "Device Pin action");
+        requireAction ("cursorDevice.togglePinned", "ROW1 Pin action was not dispatched");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Device Window action");
+        requireAction ("cursorDevice.toggleWindowOpen", "ROW1 Window action was not dispatched");
+
+        // Banks toggles the selector row between device slots and parameter pages.
+        require (deviceParamsMode.isShowDevices (), "Device selectors should initially show device slots");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Device Banks action");
+        require (!deviceParamsMode.isShowDevices (), "Banks action did not switch to parameter pages");
+        for (int i = 0; i < 8; i++)
+        {
+            MODEL_ACTIONS.clear ();
+            requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + i, "Parameter page selector " + i);
+            requireAction ("parameterPage.selectPage:" + i,
+                "Static ROW2 selector " + i + " did not select its matching parameter page");
+        }
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Return to Device selectors");
+        require (deviceParamsMode.isShowDevices (), "Banks action did not restore device selectors");
+
+        // Every device-selector position is exercised through production MIDI.
+        // Selecting the current device opens its parameter pages.
+        for (int i = 0; i < 8; i++)
+        {
+            MODEL_ACTIONS.clear ();
+            requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + i, "Device selector " + i);
+            if (i == deviceIndex)
+            {
+                require (!deviceParamsMode.isShowDevices (),
+                    "Selecting the current device must open its parameter pages");
+                requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 4, "Return from parameter pages");
+                require (deviceParamsMode.isShowDevices (), "Banks action failed to restore device selectors");
+            }
+            else
+                requireAction ("device.select:" + i, "ROW2 selector " + i + " selected the wrong device slot");
+        }
 
         // Enter Device Chains through the production RGB action binding, then
         // verify and use the static selector row through the production MIDI path.
@@ -691,6 +732,11 @@ public final class VirtualPush1RuntimeTest
             "ROW2 selector must select the matching chain and return to Device parameters");
         require (modes.isActive (Modes.DEVICE_PARAMS),
             "Selecting a Device Chain did not return to Device parameters");
+
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Device Up action");
+        require (modes.isActive (Modes.TRACK), "ROW1 Up action did not return to Track mode");
+        midi.device ().tapButton (VirtualPush1Device.DEVICE);
+        require (modes.isActive (Modes.DEVICE_PARAMS), "Device button did not reopen Device mode after Up");
 
         cursorDeviceExists = false;
         deviceSlotExists = false;
@@ -1654,14 +1700,21 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
+                {
+                    final int targetIndex = (int) args[0];
                     return Proxy.newProxyInstance (de.mossgrabers.framework.daw.data.IDevice.class.getClassLoader (),
                         new Class<?> [] { de.mossgrabers.framework.daw.data.IDevice.class },
                         (p, m, a) -> switch (m.getName ())
                         {
                             case "doesExist" -> Boolean.valueOf (deviceSlotExists);
-                            case "select" -> { MODEL_ACTIONS.add ("device.select"); yield null; }
+                            case "select" -> {
+                                MODEL_ACTIONS.add ("device.select");
+                                MODEL_ACTIONS.add ("device.select:" + targetIndex);
+                                yield null;
+                            }
                             default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                         });
+                }
                 if (List.of ("selectPreviousItem", "selectNextItem", "selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("device." + method.getName ());
@@ -1683,7 +1736,13 @@ public final class VirtualPush1RuntimeTest
                 if (method.getName ().equals ("getPageSize"))
                     return 8;
                 if (method.getName ().equals ("getItem"))
-                    return "";
+                    return "Page " + args[0];
+                if (method.getName ().equals ("selectPage"))
+                {
+                    MODEL_ACTIONS.add ("parameterPage.selectPage:" + args[0]);
+                    parameterPageIndex = (int) args[0];
+                    return null;
+                }
                 if (List.of ("selectPreviousPage", "selectNextPage").contains (method.getName ()))
                 {
                     MODEL_ACTIONS.add ("parameterPage." + method.getName ());

@@ -42,4 +42,12 @@ browser_ids = section(browser, "// ROW2 uses the static CC palette",
 if "BUTTON_COLOR2_ON" in browser_ids or "BUTTON_COLOR2_OFF" in browser_ids:
     raise SystemExit("DeviceBrowserMode: static ROW2 exposes a color-2/blink identifier")
 
+# Prove that the guard itself rejects a representative blink command.
+try:
+    reject_rgb("return PushColorManager.PUSH1_COLOR2_BLUE_HI;", "return", ";", "guard self-test")
+except SystemExit:
+    pass
+else:
+    raise SystemExit("Guard self-test failed: an RGB/blink command was not rejected")
+
 print("Push 1 LED safety passed: static CC row uses no RGB/blink color identifiers in Device, Chains or Browser.")
