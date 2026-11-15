@@ -68,7 +68,10 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
         final int index = Push1PadGrid.indexForNote (note);
         if (!this.engine.isHardwarePadIndex (index))
             return;
-        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();
+        final var padButton = this.surface.getButton (ButtonID.get (ButtonID.PAD1, index));
+        if (padButton == null)
+            return;
+        padButton.setConsumed ();
 
         final int x = Push1PadGrid.columnForIndex (index);
         final int y = Push1PadGrid.rowForIndex (index);
