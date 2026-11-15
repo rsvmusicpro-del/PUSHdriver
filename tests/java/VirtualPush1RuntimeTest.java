@@ -346,55 +346,6 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.SESSION) != null, "Session mode was not registered");
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
 
-        // Exercise the real TrackMode ROW1 calculation against the Push 1
-        // first-row hardware palette, never the pad's 128-color RGB palette.
-        final var pushColorManager = setup.getModel ().getColorManager ();
-        final int [] row1HardwareIndices = { 1, 4, 7, 10, 13, 16, 19, 22 };
-        final String [] row1ColorIDs =
-        {
-            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_RED_LO,
-            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_RED_HI,
-            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_ORANGE_LO,
-            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_ORANGE_HI,
-            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_YELLOW_LO,
-            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_YELLOW_MD,
-            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_GREEN_LO,
-            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_GREEN_HI
-        };
-        final int selectedOrange = pushColorManager.getColorIndex (
-            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_ORANGE_HI);
-        final int recordRed = pushColorManager.getColorIndex (
-            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_RED_HI);
-        for (int i = 0; i < row1HardwareIndices.length; i++)
-        {
-            mixerModel.trackColors[i] =
-                de.mossgrabers.controller.ableton.push.controller.PushColorManager.getPaletteColor (row1HardwareIndices[i]);
-            require (pushColorManager.getColorIndex (row1ColorIDs[i]) == row1HardwareIndices[i],
-                "Push 1 ROW1 semantic color ID does not resolve to its physical first-row index: " + row1ColorIDs[i]);
-        }
-        require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_1) == selectedOrange,
-            "Selected Push 1 ROW1 track uses supported orange-high");
-        // All eight native Push 1 ROW1 colors map to their exact hardware indices.
-        for (int i = 1; i < row1HardwareIndices.length; i++)
-        {
-            final int actual = modes.get (Modes.TRACK).getButtonColor (ButtonID.get (ButtonID.ROW1_1, i));
-            require (actual == row1HardwareIndices[i],
-                "Track RGB did not resolve to native ROW1 index " + row1HardwareIndices[i] + ": " + actual);
-            require (actual == 1 || actual == 4 || actual == 7 || actual == 10
-                    || actual == 13 || actual == 16 || actual == 19 || actual == 22,
-                "Track LED resolved outside the eight static ROW1 colors: " + actual);
-        }
-        mixerModel.recArmed[0] = true;
-        require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_1) == recordRed,
-            "Record-arm red overrides selected and ordinary track colors");
-        mixerModel.recArmed[0] = false;
-        mixerModel.recArmed[1] = true;
-        require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_2)
-                == pushColorManager.getColorIndex (
-                    de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_RED_LO),
-            "Unselected record-armed tracks must retain first-row low red");
-        mixerModel.recArmed[1] = false;
-
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
         midi.device ().tapButton (VirtualPush1Device.DEVICE);
@@ -2066,7 +2017,6 @@ public final class VirtualPush1RuntimeTest
                     switch (method.getName ())
                     {
                         case "doesExist": return this.trackExists[0];
-                        case "getIndex": return 0;
                         case "getSlotBank": return this.slotBank;
                         case "getColor": return ColorEx.BLUE;
                         case "isPlaying": return this.trackPlaying[0];
@@ -2619,7 +2569,6 @@ public final class VirtualPush1RuntimeTest
         private final boolean [] solo = new boolean [8];
         private final boolean [] trackPlaying = new boolean [8];
         private final boolean [] recArmed = new boolean [8];
-        private final ColorEx [] trackColors = new ColorEx [8];
         private final ITrack [] tracks = new ITrack [8];
         private final SlotState [][] slotStates = new SlotState [8][8];
         private final ISlotBank [] slotBanks = new ISlotBank [8];
@@ -2672,7 +2621,6 @@ public final class VirtualPush1RuntimeTest
             for (int i = 0; i < this.tracks.length; i++)
             {
                 final int index = i;
-                this.trackColors[i] = de.mossgrabers.framework.daw.DAWColor.values ()[i + 1].getColor ();
                 this.volumes[i] = new ParameterState ("Track " + (i + 1) + " Volume");
                 this.pans[i] = new ParameterState ("Track " + (i + 1) + " Pan");
                 for (int send = 0; send < 4; send++)
@@ -2765,7 +2713,7 @@ public final class VirtualPush1RuntimeTest
                         case "getVolumeStr" -> Integer.toString (this.volumes[index].value);
                         case "getPanStr" -> Integer.toString (this.pans[index].value);
                         case "getSendBank" -> sendBank;
-                        case "getColor" -> this.trackColors[index];
+                        case "getColor" -> ColorEx.BLUE;
                         case "isMute" -> this.muted[index];
                         case "setMute" -> { this.muted[index] = (boolean) a[0]; yield null; }
                         case "toggleMute" -> { this.muted[index] = !this.muted[index]; yield null; }
