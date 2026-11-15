@@ -33,6 +33,9 @@ public final class VirtualPush1DisplayTextTest
         final String cell = Push1DisplayLayout.fitCell ("SuperLongTrackName", 0);
         check (cell, "Supe" + ellipsis + "ame ",
             "the nine-character Push 1 cell path must preserve its spacer and use one ellipsis cell");
+        final String selectedCell = Push1DisplayLayout.fitCell (">SuperLongTrackName", 0);
+        check (selectedCell, ">Sup" + ellipsis + "ame ",
+            "the selected-item marker must remain visible when a long cell name is ellipsis-fitted");
         final String block = Push1DisplayLayout.fitBlock ("SuperLongDeviceName");
         require (block.length () == 17 && block.charAt (8) == (char) 0x1C,
             "the 17-character Push 1 block path must insert the firmware ellipsis");
