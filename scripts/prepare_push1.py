@@ -2288,7 +2288,7 @@ push1_color_names = [
     ("PUSH1_COLOR_62_OCHRE", "Ochre"),
     ("PUSH1_COLOR_63_OLIVE_GREEN", "Olive Green"),
 ]
-for slot, display_name in {"6":"Coral Red","7":"Hot Pink","10":"Burnt Orange","11":"Vivid Orange","14":"Neon Yellow","15":"Electric Yellow","18":"Acid Green","19":"Neon Lime","22":"Bright Chartreuse","23":"Electric Lime","26":"Spring Green","27":"Vivid Lime","30":"Bright Mint","31":"Turquoise","38":"Electric Blue","39":"Cobalt","42":"Electric Indigo","43":"Ultramarine","46":"Bright Violet","47":"Magenta Violet","50":"Berry","51":"Neon Green","54":"Hot Magenta","55":"Lime Green","58":"Golden Green","59":"Electric Orange"}.items():
+for slot, display_name in {"6":"Coral Red","7":"Crimson Pink","10":"Burnt Orange","11":"Vivid Orange","14":"Neon Yellow","15":"Electric Yellow","18":"Acid Green","19":"Neon Lime","22":"Bright Chartreuse","23":"Electric Lime","26":"Electric Green","27":"Vivid Lime","30":"Bright Mint","31":"Turquoise","38":"Electric Blue","39":"Cobalt","42":"Electric Indigo","43":"Ultramarine","46":"Bright Violet","47":"Magenta Violet","50":"Berry","51":"Neon Yellow-Green","54":"Bright Lime","55":"Leaf Green","58":"Vivid Green","59":"Tangerine"}.items():
     constant, _ = push1_color_names[slot]
     push1_color_names[slot] = (constant, display_name)
 
@@ -2308,8 +2308,7 @@ for index, (constant, display_name) in enumerate(push1_color_names):
 daw_source = daw_source[:enum_start] + "\n" + "\n".join(enum_entries) + daw_source[enum_end:]
 daw_color.write_text(daw_source)
 
-# The enum order is the physical Push 1 palette order: Bitwig RGB and pad LED
-# index are therefore a one-to-one mapping for all 64 choices.
+# The 64 menu slots map independently to their selected physical Push 1 LED indices.
 registration_start = push_color_source.index("        this.registerColorIndex (DAWColor.COLOR_OFF,")
 registration_end_marker = "        this.registerColorIndex (DAWColor.DAW_COLOR_LIGHT_BLUE, isPush2 ? 96 : 41);"
 registration_end = push_color_source.index(registration_end_marker, registration_start) + len(registration_end_marker)
