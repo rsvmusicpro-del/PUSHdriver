@@ -1269,8 +1269,12 @@ if source.count(maschine_import) != 1:
     raise SystemExit("AbstractDrumView: unexpected MaschineColorManager import state")
 source = source.replace(maschine_import, "", 1)
 accent_palette = (
-    "            // Push 1 DEFAULT_PALETTE red-to-orange-to-yellow-to-green indices, sorted by measured RGB luminance.\n"
-    "            final int [] accentPalette = new int [] { 7, 121, 6, 120, 5, 60, 61, 84, 9, 108, 96, 97, 109, 13, 12, 98 };\n"
+    "            // Evenly stepped Push 1 hardware colors from red through orange and yellow to green.\n"
+    "            final int [] accentPalette = new int [] { 72, 120, 60, 84, 9, 96, 126, 124, 13, 74, 85, 98, 75, 17, 122, 87 };\n"
+    "            int selectedVelocityPad = 15 - this.configuration.getFixedAccentValue () / 8;\n"
+    "            final int selY = selectedVelocityPad / 4;\n"
+    "            final int selX = selectedVelocityPad % 4;\n"
+    "            selectedVelocityPad = selY * 4 + 3 - selX;\n"
     "            final IPadGrid padGrid = this.surface.getPadGrid ();"
 )
 draw_pages_start = source.index("protected void drawPages")
@@ -1295,7 +1299,7 @@ accent_source = accent_source.replace(
 )
 accent_source = accent_source.replace(
     "padGrid.lightEx (x, y, pad == selectedVelocityPad ? MaschineColorManager.COLOR_GREEN : MaschineColorManager.COLOR_LIME_LO);",
-    "padGrid.lightEx (x, y, accentPalette[(3 - pad / 4) * 4 + pad % 4]);",
+    "padGrid.lightEx (x, y, pad == selectedVelocityPad ? 3 : accentPalette[(3 - pad / 4) * 4 + pad % 4]);",
     1,
 )
 source = source[:accent_start] + accent_source + source[accent_end:]
