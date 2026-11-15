@@ -157,10 +157,11 @@ A successful build proves compilation, packaging, and the deterministic protocol
 
 The physical In and Out buttons are CC 62 and CC 63 respectively.
 
-In Device mode, In (CC 62) calls Bitwig's native `ICursorDevice.selectNext()`
-and Out (CC 63) calls `ICursorDevice.selectPrevious()`. This follows the
-currently active device chain, including nested rack/slot chains, and lets
-Bitwig update the cursor and sibling-bank page. The commands check
+In Device mode, In (CC 62) advances the Bitwig cursor by calling native
+`ICursorDevice.selectNext()`, and Out (CC 63) moves the cursor back by calling
+native `ICursorDevice.selectPrevious()`. This follows the currently active
+device chain, including nested rack/slot chains, and lets Bitwig update the
+cursor and sibling-bank page. The commands check
 `canSelectNext()` / `canSelectPrevious()` before moving, and the LEDs use
 those same boundary states. When the parameter-page selector is active,
 In/Out select the next/previous parameter page through the existing
