@@ -51,4 +51,6 @@ The two sequencer views are the largest remaining full-class overlays. They are 
 
 In is CC62 on the left/Page Left button and advances to the next device, parameter page or Browser content type. Out is CC63 on the right/Page Right button and moves to the previous item/page. The command adapters must delegate to the upstream methods in those directions. The static ownership gate and virtual runtime bench both enforce this mapping so a swapped label, command or test constant cannot pass unnoticed.
 
+Push 1 LCD label fitting is also an intentional upstream adaptation: `AbstractTrackMode` and `NoteMode` are patched only to defer early name shortening to the shared physical-cell fitter. The patch preserves existing ASCII transliteration and includes selection markers before truncation. The exact source patch targets are allowlisted and checked in CI.
+
 The Push 1 color menu is an intentional upstream adaptation: `DAWColor.java` is regenerated during assembly with 64 RGB values from the pinned Push 1 hardware palette, while `PushColorManager.java` maps each enum ordinal to the same static pad palette index. The exact source patch is allowlisted in `scripts/check_source_ownership.py` and validated after assembly by `scripts/check_push1_color_palette.py`.
