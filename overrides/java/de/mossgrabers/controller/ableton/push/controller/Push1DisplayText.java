@@ -38,12 +38,12 @@ public final class Push1DisplayText
         {
             if (width >= 6)
             {
-                final int available = width - 3;
+                final int available = width - 2;
                 final int headLength = (available + 1) / 2;
                 final int tailLength = available - headLength;
                 final String head = text.substring (0, headLength).stripTrailing ();
                 final String tail = tailLength == 0 ? "" : text.substring (text.length () - tailLength).stripLeading ();
-                text = head + "..." + tail;
+                text = head + ".." + tail;
             }
             else
                 text = text.substring (0, width - 1) + ">";
