@@ -52,7 +52,7 @@ if len(hardware_rgb) < 128:
     raise SystemExit(f"Expected at least 128 hardware palette entries, found {len(hardware_rgb)}")
 
 mapping_match = re.search(
-    r"final int \\[\\] push1PaletteIndices = new int \\[\\] \\{([^}]+)\\}",
+    r"final int \[\] push1PaletteIndices = new int \[\] \{([^}]+)\}",
     push,
 )
 if mapping_match is None:
