@@ -1279,6 +1279,15 @@ accent_end = source.index("\n        final int step = clip.getCurrentStep ();", 
 accent_source = source[accent_start:accent_end]
 if accent_source.count("MaschineColorManager.COLOR_GREEN") != 1 or accent_source.count("MaschineColorManager.COLOR_LIME_LO") != 1:
     raise SystemExit("AbstractDrumView: unexpected Accent color expressions")
+selected_velocity_logic = (
+    "            int selectedVelocityPad = 15 - this.configuration.getFixedAccentValue () / 8;\n"
+    "            final int selY = selectedVelocityPad / 4;\n"
+    "            final int selX = selectedVelocityPad % 4;\n"
+    "            selectedVelocityPad = selY * 4 + 3 - selX;\n\n"
+)
+if accent_source.count(selected_velocity_logic) != 1:
+    raise SystemExit("AbstractDrumView: expected one selected-velocity highlight calculation")
+accent_source = accent_source.replace(selected_velocity_logic, "", 1)
 accent_source = accent_source.replace(
     "            final IPadGrid padGrid = this.surface.getPadGrid ();",
     accent_palette,
