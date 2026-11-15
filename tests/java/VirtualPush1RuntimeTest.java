@@ -346,6 +346,34 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.SESSION) != null, "Session mode was not registered");
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
 
+        // Exercise the real TrackMode ROW1 color calculation with distinct
+        // virtual Bitwig track RGB values. This was previously absent from the
+        // virtual suite, allowing the former always-yellow behavior to pass.
+        final var pushColorManager = setup.getModel ().getColorManager ();
+        final int selectedWhite = pushColorManager.getColorIndex (
+            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_WHITE_2);
+        final int recordRed = pushColorManager.getColorIndex (
+            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_RED_HI);
+        mixerModel.trackColors[1] = de.mossgrabers.framework.daw.DAWColor.values ()[3].getColor ();
+        mixerModel.trackColors[2] = de.mossgrabers.framework.daw.DAWColor.values ()[8].getColor ();
+        final int expectedTrackOne = pushColorManager.getColorIndex (
+            de.mossgrabers.framework.daw.DAWColor.values ()[3].name ());
+        final int expectedTrackTwo = pushColorManager.getColorIndex (
+            de.mossgrabers.framework.daw.DAWColor.values ()[8].name ());
+        require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_1) == selectedWhite,
+            "Selected Push 1 ROW1 track must be neutral white/grey");
+        require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_2) == expectedTrackOne
+                && modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_3) == expectedTrackTwo,
+            "Ordinary Push 1 ROW1 LEDs must follow each track's distinct Bitwig RGB color");
+        require (expectedTrackOne != expectedTrackTwo
+                && expectedTrackOne != pushColorManager.getColorIndex (
+                    de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_YELLOW_LO),
+            "Track-color regression fixture must differ from the generic yellow fallback");
+        mixerModel.recArmed[0] = true;
+        require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_1) == recordRed,
+            "Record-arm red must retain priority over selected-track white");
+        mixerModel.recArmed[0] = false;
+
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
         midi.device ().tapButton (VirtualPush1Device.DEVICE);
@@ -2017,6 +2045,7 @@ public final class VirtualPush1RuntimeTest
                     switch (method.getName ())
                     {
                         case "doesExist": return this.trackExists[0];
+                        case "getIndex": return 0;
                         case "getSlotBank": return this.slotBank;
                         case "getColor": return ColorEx.BLUE;
                         case "isPlaying": return this.trackPlaying[0];
@@ -2569,6 +2598,7 @@ public final class VirtualPush1RuntimeTest
         private final boolean [] solo = new boolean [8];
         private final boolean [] trackPlaying = new boolean [8];
         private final boolean [] recArmed = new boolean [8];
+        private final ColorEx [] trackColors = new ColorEx [8];
         private final ITrack [] tracks = new ITrack [8];
         private final SlotState [][] slotStates = new SlotState [8][8];
         private final ISlotBank [] slotBanks = new ISlotBank [8];
@@ -2621,6 +2651,7 @@ public final class VirtualPush1RuntimeTest
             for (int i = 0; i < this.tracks.length; i++)
             {
                 final int index = i;
+                this.trackColors[i] = de.mossgrabers.framework.daw.DAWColor.values ()[i + 1].getColor ();
                 this.volumes[i] = new ParameterState ("Track " + (i + 1) + " Volume");
                 this.pans[i] = new ParameterState ("Track " + (i + 1) + " Pan");
                 for (int send = 0; send < 4; send++)
@@ -2713,7 +2744,7 @@ public final class VirtualPush1RuntimeTest
                         case "getVolumeStr" -> Integer.toString (this.volumes[index].value);
                         case "getPanStr" -> Integer.toString (this.pans[index].value);
                         case "getSendBank" -> sendBank;
-                        case "getColor" -> ColorEx.BLUE;
+                        case "getColor" -> this.trackColors[index];
                         case "isMute" -> this.muted[index];
                         case "setMute" -> { this.muted[index] = (boolean) a[0]; yield null; }
                         case "toggleMute" -> { this.muted[index] = !this.muted[index]; yield null; }
