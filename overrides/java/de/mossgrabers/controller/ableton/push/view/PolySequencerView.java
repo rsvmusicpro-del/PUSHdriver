@@ -6,6 +6,7 @@ package de.mossgrabers.controller.ableton.push.view;
 
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
+import de.mossgrabers.controller.ableton.push.engine.Push1PadGrid;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.PolySequencerEngine;
 import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.daw.IModel;
@@ -64,13 +65,13 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
         if (!this.engine.isActive () || !this.engine.isHardwarePadNote (note))
             return;
 
-        final int index = note - 36;
+        final int index = Push1PadGrid.indexForNote (note);
         if (!this.engine.isHardwarePadIndex (index))
             return;
         this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();
 
-        final int x = index % this.numColumns;
-        final int y = index / this.numColumns;
+        final int x = Push1PadGrid.columnForIndex (index);
+        final int y = Push1PadGrid.rowForIndex (index);
 
         if (y < this.numRows - this.numSequencerRows)
             return;
