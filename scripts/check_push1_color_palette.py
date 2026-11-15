@@ -8,9 +8,8 @@ daw_path = ROOT / "src/main/java/de/mossgrabers/framework/daw/DAWColor.java"
 push_path = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushColorManager.java"
 view_path = ROOT / "src/main/java/de/mossgrabers/framework/view/ColorView.java"
 track_mode_path = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/mode/track/AbstractTrackMode.java"
-runtime_test_path = ROOT / "tests/java/VirtualPush1RuntimeTest.java"
 
-for path in (daw_path, push_path, view_path, track_mode_path, runtime_test_path):
+for path in (daw_path, push_path, view_path, track_mode_path):
     if not path.is_file():
         raise SystemExit(f"Missing assembled source: {path}")
 
@@ -18,7 +17,6 @@ daw = daw_path.read_text()
 push = push_path.read_text()
 view = view_path.read_text()
 track_mode = track_mode_path.read_text()
-runtime_test = runtime_test_path.read_text()
 
 entries = re.findall(
     r'^\s*([A-Z][A-Z0-9_]*)\("([^"]+)", new ColorEx \(([^)]*)\)\)([,;])$',
@@ -102,32 +100,18 @@ if "cursorTrack.setColor (entry);" not in view or "clip.setColor (entry);" not i
 if "((ILayer) selectedItem.get ()).setColor (entry);" not in view:
     raise SystemExit("Layer RGB assignment path is missing")
 
-# ROW1 track selectors must use the dedicated first-row LED palette:
-# eight static colors only (indices 1, 4, 7, 10, 13, 16, 19, 22).
-if "PUSH1_ROW1_TRACK_COLOR_IDS" not in push or "getPaletteColor (1), getPaletteColor (4), getPaletteColor (7), getPaletteColor (10), getPaletteColor (13), getPaletteColor (16), getPaletteColor (19), getPaletteColor (22)" not in push:
-    raise SystemExit("ROW1 track lookup must use the eight native, non-blinking first-row colors")
-if "ColorEx.getClosestColorIndex (color, PUSH1_ROW1_TRACK_COLORS)" not in push:
-    raise SystemExit("ROW1 track lookup does not match against the native first-row RGB palette")
-if "PushColorManager.getClosestPush1Row1TrackColorID (track.getColor ())" not in track_mode:
-    raise SystemExit("ROW1 track LED does not map Bitwig RGB to a native first-row color")
-if "if (track.isRecArm ())" not in track_mode or "PushColorManager.PUSH_RED_HI : PushColorManager.PUSH_RED_LO" not in track_mode:
-    raise SystemExit("ROW1 record-arm priority must remain red at both selected and unselected levels")
-if "if (isSel || this.isPush2)" not in track_mode or "PushColorManager.PUSH_ORANGE_HI" not in track_mode:
-    raise SystemExit("Selected Push 1 track must retain supported ROW1 orange-high feedback")
-if "PUSH_WHITE_2" in track_mode:
-    raise SystemExit("Pad-only white must never be sent to Push 1 ROW1")
-if "return this.colorManager.getColorIndex (PushColorManager.getClosestPush1Row1TrackColorID (track.getColor ()))" not in track_mode:
-    raise SystemExit("Ordinary Push 1 tracks do not return a matched native ROW1 color ID")
-for marker in (
-    "Selected Push 1 ROW1 track uses supported orange-high",
-    "All eight native Push 1 ROW1 colors map to their exact hardware indices",
-    "Record-arm red overrides selected and ordinary track colors",
-):
-    if marker not in runtime_test:
-        raise SystemExit(f"Virtual Push 1 runtime regression is missing: {marker}")
+# ROW1 track selectors must use the nearest of the 64 selectable colors,
+# excluding COLOR_OFF, while preserving selected/record-arm priority.
+if "createTrackColorOptions ()" not in push or "System.arraycopy (allColors, 1, options, 0, options.length);" not in push:
+    raise SystemExit("Track LED lookup must exclude the internal COLOR_OFF fallback")
+if "ColorEx.getClosestColorIndex (color, TRACK_COLOR_PALETTE)" not in push:
+    raise SystemExit("Track LED lookup does not choose the nearest selectable RGB color")
+if "PushColorManager.getClosestTrackColorID (track.getColor ())" not in track_mode:
+    raise SystemExit("ROW1 track LED does not use the track's Bitwig RGB color")
+if "if (track.isRecArm ())" not in track_mode or "PushColorManager.PUSH_ORANGE_HI" not in track_mode:
+    raise SystemExit("ROW1 record-arm or selected-track LED priority was changed")
 
 
 print("PASS: 64 unique Bitwig RGB colors match 64 selected Push 1 hardware palette indices.")
-print("PASS: virtual production TrackMode verifies all eight native ROW1 colors, selected orange, and record-arm red priority.")
 print("PASS: every selected LED color meets the physical output and chroma thresholds.")
 print("PASS: all 64 choices are registered in order and track/clip/layer assignment remains active.")

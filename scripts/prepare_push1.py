@@ -423,28 +423,39 @@ replace_once(drum_view,
     "Drum solo state has dedicated Push 1 feedback")
 
 push_colors = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushColorManager.java"
-# Push 1 ROW1 has a dedicated 25-state palette, not the 128-entry pad RGB
-# palette. Match Bitwig track RGB only against the eight stable, non-blinking
-# first-row colors and return their existing semantic color IDs.
+# ROW1 track selectors use the nearest color from the exact 64-color Bitwig
+# palette. Exclude the internal COLOR_OFF entry: it is not a selectable color.
 replace_once(push_colors,
-    "    public PushColorManager (final boolean isPush2)",
-    """    private static final String [] PUSH1_ROW1_TRACK_COLOR_IDS = new String []
-    { PUSH_RED_LO, PUSH_RED_HI, PUSH_ORANGE_LO, PUSH_ORANGE_HI, PUSH_YELLOW_LO, PUSH_YELLOW_MD, PUSH_GREEN_LO, PUSH_GREEN_HI };
-    private static final ColorEx [] PUSH1_ROW1_TRACK_COLORS = new ColorEx []
-    { getPaletteColor (1), getPaletteColor (4), getPaletteColor (7), getPaletteColor (10), getPaletteColor (13), getPaletteColor (16), getPaletteColor (19), getPaletteColor (22) };
-
-    /** Find the closest stable Push 1 first-row LED color for a Bitwig track. */
-    public static String getClosestPush1Row1TrackColorID (final ColorEx color)
-    {
-        if (color == null)
-            return PUSH_YELLOW_LO;
-        final int index = ColorEx.getClosestColorIndex (color, PUSH1_ROW1_TRACK_COLORS);
-        return PUSH1_ROW1_TRACK_COLOR_IDS[index];
-    }
-
-
-    public PushColorManager (final boolean isPush2)""",
-    "Push 1 ROW1 native hardware track color lookup")
+    "    private final boolean            isPush2;\n",
+    "    private final boolean            isPush2;\n\n"
+    "    private static final DAWColor [] TRACK_COLOR_OPTIONS = createTrackColorOptions ();\n"
+    "    private static final ColorEx [] TRACK_COLOR_PALETTE = createTrackColorPalette ();\n\n"
+    "    private static DAWColor [] createTrackColorOptions ()\n"
+    "    {\n"
+    "        final DAWColor [] allColors = DAWColor.values ();\n"
+    "        final DAWColor [] options = new DAWColor [allColors.length - 1];\n"
+    "        System.arraycopy (allColors, 1, options, 0, options.length);\n"
+    "        return options;\n"
+    "    }\n\n"
+    "    private static ColorEx [] createTrackColorPalette ()\n"
+    "    {\n"
+    "        final ColorEx [] palette = new ColorEx [TRACK_COLOR_OPTIONS.length];\n"
+    "        for (int i = 0; i < TRACK_COLOR_OPTIONS.length; i++)\n"
+    "            palette[i] = TRACK_COLOR_OPTIONS[i].getColor ();\n"
+    "        return palette;\n"
+    "    }\n\n"
+    "    /**\n"
+    "     * Find the selectable Bitwig color closest to a track's RGB color.\n"
+    "     *\n"
+    "     * @param color The track color\n"
+    "     * @return The registered color key for the closest Push 1 palette entry\n"
+    "     */\n"
+    "    public static String getClosestTrackColorID (final ColorEx color)\n"
+    "    {\n"
+    "        final int index = ColorEx.getClosestColorIndex (color, TRACK_COLOR_PALETTE);\n"
+    "        return TRACK_COLOR_OPTIONS[index].name ();\n"
+    "    }\n",
+    "Push 1 track color palette lookup")
 source = push_colors.read_text()
 replace_once(push_colors,
     "        this.registerColorIndex (AbstractSequencerView.COLOR_STEP_HILITE_CONTENT, isPush2 ? PUSH2_COLOR2_GREEN_HI : PUSH1_COLOR2_GREEN_HI);\n",
@@ -2369,16 +2380,16 @@ replace_once(track_mode,
     "            d.setCell (3, i, n);",
     "Push 1 track names truncate after selection marker")
 
-# Record-arm remains the highest-priority state and uses the dedicated ROW1
-# red levels. The selected Push 1 track retains the upstream orange-high state:
-# ROW1 has no neutral white/grey LED; ordinary tracks use the closest native
-# first-row color. Push 2 keeps its upstream selected-orange/unselected-yellow.
+# Keep selected and record-armed feedback intact; only the ordinary available
+# ROW1 state changes from generic yellow to the track's nearest menu color.
 replace_once(track_mode,
     "            return this.colorManager.getColorIndex (isSel ? PushColorManager.PUSH_ORANGE_HI : PushColorManager.PUSH_YELLOW_LO);",
-    """            if (isSel || this.isPush2)
-                return this.colorManager.getColorIndex (isSel ? PushColorManager.PUSH_ORANGE_HI : PushColorManager.PUSH_YELLOW_LO);
-            return this.colorManager.getColorIndex (PushColorManager.getClosestPush1Row1TrackColorID (track.getColor ()));""",
-    "Push 1 ROW1 native palette and record-arm priority")
+    "            if (isSel)\n"
+    "                return this.colorManager.getColorIndex (PushColorManager.PUSH_ORANGE_HI);\n"
+    "            if (this.isPush2)\n"
+    "                return this.colorManager.getColorIndex (PushColorManager.PUSH_YELLOW_LO);\n"
+    "            return this.colorManager.getColorIndex (PushColorManager.getClosestTrackColorID (track.getColor ()));",
+    "Push 1 ROW1 unselected track color feedback")
 
 device_layer_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceLayerMode.java"
 replace_once(device_layer_mode,
