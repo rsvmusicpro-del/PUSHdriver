@@ -2213,8 +2213,14 @@ palette_match = re.search(r"DEFAULT_PALETTE\s*=\s*\{([\s\S]*?)\n\s*\};", push_co
 if palette_match is None:
     raise SystemExit("Push 1 color palette: DEFAULT_PALETTE was not found")
 push_rgb = re.findall(r"\{\s*0x([0-9A-Fa-f]+),\s*0x([0-9A-Fa-f]+),\s*0x([0-9A-Fa-f]+)\s*\}", palette_match.group(1))
-if len(push_rgb) < 64:
-    raise SystemExit(f"Push 1 color palette: expected at least 64 RGB entries, found {len(push_rgb)}")
+if len(push_rgb) < 128:
+    raise SystemExit(f"Push 1 color palette: expected at least 128 RGB entries, found {len(push_rgb)}")
+
+# Keep exactly 64 menu entries, replacing dark/weak slots with vivid colors
+# already present in the Push 1 hardware palette. No synthetic RGB is used.
+push1_hardware_indices = [0,1,2,3,4,5,107,95,8,9,108,84,12,13,73,109,16,17,74,75,20,21,85,86,24,25,88,89,28,29,77,90,32,33,34,35,36,37,79,92,40,41,80,81,44,45,116,94,48,49,82,98,52,53,110,111,56,57,122,96,60,61,62,63]
+if len(set(push1_hardware_indices)) != 64:
+    raise SystemExit("Push 1 color palette: hardware indices must be unique")
 
 push1_color_names = [
     ("COLOR_OFF", "Black"),
@@ -2282,13 +2288,18 @@ push1_color_names = [
     ("PUSH1_COLOR_62_OCHRE", "Ochre"),
     ("PUSH1_COLOR_63_OLIVE_GREEN", "Olive Green"),
 ]
+for slot, display_name in {"6":"Coral Red","7":"Hot Pink","10":"Burnt Orange","11":"Vivid Orange","14":"Neon Yellow","15":"Electric Yellow","18":"Acid Green","19":"Neon Lime","22":"Bright Chartreuse","23":"Electric Lime","26":"Spring Green","27":"Vivid Lime","30":"Bright Mint","31":"Turquoise","38":"Electric Blue","39":"Cobalt","42":"Electric Indigo","43":"Ultramarine","46":"Bright Violet","47":"Magenta Violet","50":"Berry","51":"Neon Green","54":"Hot Magenta","55":"Lime Green","58":"Golden Green","59":"Electric Orange"}.items():
+    constant, _ = push1_color_names[slot]
+    push1_color_names[slot] = (constant, display_name)
+
 daw_color = root / "src/main/java/de/mossgrabers/framework/daw/DAWColor.java"
 daw_source = daw_color.read_text()
 enum_start = daw_source.index("{", daw_source.index("public enum DAWColor")) + 1
 enum_end = daw_source.index("\n\n\n    private static final List", enum_start)
 enum_entries = []
 for index, (constant, display_name) in enumerate(push1_color_names):
-    red, green, blue = (int(component, 16) for component in push_rgb[index])
+    hardware_index = push1_hardware_indices[index]
+    red, green, blue = (int(component, 16) for component in push_rgb[hardware_index])
     suffix = ";" if index == len(push1_color_names) - 1 else ","
     enum_entries.append(
         f'    /** Push 1 palette color {index}: {display_name}. */\n'
@@ -2303,8 +2314,9 @@ registration_start = push_color_source.index("        this.registerColorIndex (D
 registration_end_marker = "        this.registerColorIndex (DAWColor.DAW_COLOR_LIGHT_BLUE, isPush2 ? 96 : 41);"
 registration_end = push_color_source.index(registration_end_marker, registration_start) + len(registration_end_marker)
 registration = (
-    "        for (int i = 0; i < DAWColor.values ().length; i++)\n"
-    "            this.registerColorIndex (DAWColor.values ()[i], i);"
+    "        final int [] push1PaletteIndices = new int [] { 0, 1, 2, 3, 4, 5, 107, 95, 8, 9, 108, 84, 12, 13, 73, 109, 16, 17, 74, 75, 20, 21, 85, 86, 24, 25, 88, 89, 28, 29, 77, 90, 32, 33, 34, 35, 36, 37, 79, 92, 40, 41, 80, 81, 44, 45, 116, 94, 48, 49, 82, 98, 52, 53, 110, 111, 56, 57, 122, 96, 60, 61, 62, 63 };\\n"
+    "        for (int i = 0; i < DAWColor.values ().length; i++)\\n"
+    "            this.registerColorIndex (DAWColor.values ()[i], push1PaletteIndices[i]);"
 )
 push_color_source = push_color_source[:registration_start] + registration + push_color_source[registration_end:]
 push_color_manager.write_text(push_color_source)
