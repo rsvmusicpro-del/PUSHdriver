@@ -65,6 +65,18 @@ if any(index < 0 or index >= len(hardware_rgb) for index in hardware_indices):
 if rgb != [hardware_rgb[index] for index in hardware_indices]:
     raise SystemExit("DAW RGB values do not match their selected Push 1 hardware indices")
 
+# Reject dark-output and pastel/washed-out entries. Push 1 LEDs use fixed
+# hardware RGB levels; the maximum channel is the physical drive ceiling,
+# while chroma prevents low-saturation pastel and neutral colors.
+for index, color in zip(hardware_indices, rgb):
+    maximum = max(color)
+    minimum = min(color)
+    saturation = (maximum - minimum) / maximum if maximum else 0.0
+    if maximum < 160:
+        raise SystemExit(f"Push 1 color {index} is too weak: max RGB channel {maximum} < 160")
+    if saturation < 0.45:
+        raise SystemExit(f"Push 1 color {index} is too washed out: saturation {saturation:.3f} < 0.45")
+
 if "this.registerColorIndex (DAWColor.values ()[i], push1PaletteIndices[i]);" not in push:
     raise SystemExit("DAWColor entries are not registered to their selected hardware palette indices")
 if "final DAWColor [] dawColors = DAWColor.values ();" not in view:
@@ -75,4 +87,5 @@ if "((ILayer) selectedItem.get ()).setColor (entry);" not in view:
     raise SystemExit("Layer RGB assignment path is missing")
 
 print("PASS: 64 unique Bitwig RGB colors match 64 selected Push 1 hardware palette indices.")
+print("PASS: every selected LED color meets the physical output and chroma thresholds.")
 print("PASS: all 64 choices are registered in order and track/clip/layer assignment remains active.")
