@@ -25,7 +25,8 @@ public final class Push1DisplayText
      */
     public static String fitAscii (final String value, final int width)
     {
-        return fit (StringUtils.fixASCII (value), width);
+        final String normalized = value == null ? "" : value.replace ('…', (char) ELLIPSIS_CHARACTER_CODE);
+        return fit (StringUtils.fixASCII (normalized), width);
     }
 
     /**

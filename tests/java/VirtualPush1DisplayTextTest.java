@@ -27,6 +27,8 @@ public final class VirtualPush1DisplayTextTest
         check (Push1DisplayText.fit ("A…B", 4), "A" + ellipsis + "B ",
             "Unicode ellipsis input must map to the Push 1 firmware character code");
 
+        check (Push1DisplayText.fitAscii ("A…B", 4), "A" + ellipsis + "B ",
+            "ASCII transliteration must preserve an existing Unicode ellipsis as the firmware glyph");
         check (Push1DisplayText.fitAscii ("Übergrößen", 8), "Uebe" + ellipsis + "sen",
             "long names must retain existing ASCII transliteration before firmware-ellipsis fitting");
 
