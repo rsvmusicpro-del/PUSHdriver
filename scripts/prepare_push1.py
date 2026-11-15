@@ -1272,7 +1272,8 @@ accent_palette = (
     "            final int [] accentPalette = new int [] { 23, 27, 35, 31, 19, 64, 123, 101, 22, 26, 30, 34, 18, 63, 111, 21 };\n"
     "            final IPadGrid padGrid = this.surface.getPadGrid ();"
 )
-accent_start = source.index("        if (isAccentActive)")
+draw_pages_start = source.index("protected void drawPages")
+accent_start = source.index("        if (isAccentActive)", draw_pages_start)
 accent_end = source.index("\n        final int step = clip.getCurrentStep ();", accent_start)
 accent_source = source[accent_start:accent_end]
 if accent_source.count("MaschineColorManager.COLOR_GREEN") != 1 or accent_source.count("MaschineColorManager.COLOR_LIME_LO") != 1:
