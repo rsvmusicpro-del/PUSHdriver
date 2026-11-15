@@ -534,12 +534,12 @@ replace_java_method(add_track_mode, "public int getButtonColor", '''    public i
         if (index >= 0)
         {
             if (index == 0)
-                return this.isPush2 ? PushColorManager.PUSH2_COLOR2_GREEN_HI : PushColorManager.PUSH1_COLOR_GREEN_HI;
+                return this.isPush2 ? PushColorManager.PUSH2_COLOR2_GREEN_HI : PushColorManager.PUSH1_COLOR2_GREEN_HI;
             if (index < 4)
-                return this.isPush2 ? PushColorManager.PUSH2_COLOR2_GREEN_LO : PushColorManager.PUSH1_COLOR_GREEN_LO;
+                return this.isPush2 ? PushColorManager.PUSH2_COLOR2_GREEN_LO : PushColorManager.PUSH1_COLOR2_GREEN_LO;
             if (index == 4)
-                return this.isPush2 ? PushColorManager.PUSH2_COLOR2_BLUE_HI : PushColorManager.PUSH1_COLOR_RED_HI;
-            return this.isPush2 ? PushColorManager.PUSH2_COLOR2_BLUE_LO : PushColorManager.PUSH1_COLOR_RED_LO;
+                return this.isPush2 ? PushColorManager.PUSH2_COLOR2_AMBER_HI : PushColorManager.PUSH1_COLOR2_AMBER_HI;
+            return this.isPush2 ? PushColorManager.PUSH2_COLOR2_AMBER_LO : PushColorManager.PUSH1_COLOR2_AMBER_LO;
         }
 
         return this.colorManager.getColorIndex (AbstractFeatureGroup.BUTTON_COLOR_OFF);
