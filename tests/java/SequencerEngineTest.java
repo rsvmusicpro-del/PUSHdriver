@@ -1,5 +1,6 @@
 import de.mossgrabers.controller.ableton.push.engine.sequencer.ClassicSequencerEngine;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.PolySequencerEngine;
+import de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine.ActivationToken;
 
 /** Deterministic tests for isolated Push 1 sequencer engine state. */
@@ -10,6 +11,7 @@ public final class SequencerEngineTest
     public static void main (final String [] args)
     {
         testLifecycleTokens ();
+        testSharedLifecycleSynchronization ();
         testClassicPageFollowPolicy ();
         testPolyGridAndScaleRules ();
         System.out.println ("SequencerEngineTest: all checks passed.");
@@ -29,6 +31,17 @@ public final class SequencerEngineTest
         require (second.generation () > first.generation (), "reactivation advances generation");
         require (!engine.accepts (first), "old token stays stale after reactivation");
         require (engine.accepts (second), "new token accepted");
+    }
+
+    private static void testSharedLifecycleSynchronization ()
+    {
+        final ClassicSequencerEngine engine = new ClassicSequencerEngine ();
+        SequencerEngine.synchronize (engine, true);
+        final ActivationToken active = engine.activate ();
+        require (engine.isActive (), "shared lifecycle activates engine");
+        SequencerEngine.synchronize (engine, false);
+        require (!engine.isActive (), "shared lifecycle deactivates engine");
+        require (!engine.accepts (active), "shared lifecycle invalidates prior activation");
     }
 
     private static void testClassicPageFollowPolicy ()

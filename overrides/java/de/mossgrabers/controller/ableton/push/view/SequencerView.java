@@ -7,6 +7,7 @@ package de.mossgrabers.controller.ableton.push.view;
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.ClassicSequencerEngine;
+import de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine;
 import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.controller.hardware.IHwButton;
 import de.mossgrabers.framework.daw.IModel;
@@ -35,17 +36,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     private final ClassicSequencerEngine engine = new ClassicSequencerEngine ();
 
 
-    /** Synchronize engine ownership with DrivenByMoss' active-view lifecycle. */
-    private void synchronizeEngineLifecycle ()
-    {
-        if (this.isActive ())
-            this.engine.activate ();
-        else
-            this.engine.deactivate ();
-    }
-
-
-    /**
+/**
      * Constructor.
      *
      * @param surface The surface
@@ -65,7 +56,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void drawGrid ()
     {
-        this.synchronizeEngineLifecycle ();
+        SequencerEngine.synchronize (this.engine, this.isActive ());
         if (this.engine.shouldFollowPlayhead () && this.model.getTransport ().isPlaying ())
         {
             final INoteClip clip = this.getClip ();
@@ -173,7 +164,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void onLeft (final ButtonEvent event)
     {
-        this.synchronizeEngineLifecycle ();
+        SequencerEngine.synchronize (this.engine, this.isActive ());
         this.engine.onManualPageNavigation ();
         super.onLeft (event);
     }
@@ -183,7 +174,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void onRight (final ButtonEvent event)
     {
-        this.synchronizeEngineLifecycle ();
+        SequencerEngine.synchronize (this.engine, this.isActive ());
         this.engine.onManualPageNavigation ();
         super.onRight (event);
     }
@@ -193,7 +184,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void onGridNoteLongPress (final int note)
     {
-        this.synchronizeEngineLifecycle ();
+        SequencerEngine.synchronize (this.engine, this.isActive ());
         if (!this.engine.isActive ())
             return;
 

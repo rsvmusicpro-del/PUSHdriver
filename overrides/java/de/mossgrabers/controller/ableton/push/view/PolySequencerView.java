@@ -7,6 +7,7 @@ package de.mossgrabers.controller.ableton.push.view;
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.PolySequencerEngine;
+import de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine;
 import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.clip.INoteClip;
@@ -27,18 +28,10 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
     /** The feature-local Push 1 Poly Sequencer engine. */
     private final PolySequencerEngine engine = new PolySequencerEngine ();
 
-    private void synchronizeEngineLifecycle ()
-    {
-        if (this.isActive ())
-            this.engine.activate ();
-        else
-            this.engine.deactivate ();
-    }
-
-    @Override
+@Override
     public void drawGrid ()
     {
-        this.synchronizeEngineLifecycle ();
+        SequencerEngine.synchronize (this.engine, this.isActive ());
         super.drawGrid ();
     }
 
@@ -60,7 +53,7 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
     @Override
     public void onGridNoteLongPress (final int note)
     {
-        this.synchronizeEngineLifecycle ();
+        SequencerEngine.synchronize (this.engine, this.isActive ());
         if (!this.engine.isActive () || !this.engine.isHardwarePadNote (note))
             return;
 
@@ -95,7 +88,7 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
     @Override
     protected boolean handleSequencerAreaButtonCombinations (final INoteClip clip, final int channel, final int step)
     {
-        this.synchronizeEngineLifecycle ();
+        SequencerEngine.synchronize (this.engine, this.isActive ());
         if (!this.engine.isActive ())
             return true;
 
