@@ -2321,8 +2321,8 @@ push_color_source = push_color_source[:registration_start] + registration + push
 # Push 1 selected steps share one source color across the classic, poly and drum
 # sequencers. Use hardware palette index 96 (#FF7F00), the closest vivid
 # Push 1 LED color to the requested amber (#FFAA00); keep Push 2 unchanged.
-selected_step_old = "        this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : PUSH1_COLOR2_YELLOW_HI);\\n"
-selected_step_new = "        this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : 96);\\n"
+selected_step_old = "        this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : PUSH1_COLOR2_YELLOW_HI);\n"
+selected_step_new = "        this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : 96);\n"
 if push_color_source.count(selected_step_old) != 1:
     raise SystemExit("Push 1 selected-step amber LED color: expected exactly one upstream source match")
 push_color_source = push_color_source.replace(selected_step_old, selected_step_new, 1)
