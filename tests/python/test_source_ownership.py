@@ -70,7 +70,7 @@ class SourceOwnershipTests(unittest.TestCase):
 
     def test_assembly_uses_shared_pad_bounds_for_drum_views(self):
         source = (ROOT / "scripts/prepare_push1.py").read_text(encoding="utf-8")
-        self.assertGreaterEqual(source.count("Push1PadGrid.isValidIndex (index)"), 2)
+        self.assertGreaterEqual(source.count("Push1PadGrid.isValidIndex (index)"), 3)
         self.assertIn("Push1PadGrid.isValidIndex (index, this.columns * this.rows)", source)
 
     def test_project_device_navigation_helpers_are_forbidden(self):

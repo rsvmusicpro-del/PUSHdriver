@@ -1095,7 +1095,7 @@ for relative in (
         "        final int index = note - DRUM_START_KEY;\n"
         "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
         "        final int index = note - DRUM_START_KEY;\n"
-        "        if (index < 0 || index >= 64)\n"
+        "        if (!de.mossgrabers.controller.ableton.push.engine.sequencer.Push1PadGrid.isValidIndex (index))\n"
         "            return;\n"
         "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
         relative + " long-press pad bounds")
