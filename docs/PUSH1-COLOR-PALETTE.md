@@ -16,7 +16,7 @@ This is a PUSHdriver palette derived from the Push 1 hardware palette, not a cla
 | 7 | Crimson Pink | 255, 0, 93 | #FF005D | 95 |
 | 8 | Peach | 255, 189, 108 | #FFBD6C | 8 |
 | 9 | Orange | 255, 84, 0 | #FF5400 | 9 |
-| 10 | Burnt Orange | 216, 106, 28 | #D86A1C | 108 |
+| 10 | Copper Orange | 216, 106, 28 | #D86A1C | 108 |
 | 11 | Vivid Orange | 255, 74, 0 | #FF4A00 | 84 |
 | 12 | Lemon | 255, 255, 76 | #FFFF4C | 12 |
 | 13 | Yellow | 255, 255, 0 | #FFFF00 | 13 |
