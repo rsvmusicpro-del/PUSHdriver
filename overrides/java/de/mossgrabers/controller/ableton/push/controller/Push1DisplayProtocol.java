@@ -19,8 +19,8 @@ public final class Push1DisplayProtocol
     };
 
     private static final char[] HEX = "0123456789ABCDEF".toCharArray();
-    private static final int LINE_COUNT = 4;
-    private static final int LINE_LENGTH = 68;
+    private static final int LINE_COUNT = Push1DisplayLayout.ROWS;
+    private static final int LINE_LENGTH = Push1DisplayLayout.COLUMNS;
 
     private Push1DisplayProtocol()
     {
