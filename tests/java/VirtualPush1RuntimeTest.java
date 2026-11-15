@@ -374,6 +374,7 @@ public final class VirtualPush1RuntimeTest
         }
         require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_1) == selectedOrange,
             "Selected Push 1 ROW1 track uses supported orange-high");
+        // All eight native Push 1 ROW1 colors map to their exact hardware indices.
         for (int i = 1; i < row1HardwareIndices.length; i++)
         {
             final int actual = modes.get (Modes.TRACK).getButtonColor (ButtonID.get (ButtonID.ROW1_1, i));
@@ -387,6 +388,12 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_1) == recordRed,
             "Record-arm red overrides selected and ordinary track colors");
         mixerModel.recArmed[0] = false;
+        mixerModel.recArmed[1] = true;
+        require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_2)
+                == pushColorManager.getColorIndex (
+                    de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_RED_LO),
+            "Unselected record-armed tracks must retain first-row low red");
+        mixerModel.recArmed[1] = false;
 
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
