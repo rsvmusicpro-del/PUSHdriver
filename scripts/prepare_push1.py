@@ -435,7 +435,7 @@ for old, new, label in (
     ("this.registerColorIndex (AbstractSequencerView.COLOR_STEP_MUTED_CONT, isPush2 ? PUSH2_COLOR2_GREY_LO : PUSH1_COLOR2_GREY_LO);",
      "this.registerColorIndex (AbstractSequencerView.COLOR_STEP_MUTED_CONT, isPush2 ? PUSH2_COLOR2_GREY_LO : PUSH1_COLOR2_YELLOW_LO);", "Push 1 muted continuation color"),
     ("this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : PUSH1_COLOR2_YELLOW_HI);",
-     "this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : PUSH1_COLOR2_WHITE);", "Push 1 selected step color"),
+     "this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : 96);", "Push 1 selected step amber color"),
     ("this.registerColorIndex (AbstractDrumView.COLOR_PAD_SELECTED, isPush2 ? PUSH2_COLOR2_BLUE_HI : PUSH1_COLOR2_BLUE_HI);",
      "this.registerColorIndex (AbstractDrumView.COLOR_PAD_SELECTED, isPush2 ? PUSH2_COLOR2_BLUE_HI : PUSH1_COLOR2_BLUE_HI);\n        this.registerColorIndex (AbstractDrumView.COLOR_PAD_SOLO, isPush2 ? PUSH2_COLOR2_BLUE_LO : PUSH1_COLOR2_BLUE_LO);", "Push 1 solo pad color"),
 ):
@@ -2318,15 +2318,6 @@ registration = (
     "            this.registerColorIndex (DAWColor.values ()[i], push1PaletteIndices[i]);"
 )
 push_color_source = push_color_source[:registration_start] + registration + push_color_source[registration_end:]
-# Push 1 selected steps share one source color across the classic, poly and drum
-# sequencers. Use hardware palette index 96 (#FF7F00), the closest vivid
-# Push 1 LED color to the requested amber (#FFAA00); keep Push 2 unchanged.
-selected_step_pattern = re.compile(
-    r"(?m)^(\\s*this\\.registerColorIndex \\(AbstractSequencerView\\.COLOR_STEP_SELECTED, isPush2 \\? PUSH2_COLOR2_YELLOW_HI : )PUSH1_COLOR2_YELLOW_HI(\\);)\\s*$"
-)
-if len(selected_step_pattern.findall(push_color_source)) != 1:
-    raise SystemExit("Push 1 selected-step amber LED color: expected exactly one upstream source match")
-push_color_source = selected_step_pattern.sub(r"\\g<1>96\\g<2>", push_color_source, count=1)
 push_color_manager.write_text(push_color_source)
 
 # Keep COLOR_OFF as the internal no-color fallback, but expose only the 64
