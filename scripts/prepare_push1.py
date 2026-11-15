@@ -1268,13 +1268,28 @@ maschine_import = "import de.mossgrabers.controller.ni.maschine.core.MaschineCol
 if source.count(maschine_import) != 1:
     raise SystemExit("AbstractDrumView: unexpected MaschineColorManager import state")
 source = source.replace(maschine_import, "", 1)
-for old, new in (
-    ("MaschineColorManager.COLOR_GREEN", "this.colorManager.getColorIndex (DAWColor.getColorID (DAWColor.DAW_COLOR_GREEN.getColor ()))"),
-    ("MaschineColorManager.COLOR_LIME_LO", "this.colorManager.getColorIndex (DAWColor.getColorID (DAWColor.DAW_COLOR_MOSS_GREEN.getColor ()))"),
-):
-    if source.count(old) != 1:
-        raise SystemExit(f"AbstractDrumView: expected one {old}")
-    source = source.replace(old, new, 1)
+accent_palette = (
+    "            final int [] accentPalette = new int [] { 23, 27, 35, 31, 19, 64, 123, 101, 22, 26, 30, 34, 18, 63, 111, 21 };\n"
+    "            final IPadGrid padGrid = this.surface.getPadGrid ();"
+)
+if source.count("            final IPadGrid padGrid = this.surface.getPadGrid ();") < 2:
+    raise SystemExit("AbstractDrumView: expected Accent and normal page pad-grid declarations")
+accent_start = source.index("        if (isAccentActive)")
+accent_end = source.index("\n        final int step = clip.getCurrentStep ();", accent_start)
+accent_source = source[accent_start:accent_end]
+if accent_source.count("MaschineColorManager.COLOR_GREEN") != 1 or accent_source.count("MaschineColorManager.COLOR_LIME_LO") != 1:
+    raise SystemExit("AbstractDrumView: unexpected Accent color expressions")
+accent_source = accent_source.replace(
+    "            final IPadGrid padGrid = this.surface.getPadGrid ();",
+    accent_palette,
+    1,
+)
+accent_source = accent_source.replace(
+    "padGrid.lightEx (x, y, pad == selectedVelocityPad ? MaschineColorManager.COLOR_GREEN : MaschineColorManager.COLOR_LIME_LO);",
+    "padGrid.lightEx (x, y, accentPalette[(3 - pad / 4) * 4 + pad % 4]);",
+    1,
+)
+source = source[:accent_start] + accent_source + source[accent_end:]
 drum_view.write_text(source)
 
 # Remove the Push 2 display branch entirely; Push 1 always uses its 2xLCD display.
