@@ -8,8 +8,9 @@ daw_path = ROOT / "src/main/java/de/mossgrabers/framework/daw/DAWColor.java"
 push_path = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushColorManager.java"
 view_path = ROOT / "src/main/java/de/mossgrabers/framework/view/ColorView.java"
 track_mode_path = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/mode/track/AbstractTrackMode.java"
+runtime_test_path = ROOT / "tests/java/VirtualPush1RuntimeTest.java"
 
-for path in (daw_path, push_path, view_path, track_mode_path):
+for path in (daw_path, push_path, view_path, track_mode_path, runtime_test_path):
     if not path.is_file():
         raise SystemExit(f"Missing assembled source: {path}")
 
@@ -17,6 +18,7 @@ daw = daw_path.read_text()
 push = push_path.read_text()
 view = view_path.read_text()
 track_mode = track_mode_path.read_text()
+runtime_test = runtime_test_path.read_text()
 
 entries = re.findall(
     r'^\s*([A-Z][A-Z0-9_]*)\("([^"]+)", new ColorEx \(([^)]*)\)\)([,;])$',
@@ -116,8 +118,16 @@ if "if (isSel)" not in track_mode:
     raise SystemExit("ROW1 selected-track state is not handled explicitly")
 if "return this.colorManager.getColorIndex (PushColorManager.getClosestTrackColorID (track.getColor ()))" not in track_mode:
     raise SystemExit("ROW1 ordinary Push 1 tracks do not return the matched Bitwig track color index")
+for marker in (
+    "Selected Push 1 ROW1 track must be neutral white/grey",
+    "Ordinary Push 1 ROW1 LEDs must follow each track's distinct Bitwig RGB color",
+    "Record-arm red must retain priority over selected-track white",
+):
+    if marker not in runtime_test:
+        raise SystemExit(f"Virtual Push 1 runtime regression is missing: {marker}")
 
 
 print("PASS: 64 unique Bitwig RGB colors match 64 selected Push 1 hardware palette indices.")
+print("PASS: virtual production TrackMode verifies distinct track RGB, neutral selected white, and record-arm red priority.")
 print("PASS: every selected LED color meets the physical output and chroma thresholds.")
 print("PASS: all 64 choices are registered in order and track/clip/layer assignment remains active.")
