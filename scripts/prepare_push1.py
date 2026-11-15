@@ -2225,7 +2225,6 @@ if len(set(push1_hardware_indices)) != 64:
     raise SystemExit("Push 1 color palette: hardware indices must be unique")
 
 push1_color_names = [
-    ("COLOR_OFF", "Signal Red"),
     ("DAW_COLOR_DARK_GRAY", "Deep Red"),
     ("DAW_COLOR_GRAY", "Scarlet"),
     ("DAW_COLOR_GRAY_HALF", "Flame Orange"),
@@ -2289,13 +2288,14 @@ push1_color_names = [
     ("PUSH1_COLOR_61_BURNT_ORANGE", "Magenta Pink"),
     ("PUSH1_COLOR_62_OCHRE", "Berry"),
     ("PUSH1_COLOR_63_OLIVE_GREEN", "Rose Pink"),
+    ("PUSH1_COLOR_64_ROSE_EXTRA", "Rose Red"),
 ]
 
 daw_color = root / "src/main/java/de/mossgrabers/framework/daw/DAWColor.java"
 daw_source = daw_color.read_text()
 enum_start = daw_source.index("{", daw_source.index("public enum DAWColor")) + 1
 enum_end = daw_source.index("\n\n\n    private static final List", enum_start)
-enum_entries = []
+enum_entries = ['    /** Internal fallback color; not displayed in the 64-color menu. */\n    COLOR_OFF("Off", new ColorEx (0.5, 0.5, 0.5)),']
 for index, (constant, display_name) in enumerate(push1_color_names):
     hardware_index = push1_hardware_indices[index]
     red, green, blue = (int(component, 16) for component in push_rgb[hardware_index])
@@ -2312,12 +2312,28 @@ registration_start = push_color_source.index("        this.registerColorIndex (D
 registration_end_marker = "        this.registerColorIndex (DAWColor.DAW_COLOR_LIGHT_BLUE, isPush2 ? 96 : 41);"
 registration_end = push_color_source.index(registration_end_marker, registration_start) + len(registration_end_marker)
 registration = (
-    "        final int [] push1PaletteIndices = new int [] { 72, 120, 60, 84, 9, 96, 126, 124, 13, 74, 85, 98, 75, 17, 122, 87, 25, 29, 77, 33, 78, 41, 79, 67, 69, 80, 49, 81, 53, 95, 57, 106, 4, 107, 108, 8, 109, 12, 113, 73, 110, 111, 86, 16, 88, 20, 24, 89, 28, 114, 32, 90, 36, 40, 91, 92, 44, 93, 116, 48, 94, 52, 82, 56 };\n"
+    "        final int [] push1PaletteIndices = new int [] { 0, 72, 120, 60, 84, 9, 96, 126, 124, 13, 74, 85, 98, 75, 17, 122, 87, 25, 29, 77, 33, 78, 41, 79, 67, 69, 80, 49, 81, 53, 95, 57, 106, 4, 107, 108, 8, 109, 12, 113, 73, 110, 111, 86, 16, 88, 20, 24, 89, 28, 114, 32, 90, 36, 40, 91, 92, 44, 93, 116, 48, 94, 52, 82, 56 };\n"
     "        for (int i = 0; i < DAWColor.values ().length; i++)\n"
     "            this.registerColorIndex (DAWColor.values ()[i], push1PaletteIndices[i]);"
 )
 push_color_source = push_color_source[:registration_start] + registration + push_color_source[registration_end:]
 push_color_manager.write_text(push_color_source)
+
+# Keep COLOR_OFF as the internal no-color fallback, but expose only the 64
+# chromatic hardware choices in the existing one-page Color view.
+color_view = root / "src/main/java/de/mossgrabers/framework/view/ColorView.java"
+replace_once(color_view,
+    "        this.pages = 1 + (dawColors.length - 1) / this.pageSize;",
+    "        this.pages = 1 + (dawColors.length - 2) / this.pageSize;",
+    "ColorView excludes internal COLOR_OFF fallback from page count")
+replace_once(color_view,
+    "            padGrid.light (36 + i, index < dawColors.length ? dawColors[index].name () : IPadGrid.GRID_OFF);",
+    "            padGrid.light (36 + i, index + 1 < dawColors.length ? dawColors[index + 1].name () : IPadGrid.GRID_OFF);",
+    "ColorView excludes internal COLOR_OFF fallback from grid")
+replace_once(color_view,
+    "        if (color < dawColors.length)\n        {\n            final ColorEx entry = dawColors[color].getColor ();",
+    "        if (color + 1 < dawColors.length)\n        {\n            final ColorEx entry = dawColors[color + 1].getColor ();",
+    "ColorView excludes internal COLOR_OFF fallback from selection")
 
 
 # Defer all Push 1 label shortening until the physical cell/block width is known.
