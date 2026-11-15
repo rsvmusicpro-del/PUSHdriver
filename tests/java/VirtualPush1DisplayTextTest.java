@@ -19,7 +19,7 @@ public final class VirtualPush1DisplayTextTest
             "a supplementary Unicode code point must occupy one replacement cell");
 
         final String ellipsis = String.valueOf ((char) 0x1C);
-        check (Push1DisplayText.fit ("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 10), "ABCD" + ellipsis + "WXYZ",
+        check (Push1DisplayText.fit ("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 10), "ABCDE" + ellipsis + "WXYZ",
             "long labels must retain both ends and use the Push 1 single-cell ellipsis");
         check (Push1DisplayText.fit ("ABCDEFGHIJK", 6), "ABC" + ellipsis + "JK",
             "single-cell ellipsis truncation must preserve the exact minimum width");
