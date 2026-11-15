@@ -2288,7 +2288,7 @@ push1_color_names = [
     ("PUSH1_COLOR_62_OCHRE", "Ochre"),
     ("PUSH1_COLOR_63_OLIVE_GREEN", "Olive Green"),
 ]
-for slot, display_name in {"6":"Coral Red","7":"Crimson Pink","10":"Copper Orange","11":"Vivid Orange","14":"Neon Yellow","15":"Electric Yellow","18":"Acid Green","19":"Neon Lime","22":"Bright Chartreuse","23":"Electric Lime","26":"Electric Green","27":"Vivid Lime","30":"Bright Mint","31":"Turquoise","38":"Electric Blue","39":"Cobalt","42":"Electric Indigo","43":"Ultramarine","46":"Bright Violet","47":"Magenta Violet","50":"Berry","51":"Neon Yellow-Green","54":"Bright Lime","55":"Leaf Green","58":"Vivid Green","59":"Tangerine"}.items():
+for slot, display_name in {6:"Coral Red",7:"Crimson Pink",10:"Copper Orange",11:"Vivid Orange",14:"Neon Yellow",15:"Electric Yellow",18:"Acid Green",19:"Neon Lime",22:"Bright Chartreuse",23:"Electric Lime",26:"Electric Green",27:"Vivid Lime",30:"Bright Mint",31:"Turquoise",38:"Electric Blue",39:"Cobalt",42:"Electric Indigo",43:"Ultramarine",46:"Bright Violet",47:"Magenta Violet",50:"Berry",51:"Neon Yellow-Green",54:"Bright Lime",55:"Leaf Green",58:"Vivid Green",59:"Tangerine"}.items():
     constant, _ = push1_color_names[slot]
     push1_color_names[slot] = (constant, display_name)
 
