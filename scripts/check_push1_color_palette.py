@@ -48,11 +48,25 @@ hardware_rgb = [
         palette_match.group(1),
     )
 ]
-if len(hardware_rgb) < 64 or rgb != hardware_rgb[:64]:
-    raise SystemExit("DAW RGB values do not match Push 1 hardware indices 0-63")
+if len(hardware_rgb) < 128:
+    raise SystemExit(f"Expected at least 128 hardware palette entries, found {len(hardware_rgb)}")
 
-if "this.registerColorIndex (DAWColor.values ()[i], i);" not in push:
-    raise SystemExit("DAWColor enum entries are not registered to matching Push palette indices")
+mapping_match = re.search(
+    r"final int \[\] push1PaletteIndices = new int \[\] \{([^}]+)\}",
+    push,
+)
+if mapping_match is None:
+    raise SystemExit("Push 1 hardware-index mapping not found")
+hardware_indices = [int(value.strip()) for value in mapping_match.group(1).split(",")]
+if len(hardware_indices) != 64 or len(set(hardware_indices)) != 64:
+    raise SystemExit("Expected exactly 64 unique hardware palette indices")
+if any(index < 0 or index >= len(hardware_rgb) for index in hardware_indices):
+    raise SystemExit("Push 1 hardware palette index is out of range")
+if rgb != [hardware_rgb[index] for index in hardware_indices]:
+    raise SystemExit("DAW RGB values do not match their selected Push 1 hardware indices")
+
+if "this.registerColorIndex (DAWColor.values ()[i], push1PaletteIndices[i]);" not in push:
+    raise SystemExit("DAWColor entries are not registered to their selected hardware palette indices")
 if "final DAWColor [] dawColors = DAWColor.values ();" not in view:
     raise SystemExit("ColorView is not drawing the 64-entry DAWColor palette")
 if "cursorTrack.setColor (entry);" not in view or "clip.setColor (entry);" not in view:
@@ -60,5 +74,5 @@ if "cursorTrack.setColor (entry);" not in view or "clip.setColor (entry);" not i
 if "((ILayer) selectedItem.get ()).setColor (entry);" not in view:
     raise SystemExit("Layer RGB assignment path is missing")
 
-print("PASS: 64 unique Bitwig RGB colors match Push 1 pad palette indices 0-63.")
+print("PASS: 64 unique Bitwig RGB colors match 64 selected Push 1 hardware palette indices.")
 print("PASS: all 64 choices are registered in order and track/clip/layer assignment remains active.")
