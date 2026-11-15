@@ -243,8 +243,9 @@ replace_once(configuration_mode,
 
 
 # Match Ableton Live 10 Push 1 sequencer feedback without changing note/clip engines:
-# playhead is green in playback and red while recording; selected steps are white;
-# muted steps are pale yellow; soloed drum pads are dark blue.
+# playhead is green in playback and red while recording; selected steps use the
+# brightest available amber-orange Push 1 LED (#FF7F00); muted steps are pale yellow;
+# soloed drum pads are dark blue.
 sequencer_colors = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractSequencerView.java"
 source = sequencer_colors.read_text()
 replace_once(sequencer_colors,
@@ -2318,6 +2319,14 @@ registration = (
 )
 push_color_source = push_color_source[:registration_start] + registration + push_color_source[registration_end:]
 push_color_manager.write_text(push_color_source)
+
+# Push 1 selected steps share one source color across the classic, poly and drum
+# sequencers. Use hardware palette index 96 (#FF7F00), the closest vivid
+# Push 1 LED color to the requested amber (#FFAA00); keep Push 2 unchanged.
+replace_once(push_color_manager,
+    "        this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : PUSH1_COLOR2_YELLOW_HI);\n",
+    "        this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : 96);\n",
+    "Push 1 selected-step amber LED color")
 
 # Keep COLOR_OFF as the internal no-color fallback, but expose only the 64
 # chromatic hardware choices in the existing one-page Color view.
