@@ -1,6 +1,6 @@
 # Push 1 / Bitwig 64-color palette
 
-PUSHdriver exposes exactly 64 color choices in the existing Color view. The framework's internal `COLOR_OFF` fallback remains separate and is not displayed as a menu color. The 64 menu slots map one-to-one to 64 distinct RGB values from the pinned Push 1 hardware `DEFAULT_PALETTE`; each slot registers the matching physical LED index. The palette is arranged as two consecutive families: 32 high-saturation flash colors, then 32 vivid colors with a slightly softer visual impact.
+PUSHdriver exposes exactly 64 color choices in the existing Color view. The 64 menu slots map one-to-one to 64 distinct RGB values from the pinned Push 1 hardware `DEFAULT_PALETTE`; each slot registers the matching physical LED index. The palette is arranged as two consecutive families: 32 high-saturation flash colors, then 32 vivid colors with a slightly softer visual impact.
 
 ## Hardware constraints
 
@@ -8,8 +8,7 @@ PUSHdriver exposes exactly 64 color choices in the existing Color view. The fram
 - Exactly 64 distinct RGB values and 64 distinct hardware LED indices.
 - The maximum RGB channel is at least 160/255, avoiding low-output hardware colors.
 - HSV-style saturation `(max(R,G,B)-min(R,G,B))/max(R,G,B)` is at least 0.45, excluding neutral and washed-out pastel colors.
-- The internal `COLOR_OFF` fallback remains intact and is excluded from the visible menu; the menu still contains exactly 64 choices.
-- Track/clip/layer color assignment paths are unchanged.
+- The existing 64-entry menu and track/clip/layer color assignment paths are unchanged.
 
 The output threshold describes the Push 1's fixed LED drive values, not a promise that every hue has identical perceived luminance. Blue and red LEDs are perceived differently by the human eye even at comparable channel values.
 

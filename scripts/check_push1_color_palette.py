@@ -26,8 +26,8 @@ if len(entries) != 65:
 
 ids = [entry[0] for entry in entries]
 names = [entry[1] for entry in entries]
-if len(set(ids)) != 64 or len(set(names)) != 64:
-    raise SystemExit("Color IDs and display names must be unique")
+if len(set(ids)) != 65 or len(set(names)) != 65 or ids[0] != "COLOR_OFF" or names[0] != "Off":
+    raise SystemExit("The internal COLOR_OFF fallback and all 64 menu color IDs/names must be unique")
 
 rgb = []
 for constant, name, components, suffix in entries:
