@@ -14,6 +14,7 @@ public abstract class AbstractSequencerEngine implements SequencerEngine
         {
             this.generation = Math.incrementExact (this.generation);
             this.active = true;
+            this.onActivated ();
         }
         return new ActivationToken (this.generation);
     }
@@ -25,8 +26,15 @@ public abstract class AbstractSequencerEngine implements SequencerEngine
         {
             this.active = false;
             this.generation = Math.incrementExact (this.generation);
+            this.onDeactivated ();
         }
     }
+
+    /** Called once when a new activation generation becomes active. */
+    protected void onActivated () { }
+
+    /** Called after deactivation has invalidated the previous generation. */
+    protected void onDeactivated () { }
 
     @Override
     public final synchronized boolean isActive () { return this.active; }

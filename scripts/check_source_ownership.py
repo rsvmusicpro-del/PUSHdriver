@@ -17,6 +17,7 @@ OVERRIDE_ALLOWLIST={
 "de/mossgrabers/controller/ableton/push/controller/Push1DisplayText.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1DisplayValueFormatter.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1FirmwareVersion.java",
+"de/mossgrabers/controller/ableton/push/engine/Push1PadGrid.java",
 "de/mossgrabers/controller/ableton/push/engine/sequencer/SequencerEngine.java",
 "de/mossgrabers/controller/ableton/push/engine/sequencer/AbstractSequencerEngine.java",
 "de/mossgrabers/controller/ableton/push/engine/sequencer/ClassicSequencerEngine.java",

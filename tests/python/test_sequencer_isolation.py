@@ -48,12 +48,14 @@ class SequencerIsolationContractTests(unittest.TestCase):
         contract = (root / "SequencerEngine.java").read_text(encoding="utf-8")
         self.assertIn("Math.incrementExact", lifecycle)
         self.assertIn("token.generation () == this.generation", lifecycle)
+        self.assertIn("this.onDeactivated ();", lifecycle)
         self.assertIn("record ActivationToken", contract)
 
     def test_poly_engine_bounds_checks_hardware_and_coordinates(self):
         root = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/engine/sequencer"
         engine = (root / "PolySequencerEngine.java").read_text(encoding="utf-8")
-        self.assertIn("index < PAD_COUNT", engine)
+        self.assertIn("Push1PadGrid.indexForNote (note) >= 0", engine)
+        self.assertIn("Push1PadGrid.isValidIndex (index)", engine)
         self.assertIn("x >= columns", engine)
         self.assertIn("y >= rows", engine)
 

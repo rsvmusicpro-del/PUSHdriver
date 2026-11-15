@@ -1,3 +1,4 @@
+import de.mossgrabers.controller.ableton.push.engine.Push1PadGrid;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.ClassicSequencerEngine;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.PolySequencerEngine;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine.ActivationToken;
@@ -10,6 +11,7 @@ public final class SequencerEngineTest
     public static void main (final String [] args)
     {
         testLifecycleTokens ();
+        testPush1PadGrid ();
         testClassicPageFollowPolicy ();
         testPolyGridAndScaleRules ();
         System.out.println ("SequencerEngineTest: all checks passed.");
@@ -31,6 +33,28 @@ public final class SequencerEngineTest
         require (engine.accepts (second), "new token accepted");
     }
 
+    private static void testPush1PadGrid ()
+    {
+        require (Push1PadGrid.indexForNote (35) == -1, "note below Push grid rejected");
+        require (Push1PadGrid.indexForNote (36) == 0, "first pad note maps to index zero");
+        require (Push1PadGrid.indexForNote (99) == 63, "last pad note maps to index 63");
+        require (Push1PadGrid.indexForNote (100) == -1, "note above Push grid rejected");
+        require (Push1PadGrid.indexForNote (-1) == -1, "negative MIDI note rejected");
+        require (Push1PadGrid.noteForIndex (-1) == -1, "negative pad index rejected");
+        require (Push1PadGrid.noteForIndex (64) == -1, "pad index 64 rejected");
+        require (Push1PadGrid.indexForCoordinate (0, 0) == 0, "top-left coordinate maps to first pad");
+        require (Push1PadGrid.indexForCoordinate (7, 7) == 63, "bottom-right coordinate maps to last pad");
+        require (Push1PadGrid.indexForCoordinate (8, 0) == -1, "out-of-range column rejected");
+        require (Push1PadGrid.indexForCoordinate (0, 8) == -1, "out-of-range row rejected");
+        for (int index = 0; index < Push1PadGrid.PAD_COUNT; index++)
+        {
+            require (Push1PadGrid.indexForNote (Push1PadGrid.noteForIndex (index)) == index,
+                    "pad note/index round-trip " + index);
+            require (Push1PadGrid.indexForCoordinate (Push1PadGrid.columnForIndex (index),
+                    Push1PadGrid.rowForIndex (index)) == index, "pad coordinate round-trip " + index);
+        }
+    }
+
     private static void testClassicPageFollowPolicy ()
     {
         final ClassicSequencerEngine engine = new ClassicSequencerEngine ();
@@ -46,8 +70,11 @@ public final class SequencerEngineTest
         require (!engine.shouldFollowPlayhead (), "non-playing page locks follow");
         engine.onPageGesture (1, 1, 0, false, 8, 16);
         require (!engine.shouldFollowPlayhead (), "missing clip cannot enable follow");
+        engine.deactivate ();
+        engine.activate ();
+        require (engine.shouldFollowPlayhead (), "deactivation resets feature-local page-follow state");
         engine.onPageGesture (1, 1, 127, true, 8, 16);
-        require (!engine.shouldFollowPlayhead (), "pad-down does not change follow");
+        require (engine.shouldFollowPlayhead (), "pad-down preserves reset follow state");
         require (ClassicSequencerEngine.pageForStep (17, 8) == 2, "global step maps to page");
         require (ClassicSequencerEngine.pageForStep (-1, 8) == -1, "negative step rejected");
         require (ClassicSequencerEngine.pageForStep (1, 0) == -1, "zero page width rejected");

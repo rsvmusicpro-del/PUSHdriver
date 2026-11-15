@@ -6,6 +6,7 @@ package de.mossgrabers.controller.ableton.push.view;
 
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
+import de.mossgrabers.controller.ableton.push.engine.Push1PadGrid;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.ClassicSequencerEngine;
 import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.controller.hardware.IHwButton;
@@ -159,6 +160,10 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     protected void handleLoopArea (final int pad, final int velocity)
     {
+        this.synchronizeEngineLifecycle ();
+        if (!this.engine.isActive ())
+            return;
+
         final int pressedPage = this.loopPadPressed;
         super.handleLoopArea (pad, velocity);
 
@@ -194,17 +199,20 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     public void onGridNoteLongPress (final int note)
     {
         this.synchronizeEngineLifecycle ();
-        if (!this.engine.isActive ())
+        final int index = Push1PadGrid.indexForNote (note);
+        if (!this.engine.isActive () || index < 0)
             return;
 
-        final int index = note - 36;
-        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();
+        final IHwButton padButton = this.surface.getButton (ButtonID.get (ButtonID.PAD1, index));
+        if (padButton == null)
+            return;
+        padButton.setConsumed ();
 
-        final int y = index / 8;
+        final int y = Push1PadGrid.rowForIndex (index);
         if (y >= this.numSequencerRows)
             return;
 
-        final NotePosition notePosition = new NotePosition (this.configuration.getMidiEditChannel (), index % 8, this.keyManager.map (y));
+        final NotePosition notePosition = new NotePosition (this.configuration.getMidiEditChannel (), Push1PadGrid.columnForIndex (index), this.keyManager.map (y));
         this.editNote (this.getClip (), notePosition, false);
     }
 
@@ -213,6 +221,10 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     protected boolean handleSequencerAreaButtonCombinations (final INoteClip clip, final NotePosition notePosition, final int row, final int velocity)
     {
+        this.synchronizeEngineLifecycle ();
+        if (!this.engine.isActive ())
+            return true;
+
         final boolean isSelectPressed = this.surface.isSelectPressed ();
 
         if (this.surface.isShiftPressed ())
