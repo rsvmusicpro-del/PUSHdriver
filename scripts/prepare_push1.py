@@ -243,8 +243,9 @@ replace_once(configuration_mode,
 
 
 # Match Ableton Live 10 Push 1 sequencer feedback without changing note/clip engines:
-# playhead is green in playback and red while recording; selected steps are white;
-# muted steps are pale yellow; soloed drum pads are dark blue.
+# playhead is green in playback and red while recording; selected steps use the
+# brightest available amber-orange Push 1 LED (#FF7F00); muted steps are pale yellow;
+# soloed drum pads are dark blue.
 sequencer_colors = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractSequencerView.java"
 source = sequencer_colors.read_text()
 replace_once(sequencer_colors,
@@ -434,7 +435,7 @@ for old, new, label in (
     ("this.registerColorIndex (AbstractSequencerView.COLOR_STEP_MUTED_CONT, isPush2 ? PUSH2_COLOR2_GREY_LO : PUSH1_COLOR2_GREY_LO);",
      "this.registerColorIndex (AbstractSequencerView.COLOR_STEP_MUTED_CONT, isPush2 ? PUSH2_COLOR2_GREY_LO : PUSH1_COLOR2_YELLOW_LO);", "Push 1 muted continuation color"),
     ("this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : PUSH1_COLOR2_YELLOW_HI);",
-     "this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : PUSH1_COLOR2_WHITE);", "Push 1 selected step color"),
+     "this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : 96);", "Push 1 selected step amber color"),
     ("this.registerColorIndex (AbstractDrumView.COLOR_PAD_SELECTED, isPush2 ? PUSH2_COLOR2_BLUE_HI : PUSH1_COLOR2_BLUE_HI);",
      "this.registerColorIndex (AbstractDrumView.COLOR_PAD_SELECTED, isPush2 ? PUSH2_COLOR2_BLUE_HI : PUSH1_COLOR2_BLUE_HI);\n        this.registerColorIndex (AbstractDrumView.COLOR_PAD_SOLO, isPush2 ? PUSH2_COLOR2_BLUE_LO : PUSH1_COLOR2_BLUE_LO);", "Push 1 solo pad color"),
 ):

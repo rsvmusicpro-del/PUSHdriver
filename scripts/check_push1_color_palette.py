@@ -52,6 +52,13 @@ hardware_rgb = [
 if len(hardware_rgb) < 128:
     raise SystemExit(f"Expected at least 128 hardware palette entries, found {len(hardware_rgb)}")
 
+# The selected-step feedback is shared by the classic, poly and drum
+# sequencers. Keep it on the vivid Push 1 amber-orange hardware LED.
+if "this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : 96);" not in push:
+    raise SystemExit("Push 1 selected-step color must use hardware palette index 96")
+if hardware_rgb[96] != (255, 127, 0):
+    raise SystemExit(f"Push 1 selected-step LED 96 changed unexpectedly: {hardware_rgb[96]}")
+
 mapping_match = re.search(
     r"final int \[\] push1PaletteIndices = new int \[\] \{([^}]+)\}",
     push,
