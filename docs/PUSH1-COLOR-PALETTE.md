@@ -13,7 +13,7 @@ This is a PUSHdriver palette derived from the Push 1 hardware palette, not a cla
 | 4 | Coral | 255, 76, 76 | #FF4C4C | 4 |
 | 5 | Red | 255, 0, 0 | #FF0000 | 5 |
 | 6 | Coral Red | 222, 81, 61 | #DE513D | 107 |
-| 7 | Hot Pink | 255, 0, 93 | #FF005D | 95 |
+| 7 | Crimson Pink | 255, 0, 93 | #FF005D | 95 |
 | 8 | Peach | 255, 189, 108 | #FFBD6C | 8 |
 | 9 | Orange | 255, 84, 0 | #FF5400 | 9 |
 | 10 | Burnt Orange | 216, 106, 28 | #D86A1C | 108 |
@@ -32,7 +32,7 @@ This is a PUSHdriver palette derived from the Push 1 hardware palette, not a cla
 | 23 | Electric Lime | 114, 255, 21 | #72FF15 | 86 |
 | 24 | Mint | 76, 255, 94 | #4CFF5E | 24 |
 | 25 | Neon Green | 0, 255, 25 | #00FF19 | 25 |
-| 26 | Spring Green | 59, 255, 38 | #3BFF26 | 88 |
+| 26 | Electric Green | 59, 255, 38 | #3BFF26 | 88 |
 | 27 | Vivid Lime | 89, 255, 113 | #59FF71 | 89 |
 | 28 | Mint Green | 76, 255, 136 | #4CFF88 | 28 |
 | 29 | Spring Green | 0, 255, 85 | #00FF55 | 29 |
@@ -57,15 +57,15 @@ This is a PUSHdriver palette derived from the Push 1 hardware palette, not a cla
 | 48 | Violet | 135, 76, 255 | #874CFF | 48 |
 | 49 | Purple | 84, 0, 255 | #5400FF | 49 |
 | 50 | Berry | 178, 26, 125 | #B21A7D | 82 |
-| 51 | Neon Green | 144, 255, 0 | #90FF00 | 98 |
+| 51 | Neon Yellow-Green | 144, 255, 0 | #90FF00 | 98 |
 | 52 | Magenta | 255, 76, 255 | #FF4CFF | 52 |
 | 53 | Fuchsia | 255, 0, 255 | #FF00FF | 53 |
-| 54 | Hot Magenta | 158, 225, 47 | #9EE12F | 110 |
-| 55 | Lime Green | 103, 181, 15 | #67B50F | 111 |
+| 54 | Bright Lime | 158, 225, 47 | #9EE12F | 110 |
+| 55 | Leaf Green | 103, 181, 15 | #67B50F | 111 |
 | 56 | Hot Pink | 255, 76, 135 | #FF4C87 | 56 |
 | 57 | Pink | 255, 0, 84 | #FF0054 | 57 |
-| 58 | Golden Green | 26, 208, 0 | #1AD000 | 122 |
-| 59 | Electric Orange | 255, 127, 0 | #FF7F00 | 96 |
+| 58 | Vivid Green | 26, 208, 0 | #1AD000 | 122 |
+| 59 | Tangerine | 255, 127, 0 | #FF7F00 | 96 |
 | 60 | Vermilion | 255, 21, 0 | #FF1500 | 60 |
 | 61 | Burnt Orange | 153, 53, 0 | #993500 | 61 |
 | 62 | Ochre | 121, 81, 0 | #795100 | 62 |
