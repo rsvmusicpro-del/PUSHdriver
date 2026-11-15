@@ -74,7 +74,7 @@ public final class SequencerEngineTest
         engine.activate ();
         require (engine.shouldFollowPlayhead (), "deactivation resets feature-local page-follow state");
         engine.onPageGesture (1, 1, 127, true, 8, 16);
-        require (!engine.shouldFollowPlayhead (), "pad-down does not change follow");
+        require (engine.shouldFollowPlayhead (), "pad-down preserves reset follow state");
         require (ClassicSequencerEngine.pageForStep (17, 8) == 2, "global step maps to page");
         require (ClassicSequencerEngine.pageForStep (-1, 8) == -1, "negative step rejected");
         require (ClassicSequencerEngine.pageForStep (1, 0) == -1, "zero page width rejected");
