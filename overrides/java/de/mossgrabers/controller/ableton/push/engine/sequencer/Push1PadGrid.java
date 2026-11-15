@@ -28,6 +28,6 @@ public final class Push1PadGrid
 
     public static boolean isValidIndex (final int index, final int count)
     {
-        return count > 0 && index >= 0 && index < count;
+        return count > 0 && count <= PAD_COUNT && index >= 0 && index < count;
     }
 }

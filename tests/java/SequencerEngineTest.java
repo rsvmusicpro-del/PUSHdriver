@@ -98,8 +98,9 @@ public final class SequencerEngineTest
         require (Push1PadGrid.isHardwarePadNote (99), "last hardware pad note accepted");
         require (!Push1PadGrid.isHardwarePadNote (35), "note below hardware pad range rejected");
         require (!Push1PadGrid.isHardwarePadNote (100), "note above hardware pad range rejected");
-        require (!Push1PadGrid.isValidIndex (31, 32), "index beyond a smaller logical grid rejected");
+        require (!Push1PadGrid.isValidIndex (32, 32), "index beyond a smaller logical grid rejected");
         require (!Push1PadGrid.isValidIndex (0, 0), "empty logical grid rejected");
+        require (!Push1PadGrid.isValidIndex (0, 65), "logical grid cannot exceed physical hardware capacity");
         require (new ClassicSequencerEngine ().isHardwarePadIndex (63), "classic engine uses shared pad bounds");
         require (new PolySequencerEngine ().isHardwarePadIndex (63), "Poly engine uses shared pad bounds");
     }
