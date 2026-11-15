@@ -1843,7 +1843,7 @@ replace_menu_fragment(note_view,
             final ViewManager viewManager = this.surface.getViewManager ();
             if (VIEWS_TOP[index] == null)
                 return AbstractFeatureGroup.BUTTON_COLOR_OFF;
-            return viewManager.isActive (VIEWS_TOP[index]) ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+            return viewManager.isActive (VIEWS_TOP[index]) ? de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_YELLOW_LO : de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_GREEN_HI;
         }
 
         index = this.isButtonRow (1, buttonID);
@@ -1852,7 +1852,7 @@ replace_menu_fragment(note_view,
             final ViewManager viewManager = this.surface.getViewManager ();
             if (VIEWS[index] == null)
                 return AbstractFeatureGroup.BUTTON_COLOR_OFF;
-            return viewManager.isActive (VIEWS[index]) ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON;
+            return viewManager.isActive (VIEWS[index]) ? de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_YELLOW_LO : de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_GREEN_HI;
         }""",
     "NoteViewSelect row LEDs")
 
