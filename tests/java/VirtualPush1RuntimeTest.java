@@ -697,14 +697,26 @@ public final class VirtualPush1RuntimeTest
         requireAction ("parameterPage.selectPage:2", "Top-row selector did not select parameter page 3");
         deviceParamsMode.setShowDevices (true);
 
-        // In/Out retains the upstream device-bank and parameter-page navigation.
+        // In/Out follows Bitwig's native cursor through the active device chain.
+        // The cursor API also handles the transition between sibling-bank pages.
         deviceIndex = 4;
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
-        requireAction ("device.selectNextItem", "In (CC 62) must select the next device");
+        requireAction ("cursorDevice.selectNext", "In (CC 62) must advance the Bitwig cursor in the active device chain");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63)");
-        requireAction ("device.selectPreviousItem", "Out (CC 63) must select the previous device");
+        requireAction ("cursorDevice.selectPrevious", "Out (CC 63) must move the Bitwig cursor back in the active device chain");
+
+        // The cursor reports its own boundaries; In/Out must not select past them.
+        deviceIndex = 0;
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out lower boundary");
+        require (!MODEL_ACTIONS.contains ("cursorDevice.selectPrevious"), "Out moved before the first device in the active chain");
+        deviceIndex = 15;
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In upper boundary");
+        require (!MODEL_ACTIONS.contains ("cursorDevice.selectNext"), "In moved beyond the last device in the active chain");
+        deviceIndex = 4;
 
         // Parameter-page In/Out delegates to the upstream page-bank methods.
         deviceParamsMode.setShowDevices (false);
@@ -2300,6 +2312,16 @@ public final class VirtualPush1RuntimeTest
                 {
                     case "doesExist": return Boolean.valueOf (cursorDeviceExists);
                     case "getIndex": return Integer.valueOf (deviceIndex);
+                    case "canSelectPrevious": return Boolean.valueOf (deviceIndex > 0);
+                    case "canSelectNext": return Boolean.valueOf (deviceIndex < 15);
+                    case "selectPrevious":
+                        MODEL_ACTIONS.add ("cursorDevice.selectPrevious");
+                        deviceIndex = Math.max (0, deviceIndex - 1);
+                        return null;
+                    case "selectNext":
+                        MODEL_ACTIONS.add ("cursorDevice.selectNext");
+                        deviceIndex = Math.min (15, deviceIndex + 1);
+                        return null;
                     case "getPosition": return Integer.valueOf (virtualCursorDevicePosition);
                     case "getName": return virtualCursorDeviceName;
                     case "isNested": return Boolean.valueOf (virtualCursorDeviceNested);

@@ -7,7 +7,7 @@
 
 Ce manuel décrit les fonctions présentes dans le code de la branche `custom`. PUSHdriver reprend les modes, vues, commandes et mappings de DrivenByMoss, avec des adaptations spécifiques au Push 1 et à Bitwig. Une fonction héritée du framework n’est pas nécessairement une nouveauté de PUSHdriver.
 
-> **Périmètre :** ce document décrit `custom`, pas les changements encore proposés dans la PR #16. Sur `custom`, In/Out peut encore sélectionner des appareils dans le mode Device. La PR #16 propose de réserver cette sélection aux flèches ; elle n’est pas incluse dans le build de référence décrit ici.
+> **Périmètre :** ce document décrit le comportement PUSHdriver sur la branche de travail In/Out. Les commandes restent natives au contrôleur et s'appuient sur les curseurs et banques de navigation Bitwig/DrivenByMoss.
 
 ---
 
@@ -73,13 +73,11 @@ Les LED des flèches indiquent si le déplacement demandé est disponible. Avec 
 ### In / Out sur `custom`
 - **In** : progression vers l’élément, la colonne ou la page suivante.
 - **Out** : retour vers l’élément, la colonne ou la page précédente.
-- En **Device**, In/Out sélectionne l’appareil précédent/suivant lorsque la liste d’appareils est affichée, et change de page de paramètres lorsque les paramètres sont affichés.
-- En **Browser**, In/Out parcourt les colonnes de filtres.
-- En **Device Chains**, In/Out reste inactif : l’API 17 ne fournit pas de curseur de chaîne sélectionnée suffisamment fiable pour une navigation précédente/suivante sûre.
+- En **Device**, In appelle la navigation native `ICursorDevice.selectNext()` et Out appelle `ICursorDevice.selectPrevious()`. Le curseur Bitwig suit ainsi la chaîne d’appareils active, y compris les chaînes imbriquées des racks. Les commandes vérifient les limites `canSelectNext()` / `canSelectPrevious()`. Lorsque le sélecteur de pages de paramètres est affiché, In/Out passent à la page suivante/précédente via la banque de pages DrivenByMoss.
+- En **Browser**, In décale le panneau de contenu vers la droite et Out vers la gauche, via `nextContentType()` / `previousContentType()`. Le filtre sélectionné est réinitialisé lors du changement de panneau. Les boutons de rangée et les encodeurs continuent à naviguer dans les éléments des filtres.
+- En **Device Chains**, In/Out reste inactif : l’API 17 expose les noms et la sélection des chaînes de slots, mais pas un curseur fiable de chaîne sélectionnée permettant de déterminer la chaîne précédente/suivante.
 - En **Session**, les commandes de pages de banque de pistes conservent leur comportement établi.
 - Dans les vues **Sequencer**, les commandes sont transmises à la navigation de page de la vue.
-
-> Le comportement In/Out ci-dessus est celui de `custom`. Il ne préjuge pas du résultat de la PR #16, qui n’est pas intégrée à cette branche de référence.
 
 ---
 
@@ -175,7 +173,7 @@ La vue Chains sert à parcourir la hiérarchie de chaînes d’un appareil lorsq
 - Le bouton **Chains** ouvre ou ferme cette vue.
 - **Up** remonte à l’appareil ou au niveau parent.
 - Les commandes de chaînes non prises en charge par l’API 17 restent désactivées.
-- In/Out n’y navigue pas : l’extension évite de déplacer une sélection qui ne peut pas être identifiée de manière fiable par l’API.
+- In/Out n’y navigue pas : l’extension évite de déplacer une sélection de slot-chain qui ne peut pas être identifiée de manière fiable par l’API. Dans le mode Device standard, le curseur Bitwig navigue bien entre les appareils de la chaîne actuellement sélectionnée.
 
 La présence et la profondeur des chaînes dépendent de l’appareil Bitwig sélectionné.
 

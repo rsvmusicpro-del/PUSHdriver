@@ -48,7 +48,13 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
             if (event == ButtonEvent.DOWN)
             {
                 if (deviceParamsMode.isShowDevices ())
-                    deviceParamsMode.selectPreviousItem ();
+                {
+                    // Use Bitwig's cursor-device navigation so the cursor follows
+                    // the active device chain, including nested rack/slot chains.
+                    final var cursorDevice = this.model.getCursorDevice ();
+                    if (cursorDevice.canSelectPrevious ())
+                        cursorDevice.selectPrevious ();
+                }
                 else
                     deviceParamsMode.selectPreviousItemPage ();
             }

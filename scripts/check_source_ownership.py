@@ -138,12 +138,13 @@ def validate_in_out_contract(setup, left, right, control, virtual, hardware, run
   (re.search(r"PUSH_BUTTON_DEVICE_RIGHT\s*=\s*63",control) is not None,"Physical right/CC63 must be Out."),
   ('this.addButton (ButtonID.PAGE_LEFT, "In"' in setup,"CC62/Page Left label must be In."),
   ('this.addButton (ButtonID.PAGE_RIGHT, "Out"' in setup,"CC63/Page Right label must be Out."),
-  ("deviceParamsMode.selectNextItem ()" in left and "deviceParamsMode.selectNextItemPage ()" in left and "activeMode.selectNextItemPage ()" in left,"In command must delegate to upstream next-item/page methods."),
-  ("deviceParamsMode.selectPreviousItem ()" in right and "deviceParamsMode.selectPreviousItemPage ()" in right and "activeMode.selectPreviousItemPage ()" in right,"Out command must delegate to upstream previous-item/page methods."),
+  ("cursorDevice.canSelectNext ()" in left and "cursorDevice.selectNext ()" in left and "deviceParamsMode.selectNextItemPage ()" in left and "activeMode.selectNextItemPage ()" in left,"In command must use Bitwig cursor-chain navigation and upstream parameter/browser paging."),
+  ("cursorDevice.canSelectPrevious ()" in right and "cursorDevice.selectPrevious ()" in right and "deviceParamsMode.selectPreviousItemPage ()" in right and "activeMode.selectPreviousItemPage ()" in right,"Out command must use Bitwig cursor-chain navigation and upstream parameter/browser paging."),
   ("public static final int IN = 62;" in virtual and "public static final int OUT = 63;" in virtual,"Virtual Push button IDs must match hardware CC62/CC63."),
-  ("In (CC 62) selects the next device" in hardware and "Out (CC 63) selects the previous" in hardware,"Hardware documentation must define the In/Out direction."),
-  ('requireAction ("device.selectNextItem", "In (CC 62)' in runtime and 'requireAction ("device.selectPreviousItem", "Out (CC 63)' in runtime,"Runtime test must verify each physical button independently."),
-  ('parameterBank.selectNextPage' in runtime and 'parameterBank.selectPreviousPage' in runtime and 'contentTypeIndex () == inOutContentBefore + 1' in runtime and 'contentTypeIndex () == inOutContentBefore' in runtime,"Runtime test must verify parameter-page and Browser direction independently."),
+  ("In (CC 62) advances the Bitwig cursor" in hardware and "Out (CC 63) moves the Bitwig cursor back" in hardware,"Hardware documentation must define the native cursor-chain In/Out direction."),
+  ('requireAction ("cursorDevice.selectNext", "In (CC 62)' in runtime and 'requireAction ("cursorDevice.selectPrevious", "Out (CC 63)' in runtime,"Runtime test must verify each physical button independently."),
+  ('parameterBank.selectNextPage' in runtime and 'parameterBank.selectPreviousPage' in runtime and 'contentTypeIndex () == inOutContentBefore + 1' in runtime and 'contentTypeIndex () == inOutContentBefore' in runtime,"Runtime test must verify parameter-page and Browser content-pane direction independently."),
+  ("this.model.getCursorDevice ().canSelectNext ()" in setup and "this.model.getCursorDevice ().canSelectPrevious ()" in setup,"In/Out LEDs must reflect the same native cursor-chain boundaries as execution."),
  ]
  for ok,message in checks:
   if not ok: errors.append(message)

@@ -1373,7 +1373,7 @@ replace_once(setup,
             if (modeManager.isActive (Modes.DEVICE_CHAINS))
                 return false;
             if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
-                return deviceParamsMode.isShowDevices () ? deviceParamsMode.hasNextItem () : deviceParamsMode.hasNextItemPage ();
+                return deviceParamsMode.isShowDevices () ? this.model.getCursorDevice ().canSelectNext () : deviceParamsMode.hasNextItemPage ();
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
                 return activeMode.hasNextItemPage ();
             if (viewManager.isActive (Views.SESSION))""",
@@ -1390,7 +1390,7 @@ replace_once(setup,
             if (modeManager.isActive (Modes.DEVICE_CHAINS))
                 return false;
             if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
-                return deviceParamsMode.isShowDevices () ? deviceParamsMode.hasPreviousItem () : deviceParamsMode.hasPreviousItemPage ();
+                return deviceParamsMode.isShowDevices () ? this.model.getCursorDevice ().canSelectPrevious () : deviceParamsMode.hasPreviousItemPage ();
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
                 return activeMode.hasPreviousItemPage ();
             if (viewManager.isActive (Views.SESSION))""",

@@ -155,31 +155,30 @@ A successful build proves compilation, packaging, and the deterministic protocol
 
 ## In/Out controls and Browser navigation
 
-The physical In and Out buttons are CC 62 and CC 63 respectively. In Device
-mode, In (CC 62) selects the next device and Out (CC 63) selects the previous
-device. When the parameter-page selector is active, the same controls select
-the next and previous parameter pages respectively. These mappings are
-covered by the production `DeviceParamsMode` runtime scenario.
+The physical In and Out buttons are CC 62 and CC 63 respectively.
 
-Browser navigation uses a different set of Push 1 controls in the pinned
-DrivenByMoss implementation; In/Out do not move Browser filter columns:
+In Device mode, In (CC 62) calls Bitwig's native `ICursorDevice.selectNext()`
+and Out (CC 63) calls `ICursorDevice.selectPrevious()`. This follows the
+currently active device chain, including nested rack/slot chains, and lets
+Bitwig update the cursor and sibling-bank page. The commands check
+`canSelectNext()` / `canSelectPrevious()` before moving, and the LEDs use
+those same boundary states. When the parameter-page selector is active,
+In/Out select the next/previous parameter page through the existing
+DrivenByMoss page-bank methods.
 
-- Left/Right arrows page to the previous/next Browser content type when Shift
-  is held.
-- The eight top-row buttons select the previous item in their corresponding
-  visible filter columns; the eight bottom-row buttons select the next item.
-- Touching an encoder selects its filter column; turning that encoder moves
-  the selected item in that column.
-- The eighth top/bottom row buttons navigate the results list. The selected
-  filter/result state is shown on the Push 1 LCD, and LED availability follows
-  the existence of the corresponding filter column.
+In Browse mode, In advances the Browser content pane to the right
+(`nextContentType()`) and Out moves it to the left
+(`previousContentType()`). The selected filter column is reset when the pane
+changes, matching Ableton's horizontal Browser navigation. The eight top-row
+buttons select previous filter items, the eight bottom-row buttons select
+next filter items, and the encoders browse within the selected filter column.
+The eighth top/bottom row buttons navigate the results list.
 
-The virtual runtime now exercises these Browser operations against a
-stateful API-17 `IBrowser` model, including filter/result selection,
-content-type paging, the LCD selection marker and filter-button LED state.
-Rack-chain navigation remains inactive because API 17 does not expose a
-reliable selected-chain cursor for safe previous/next navigation. No MIDI
-IDs or alternate controller dispatcher are introduced.
+The separate Device Chains selector continues to use Bitwig's native
+`getSlotChains()` / `selectSlotChain()` API. API 17 does not expose a reliable
+selected-slot-chain cursor for previous/next selection, so In/Out remain
+inactive while that selector submode is open. No MIDI IDs, JavaScript layer,
+or alternate event loop is introduced.
 
 ## Device mode: physical row assignment and color language
 
