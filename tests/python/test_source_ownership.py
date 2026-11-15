@@ -33,6 +33,13 @@ class SourceOwnershipTests(unittest.TestCase):
             errors = MODULE.validate_unique_types([first, second])
         self.assertTrue(any("Duplicate Java type example.Collision" in e for e in errors))
 
+    def test_push1_display_name_fitting_targets_are_reviewed(self):
+        expected = {
+            "de/mossgrabers/controller/ableton/push/mode/NoteMode.java",
+            "de/mossgrabers/controller/ableton/push/mode/track/AbstractTrackMode.java",
+        }
+        self.assertTrue(expected.issubset(MODULE.PATCH_TARGET_ALLOWLIST))
+
     def test_new_patch_target_is_detected(self):
         source = 'device_mode = root / "src/main/java/example/mode/DeviceMode.java"\nreplace_once(device_mode, "a", "b", "test")\n'
         self.assertEqual(MODULE.patch_targets(source), {"example/mode/DeviceMode.java"})
