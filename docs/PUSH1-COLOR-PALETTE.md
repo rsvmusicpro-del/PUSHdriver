@@ -17,8 +17,9 @@ The first button row in Track, Clip, Volume, Pan and Send modes identifies track
 For an existing, active, non-selected track that is not record-armed, its LED now
 uses the closest RGB match from the same 64 selectable Bitwig colors and their
 registered Push 1 hardware indices. The internal `COLOR_OFF` fallback is excluded
-from matching. Selected-track feedback (orange) and record-arm feedback (red)
-retain their existing higher priority; Push 2 behavior is unchanged.
+from matching. On Push 1, a selected track is shown in neutral white/grey,
+while a record-armed track remains red with higher priority. Push 2 retains
+its existing orange selected-track and yellow ordinary-track feedback.
 
 The output threshold describes the Push 1's fixed LED drive values, not a promise that every hue has identical perceived luminance. Blue and red LEDs are perceived differently by the human eye even at comparable channel values.
 
