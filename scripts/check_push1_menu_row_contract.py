@@ -116,12 +116,12 @@ require("isButtonRow (0, buttonID)" in method(session, "public String getButtonC
         "Session LED feedback must be split across the two physical rows")
 
 scales = read("ScalesMode.java")
-require("setScaleOffsetByIndex (index + 5)" in method(scales, "public void onFirstRow"),
+require("setScaleOffsetByIndex (index - 1)" in method(scales, "public void onFirstRow"),
         "Scales Row 1 must select the upper base-note choices")
-require("setScaleOffsetByIndex (index - 1)" in method(scales, "public void onSecondRow"),
+require("setScaleOffsetByIndex (index + 5)" in method(scales, "public void onSecondRow"),
         "Scales Row 2 must select the lower base-note choices")
-require("offset == index + 5" in method(scales, "public int getButtonColor")
-        and "offset == index - 1" in method(scales, "public int getButtonColor"),
+require("offset == index - 1" in method(scales, "public int getButtonColor")
+        and "offset == index + 5" in method(scales, "public int getButtonColor"),
         "Scales LED feedback must follow the relocated base-note choices")
 
 fixed = read("FixedMode.java")
