@@ -1272,8 +1272,6 @@ accent_palette = (
     "            final int [] accentPalette = new int [] { 23, 27, 35, 31, 19, 64, 123, 101, 22, 26, 30, 34, 18, 63, 111, 21 };\n"
     "            final IPadGrid padGrid = this.surface.getPadGrid ();"
 )
-if source.count("            final IPadGrid padGrid = this.surface.getPadGrid ();") < 2:
-    raise SystemExit("AbstractDrumView: expected Accent and normal page pad-grid declarations")
 accent_start = source.index("        if (isAccentActive)")
 accent_end = source.index("\n        final int step = clip.getCurrentStep ();", accent_start)
 accent_source = source[accent_start:accent_end]
