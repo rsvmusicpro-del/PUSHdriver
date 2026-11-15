@@ -1269,7 +1269,8 @@ if source.count(maschine_import) != 1:
     raise SystemExit("AbstractDrumView: unexpected MaschineColorManager import state")
 source = source.replace(maschine_import, "", 1)
 accent_palette = (
-    "            final int [] accentPalette = new int [] { 23, 27, 35, 31, 19, 64, 123, 101, 22, 26, 30, 34, 18, 63, 111, 21 };\n"
+    "            // Push 1 DEFAULT_PALETTE green-family indices, sorted by measured RGB luminance (dark to bright).\n"
+    "            final int [] accentPalette = new int [] { 19, 123, 22, 26, 30, 18, 76, 111, 122, 21, 25, 29, 88, 17, 75, 98 };\n"
     "            final IPadGrid padGrid = this.surface.getPadGrid ();"
 )
 draw_pages_start = source.index("protected void drawPages")
