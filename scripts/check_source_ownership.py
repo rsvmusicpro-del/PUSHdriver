@@ -38,6 +38,7 @@ PATCH_TARGET_ALLOWLIST={
 "de/mossgrabers/framework/view/sequencer/AbstractDrumView.java",
 "de/mossgrabers/controller/ableton/push/controller/PushColorManager.java",
 "de/mossgrabers/framework/daw/DAWColor.java",
+"de/mossgrabers/framework/view/ColorView.java",
 "de/mossgrabers/framework/view/PianoViewHelper.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1Display.java",
 "de/mossgrabers/controller/ableton/push/command/pitchbend/TouchstripCommand.java",

@@ -2202,9 +2202,10 @@ replace_menu_fragment(quantize_mode,
 
 
 
-# PUSHdriver custom palette: 64 static Push 1 pad colors, shared with Bitwig RGB.
-# RGB values are read from the pinned upstream hardware palette so the DAW
-# palette cannot drift away from the controller's actual LED colors.
+# PUSHdriver custom palette: 64 distinct, vivid Push 1 hardware colors.
+# Every selected entry is an exact DEFAULT_PALETTE RGB triplet. The 64 menu
+# slots are split into 32 high-saturation colors and 32 vivid, less forceful
+# colors. No synthetic RGB, grayscale, pastel or low-output LED value is used.
 import re
 
 push_color_manager = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushColorManager.java"
@@ -2216,87 +2217,85 @@ push_rgb = re.findall(r"\{\s*0x([0-9A-Fa-f]+),\s*0x([0-9A-Fa-f]+),\s*0x([0-9A-Fa
 if len(push_rgb) < 128:
     raise SystemExit(f"Push 1 color palette: expected at least 128 RGB entries, found {len(push_rgb)}")
 
-# Keep exactly 64 menu entries, replacing dark/weak slots with vivid colors
-# already present in the Push 1 hardware palette. No synthetic RGB is used.
-push1_hardware_indices = [0,1,2,3,4,5,107,95,8,9,108,84,12,13,73,109,16,17,74,75,20,21,85,86,24,25,88,89,28,29,77,90,32,33,34,35,36,37,79,92,40,41,80,81,44,45,116,94,48,49,82,98,52,53,110,111,56,57,122,96,60,61,62,63]
+# Push 1 stores fixed RGB output levels, not arbitrary 24-bit colors. Select
+# only hardware entries with at least 160/255 output on one LED channel and
+# at least 45% chroma; the checker independently enforces both constraints.
+push1_hardware_indices = [72, 120, 60, 84, 9, 96, 126, 124, 13, 74, 85, 98, 75, 17, 122, 87, 25, 29, 77, 33, 78, 41, 79, 67, 69, 80, 49, 81, 53, 95, 57, 106, 4, 107, 108, 8, 109, 12, 113, 73, 110, 111, 86, 16, 88, 20, 24, 89, 28, 114, 32, 90, 36, 40, 91, 92, 44, 93, 116, 48, 94, 52, 82, 56]
 if len(set(push1_hardware_indices)) != 64:
     raise SystemExit("Push 1 color palette: hardware indices must be unique")
 
 push1_color_names = [
-    ("COLOR_OFF", "Black"),
-    ("DAW_COLOR_DARK_GRAY", "Charcoal"),
-    ("DAW_COLOR_GRAY", "Gray"),
-    ("DAW_COLOR_GRAY_HALF", "White"),
-    ("DAW_COLOR_LIGHT_GRAY", "Coral"),
-    ("DAW_COLOR_SILVER", "Red"),
-    ("DAW_COLOR_DARK_BROWN", "Dark Red"),
-    ("DAW_COLOR_BROWN", "Deep Red"),
-    ("DAW_COLOR_DARK_BLUE", "Peach"),
-    ("DAW_COLOR_PURPLE_BLUE", "Orange"),
-    ("DAW_COLOR_PURPLE", "Brown"),
-    ("DAW_COLOR_PINK", "Dark Brown"),
-    ("DAW_COLOR_RED", "Lemon"),
-    ("DAW_COLOR_ORANGE", "Yellow"),
-    ("DAW_COLOR_LIGHT_ORANGE", "Olive"),
-    ("DAW_COLOR_MOSS_GREEN", "Dark Olive"),
-    ("DAW_COLOR_GREEN", "Chartreuse"),
-    ("DAW_COLOR_COLD_GREEN", "Lime"),
-    ("DAW_COLOR_BLUE", "Forest Green"),
-    ("DAW_COLOR_LIGHT_PURPLE", "Deep Forest"),
-    ("DAW_COLOR_LIGHT_PINK", "Bright Green"),
-    ("DAW_COLOR_ROSE", "Green"),
-    ("DAW_COLOR_REDDISH_BROWN", "Dark Green"),
-    ("DAW_COLOR_LIGHT_BROWN", "Deep Green"),
-    ("DAW_COLOR_LIGHT_GREEN", "Mint"),
-    ("DAW_COLOR_BLUISH_GREEN", "Neon Green"),
-    ("DAW_COLOR_GREEN_BLUE", "Deep Moss"),
-    ("DAW_COLOR_LIGHT_BLUE", "Night Green"),
-    ("PUSH1_COLOR_28_MINT_GREEN", "Mint Green"),
-    ("PUSH1_COLOR_29_SPRING_GREEN", "Spring Green"),
-    ("PUSH1_COLOR_30_DARK_TEAL", "Dark Teal"),
-    ("PUSH1_COLOR_31_DEEP_TEAL", "Deep Teal"),
-    ("PUSH1_COLOR_32_AQUA_MINT", "Aqua Mint"),
-    ("PUSH1_COLOR_33_AQUA", "Aqua"),
-    ("PUSH1_COLOR_34_DEEP_AQUA", "Deep Aqua"),
-    ("PUSH1_COLOR_35_NIGHT_TEAL", "Night Teal"),
-    ("PUSH1_COLOR_36_SKY_BLUE", "Sky Blue"),
-    ("PUSH1_COLOR_37_AZURE", "Azure"),
-    ("PUSH1_COLOR_38_DEEP_TEAL_BLUE", "Deep Teal Blue"),
-    ("PUSH1_COLOR_39_MIDNIGHT_BLUE", "Midnight Blue"),
-    ("PUSH1_COLOR_40_CORNFLOWER", "Cornflower"),
-    ("PUSH1_COLOR_41_BLUE", "Blue"),
-    ("PUSH1_COLOR_42_NAVY", "Navy"),
-    ("PUSH1_COLOR_43_MIDNIGHT_NAVY", "Midnight Navy"),
-    ("PUSH1_COLOR_44_PERIWINKLE", "Periwinkle"),
-    ("PUSH1_COLOR_45_ROYAL_BLUE", "Royal Blue"),
-    ("PUSH1_COLOR_46_DEEP_BLUE", "Deep Blue"),
-    ("PUSH1_COLOR_47_DARK_NAVY", "Dark Navy"),
-    ("PUSH1_COLOR_48_VIOLET", "Violet"),
-    ("PUSH1_COLOR_49_PURPLE", "Purple"),
-    ("PUSH1_COLOR_50_DEEP_PURPLE", "Deep Purple"),
-    ("PUSH1_COLOR_51_DARK_PURPLE", "Dark Purple"),
-    ("PUSH1_COLOR_52_MAGENTA", "Magenta"),
-    ("PUSH1_COLOR_53_FUCHSIA", "Fuchsia"),
-    ("PUSH1_COLOR_54_DEEP_MAGENTA", "Deep Magenta"),
-    ("PUSH1_COLOR_55_DARK_MAGENTA", "Dark Magenta"),
-    ("PUSH1_COLOR_56_HOT_PINK", "Hot Pink"),
-    ("PUSH1_COLOR_57_PINK", "Pink"),
-    ("PUSH1_COLOR_58_DEEP_PINK", "Deep Pink"),
-    ("PUSH1_COLOR_59_WINE", "Wine"),
-    ("PUSH1_COLOR_60_VERMILION", "Vermilion"),
-    ("PUSH1_COLOR_61_BURNT_ORANGE", "Burnt Orange"),
-    ("PUSH1_COLOR_62_OCHRE", "Ochre"),
-    ("PUSH1_COLOR_63_OLIVE_GREEN", "Olive Green"),
+    ("DAW_COLOR_DARK_GRAY", "Deep Red"),
+    ("DAW_COLOR_GRAY", "Scarlet"),
+    ("DAW_COLOR_GRAY_HALF", "Flame Orange"),
+    ("DAW_COLOR_LIGHT_GRAY", "Electric Orange"),
+    ("DAW_COLOR_SILVER", "Tangerine"),
+    ("DAW_COLOR_DARK_BROWN", "Burnt Amber"),
+    ("DAW_COLOR_BROWN", "Golden Olive"),
+    ("DAW_COLOR_DARK_BLUE", "Electric Yellow"),
+    ("DAW_COLOR_PURPLE_BLUE", "Acid Yellow"),
+    ("DAW_COLOR_PURPLE", "Neon Chartreuse"),
+    ("DAW_COLOR_PINK", "Electric Lime"),
+    ("DAW_COLOR_RED", "Laser Lime"),
+    ("DAW_COLOR_ORANGE", "Lime"),
+    ("DAW_COLOR_LIGHT_ORANGE", "Vivid Green"),
+    ("DAW_COLOR_MOSS_GREEN", "Electric Green"),
+    ("DAW_COLOR_GREEN", "Neon Green"),
+    ("DAW_COLOR_COLD_GREEN", "Spring Green"),
+    ("DAW_COLOR_BLUE", "Bright Mint"),
+    ("DAW_COLOR_LIGHT_PURPLE", "Emerald"),
+    ("DAW_COLOR_LIGHT_PINK", "Azure"),
+    ("DAW_COLOR_ROSE", "Electric Blue"),
+    ("DAW_COLOR_REDDISH_BROWN", "Cobalt Blue"),
+    ("DAW_COLOR_LIGHT_BROWN", "Pure Blue"),
+    ("DAW_COLOR_LIGHT_GREEN", "Indigo"),
+    ("DAW_COLOR_BLUISH_GREEN", "Electric Indigo"),
+    ("DAW_COLOR_GREEN_BLUE", "Ultramarine"),
+    ("DAW_COLOR_LIGHT_BLUE", "Violet"),
+    ("PUSH1_COLOR_28_MINT_GREEN", "Electric Magenta"),
+    ("PUSH1_COLOR_29_SPRING_GREEN", "Hot Pink"),
+    ("PUSH1_COLOR_30_DARK_TEAL", "Fuchsia"),
+    ("PUSH1_COLOR_31_DEEP_TEAL", "Crimson"),
+    ("PUSH1_COLOR_32_AQUA_MINT", "Coral"),
+    ("PUSH1_COLOR_33_AQUA", "Vermilion"),
+    ("PUSH1_COLOR_34_DEEP_AQUA", "Copper Orange"),
+    ("PUSH1_COLOR_35_NIGHT_TEAL", "Apricot Orange"),
+    ("PUSH1_COLOR_36_SKY_BLUE", "Golden Yellow"),
+    ("PUSH1_COLOR_37_AZURE", "Lemon"),
+    ("PUSH1_COLOR_38_DEEP_TEAL_BLUE", "Lime Yellow"),
+    ("PUSH1_COLOR_39_MIDNIGHT_BLUE", "Chartreuse"),
+    ("PUSH1_COLOR_40_CORNFLOWER", "Citrus Green"),
+    ("PUSH1_COLOR_41_BLUE", "Leaf Green"),
+    ("PUSH1_COLOR_42_NAVY", "Neon Lime"),
+    ("PUSH1_COLOR_43_MIDNIGHT_NAVY", "Bright Chartreuse"),
+    ("PUSH1_COLOR_44_PERIWINKLE", "Electric Green Light"),
+    ("PUSH1_COLOR_45_ROYAL_BLUE", "Bright Green"),
+    ("PUSH1_COLOR_46_DEEP_BLUE", "Spring Green Light"),
+    ("PUSH1_COLOR_47_DARK_NAVY", "Fresh Green"),
+    ("PUSH1_COLOR_48_VIOLET", "Mint Green"),
+    ("PUSH1_COLOR_49_PURPLE", "Aqua Mint"),
+    ("PUSH1_COLOR_50_DEEP_PURPLE", "Sea Green"),
+    ("PUSH1_COLOR_51_DARK_PURPLE", "Turquoise"),
+    ("PUSH1_COLOR_52_MAGENTA", "Sky Blue"),
+    ("PUSH1_COLOR_53_FUCHSIA", "Cornflower Blue"),
+    ("PUSH1_COLOR_54_DEEP_MAGENTA", "Azure Blue"),
+    ("PUSH1_COLOR_55_DARK_MAGENTA", "Royal Blue"),
+    ("PUSH1_COLOR_56_HOT_PINK", "Periwinkle Blue"),
+    ("PUSH1_COLOR_57_PINK", "Periwinkle"),
+    ("PUSH1_COLOR_58_DEEP_PINK", "Lavender Violet"),
+    ("PUSH1_COLOR_59_WINE", "Purple"),
+    ("PUSH1_COLOR_60_VERMILION", "Orchid"),
+    ("PUSH1_COLOR_61_BURNT_ORANGE", "Magenta Pink"),
+    ("PUSH1_COLOR_62_OCHRE", "Berry"),
+    ("PUSH1_COLOR_63_OLIVE_GREEN", "Rose Pink"),
+    ("PUSH1_COLOR_64_ROSE_EXTRA", "Rose Red"),
 ]
-for slot, display_name in {6:"Coral Red",7:"Crimson Pink",10:"Copper Orange",11:"Vivid Orange",14:"Neon Yellow",15:"Electric Yellow",18:"Acid Green",19:"Neon Lime",22:"Bright Chartreuse",23:"Electric Lime",26:"Electric Green",27:"Vivid Lime",30:"Bright Mint",31:"Turquoise",38:"Electric Blue",39:"Cobalt",42:"Electric Indigo",43:"Ultramarine",46:"Bright Violet",47:"Magenta Violet",50:"Berry",51:"Neon Yellow-Green",54:"Bright Lime",55:"Leaf Green",58:"Vivid Green",59:"Tangerine"}.items():
-    constant, _ = push1_color_names[slot]
-    push1_color_names[slot] = (constant, display_name)
 
 daw_color = root / "src/main/java/de/mossgrabers/framework/daw/DAWColor.java"
 daw_source = daw_color.read_text()
 enum_start = daw_source.index("{", daw_source.index("public enum DAWColor")) + 1
 enum_end = daw_source.index("\n\n\n    private static final List", enum_start)
-enum_entries = []
+enum_entries = ['    /** Internal fallback color; not displayed in the 64-color menu. */\n    COLOR_OFF("Off", new ColorEx (0.5, 0.5, 0.5)),']
 for index, (constant, display_name) in enumerate(push1_color_names):
     hardware_index = push1_hardware_indices[index]
     red, green, blue = (int(component, 16) for component in push_rgb[hardware_index])
@@ -2308,18 +2307,33 @@ for index, (constant, display_name) in enumerate(push1_color_names):
 daw_source = daw_source[:enum_start] + "\n" + "\n".join(enum_entries) + daw_source[enum_end:]
 daw_color.write_text(daw_source)
 
-# The 64 menu slots map independently to their selected physical Push 1 LED indices.
+# Register every menu color to its exact static Push 1 LED palette index.
 registration_start = push_color_source.index("        this.registerColorIndex (DAWColor.COLOR_OFF,")
 registration_end_marker = "        this.registerColorIndex (DAWColor.DAW_COLOR_LIGHT_BLUE, isPush2 ? 96 : 41);"
 registration_end = push_color_source.index(registration_end_marker, registration_start) + len(registration_end_marker)
 registration = (
-    "        final int [] push1PaletteIndices = new int [] { 0, 1, 2, 3, 4, 5, 107, 95, 8, 9, 108, 84, 12, 13, 73, 109, 16, 17, 74, 75, 20, 21, 85, 86, 24, 25, 88, 89, 28, 29, 77, 90, 32, 33, 34, 35, 36, 37, 79, 92, 40, 41, 80, 81, 44, 45, 116, 94, 48, 49, 82, 98, 52, 53, 110, 111, 56, 57, 122, 96, 60, 61, 62, 63 };\n"
+    "        final int [] push1PaletteIndices = new int [] { 0, 72, 120, 60, 84, 9, 96, 126, 124, 13, 74, 85, 98, 75, 17, 122, 87, 25, 29, 77, 33, 78, 41, 79, 67, 69, 80, 49, 81, 53, 95, 57, 106, 4, 107, 108, 8, 109, 12, 113, 73, 110, 111, 86, 16, 88, 20, 24, 89, 28, 114, 32, 90, 36, 40, 91, 92, 44, 93, 116, 48, 94, 52, 82, 56 };\n"
     "        for (int i = 0; i < DAWColor.values ().length; i++)\n"
     "            this.registerColorIndex (DAWColor.values ()[i], push1PaletteIndices[i]);"
 )
 push_color_source = push_color_source[:registration_start] + registration + push_color_source[registration_end:]
 push_color_manager.write_text(push_color_source)
 
+# Keep COLOR_OFF as the internal no-color fallback, but expose only the 64
+# chromatic hardware choices in the existing one-page Color view.
+color_view = root / "src/main/java/de/mossgrabers/framework/view/ColorView.java"
+replace_once(color_view,
+    "        this.pages = 1 + (dawColors.length - 1) / this.pageSize;",
+    "        this.pages = 1 + (dawColors.length - 2) / this.pageSize;",
+    "ColorView excludes internal COLOR_OFF fallback from page count")
+replace_once(color_view,
+    "            padGrid.light (36 + i, index < dawColors.length ? dawColors[index].name () : IPadGrid.GRID_OFF);",
+    "            padGrid.light (36 + i, index + 1 < dawColors.length ? dawColors[index + 1].name () : IPadGrid.GRID_OFF);",
+    "ColorView excludes internal COLOR_OFF fallback from grid")
+replace_once(color_view,
+    "        if (color < dawColors.length)\n        {\n            final ColorEx entry = dawColors[color].getColor ();",
+    "        if (color + 1 < dawColors.length)\n        {\n            final ColorEx entry = dawColors[color + 1].getColor ();",
+    "ColorView excludes internal COLOR_OFF fallback from selection")
 
 
 # Defer all Push 1 label shortening until the physical cell/block width is known.

@@ -37,6 +37,7 @@ class SourceOwnershipTests(unittest.TestCase):
         expected = {
             "de/mossgrabers/controller/ableton/push/mode/NoteMode.java",
             "de/mossgrabers/controller/ableton/push/mode/track/AbstractTrackMode.java",
+            "de/mossgrabers/framework/view/ColorView.java",
         }
         self.assertTrue(expected.issubset(MODULE.PATCH_TARGET_ALLOWLIST))
 
