@@ -53,7 +53,9 @@ class SequencerIsolationContractTests(unittest.TestCase):
     def test_poly_engine_bounds_checks_hardware_and_coordinates(self):
         root = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/engine/sequencer"
         engine = (root / "PolySequencerEngine.java").read_text(encoding="utf-8")
-        self.assertIn("index < PAD_COUNT", engine)
+        self.assertIn("Push1PadGrid.isValidIndex (index)", engine)
+        pad_grid = (root / "Push1PadGrid.java").read_text(encoding="utf-8")
+        self.assertIn("index < count", pad_grid)
         self.assertIn("x >= columns", engine)
         self.assertIn("y >= rows", engine)
 
