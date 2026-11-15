@@ -427,20 +427,23 @@ push_colors = root / "src/main/java/de/mossgrabers/controller/ableton/push/contr
 # palette. Match Bitwig track RGB only against the eight stable, non-blinking
 # first-row colors and return their existing semantic color IDs.
 replace_once(push_colors,
-    "    private final boolean            isPush2;\\n",
-    "    private final boolean            isPush2;\\n\\n"
-    "    private static final String [] PUSH1_ROW1_TRACK_COLOR_IDS = new String []\\n"
-    "    { PUSH_RED_LO, PUSH_RED_HI, PUSH_ORANGE_LO, PUSH_ORANGE_HI, PUSH_YELLOW_LO, PUSH_YELLOW_MD, PUSH_GREEN_LO, PUSH_GREEN_HI };\\n"
-    "    private static final ColorEx [] PUSH1_ROW1_TRACK_COLORS = new ColorEx []\\n"
-    "    { getPaletteColor (1), getPaletteColor (4), getPaletteColor (7), getPaletteColor (10), getPaletteColor (13), getPaletteColor (16), getPaletteColor (19), getPaletteColor (22) };\\n\\n"
-    "    /** Find the closest stable Push 1 first-row LED color for a Bitwig track. */\\n"
-    "    public static String getClosestPush1Row1TrackColorID (final ColorEx color)\\n"
-    "    {\\n"
-    "        if (color == null)\\n"
-    "            return PUSH_YELLOW_LO;\\n"
-    "        final int index = ColorEx.getClosestColorIndex (color, PUSH1_ROW1_TRACK_COLORS);\\n"
-    "        return PUSH1_ROW1_TRACK_COLOR_IDS[index];\\n"
-    "    }\\n",
+    "    public PushColorManager (final boolean isPush2)",
+    """    private static final String [] PUSH1_ROW1_TRACK_COLOR_IDS = new String []
+    { PUSH_RED_LO, PUSH_RED_HI, PUSH_ORANGE_LO, PUSH_ORANGE_HI, PUSH_YELLOW_LO, PUSH_YELLOW_MD, PUSH_GREEN_LO, PUSH_GREEN_HI };
+    private static final ColorEx [] PUSH1_ROW1_TRACK_COLORS = new ColorEx []
+    { getPaletteColor (1), getPaletteColor (4), getPaletteColor (7), getPaletteColor (10), getPaletteColor (13), getPaletteColor (16), getPaletteColor (19), getPaletteColor (22) };
+
+    /** Find the closest stable Push 1 first-row LED color for a Bitwig track. */
+    public static String getClosestPush1Row1TrackColorID (final ColorEx color)
+    {
+        if (color == null)
+            return PUSH_YELLOW_LO;
+        final int index = ColorEx.getClosestColorIndex (color, PUSH1_ROW1_TRACK_COLORS);
+        return PUSH1_ROW1_TRACK_COLOR_IDS[index];
+    }
+
+
+    public PushColorManager (final boolean isPush2)""",
     "Push 1 ROW1 native hardware track color lookup")
 source = push_colors.read_text()
 replace_once(push_colors,
@@ -2372,9 +2375,9 @@ replace_once(track_mode,
 # first-row color. Push 2 keeps its upstream selected-orange/unselected-yellow.
 replace_once(track_mode,
     "            return this.colorManager.getColorIndex (isSel ? PushColorManager.PUSH_ORANGE_HI : PushColorManager.PUSH_YELLOW_LO);",
-    "            if (isSel || this.isPush2)\\n"
-    "                return this.colorManager.getColorIndex (isSel ? PushColorManager.PUSH_ORANGE_HI : PushColorManager.PUSH_YELLOW_LO);\\n"
-    "            return this.colorManager.getColorIndex (PushColorManager.getClosestPush1Row1TrackColorID (track.getColor ()));",
+    """            if (isSel || this.isPush2)
+                return this.colorManager.getColorIndex (isSel ? PushColorManager.PUSH_ORANGE_HI : PushColorManager.PUSH_YELLOW_LO);
+            return this.colorManager.getColorIndex (PushColorManager.getClosestPush1Row1TrackColorID (track.getColor ()));""",
     "Push 1 ROW1 native palette and record-arm priority")
 
 device_layer_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceLayerMode.java"
