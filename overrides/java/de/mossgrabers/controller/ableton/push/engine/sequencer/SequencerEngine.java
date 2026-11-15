@@ -13,6 +13,7 @@ public interface SequencerEngine
                 throw new IllegalArgumentException ("Generation must not be negative");
         }
     }
+
     /** Keep an engine lifecycle aligned with its owning view without duplicating adapter logic. */
     static void synchronize (final SequencerEngine engine, final boolean active)
     {

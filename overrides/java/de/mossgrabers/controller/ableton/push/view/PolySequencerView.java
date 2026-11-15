@@ -28,7 +28,7 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
     /** The feature-local Push 1 Poly Sequencer engine. */
     private final PolySequencerEngine engine = new PolySequencerEngine ();
 
-@Override
+    @Override
     public void drawGrid ()
     {
         SequencerEngine.synchronize (this.engine, this.isActive ());

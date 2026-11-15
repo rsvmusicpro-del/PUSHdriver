@@ -36,7 +36,8 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     private final ClassicSequencerEngine engine = new ClassicSequencerEngine ();
 
 
-/**
+
+    /**
      * Constructor.
      *
      * @param surface The surface
