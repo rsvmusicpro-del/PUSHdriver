@@ -1,0 +1,267 @@
+// Written by Jürgen Moßgraber - mossgrabers.de
+// (c) 2017-2023
+// Licensed under LGPLv3 - http://www.gnu.org/licenses/lgpl-3.0.txt
+
+package de.mossgrabers.controller.ableton.push.view;
+
+import de.mossgrabers.controller.ableton.push.PushConfiguration;
+import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
+import de.mossgrabers.controller.ableton.push.engine.sequencer.ClassicSequencerEngine;
+import de.mossgrabers.framework.controller.ButtonID;
+import de.mossgrabers.framework.controller.hardware.IHwButton;
+import de.mossgrabers.framework.daw.IModel;
+import de.mossgrabers.framework.controller.grid.IPadGrid;
+import de.mossgrabers.framework.daw.clip.INoteClip;
+import de.mossgrabers.framework.daw.clip.IStepInfo;
+import de.mossgrabers.framework.daw.clip.NotePosition;
+import de.mossgrabers.framework.daw.clip.StepState;
+import de.mossgrabers.framework.daw.constants.Resolution;
+import de.mossgrabers.framework.utils.ButtonEvent;
+import de.mossgrabers.framework.view.Views;
+import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
+import de.mossgrabers.framework.view.sequencer.AbstractNoteSequencerView;
+
+import java.util.List;
+
+
+/**
+ * The Sequencer view.
+ *
+ * @author J&uuml;rgen Mo&szlig;graber
+ */
+public class SequencerView extends AbstractNoteSequencerView<PushControlSurface, PushConfiguration>
+{
+    /** The feature-local classic sequencer engine. */
+    private final ClassicSequencerEngine engine = new ClassicSequencerEngine ();
+
+
+    /** Synchronize engine ownership with DrivenByMoss' active-view lifecycle. */
+    private void synchronizeEngineLifecycle ()
+    {
+        if (this.isActive ())
+            this.engine.activate ();
+        else
+            this.engine.deactivate ();
+    }
+
+
+    /**
+     * Constructor.
+     *
+     * @param surface The surface
+     * @param model The model
+     */
+    public SequencerView (final PushControlSurface surface, final IModel model)
+    {
+        super (Views.NAME_SEQUENCER, surface, model, true);
+    }
+
+
+    /**
+     * Keep the visible sequencer page locked to Bitwig's live playhead while
+     * auto-follow is enabled. The inherited renderer paints the moving step
+     * and the top-row page indicators using the existing Push 1 LED colors.
+     */
+    @Override
+    public void drawGrid ()
+    {
+        this.synchronizeEngineLifecycle ();
+        if (this.engine.shouldFollowPlayhead () && this.model.getTransport ().isPlaying ())
+        {
+            final INoteClip clip = this.getClip ();
+            // The note-clip adapter remains available for empty slots. Do not
+            // ask it to follow a playhead until Bitwig reports a real clip.
+            if (clip.doesExist ())
+            {
+                final int stepsPerPage = this.numDisplayCols;
+                final int currentStep = clip.getCurrentStep ();
+                if (stepsPerPage > 0 && currentStep >= 0)
+                {
+                    final int playheadPage = currentStep / stepsPerPage;
+                    if (playheadPage != clip.getEditPage ())
+                        clip.scrollToPage (playheadPage);
+                }
+            }
+        }
+        super.drawGrid ();
+
+        // AbstractNoteSequencerView normally colors empty pads with their scale
+        // color before it considers the playhead highlight. Drum4 uses the
+        // sequencer highlight palette for every pad in the active column. Apply
+        // that same full-column treatment here, including the root/fundamental
+        // row, without changing any note data or the page-selector row.
+        if (!this.isActive () || !this.model.getTransport ().isPlaying ())
+            return;
+
+        final INoteClip clip = this.getClip ();
+        final int stepsPerPage = this.numDisplayCols;
+        final int currentStep = clip.getCurrentStep ();
+        if (!clip.doesExist () || stepsPerPage <= 0 || currentStep < 0)
+            return;
+
+        final int playheadColumn = currentStep - clip.getEditPage () * stepsPerPage;
+        if (playheadColumn < 0 || playheadColumn >= stepsPerPage)
+            return;
+
+        final IPadGrid gridPad = this.surface.getPadGrid ();
+        final int channel = this.configuration.getMidiEditChannel ();
+        final List<NotePosition> editNotes = this.getEditNotes ();
+        final NotePosition notePosition = new NotePosition (channel, playheadColumn, 0);
+        for (int row = 0; row < this.numSequencerRows; row++)
+        {
+            final int mappedNote = this.keyManager.map (row);
+            notePosition.setNote (mappedNote);
+            final IStepInfo stepInfo = mappedNote < 0 ? null : clip.getStep (notePosition);
+            final boolean isSelected = mappedNote >= 0 && this.isEditOrContinuation (channel, playheadColumn, mappedNote, editNotes);
+            final String color;
+            if (isSelected)
+                color = AbstractSequencerView.COLOR_STEP_SELECTED;
+            else if (this.model.hasRecordingState ())
+                color = AbstractSequencerView.COLOR_STEP_HILITE_RECORD;
+            else if (stepInfo == null || stepInfo.getState () == StepState.OFF)
+                color = AbstractSequencerView.COLOR_STEP_HILITE_NO_CONTENT;
+            else
+                color = AbstractSequencerView.COLOR_STEP_HILITE_CONTENT;
+            gridPad.lightEx (playheadColumn, this.numDisplayRows - 1 - row, color);
+        }
+    }
+
+
+    /**
+     * The upstream renderer treats the clip's total step count as the width
+     * of one visible page. Push 1 displays only numDisplayCols steps, so use
+     * the physical grid width when deciding whether the global playhead is
+     * inside the currently selected page.
+     *
+     * @param step The global playback step
+     * @return True if the step belongs to the visible Push 1 page
+     */
+    @Override
+    protected boolean isInXRange (final int step)
+    {
+        final int stepsPerPage = this.numDisplayCols;
+        if (stepsPerPage <= 0)
+            return false;
+
+        final int pageStart = this.getClip ().getEditPage () * stepsPerPage;
+        return step >= pageStart && step < pageStart + stepsPerPage;
+    }
+
+
+    /**
+     * A single page tap selects an edit page. Selecting a page other than the
+     * playing page locks the view there; selecting the playing page restores
+     * auto-follow. A two-pad gesture changes the loop and keeps auto-follow.
+     *
+     * @param pad The page pad
+     * @param velocity The pad velocity
+     */
+    @Override
+    protected void handleLoopArea (final int pad, final int velocity)
+    {
+        final int pressedPage = this.loopPadPressed;
+        super.handleLoopArea (pad, velocity);
+
+        // The engine owns page-lock policy; the view supplies current host state.
+        final INoteClip clip = this.getClip ();
+        this.engine.onPageGesture (pressedPage, pad, velocity, clip.doesExist (),
+                this.numDisplayCols, clip.getCurrentStep ());
+    }
+
+
+    /** Manual page navigation must not be immediately undone by auto-follow. */
+    @Override
+    public void onLeft (final ButtonEvent event)
+    {
+        this.synchronizeEngineLifecycle ();
+        this.engine.onManualPageNavigation ();
+        super.onLeft (event);
+    }
+
+
+    /** Manual page navigation must not be immediately undone by auto-follow. */
+    @Override
+    public void onRight (final ButtonEvent event)
+    {
+        this.synchronizeEngineLifecycle ();
+        this.engine.onManualPageNavigation ();
+        super.onRight (event);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void onGridNoteLongPress (final int note)
+    {
+        this.synchronizeEngineLifecycle ();
+        if (!this.engine.isActive ())
+            return;
+
+        final int index = note - 36;
+        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();
+
+        final int y = index / 8;
+        if (y >= this.numSequencerRows)
+            return;
+
+        final NotePosition notePosition = new NotePosition (this.configuration.getMidiEditChannel (), index % 8, this.keyManager.map (y));
+        this.editNote (this.getClip (), notePosition, false);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean handleSequencerAreaButtonCombinations (final INoteClip clip, final NotePosition notePosition, final int row, final int velocity)
+    {
+        final boolean isSelectPressed = this.surface.isSelectPressed ();
+
+        if (this.surface.isShiftPressed ())
+        {
+            if (velocity > 0)
+                this.handleSequencerAreaRepeatOperator (clip, notePosition, velocity, !isSelectPressed);
+            return true;
+        }
+
+        if (isSelectPressed)
+        {
+            this.editNote (clip, notePosition, true);
+            return true;
+        }
+
+        // Preserve the upstream duplicate/mute gestures, which return before
+        // its long-press scan. The inherited scan uses row * clip.getNumSteps()
+        // as a physical pad offset; Bitwig reports the full clip length here
+        // (often 128), but the Push 1 grid has only eight columns per row.
+        if (this.isButtonCombination (ButtonID.DUPLICATE) || this.isButtonCombination (ButtonID.MUTE))
+            return super.handleSequencerAreaButtonCombinations (clip, notePosition, row, velocity);
+
+        // A long-pressed earlier step in this physical row stretches the note
+        // to the released column. Resolve the source pad using the hardware
+        // grid width, never the clip's global step count.
+        final int step = notePosition.getStep ();
+        final int padRowOffset = row * this.numDisplayCols;
+        final int note = notePosition.getNote ();
+        for (int sourceStep = 0; sourceStep < step; sourceStep++)
+        {
+            final int padIndex = padRowOffset + sourceStep;
+            if (padIndex < 0 || padIndex >= 64)
+                continue;
+
+            final IHwButton button = this.surface.getButton (ButtonID.get (ButtonID.PAD1, padIndex));
+            if (button == null || !button.isLongPressed ())
+                continue;
+
+            final NotePosition sourcePosition = new NotePosition (notePosition);
+            sourcePosition.setStep (sourceStep);
+            button.setConsumed ();
+            final double duration = (step - sourceStep + 1) * Resolution.getValueAt (this.getResolutionIndex ());
+            if (note >= 0 && clip.getStep (sourcePosition).getState () == StepState.START)
+                clip.updateStepDuration (sourcePosition, duration);
+            else
+                clip.setStep (sourcePosition, velocity, duration);
+            return true;
+        }
+
+        return false;
+    }
+}
