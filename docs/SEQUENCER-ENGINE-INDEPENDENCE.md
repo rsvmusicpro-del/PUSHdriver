@@ -165,3 +165,22 @@ architectural guarantee.
 The deterministic `SequencerEngineTest` is part of the mandatory virtual
 bench and covers token invalidation, classic page-follow policy, Push pad
 bounds, Poly step mapping and scale-fundamental classification.
+
+
+## Shared physical pad-grid contract — 2026-11-15
+
+The physical Push 1 8x8 pad matrix now has one project-owned definition in
+`Push1PadGrid`. It owns the first MIDI note, the 64-pad count, MIDI-note
+membership, note-to-index conversion, and index validation (including a
+bounded-size overload for logical grids).
+
+Both Classic and Poly sequencer engines delegate their pad-index checks to
+this contract. Their long-press adapters validate the translated index before
+resolving a hardware button. The source assembler also uses the same contract
+for upstream Drum4, Drum8, DrumView and AbstractDrum64View long-press bounds.
+The dynamic Drum64 grid continues to use its own columns × rows dimensions.
+
+This consolidation changes only invalid-index handling. It does not change
+valid pad mapping, note routing, gesture ownership, clip mutation or LED
+rendering. Java boundary tests and Python source-contract tests cover both
+sequencer adapters and the generated Drum guards.

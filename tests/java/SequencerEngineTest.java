@@ -1,5 +1,6 @@
 import de.mossgrabers.controller.ableton.push.engine.sequencer.ClassicSequencerEngine;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.PolySequencerEngine;
+import de.mossgrabers.controller.ableton.push.engine.sequencer.Push1PadGrid;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine.ActivationToken;
 
@@ -14,6 +15,7 @@ public final class SequencerEngineTest
         testSharedLifecycleSynchronization ();
         testClassicPageFollowPolicy ();
         testPolyGridAndScaleRules ();
+        testSharedPhysicalPadGrid ();
         System.out.println ("SequencerEngineTest: all checks passed.");
     }
 
@@ -84,6 +86,22 @@ public final class SequencerEngineTest
         require (!engine.isScaleFundamental (63, 2), "non-fundamental pitch rejected");
         require (!engine.isScaleFundamental (128, 2), "invalid MIDI note rejected");
         require (!engine.isScaleFundamental (62, 12), "invalid scale offset rejected");
+    }
+
+    private static void testSharedPhysicalPadGrid ()
+    {
+        require (Push1PadGrid.isValidIndex (0), "first physical pad accepted");
+        require (Push1PadGrid.isValidIndex (63), "last physical pad accepted");
+        require (!Push1PadGrid.isValidIndex (-1), "negative physical pad rejected");
+        require (!Push1PadGrid.isValidIndex (64), "pad beyond physical matrix rejected");
+        require (Push1PadGrid.isHardwarePadNote (36), "first hardware pad note accepted");
+        require (Push1PadGrid.isHardwarePadNote (99), "last hardware pad note accepted");
+        require (!Push1PadGrid.isHardwarePadNote (35), "note below hardware pad range rejected");
+        require (!Push1PadGrid.isHardwarePadNote (100), "note above hardware pad range rejected");
+        require (!Push1PadGrid.isValidIndex (31, 32), "index beyond a smaller logical grid rejected");
+        require (!Push1PadGrid.isValidIndex (0, 0), "empty logical grid rejected");
+        require (new ClassicSequencerEngine ().isHardwarePadIndex (63), "classic engine uses shared pad bounds");
+        require (new PolySequencerEngine ().isHardwarePadIndex (63), "Poly engine uses shared pad bounds");
     }
 
     private static void require (final boolean condition, final String message)

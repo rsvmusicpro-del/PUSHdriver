@@ -7,19 +7,17 @@ package de.mossgrabers.controller.ableton.push.engine.sequencer;
  */
 public final class PolySequencerEngine extends AbstractSequencerEngine
 {
-    private static final int FIRST_PAD_NOTE = 36;
-    private static final int PAD_COUNT = 64;
     private static final int MIDI_NOTE_COUNT = 128;
     private static final int NOTES_PER_OCTAVE = 12;
 
     public boolean isHardwarePadNote (final int note)
     {
-        return note >= FIRST_PAD_NOTE && note < FIRST_PAD_NOTE + PAD_COUNT;
+        return Push1PadGrid.isHardwarePadNote (note);
     }
 
     public boolean isHardwarePadIndex (final int index)
     {
-        return index >= 0 && index < PAD_COUNT;
+        return Push1PadGrid.isValidIndex (index);
     }
 
     /** Convert a top-down hardware row to the bottom-up Poly clip step. */

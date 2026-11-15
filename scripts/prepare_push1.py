@@ -1081,7 +1081,7 @@ for relative in (
         "        final int index = note - 36;\n"
         "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
         "        final int index = note - 36;\n"
-        "        if (index < 0 || index >= 64)\n"
+        "        if (!de.mossgrabers.controller.ableton.push.engine.sequencer.Push1PadGrid.isValidIndex (index))\n"
         "            return;\n"
         "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
         relative + " long-press pad bounds")
@@ -1107,7 +1107,7 @@ replace_once(drum_view,
     "        final int index = note - DRUM_START_KEY;\n"
     "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
     "        final int index = note - DRUM_START_KEY;\n"
-    "        if (index < 0 || index >= 64)\n"
+    "        if (!de.mossgrabers.controller.ableton.push.engine.sequencer.Push1PadGrid.isValidIndex (index))\n"
     "            return;\n"
     "        this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();",
     "DrumView long-press 8x8 pad bounds")
@@ -1117,7 +1117,7 @@ replace_once(drum64,
     "        final int index = note - 36;\n"
     "        final int x = index % this.columns;",
     "        final int index = note - 36;\n"
-    "        if (index < 0 || index >= this.columns * this.rows)\n"
+    "        if (!de.mossgrabers.controller.ableton.push.engine.sequencer.Push1PadGrid.isValidIndex (index, this.columns * this.rows))\n"
     "            return;\n"
     "        final int x = index % this.columns;",
     "Drum64View incoming grid-note bounds")

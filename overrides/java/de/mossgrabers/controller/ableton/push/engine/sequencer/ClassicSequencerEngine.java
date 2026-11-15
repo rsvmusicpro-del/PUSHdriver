@@ -31,6 +31,12 @@ public final class ClassicSequencerEngine extends AbstractSequencerEngine
                 && currentStep / stepsPerPage == releasedPage;
     }
 
+    /** Validate a zero-based index in the physical Push 1 8x8 pad matrix. */
+    public boolean isHardwarePadIndex (final int index)
+    {
+        return Push1PadGrid.isValidIndex (index);
+    }
+
     public static int pageForStep (final int currentStep, final int stepsPerPage)
     {
         return currentStep < 0 || stepsPerPage <= 0 ? -1 : currentStep / stepsPerPage;

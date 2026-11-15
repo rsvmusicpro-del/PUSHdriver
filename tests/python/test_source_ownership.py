@@ -3,6 +3,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
+ROOT = Path(__file__).resolve().parents[2]
+
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts/check_source_ownership.py"
 SPEC = importlib.util.spec_from_file_location("check_source_ownership", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -59,6 +61,17 @@ class SourceOwnershipTests(unittest.TestCase):
             MODULE.patch_targets(source),
             {"example/Definition.java", "example/Obsolete.java"},
         )
+
+    def test_sequencer_views_share_the_physical_pad_guard(self):
+        classic = (ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/SequencerView.java").read_text(encoding="utf-8")
+        poly = (ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/PolySequencerView.java").read_text(encoding="utf-8")
+        self.assertIn("this.engine.isHardwarePadIndex (index)", classic)
+        self.assertIn("this.engine.isHardwarePadIndex (index)", poly)
+
+    def test_assembly_uses_shared_pad_bounds_for_drum_views(self):
+        source = (ROOT / "scripts/prepare_push1.py").read_text(encoding="utf-8")
+        self.assertGreaterEqual(source.count("Push1PadGrid.isValidIndex (index)"), 2)
+        self.assertIn("Push1PadGrid.isValidIndex (index, this.columns * this.rows)", source)
 
     def test_project_device_navigation_helpers_are_forbidden(self):
         source = "browser_mode.navigateFilterColumn(false)"

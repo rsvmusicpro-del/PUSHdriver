@@ -7,6 +7,7 @@ package de.mossgrabers.controller.ableton.push.view;
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.ClassicSequencerEngine;
+import de.mossgrabers.controller.ableton.push.engine.sequencer.Push1PadGrid;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine;
 import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.controller.hardware.IHwButton;
@@ -67,9 +68,9 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             {
                 final int stepsPerPage = this.numDisplayCols;
                 final int currentStep = clip.getCurrentStep ();
-                if (stepsPerPage > 0 && currentStep >= 0)
+                final int playheadPage = ClassicSequencerEngine.pageForStep (currentStep, stepsPerPage);
+                if (playheadPage >= 0)
                 {
-                    final int playheadPage = currentStep / stepsPerPage;
                     if (playheadPage != clip.getEditPage ())
                         clip.scrollToPage (playheadPage);
                 }
@@ -189,7 +190,9 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
         if (!this.engine.isActive ())
             return;
 
-        final int index = note - 36;
+        final int index = Push1PadGrid.indexForNote (note);
+        if (!this.engine.isHardwarePadIndex (index))
+            return;
         this.surface.getButton (ButtonID.get (ButtonID.PAD1, index)).setConsumed ();
 
         final int y = index / 8;

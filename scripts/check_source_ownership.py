@@ -21,6 +21,7 @@ OVERRIDE_ALLOWLIST={
 "de/mossgrabers/controller/ableton/push/engine/sequencer/AbstractSequencerEngine.java",
 "de/mossgrabers/controller/ableton/push/engine/sequencer/ClassicSequencerEngine.java",
 "de/mossgrabers/controller/ableton/push/engine/sequencer/PolySequencerEngine.java",
+"de/mossgrabers/controller/ableton/push/engine/sequencer/Push1PadGrid.java",
 "de/mossgrabers/controller/ableton/push/view/PolySequencerView.java",
 "de/mossgrabers/controller/ableton/push/view/SequencerView.java",
 }
