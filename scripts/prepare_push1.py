@@ -460,8 +460,7 @@ replace_once(piano_helper,
 # ROW2 selects the lower Audio/Effect choices. Patch the upstream mode in place
 # during deterministic assembly; do not introduce a parallel mode override.
 add_track_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/track/AddTrackMode.java"
-replace_java_method(add_track_mode, "public void onFirstRow", '''    @Override
-    public void onFirstRow (final int index, final ButtonEvent event)
+replace_java_method(add_track_mode, "public void onFirstRow", '''    public void onFirstRow (final int index, final ButtonEvent event)
     {
         if (event != ButtonEvent.UP)
             return;
@@ -483,8 +482,7 @@ replace_java_method(add_track_mode, "public void onFirstRow", '''    @Override
         this.model.getTrackBank ().addChannel (ChannelType.INSTRUMENT, channelName, devices);
         this.surface.getModeManager ().restore ();
     }''', "AddTrack ROW1 Instrument selection")
-replace_java_method(add_track_mode, "public void onSecondRow", '''    @Override
-    public void onSecondRow (final int index, final ButtonEvent event)
+replace_java_method(add_track_mode, "public void onSecondRow", '''    public void onSecondRow (final int index, final ButtonEvent event)
     {
         if (event != ButtonEvent.UP)
             return;
@@ -526,8 +524,7 @@ replace_java_method(add_track_mode, "public void onSecondRow", '''    @Override
         this.model.getTrackBank ().addChannel (channelType, channelName, devices);
         this.surface.getModeManager ().restore ();
     }''', "AddTrack ROW2 Audio/Effect selection")
-replace_java_method(add_track_mode, "public int getButtonColor", '''    @Override
-    public int getButtonColor (final ButtonID buttonID)
+replace_java_method(add_track_mode, "public int getButtonColor", '''    public int getButtonColor (final ButtonID buttonID)
     {
         int index = this.isButtonRow (0, buttonID);
         if (index >= 0)
