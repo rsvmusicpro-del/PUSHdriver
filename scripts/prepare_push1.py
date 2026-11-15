@@ -2210,10 +2210,10 @@ import re
 
 push_color_manager = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushColorManager.java"
 push_color_source = push_color_manager.read_text()
-palette_match = re.search(r"DEFAULT_PALETTE\\s*=\\s*\\{([\\s\\S]*?)\\n\\s*\\};", push_color_source)
+palette_match = re.search(r"DEFAULT_PALETTE\s*=\s*\{([\s\S]*?)\n\s*\};", push_color_source)
 if palette_match is None:
     raise SystemExit("Push 1 color palette: DEFAULT_PALETTE was not found")
-push_rgb = re.findall(r"\\{\\s*0x([0-9A-Fa-f]+),\\s*0x([0-9A-Fa-f]+),\\s*0x([0-9A-Fa-f]+)\\s*\\}", palette_match.group(1))
+push_rgb = re.findall(r"\{\s*0x([0-9A-Fa-f]+),\s*0x([0-9A-Fa-f]+),\s*0x([0-9A-Fa-f]+)\s*\}", palette_match.group(1))
 if len(push_rgb) < 128:
     raise SystemExit(f"Push 1 color palette: expected at least 128 RGB entries, found {len(push_rgb)}")
 
@@ -2301,10 +2301,10 @@ for index, (constant, display_name) in enumerate(push1_color_names):
     red, green, blue = (int(component, 16) for component in push_rgb[hardware_index])
     suffix = ";" if index == len(push1_color_names) - 1 else ","
     enum_entries.append(
-        f'    /** Push 1 palette color {index}: {display_name}. */\\n'
+        f'    /** Push 1 palette color {index}: {display_name}. */\n'
         f'    {constant}("{display_name}", new ColorEx ({red / 255.0:.12g}, {green / 255.0:.12g}, {blue / 255.0:.12g})){suffix}'
     )
-daw_source = daw_source[:enum_start] + "\\n" + "\\n".join(enum_entries) + daw_source[enum_end:]
+daw_source = daw_source[:enum_start] + "\n" + "\n".join(enum_entries) + daw_source[enum_end:]
 daw_color.write_text(daw_source)
 
 # Register every menu color to its exact static Push 1 LED palette index.
@@ -2312,8 +2312,8 @@ registration_start = push_color_source.index("        this.registerColorIndex (D
 registration_end_marker = "        this.registerColorIndex (DAWColor.DAW_COLOR_LIGHT_BLUE, isPush2 ? 96 : 41);"
 registration_end = push_color_source.index(registration_end_marker, registration_start) + len(registration_end_marker)
 registration = (
-    "        final int [] push1PaletteIndices = new int [] { 72, 120, 60, 84, 9, 96, 126, 124, 13, 74, 85, 98, 75, 17, 122, 87, 25, 29, 77, 33, 78, 41, 79, 67, 69, 80, 49, 81, 53, 95, 57, 106, 4, 107, 108, 8, 109, 12, 113, 73, 110, 111, 86, 16, 88, 20, 24, 89, 28, 114, 32, 90, 36, 40, 91, 92, 44, 93, 116, 48, 94, 52, 82, 56 };\\n"
-    "        for (int i = 0; i < DAWColor.values ().length; i++)\\n"
+    "        final int [] push1PaletteIndices = new int [] { 72, 120, 60, 84, 9, 96, 126, 124, 13, 74, 85, 98, 75, 17, 122, 87, 25, 29, 77, 33, 78, 41, 79, 67, 69, 80, 49, 81, 53, 95, 57, 106, 4, 107, 108, 8, 109, 12, 113, 73, 110, 111, 86, 16, 88, 20, 24, 89, 28, 114, 32, 90, 36, 40, 91, 92, 44, 93, 116, 48, 94, 52, 82, 56 };\n"
+    "        for (int i = 0; i < DAWColor.values ().length; i++)\n"
     "            this.registerColorIndex (DAWColor.values ()[i], push1PaletteIndices[i]);"
 )
 push_color_source = push_color_source[:registration_start] + registration + push_color_source[registration_end:]
