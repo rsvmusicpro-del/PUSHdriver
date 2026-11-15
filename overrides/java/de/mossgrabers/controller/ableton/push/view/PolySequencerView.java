@@ -9,6 +9,7 @@ import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.controller.ableton.push.engine.Push1PadGrid;
 import de.mossgrabers.controller.ableton.push.engine.sequencer.PolySequencerEngine;
 import de.mossgrabers.framework.controller.ButtonID;
+import de.mossgrabers.framework.controller.hardware.IHwButton;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.clip.INoteClip;
 import de.mossgrabers.framework.daw.clip.NotePosition;
@@ -68,7 +69,7 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
         final int index = Push1PadGrid.indexForNote (note);
         if (!this.engine.isHardwarePadIndex (index))
             return;
-        final var padButton = this.surface.getButton (ButtonID.get (ButtonID.PAD1, index));
+        final IHwButton padButton = this.surface.getButton (ButtonID.get (ButtonID.PAD1, index));
         if (padButton == null)
             return;
         padButton.setConsumed ();
