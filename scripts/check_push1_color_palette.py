@@ -108,8 +108,14 @@ if "ColorEx.getClosestColorIndex (color, TRACK_COLOR_PALETTE)" not in push:
     raise SystemExit("Track LED lookup does not choose the nearest selectable RGB color")
 if "PushColorManager.getClosestTrackColorID (track.getColor ())" not in track_mode:
     raise SystemExit("ROW1 track LED does not use the track's Bitwig RGB color")
-if "if (track.isRecArm ())" not in track_mode or "PushColorManager.PUSH_ORANGE_HI" not in track_mode:
-    raise SystemExit("ROW1 record-arm or selected-track LED priority was changed")
+if "if (track.isRecArm ())" not in track_mode:
+    raise SystemExit("ROW1 record-arm priority was removed")
+if "this.isPush2 ? PushColorManager.PUSH_ORANGE_HI : PushColorManager.PUSH_WHITE_2" not in track_mode:
+    raise SystemExit("Push 1 selected track must be neutral white while Push 2 remains orange")
+if "if (isSel)" not in track_mode:
+    raise SystemExit("ROW1 selected-track state is not handled explicitly")
+if "return this.colorManager.getColorIndex (PushColorManager.getClosestTrackColorID (track.getColor ()))" not in track_mode:
+    raise SystemExit("ROW1 ordinary Push 1 tracks do not return the matched Bitwig track color index")
 
 
 print("PASS: 64 unique Bitwig RGB colors match 64 selected Push 1 hardware palette indices.")
