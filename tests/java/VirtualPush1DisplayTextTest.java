@@ -26,6 +26,20 @@ public final class VirtualPush1DisplayTextTest
         check (Push1DisplayText.fit ("A…B", 4), "A" + ellipsis + "B ",
             "Unicode ellipsis input must map to the Push 1 firmware character code");
 
+        check (Push1DisplayText.fitAscii ("Übergrößen", 8), "Uebe" + ellipsis + "sen",
+            "long names must retain existing ASCII transliteration before firmware-ellipsis fitting");
+
+        final String cell = Push1DisplayLayout.fitCell ("SuperLongTrackName", 0);
+        check (cell, "Supe" + ellipsis + "ame ",
+            "the nine-character Push 1 cell path must preserve its spacer and use one ellipsis cell");
+        final String block = Push1DisplayLayout.fitBlock ("SuperLongDeviceName");
+        require (block.length () == 17 && block.charAt (8) == (char) 0x1C,
+            "the 17-character Push 1 block path must insert the firmware ellipsis");
+        final String assembledRow = block + " ".repeat (51);
+        final String [] assembledBytes = Push1DisplayProtocol.encodeLine (0, assembledRow).split (" ");
+        check (assembledBytes[16], "1C",
+            "a truncated physical block must carry the ellipsis through the final LCD SysEx payload");
+
         final String protocolRow = "ABCD" + ellipsis + "X".repeat (63);
         final String [] protocolBytes = Push1DisplayProtocol.encodeLine (0, protocolRow).split (" ");
         check (protocolBytes[12], "1C",
@@ -35,7 +49,7 @@ public final class VirtualPush1DisplayTextTest
             "short-width truncation must remain bounded");
         check (Push1DisplayText.fit (null, 5), "     ",
             "null text must become fixed-width blank text");
-        check (Push1DisplayText.fitBlock ("Push 1"), "Push 1           ",
+        check (Push1DisplayLayout.fitBlock ("Push 1"), "Push 1           ",
             "physical LCD blocks must contain exactly 17 cells");
 
         final String line = "L".repeat (68);

@@ -2,6 +2,8 @@
 // Licensed under the same LGPLv3 terms as the adapted DrivenByMoss controller code.
 package de.mossgrabers.controller.ableton.push.controller;
 
+import de.mossgrabers.framework.utils.StringUtils;
+
 /** Fits human-readable labels to the Push 1's fixed-width character cells. */
 public final class Push1DisplayText
 {
@@ -10,6 +12,20 @@ public final class Push1DisplayText
 
     private Push1DisplayText ()
     {
+    }
+
+    /**
+     * Apply the existing DrivenByMoss ASCII transliteration before fitting.
+     * This preserves umlaut and symbol handling while deferring truncation
+     * until the actual Push 1 cell or block width is known.
+     *
+     * @param value source text
+     * @param width target character-cell width
+     * @return fixed-width, transliterated text
+     */
+    public static String fitAscii (final String value, final int width)
+    {
+        return fit (StringUtils.fixASCII (value), width);
     }
 
     /**
@@ -73,25 +89,21 @@ public final class Push1DisplayText
      */
     public static String overlayRightBlock (final String line, final String value)
     {
-        final StringBuilder prefix = new StringBuilder (51);
+        final int prefixWidth = Push1DisplayLayout.COLUMNS - Push1DisplayLayout.BLOCK_WIDTH;
+        final StringBuilder prefix = new StringBuilder (prefixWidth);
         if (line != null)
         {
-            line.codePoints ().limit (51).forEach (codePoint -> {
+            line.codePoints ().limit (prefixWidth).forEach (codePoint -> {
                 if (codePoint == '\n' || codePoint == '\r' || codePoint == '\t')
                     prefix.append (' ');
                 else
                     prefix.append (codePoint <= 0x7F ? (char) codePoint : '?');
             });
         }
-        while (prefix.length () < 51)
+        while (prefix.length () < prefixWidth)
             prefix.append (' ');
-        return prefix + fit (value, 17);
+        return prefix + Push1DisplayLayout.fitBlock (value);
     }
 
 
-    /** @return one exact 17-character physical display block */
-    public static String fitBlock (final String value)
-    {
-        return fit (value, 17);
-    }
 }
