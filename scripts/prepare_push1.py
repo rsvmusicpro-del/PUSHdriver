@@ -1968,7 +1968,7 @@ replace_menu_fragment(scales_mode,
                 this.scales.prevScale ();
         }
         else if (index > 0 && index < 7)
-            this.scales.setScaleOffsetByIndex (index - 1);
+            this.scales.setScaleOffsetByIndex (index + 5);
         this.update ();
     }""",
     """    public void onFirstRow (final int index, final ButtonEvent event)
@@ -2002,7 +2002,7 @@ replace_menu_fragment(scales_mode,
         else if (index == 7)
             this.scales.toggleChromatic ();
         else
-            this.scales.setScaleOffsetByIndex (index + 5);
+            this.scales.setScaleOffsetByIndex (index - 1);
         this.update ();
     }""",
     """    public void onSecondRow (final int index, final ButtonEvent event)
@@ -2025,7 +2025,7 @@ replace_menu_fragment(scales_mode,
     "Scales Row 2 lower offsets")
 replace_menu_fragment(scales_mode,
     """            final int offset = this.scales.getScaleOffsetIndex ();
-            return this.colorManager.getColorIndex (offset == index - 1 ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON);
+            return this.colorManager.getColorIndex (offset == index + 5 ? AbstractMode.BUTTON_COLOR_HI : AbstractFeatureGroup.BUTTON_COLOR_ON);
         }
 
         index = this.isButtonRow (1, buttonID);""",
@@ -2037,7 +2037,7 @@ replace_menu_fragment(scales_mode,
     "Scales Row 1 LED state")
 replace_menu_fragment(scales_mode,
     """            final int offset = this.scales.getScaleOffsetIndex ();
-            return this.colorManager.getColorIndex (offset == index - 1 + 6 ? AbstractMode.BUTTON_COLOR2_HI : AbstractMode.BUTTON_COLOR2_ON);""",
+            return this.colorManager.getColorIndex (offset == index + 5 ? AbstractMode.BUTTON_COLOR2_HI : AbstractMode.BUTTON_COLOR2_ON);""",
     """            final int offset = this.scales.getScaleOffsetIndex ();
             return this.colorManager.getColorIndex (offset == index - 1 ? AbstractMode.BUTTON_COLOR2_HI : AbstractMode.BUTTON_COLOR2_ON);""",
     "Scales Row 2 LED state")
