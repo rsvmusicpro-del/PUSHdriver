@@ -156,7 +156,14 @@ second_colors = colors.split("index = this.isButtonRow (1", 1)[1]
 require("isButtonRow (0" in first_colors and "PUSH1_COLOR_YELLOW_MD" in first_colors
         and "PUSH1_COLOR2_" not in first_colors,
         "Add Track upper Instrument Row 1 LEDs must use the Push 1 static palette")
-require("PUSH1_COLOR_GREEN_HI" in second_colors and "PUSH1_COLOR_RED_HI" in second_colors,
-        "Add Track lower Audio/Effect Row 2 LEDs must follow the lower choices")
+require("PUSH1_COLOR2_GREEN_HI" in second_colors
+        and "PUSH1_COLOR2_GREEN_LO" in second_colors
+        and "PUSH1_COLOR2_AMBER_HI" in second_colors
+        and "PUSH1_COLOR2_AMBER_LO" in second_colors
+        and "PUSH2_COLOR2_GREEN_HI" in second_colors
+        and "PUSH2_COLOR2_GREEN_LO" in second_colors
+        and "PUSH2_COLOR2_AMBER_HI" in second_colors
+        and "PUSH2_COLOR2_AMBER_LO" in second_colors,
+        "Add Track lower Audio/Effect Row 2 LEDs must use vivid green and orange palette levels on both controllers")
 
 print("PASS: Add Track, Note View Select, Session View Select, Scales, Fixed Length and Quantize row/display contracts")
