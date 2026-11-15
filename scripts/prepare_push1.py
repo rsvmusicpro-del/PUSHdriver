@@ -423,6 +423,39 @@ replace_once(drum_view,
     "Drum solo state has dedicated Push 1 feedback")
 
 push_colors = root / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushColorManager.java"
+# ROW1 track selectors use the nearest color from the exact 64-color Bitwig
+# palette. Exclude the internal COLOR_OFF entry: it is not a selectable color.
+replace_once(push_colors,
+    "    private final boolean            isPush2;\n",
+    "    private final boolean            isPush2;\n\n"
+    "    private static final DAWColor [] TRACK_COLOR_OPTIONS = createTrackColorOptions ();\n"
+    "    private static final ColorEx [] TRACK_COLOR_PALETTE = createTrackColorPalette ();\n\n"
+    "    private static DAWColor [] createTrackColorOptions ()\n"
+    "    {\n"
+    "        final DAWColor [] allColors = DAWColor.values ();\n"
+    "        final DAWColor [] options = new DAWColor [allColors.length - 1];\n"
+    "        System.arraycopy (allColors, 1, options, 0, options.length);\n"
+    "        return options;\n"
+    "    }\n\n"
+    "    private static ColorEx [] createTrackColorPalette ()\n"
+    "    {\n"
+    "        final ColorEx [] palette = new ColorEx [TRACK_COLOR_OPTIONS.length];\n"
+    "        for (int i = 0; i < TRACK_COLOR_OPTIONS.length; i++)\n"
+    "            palette[i] = TRACK_COLOR_OPTIONS[i].getColor ();\n"
+    "        return palette;\n"
+    "    }\n\n"
+    "    /**\n"
+    "     * Find the selectable Bitwig color closest to a track's RGB color.\n"
+    "     *\n"
+    "     * @param color The track color\n"
+    "     * @return The registered color key for the closest Push 1 palette entry\n"
+    "     */\n"
+    "    public static String getClosestTrackColorID (final ColorEx color)\n"
+    "    {\n"
+    "        final int index = ColorEx.getClosestColorIndex (color, TRACK_COLOR_PALETTE);\n"
+    "        return TRACK_COLOR_OPTIONS[index].name ();\n"
+    "    }\n",
+    "Push 1 track color palette lookup")
 source = push_colors.read_text()
 replace_once(push_colors,
     "        this.registerColorIndex (AbstractSequencerView.COLOR_STEP_HILITE_CONTENT, isPush2 ? PUSH2_COLOR2_GREEN_HI : PUSH1_COLOR2_GREEN_HI);\n",
@@ -2346,6 +2379,17 @@ replace_once(track_mode,
     "            final String n = de.mossgrabers.controller.ableton.push.controller.Push1DisplayText.fitAscii ((isSel ? Push1Display.SELECT_ARROW : \"\") + trackName, 8);\n"
     "            d.setCell (3, i, n);",
     "Push 1 track names truncate after selection marker")
+
+# Keep selected and record-armed feedback intact; only the ordinary available
+# ROW1 state changes from generic yellow to the track's nearest menu color.
+replace_once(track_mode,
+    "            return this.colorManager.getColorIndex (isSel ? PushColorManager.PUSH_ORANGE_HI : PushColorManager.PUSH_YELLOW_LO);",
+    "            if (isSel)\n"
+    "                return this.colorManager.getColorIndex (PushColorManager.PUSH_ORANGE_HI);\n"
+    "            if (this.isPush2)\n"
+    "                return this.colorManager.getColorIndex (PushColorManager.PUSH_YELLOW_LO);\n"
+    "            return this.colorManager.getColorIndex (PushColorManager.getClosestTrackColorID (track.getColor ()));",
+    "Push 1 ROW1 unselected track color feedback")
 
 device_layer_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceLayerMode.java"
 replace_once(device_layer_mode,
