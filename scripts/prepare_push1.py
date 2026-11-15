@@ -2380,16 +2380,17 @@ replace_once(track_mode,
     "            d.setCell (3, i, n);",
     "Push 1 track names truncate after selection marker")
 
-# Keep selected and record-armed feedback intact; only the ordinary available
-# ROW1 state changes from generic yellow to the track's nearest menu color.
+# Record-arm remains the highest-priority state. On Push 1, selected tracks
+# are neutral white/grey; ordinary tracks use their nearest selectable Bitwig
+# color. Push 2 keeps its upstream selected-orange and unselected-yellow colors.
 replace_once(track_mode,
     "            return this.colorManager.getColorIndex (isSel ? PushColorManager.PUSH_ORANGE_HI : PushColorManager.PUSH_YELLOW_LO);",
     "            if (isSel)\n"
-    "                return this.colorManager.getColorIndex (PushColorManager.PUSH_ORANGE_HI);\n"
+    "                return this.colorManager.getColorIndex (this.isPush2 ? PushColorManager.PUSH_ORANGE_HI : PushColorManager.PUSH_WHITE_2);\n"
     "            if (this.isPush2)\n"
     "                return this.colorManager.getColorIndex (PushColorManager.PUSH_YELLOW_LO);\n"
     "            return this.colorManager.getColorIndex (PushColorManager.getClosestTrackColorID (track.getColor ()));",
-    "Push 1 ROW1 unselected track color feedback")
+    "Push 1 ROW1 selected neutral and unselected track color feedback")
 
 device_layer_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceLayerMode.java"
 replace_once(device_layer_mode,
