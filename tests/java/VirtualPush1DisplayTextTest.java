@@ -18,8 +18,10 @@ public final class VirtualPush1DisplayTextTest
             "line breaks and tabs must become one display cell each");
         check (Push1DisplayText.fit ("A😀B", 4), "A?B ",
             "a supplementary Unicode code point must occupy one replacement cell");
-        check (Push1DisplayText.fit ("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 10), "ABCD...XYZ",
-            "long labels must retain both ends within the requested width");
+        check (Push1DisplayText.fit ("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 10), "ABCD..WXYZ",
+            "long labels must retain both ends and use exactly two truncation dots");
+        check (Push1DisplayText.fit ("ABCDEFGHIJK", 6), "AB..JK",
+            "two-dot truncation must preserve the exact requested width at its minimum");
         check (Push1DisplayText.fit ("ABCDE", 4), "ABC>",
             "short-width truncation must remain bounded");
         check (Push1DisplayText.fit (null, 5), "     ",
