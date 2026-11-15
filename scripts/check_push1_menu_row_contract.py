@@ -81,6 +81,13 @@ require("isButtonRow (0, buttonID)" in note_colors.split("index = this.isButtonR
 require("VIEWS[index]" in note_colors.split("index = this.isButtonRow (1", 1)[1],
         "Note View Select Row 2 LED feedback must describe lower choices")
 
+require(note_colors.count("PushColorManager.PUSH_GREEN_HI") == 2
+        and note_colors.count("PushColorManager.PUSH_YELLOW_LO") == 2,
+        "Available Note View Select modes must be vivid green and the selected mode dim yellow")
+require("AbstractMode.BUTTON_COLOR_HI" not in note_colors
+        and "AbstractFeatureGroup.BUTTON_COLOR_ON" not in note_colors,
+        "Note View Select must not fall back to the generic medium-yellow/low-green palette")
+
 # Push 1 hardware geometry: ROW1 is the upper button bank nearest the LCD;
 # ROW2 is the lower bank. Keep this distinct from assumptions based on Push 2.
 require("new ButtonRowModeCommand<> (0, i" in setup_source
