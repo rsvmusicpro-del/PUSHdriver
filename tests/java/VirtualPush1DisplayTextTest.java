@@ -1,6 +1,7 @@
 // Copyright (C) 2026 PUSHdriver contributors
 // Licensed under the same LGPLv3 terms as the adapted DrivenByMoss controller code.
 
+import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayProtocol;
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayText;
 
