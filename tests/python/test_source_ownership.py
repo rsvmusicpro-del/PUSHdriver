@@ -99,12 +99,12 @@ class SourceOwnershipTests(unittest.TestCase):
     def test_in_out_direction_contract_accepts_physical_mapping(self):
         errors = MODULE.validate_in_out_contract(
             'this.addButton (ButtonID.PAGE_LEFT, "In" this.addButton (ButtonID.PAGE_RIGHT, "Out" this.model.getCursorDevice ().canSelectNext () this.model.getCursorDevice ().canSelectPrevious ()',
-            "deviceParamsMode.selectNextItem () deviceParamsMode.selectNextItemPage () activeMode.selectNextItemPage ()",
-            "deviceParamsMode.selectPreviousItem () deviceParamsMode.selectPreviousItemPage () activeMode.selectPreviousItemPage ()",
+            "cursorDevice.canSelectNext () cursorDevice.selectNext () deviceParamsMode.selectNextItemPage () activeMode.selectNextItemPage ()",
+            "cursorDevice.canSelectPrevious () cursorDevice.selectPrevious () deviceParamsMode.selectPreviousItemPage () activeMode.selectPreviousItemPage ()",
             "PUSH_BUTTON_DEVICE_LEFT = 62; PUSH_BUTTON_DEVICE_RIGHT = 63;",
             "public static final int IN = 62; public static final int OUT = 63;",
-            "In (CC 62) selects the next device; Out (CC 63) selects the previous device",
-            'requireAction ("device.selectNextItem", "In (CC 62)"); requireAction ("device.selectPreviousItem", "Out (CC 63)"); parameterBank.selectNextPage parameterBank.selectPreviousPage contentTypeIndex () == inOutContentBefore + 1 contentTypeIndex () == inOutContentBefore',
+            "In (CC 62) advances the Bitwig cursor; Out (CC 63) moves the Bitwig cursor back",
+            'requireAction ("cursorDevice.selectNext", "In (CC 62)"); requireAction ("cursorDevice.selectPrevious", "Out (CC 63)"); parameterBank.selectNextPage parameterBank.selectPreviousPage contentTypeIndex () == inOutContentBefore + 1 contentTypeIndex () == inOutContentBefore',
         )
         self.assertEqual(errors, [])
 
@@ -115,7 +115,7 @@ class SourceOwnershipTests(unittest.TestCase):
             "deviceParamsMode.selectNextItem ()",
             "PUSH_BUTTON_DEVICE_LEFT = 62; PUSH_BUTTON_DEVICE_RIGHT = 63;",
             "public static final int IN = 62; public static final int OUT = 63;",
-            "In (CC 62) selects the next device; Out (CC 63) selects the previous device",
+            "In (CC 62) advances the Bitwig cursor; Out (CC 63) moves the Bitwig cursor back",
             "",
         )
         self.assertTrue(errors)
