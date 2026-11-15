@@ -1,15 +1,14 @@
 // Copyright (C) 2026 PUSHdriver contributors
 // Licensed under the same LGPLv3 terms as the adapted DrivenByMoss controller code.
 
+import de.mossgrabers.controller.ableton.push.controller.Push1DisplayProtocol;
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayText;
 
 
 /** Regression tests for fixed-width Push 1 LCD text composition. */
 public final class VirtualPush1DisplayTextTest
 {
-    private VirtualPush1DisplayTextTest ()
-    {
-    }
+    private VirtualPush1DisplayTextTest () { }
 
 
     public static void main (final String [] args)
@@ -18,10 +17,20 @@ public final class VirtualPush1DisplayTextTest
             "line breaks and tabs must become one display cell each");
         check (Push1DisplayText.fit ("A😀B", 4), "A?B ",
             "a supplementary Unicode code point must occupy one replacement cell");
-        check (Push1DisplayText.fit ("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 10), "ABCD..WXYZ",
-            "long labels must retain both ends and use exactly two truncation dots");
-        check (Push1DisplayText.fit ("ABCDEFGHIJK", 6), "AB..JK",
-            "two-dot truncation must preserve the exact requested width at its minimum");
+
+        final String ellipsis = String.valueOf ((char) 0x1C);
+        check (Push1DisplayText.fit ("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 10), "ABCD" + ellipsis + "WXYZ",
+            "long labels must retain both ends and use the Push 1 single-cell ellipsis");
+        check (Push1DisplayText.fit ("ABCDEFGHIJK", 6), "ABC" + ellipsis + "JK",
+            "single-cell ellipsis truncation must preserve the exact minimum width");
+        check (Push1DisplayText.fit ("A…B", 4), "A" + ellipsis + "B ",
+            "Unicode ellipsis input must map to the Push 1 firmware character code");
+
+        final String protocolRow = "ABCD" + ellipsis + "X".repeat (63);
+        final String [] protocolBytes = Push1DisplayProtocol.encodeLine (0, protocolRow).split (" ");
+        check (protocolBytes[12], "1C",
+            "LCD SysEx must transmit the single-cell ellipsis as firmware code 0x1C");
+
         check (Push1DisplayText.fit ("ABCDE", 4), "ABC>",
             "short-width truncation must remain bounded");
         check (Push1DisplayText.fit (null, 5), "     ",
@@ -42,7 +51,7 @@ public final class VirtualPush1DisplayTextTest
         require (normalized.substring (0, 3).equals ("A?B"),
             "right-block overlay must normalize Unicode by display code point");
 
-        System.out.println ("Virtual Push 1 display text passed: Unicode cell fitting, truncation and safe right-block overlays.");
+        System.out.println ("Virtual Push 1 display text passed: Unicode cell fitting, single-cell firmware ellipsis truncation and safe right-block overlays.");
     }
 
 

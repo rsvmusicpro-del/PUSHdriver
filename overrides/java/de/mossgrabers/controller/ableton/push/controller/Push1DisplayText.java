@@ -5,6 +5,9 @@ package de.mossgrabers.controller.ableton.push.controller;
 /** Fits human-readable labels to the Push 1's fixed-width character cells. */
 public final class Push1DisplayText
 {
+    // Push 1 firmware character table: code 0x1C is the single-cell ellipsis.
+    private static final int ELLIPSIS_CHARACTER_CODE = 0x1C;
+
     private Push1DisplayText ()
     {
     }
@@ -26,7 +29,9 @@ public final class Push1DisplayText
         if (value != null)
         {
             value.codePoints ().forEach (codePoint -> {
-                if (codePoint == '\n' || codePoint == '\r' || codePoint == '\t')
+                if (codePoint == 0x2026)
+                    normalized.append ((char) ELLIPSIS_CHARACTER_CODE);
+                else if (codePoint == '\n' || codePoint == '\r' || codePoint == '\t')
                     normalized.append (' ');
                 else
                     normalized.append (codePoint <= 0x7F ? (char) codePoint : '?');
@@ -38,12 +43,12 @@ public final class Push1DisplayText
         {
             if (width >= 6)
             {
-                final int available = width - 2;
+                final int available = width - 1;
                 final int headLength = (available + 1) / 2;
                 final int tailLength = available - headLength;
                 final String head = text.substring (0, headLength).stripTrailing ();
                 final String tail = tailLength == 0 ? "" : text.substring (text.length () - tailLength).stripLeading ();
-                text = head + ".." + tail;
+                text = head + (char) ELLIPSIS_CHARACTER_CODE + tail;
             }
             else
                 text = text.substring (0, width - 1) + ">";
