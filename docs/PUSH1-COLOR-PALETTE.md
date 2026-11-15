@@ -11,6 +11,19 @@ PUSHdriver exposes exactly 64 color choices in the existing Color view. The fram
 - The internal `COLOR_OFF` fallback remains intact and is excluded from the visible menu; the menu still contains exactly 64 choices.
 - Track/clip/layer color assignment paths are unchanged.
 
+## Track selector feedback
+
+The first button row in Track, Clip, Volume, Pan and Send modes identifies tracks.
+For an existing, active, non-selected track that is not record-armed, its LED
+uses the closest RGB match from the eight stable, non-blinking colors in the
+Push 1 first-row palette (hardware indices 1, 4, 7, 10, 13, 16, 19 and 22).
+The 64-color Bitwig palette and the 128-entry pad RGB palette are not valid
+sources for ROW1 button output. A selected Push 1 track uses the supported
+orange-high first-row LED: ROW1 has no neutral white/grey state. A record-armed
+track remains red (red-high when selected, red-low otherwise) with higher
+priority than selection and track RGB. Push 2 retains its existing orange
+selected-track and yellow ordinary-track feedback.
+
 The output threshold describes the Push 1's fixed LED drive values, not a promise that every hue has identical perceived luminance. Blue and red LEDs are perceived differently by the human eye even at comparable channel values.
 
 ## Palette
