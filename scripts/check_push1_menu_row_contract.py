@@ -135,4 +135,28 @@ quantize_colors = method(quantize, "public String getButtonColorID")
 require("isButtonRow (1, buttonID)" in quantize_colors.split("index = this.isButtonRow (0", 1)[0],
         "Quantize lower-choice LED feedback must be on Row 2")
 
-print("PASS: Note View Select, Session View Select, Scales, Fixed Length and Quantize row/display contracts")
+
+# Add Track LCD halves and physical button rows must agree. The upstream display
+# layout remains unchanged: Instrument is upper; Audio/Effect is lower.
+add_track = read("track/AddTrackMode.java")
+first_row = method(add_track, "public void onFirstRow")
+second_row = method(add_track, "public void onSecondRow")
+colors = method(add_track, "public int getButtonColor")
+require("ChannelType.INSTRUMENT" in first_row and "getInstrumentFavorite" in first_row,
+        "Add Track Row 1 must select the upper Instrument choices")
+require("ChannelType.AUDIO" not in first_row and "ChannelType.EFFECT" not in first_row,
+        "Add Track Row 1 must not select lower Audio/Effect choices")
+require("ChannelType.AUDIO" in second_row and "ChannelType.EFFECT" in second_row
+        and "getAudioFavorite" in second_row and "getEffectFavorite" in second_row,
+        "Add Track Row 2 must select the lower Audio/Effect choices")
+require("ChannelType.INSTRUMENT" not in second_row,
+        "Add Track Row 2 must not select upper Instrument choices")
+first_colors = colors.split("index = this.isButtonRow (1", 1)[0]
+second_colors = colors.split("index = this.isButtonRow (1", 1)[1]
+require("isButtonRow (0" in first_colors and "PUSH1_COLOR_YELLOW_MD" in first_colors
+        and "PUSH1_COLOR2_" not in first_colors,
+        "Add Track upper Instrument Row 1 LEDs must use the Push 1 static palette")
+require("PUSH1_COLOR_GREEN_HI" in second_colors and "PUSH1_COLOR_RED_HI" in second_colors,
+        "Add Track lower Audio/Effect Row 2 LEDs must follow the lower choices")
+
+print("PASS: Add Track, Note View Select, Session View Select, Scales, Fixed Length and Quantize row/display contracts")
