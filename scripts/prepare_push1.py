@@ -437,7 +437,7 @@ for old, new, label in (
     ("this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : PUSH1_COLOR2_YELLOW_HI);",
      "this.registerColorIndex (AbstractSequencerView.COLOR_STEP_SELECTED, isPush2 ? PUSH2_COLOR2_YELLOW_HI : 96);", "Push 1 selected step amber color"),
     ("this.registerColorIndex (AbstractDrumView.COLOR_PAD_SELECTED, isPush2 ? PUSH2_COLOR2_BLUE_HI : PUSH1_COLOR2_BLUE_HI);",
-     "this.registerColorIndex (AbstractDrumView.COLOR_PAD_SELECTED, isPush2 ? PUSH2_COLOR2_BLUE_HI : PUSH1_COLOR2_BLUE_HI);\n        this.registerColorIndex (AbstractDrumView.COLOR_PAD_SOLO, isPush2 ? PUSH2_COLOR2_BLUE_LO : PUSH1_COLOR2_BLUE_LO);", "Push 1 solo pad color"),
+     "this.registerColorIndex (AbstractDrumView.COLOR_PAD_SELECTED, isPush2 ? PUSH2_COLOR2_BLUE_HI : 3);\n        this.registerColorIndex (AbstractDrumView.COLOR_PAD_SOLO, isPush2 ? PUSH2_COLOR2_BLUE_LO : PUSH1_COLOR2_BLUE_LO);", "Push 1 solo pad color"),
 ):
     replace_once(push_colors, old + "\n", new + "\n", label)
 
@@ -1268,13 +1268,41 @@ maschine_import = "import de.mossgrabers.controller.ni.maschine.core.MaschineCol
 if source.count(maschine_import) != 1:
     raise SystemExit("AbstractDrumView: unexpected MaschineColorManager import state")
 source = source.replace(maschine_import, "", 1)
-for old, new in (
-    ("MaschineColorManager.COLOR_GREEN", "this.colorManager.getColorIndex (DAWColor.getColorID (DAWColor.DAW_COLOR_GREEN.getColor ()))"),
-    ("MaschineColorManager.COLOR_LIME_LO", "this.colorManager.getColorIndex (DAWColor.getColorID (DAWColor.DAW_COLOR_MOSS_GREEN.getColor ()))"),
-):
-    if source.count(old) != 1:
-        raise SystemExit(f"AbstractDrumView: expected one {old}")
-    source = source.replace(old, new, 1)
+accent_palette = (
+    "            // Evenly stepped Push 1 hardware colors from red through orange and yellow to green.\n"
+    "            final int [] accentPalette = new int [] { 72, 120, 60, 84, 9, 96, 126, 124, 13, 74, 85, 98, 75, 17, 122, 87 };\n"
+    "            int selectedVelocityPad = 15 - this.configuration.getFixedAccentValue () / 8;\n"
+    "            final int selY = selectedVelocityPad / 4;\n"
+    "            final int selX = selectedVelocityPad % 4;\n"
+    "            selectedVelocityPad = selY * 4 + 3 - selX;\n"
+    "            final IPadGrid padGrid = this.surface.getPadGrid ();"
+)
+draw_pages_start = source.index("protected void drawPages")
+accent_start = source.index("        if (isAccentActive)", draw_pages_start)
+accent_end = source.index("\n        final int step = clip.getCurrentStep ();", accent_start)
+accent_source = source[accent_start:accent_end]
+if accent_source.count("MaschineColorManager.COLOR_GREEN") != 1 or accent_source.count("MaschineColorManager.COLOR_LIME_LO") != 1:
+    raise SystemExit("AbstractDrumView: unexpected Accent color expressions")
+selected_velocity_logic = (
+    "            int selectedVelocityPad = 15 - this.configuration.getFixedAccentValue () / 8;\n"
+    "            final int selY = selectedVelocityPad / 4;\n"
+    "            final int selX = selectedVelocityPad % 4;\n"
+    "            selectedVelocityPad = selY * 4 + 3 - selX;\n\n"
+)
+if accent_source.count(selected_velocity_logic) != 1:
+    raise SystemExit("AbstractDrumView: expected one selected-velocity highlight calculation")
+accent_source = accent_source.replace(selected_velocity_logic, "", 1)
+accent_source = accent_source.replace(
+    "            final IPadGrid padGrid = this.surface.getPadGrid ();",
+    accent_palette,
+    1,
+)
+accent_source = accent_source.replace(
+    "padGrid.lightEx (x, y, pad == selectedVelocityPad ? MaschineColorManager.COLOR_GREEN : MaschineColorManager.COLOR_LIME_LO);",
+    "padGrid.lightEx (x, y, pad == selectedVelocityPad ? 3 : accentPalette[(3 - pad / 4) * 4 + pad % 4]);",
+    1,
+)
+source = source[:accent_start] + accent_source + source[accent_end:]
 drum_view.write_text(source)
 
 # Remove the Push 2 display branch entirely; Push 1 always uses its 2xLCD display.
