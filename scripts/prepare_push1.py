@@ -2372,8 +2372,6 @@ replace_once(track_mode,
 # first-row color. Push 2 keeps its upstream selected-orange/unselected-yellow.
 replace_once(track_mode,
     "            return this.colorManager.getColorIndex (isSel ? PushColorManager.PUSH_ORANGE_HI : PushColorManager.PUSH_YELLOW_LO);",
-    "            if (track.isRecArm ())\\n"
-    "                return this.colorManager.getColorIndex (isSel ? PushColorManager.PUSH_RED_HI : PushColorManager.PUSH_RED_LO);\\n"
     "            if (isSel || this.isPush2)\\n"
     "                return this.colorManager.getColorIndex (isSel ? PushColorManager.PUSH_ORANGE_HI : PushColorManager.PUSH_YELLOW_LO);\\n"
     "            return this.colorManager.getColorIndex (PushColorManager.getClosestPush1Row1TrackColorID (track.getColor ()));",
