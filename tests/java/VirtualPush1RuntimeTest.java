@@ -346,33 +346,54 @@ public final class VirtualPush1RuntimeTest
         require (modes.get (Modes.SESSION) != null, "Session mode was not registered");
         require (modes.get (Modes.NOTE) != null, "Note mode was not registered");
 
-        // Exercise the real TrackMode ROW1 color calculation with distinct
-        // virtual Bitwig track RGB values. This was previously absent from the
-        // virtual suite, allowing the former always-yellow behavior to pass.
+        // Exercise the real TrackMode ROW1 calculation against the Push 1
+        // first-row hardware palette, never the pad's 128-color RGB palette.
         final var pushColorManager = setup.getModel ().getColorManager ();
-        final int selectedWhite = pushColorManager.getColorIndex (
-            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_WHITE_2);
+        final int [] row1HardwareIndices = { 1, 4, 7, 10, 13, 16, 19, 22 };
+        final String [] row1ColorIDs =
+        {
+            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_RED_LO,
+            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_RED_HI,
+            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_ORANGE_LO,
+            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_ORANGE_HI,
+            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_YELLOW_LO,
+            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_YELLOW_MD,
+            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_GREEN_LO,
+            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_GREEN_HI
+        };
+        final int selectedOrange = pushColorManager.getColorIndex (
+            de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_ORANGE_HI);
         final int recordRed = pushColorManager.getColorIndex (
             de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_RED_HI);
-        mixerModel.trackColors[1] = de.mossgrabers.framework.daw.DAWColor.values ()[3].getColor ();
-        mixerModel.trackColors[2] = de.mossgrabers.framework.daw.DAWColor.values ()[8].getColor ();
-        final int expectedTrackOne = pushColorManager.getColorIndex (
-            de.mossgrabers.framework.daw.DAWColor.values ()[3].name ());
-        final int expectedTrackTwo = pushColorManager.getColorIndex (
-            de.mossgrabers.framework.daw.DAWColor.values ()[8].name ());
-        require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_1) == selectedWhite,
-            "Selected Push 1 ROW1 track must be neutral white/grey");
-        require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_2) == expectedTrackOne
-                && modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_3) == expectedTrackTwo,
-            "Ordinary Push 1 ROW1 LEDs must follow each track's distinct Bitwig RGB color");
-        require (expectedTrackOne != expectedTrackTwo
-                && expectedTrackOne != pushColorManager.getColorIndex (
-                    de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_YELLOW_LO),
-            "Track-color regression fixture must differ from the generic yellow fallback");
+        for (int i = 0; i < row1HardwareIndices.length; i++)
+        {
+            mixerModel.trackColors[i] =
+                de.mossgrabers.controller.ableton.push.controller.PushColorManager.getPaletteColor (row1HardwareIndices[i]);
+            require (pushColorManager.getColorIndex (row1ColorIDs[i]) == row1HardwareIndices[i],
+                "Push 1 ROW1 semantic color ID does not resolve to its physical first-row index: " + row1ColorIDs[i]);
+        }
+        require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_1) == selectedOrange,
+            "Selected Push 1 ROW1 track uses supported orange-high");
+        // All eight native Push 1 ROW1 colors map to their exact hardware indices.
+        for (int i = 1; i < row1HardwareIndices.length; i++)
+        {
+            final int actual = modes.get (Modes.TRACK).getButtonColor (ButtonID.get (ButtonID.ROW1_1, i));
+            require (actual == row1HardwareIndices[i],
+                "Track RGB did not resolve to native ROW1 index " + row1HardwareIndices[i] + ": " + actual);
+            require (actual == 1 || actual == 4 || actual == 7 || actual == 10
+                    || actual == 13 || actual == 16 || actual == 19 || actual == 22,
+                "Track LED resolved outside the eight static ROW1 colors: " + actual);
+        }
         mixerModel.recArmed[0] = true;
         require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_1) == recordRed,
-            "Record-arm red must retain priority over selected-track white");
+            "Record-arm red overrides selected and ordinary track colors");
         mixerModel.recArmed[0] = false;
+        mixerModel.recArmed[1] = true;
+        require (modes.get (Modes.TRACK).getButtonColor (ButtonID.ROW1_2)
+                == pushColorManager.getColorIndex (
+                    de.mossgrabers.controller.ableton.push.controller.PushColorManager.PUSH_RED_LO),
+            "Unselected record-armed tracks must retain first-row low red");
+        mixerModel.recArmed[1] = false;
 
         // These are the production PushControllerSetup button commands, not
         // test doubles: MIDI CC -> IMidiInput binding -> IHwButton -> command.
