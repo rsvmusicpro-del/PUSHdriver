@@ -57,6 +57,29 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
         raise SystemExit(f"{label}: expected exactly one source match")
     path.write_text(content.replace(old, new, 1))
 
+
+def replace_java_method(path: Path, signature: str, replacement: str, label: str) -> None:
+    source = path.read_text()
+    start = source.find(signature)
+    if start < 0:
+        raise SystemExit(f"{label}: method signature not found")
+    brace = source.find("{", start)
+    if brace < 0:
+        raise SystemExit(f"{label}: method body not found")
+    depth = 0
+    end = None
+    for position in range(brace, len(source)):
+        if source[position] == "{":
+            depth += 1
+        elif source[position] == "}":
+            depth -= 1
+            if depth == 0:
+                end = position + 1
+                break
+    if end is None:
+        raise SystemExit(f"{label}: unclosed method body")
+    path.write_text(source[:start] + replacement + source[end:])
+
 copy_tree("src/main/java/de/mossgrabers/framework", "src/main/java/de/mossgrabers/framework")
 copy_tree("src/main/java/de/mossgrabers/bitwig/framework", "src/main/java/de/mossgrabers/bitwig/framework")
 # Push 1 uses MIDI only; the Bitwig USB-HID adapter exists for other hardware.
@@ -430,6 +453,100 @@ replace_once(piano_helper,
     "                    color = colorManager.getColorIndex (AbstractView.replaceOctaveColorWithTrackColor (track, Scales.SCALE_COLOR_OCTAVE));\n"
     "                else if (row % 2 == 0)",
     "PianoViewHelper root notes follow selected track color")
+
+
+# Add Track keeps its existing LCD layout, but the physical button rows follow
+# the corresponding screen halves: ROW1 selects the upper Instrument choices;
+# ROW2 selects the lower Audio/Effect choices. Patch the upstream mode in place
+# during deterministic assembly; do not introduce a parallel mode override.
+add_track_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/track/AddTrackMode.java"
+replace_java_method(add_track_mode, "public void onFirstRow", '''    @Override
+    public void onFirstRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+
+        String channelName = null;
+        final List<IDeviceMetadata> devices = new ArrayList<> ();
+        if (index > 0)
+        {
+            final PushConfiguration conf = this.surface.getConfiguration ();
+            final Optional<IDeviceMetadata> instrumentFavorite = conf.getInstrumentFavorite (index - 1);
+            if (instrumentFavorite.isPresent ())
+            {
+                final IDeviceMetadata deviceMetadata = instrumentFavorite.get ();
+                devices.add (deviceMetadata);
+                channelName = deviceMetadata.name ();
+            }
+        }
+
+        this.model.getTrackBank ().addChannel (ChannelType.INSTRUMENT, channelName, devices);
+        this.surface.getModeManager ().restore ();
+    }''', "AddTrack ROW1 Instrument selection")
+replace_java_method(add_track_mode, "public void onSecondRow", '''    @Override
+    public void onSecondRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.UP)
+            return;
+
+        final PushConfiguration conf = this.surface.getConfiguration ();
+        final List<IDeviceMetadata> devices = new ArrayList<> ();
+        final ChannelType channelType;
+        String channelName = null;
+
+        if (index < 4)
+        {
+            channelType = ChannelType.AUDIO;
+            if (index > 0)
+            {
+                final Optional<IDeviceMetadata> audioFavorite = conf.getAudioFavorite (index - 1);
+                if (audioFavorite.isPresent ())
+                {
+                    final IDeviceMetadata deviceMetadata = audioFavorite.get ();
+                    devices.add (deviceMetadata);
+                    channelName = deviceMetadata.name ();
+                }
+            }
+        }
+        else
+        {
+            channelType = ChannelType.EFFECT;
+            if (index > 4)
+            {
+                final Optional<IDeviceMetadata> effectFavorite = conf.getEffectFavorite (index - 5);
+                if (effectFavorite.isPresent ())
+                {
+                    final IDeviceMetadata deviceMetadata = effectFavorite.get ();
+                    devices.add (deviceMetadata);
+                    channelName = deviceMetadata.name ();
+                }
+            }
+        }
+
+        this.model.getTrackBank ().addChannel (channelType, channelName, devices);
+        this.surface.getModeManager ().restore ();
+    }''', "AddTrack ROW2 Audio/Effect selection")
+replace_java_method(add_track_mode, "public int getButtonColor", '''    @Override
+    public int getButtonColor (final ButtonID buttonID)
+    {
+        int index = this.isButtonRow (0, buttonID);
+        if (index >= 0)
+            return this.isPush2 ? (index == 0 ? PushColorManager.PUSH2_COLOR2_YELLOW_HI : PushColorManager.PUSH2_COLOR2_YELLOW_LO) : PushColorManager.PUSH1_COLOR_YELLOW_MD;
+
+        index = this.isButtonRow (1, buttonID);
+        if (index >= 0)
+        {
+            if (index == 0)
+                return this.isPush2 ? PushColorManager.PUSH2_COLOR2_GREEN_HI : PushColorManager.PUSH1_COLOR_GREEN_HI;
+            if (index < 4)
+                return this.isPush2 ? PushColorManager.PUSH2_COLOR2_GREEN_LO : PushColorManager.PUSH1_COLOR_GREEN_LO;
+            if (index == 4)
+                return this.isPush2 ? PushColorManager.PUSH2_COLOR2_BLUE_HI : PushColorManager.PUSH1_COLOR_RED_HI;
+            return this.isPush2 ? PushColorManager.PUSH2_COLOR2_BLUE_LO : PushColorManager.PUSH1_COLOR_RED_LO;
+        }
+
+        return this.colorManager.getColorIndex (AbstractFeatureGroup.BUTTON_COLOR_OFF);
+    }''', "AddTrack LED row mapping")
 
 # Apply the small, reviewed Push 1 protocol override maintained by this project.
 shutil.copytree(root / "overrides/java", root / "src/main/java", dirs_exist_ok=True)
