@@ -6,6 +6,12 @@ public final class ClassicSequencerEngine extends AbstractSequencerEngine
 {
     private boolean followPlayhead = true;
 
+    @Override
+    protected void onDeactivated ()
+    {
+        this.followPlayhead = true;
+    }
+
     public synchronized boolean shouldFollowPlayhead ()
     {
         return this.isActive () && this.followPlayhead;
