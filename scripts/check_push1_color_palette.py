@@ -7,14 +7,16 @@ ROOT = Path.cwd()
 daw_path = ROOT / "src/main/java/de/mossgrabers/framework/daw/DAWColor.java"
 push_path = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/controller/PushColorManager.java"
 view_path = ROOT / "src/main/java/de/mossgrabers/framework/view/ColorView.java"
+track_mode_path = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/mode/track/AbstractTrackMode.java"
 
-for path in (daw_path, push_path, view_path):
+for path in (daw_path, push_path, view_path, track_mode_path):
     if not path.is_file():
         raise SystemExit(f"Missing assembled source: {path}")
 
 daw = daw_path.read_text()
 push = push_path.read_text()
 view = view_path.read_text()
+track_mode = track_mode_path.read_text()
 
 entries = re.findall(
     r'^\s*([A-Z][A-Z0-9_]*)\("([^"]+)", new ColorEx \(([^)]*)\)\)([,;])$',
@@ -97,6 +99,18 @@ if "cursorTrack.setColor (entry);" not in view or "clip.setColor (entry);" not i
     raise SystemExit("Track/clip RGB assignment path is missing")
 if "((ILayer) selectedItem.get ()).setColor (entry);" not in view:
     raise SystemExit("Layer RGB assignment path is missing")
+
+# ROW1 track selectors must use the nearest of the 64 selectable colors,
+# excluding COLOR_OFF, while preserving selected/record-arm priority.
+if "createTrackColorOptions ()" not in push or "System.arraycopy (allColors, 1, options, 0, options.length);" not in push:
+    raise SystemExit("Track LED lookup must exclude the internal COLOR_OFF fallback")
+if "ColorEx.getClosestColorIndex (color, TRACK_COLOR_PALETTE)" not in push:
+    raise SystemExit("Track LED lookup does not choose the nearest selectable RGB color")
+if "PushColorManager.getClosestTrackColorID (track.getColor ())" not in track_mode:
+    raise SystemExit("ROW1 track LED does not use the track's Bitwig RGB color")
+if "if (track.isRecArm ())" not in track_mode or "PushColorManager.PUSH_ORANGE_HI" not in track_mode:
+    raise SystemExit("ROW1 record-arm or selected-track LED priority was changed")
+
 
 print("PASS: 64 unique Bitwig RGB colors match 64 selected Push 1 hardware palette indices.")
 print("PASS: every selected LED color meets the physical output and chroma thresholds.")
