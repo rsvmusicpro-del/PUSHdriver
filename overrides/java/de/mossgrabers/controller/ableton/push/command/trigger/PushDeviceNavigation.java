@@ -43,7 +43,7 @@ public final class PushDeviceNavigation
         final ICursorDevice cursor=model.getCursorDevice();final State state=stateFor(surface,model);
         synchronized(state)
         {
-            if(!state.running&&state.actions.isEmpty()&&!cursor.isNested())return false;
+            if(!state.running&&state.actions.isEmpty()&&(!cursor.isNested()||cursor.getIndex()==index))return false;
             enqueueLocked(state,new Action(Type.SELECT,null,index));startNext(surface,state);return true;
         }
     }

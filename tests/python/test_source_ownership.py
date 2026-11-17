@@ -124,6 +124,7 @@ class SourceOwnershipTests(unittest.TestCase):
             "public static final int IN = 62; public static final int OUT = 63;",
             "In (CC 62) selects the next device; Out (CC 63) selects the previous device",
             "",
+            "",
         )
         self.assertTrue(errors)
 
