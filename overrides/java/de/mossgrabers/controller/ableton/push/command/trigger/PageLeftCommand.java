@@ -11,7 +11,6 @@ import de.mossgrabers.framework.daw.constants.Capability;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.framework.utils.ButtonEvent;
-import de.mossgrabers.framework.view.Views;
 
 
 /** Push 1 In control: enter the native Device Chains selector. */
@@ -27,7 +26,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     @Override
     public void execute (final ButtonEvent event, final int velocity)
     {
-        if (event != ButtonEvent.DOWN || this.surface.getViewManager ().isActive (Views.SESSION))
+        if (event != ButtonEvent.DOWN)
             return;
 
         final var modeManager = this.surface.getModeManager ();
