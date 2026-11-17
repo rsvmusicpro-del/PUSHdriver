@@ -808,6 +808,7 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 73);
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Out incorrectly left the hierarchy when the parent was itself nested");
+        deviceParamsMode.setShowDevices (true);
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
             "Select sibling inside nested parent chain");
