@@ -744,6 +744,58 @@ public final class VirtualPush1RuntimeTest
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectPrevious")).count () == 2,
             "Nested ROW1 selection did not move the cursor back to the requested chain device");
 
+        // Exhaustive boundary model: every valid start/target pair for chain
+        // sizes 1..8, plus every unavailable ROW1 position. This catches the
+        // former fixed-eight mock and proves invalid buttons never clamp to a
+        // different child. Each action still travels through production MIDI.
+        final String [] fullNestedBank = virtualDeviceBankNames;
+        for (int childCount = 1; childCount <= 8; childCount++)
+        {
+            virtualDeviceBankNames = new String [childCount];
+            for (int child = 0; child < childCount; child++)
+                virtualDeviceBankNames[child] = "Chain child " + child;
+
+            for (int startIndex = 0; startIndex < childCount; startIndex++)
+            {
+                for (int targetIndex = 0; targetIndex < 8; targetIndex++)
+                {
+                    deviceIndex = startIndex;
+                    virtualCursorDevicePosition = startIndex;
+                    MODEL_ACTIONS.clear ();
+                    requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + targetIndex,
+                        "Chain size " + childCount + ", start " + startIndex + ", ROW1 " + (targetIndex + 1));
+
+                    if (targetIndex < childCount)
+                    {
+                        require (deviceIndex == targetIndex,
+                            "Valid ROW1 target was not selected: chain size " + childCount
+                                + ", start " + startIndex + ", target " + targetIndex
+                                + ", actual " + deviceIndex);
+                        final long expectedMoves = Math.abs (targetIndex - startIndex);
+                        final long actualMoves = MODEL_ACTIONS.stream ()
+                            .filter (a -> a.equals ("cursorDevice.selectNext") || a.equals ("cursorDevice.selectPrevious"))
+                            .count ();
+                        require (actualMoves == expectedMoves,
+                            "Nested cursor movement count mismatch for chain size " + childCount
+                                + ", start " + startIndex + ", target " + targetIndex
+                                + ": expected " + expectedMoves + ", got " + actualMoves);
+                    }
+                    else
+                    {
+                        require (deviceIndex == startIndex,
+                            "Unavailable ROW1 position moved the cursor: chain size " + childCount
+                                + ", start " + startIndex + ", target " + targetIndex);
+                        require (MODEL_ACTIONS.stream ().noneMatch (a ->
+                                a.equals ("cursorDevice.selectNext") || a.equals ("cursorDevice.selectPrevious")),
+                            "Unavailable ROW1 position issued a cursor movement");
+                    }
+                }
+            }
+        }
+        virtualDeviceBankNames = fullNestedBank;
+        deviceIndex = 1;
+        virtualCursorDevicePosition = 1;
+
         // Returning to Device mode must keep the real controller bindings active.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Re-enter Device mode");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Device mode could not be re-entered");
@@ -2259,8 +2311,11 @@ public final class VirtualPush1RuntimeTest
                         new Class<?> [] { de.mossgrabers.framework.daw.data.IDevice.class },
                         (p, m, a) -> switch (m.getName ())
                         {
-                            case "doesExist" -> Boolean.valueOf (deviceSlotExists);
-                            case "getName" -> virtualDeviceBankNames[targetIndex % virtualDeviceBankNames.length];
+                            case "doesExist" -> Boolean.valueOf (virtualCursorDeviceNested
+                                ? targetIndex >= 0 && targetIndex < virtualDeviceBankNames.length
+                                : deviceSlotExists);
+                            case "getName" -> targetIndex >= 0 && targetIndex < virtualDeviceBankNames.length
+                                ? virtualDeviceBankNames[targetIndex] : "";
                             case "getPosition" -> Integer.valueOf (targetIndex);
                             case "select" -> {
                                 MODEL_ACTIONS.add ("device.select");
@@ -2323,17 +2378,23 @@ public final class VirtualPush1RuntimeTest
                     case "getName": return virtualCursorDeviceName;
                     case "isNested": return Boolean.valueOf (virtualCursorDeviceNested);
                     case "hasLayers": return Boolean.valueOf (virtualCursorDeviceHasLayers);
-                    case "canSelectNext": return Boolean.valueOf (deviceIndex < 7);
+                    case "canSelectNext": return Boolean.valueOf (deviceIndex + 1 < virtualDeviceBankNames.length);
                     case "canSelectPrevious": return Boolean.valueOf (deviceIndex > 0);
                     case "selectNext":
-                        MODEL_ACTIONS.add ("cursorDevice.selectNext");
-                        deviceIndex = Math.min (7, deviceIndex + 1);
-                        virtualCursorDevicePosition = deviceIndex;
+                        if (deviceIndex + 1 < virtualDeviceBankNames.length)
+                        {
+                            MODEL_ACTIONS.add ("cursorDevice.selectNext");
+                            deviceIndex++;
+                            virtualCursorDevicePosition = deviceIndex;
+                        }
                         return null;
                     case "selectPrevious":
-                        MODEL_ACTIONS.add ("cursorDevice.selectPrevious");
-                        deviceIndex = Math.max (0, deviceIndex - 1);
-                        virtualCursorDevicePosition = deviceIndex;
+                        if (deviceIndex > 0)
+                        {
+                            MODEL_ACTIONS.add ("cursorDevice.selectPrevious");
+                            deviceIndex--;
+                            virtualCursorDevicePosition = deviceIndex;
+                        }
                         return null;
                     case "selectParent":
                         MODEL_ACTIONS.add ("cursorDevice.selectParent");
