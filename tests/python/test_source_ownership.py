@@ -105,12 +105,13 @@ class SourceOwnershipTests(unittest.TestCase):
     def test_in_out_direction_contract_accepts_physical_mapping(self):
         errors = MODULE.validate_in_out_contract(
             'this.addButton (ButtonID.PAGE_LEFT, "In" this.addButton (ButtonID.PAGE_RIGHT, "Out"',
-            "Capability.HAS_SLOT_CHAINS getSlotChains () selectSlotChain (slotChains[0])",
-            "cursorDevice.isNested () cursorDevice.selectParent ()",
+            "PushDeviceNavigation.enterFirstSlotChain",
+            "PushDeviceNavigation.exitParent",
             "PUSH_BUTTON_DEVICE_LEFT = 62; PUSH_BUTTON_DEVICE_RIGHT = 63;",
             "public static final int IN = 62; public static final int OUT = 63;",
             "In (CC 62) enters the first available slot chain; Out (CC 63) returns to its parent device",
             'requireAction ("device.selectSlotChain:Chain 1", "In (CC 62)"); requireAction ("cursorDevice.selectParent", "Out (CC 63)"); "cursorDevice.selectNext"; "cursorDevice.selectPrevious"; contentTypeIndex () == inOutContentBefore + 1 contentTypeIndex () == inOutContentBefore',
+            "cursor.selectSlotChain(selected) cursor.selectParent()",
         )
         self.assertEqual(errors, [])
 
