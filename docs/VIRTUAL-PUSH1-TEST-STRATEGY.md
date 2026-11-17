@@ -54,6 +54,18 @@ The virtual MIDI adapter serializes short-message and SysEx callback entry, matc
 
 The extended fuzzer separately creates dense command bursts and varies when queued callbacks are drained. Its first run exposed a test-double mismatch rather than a production extension defect: ITrackBank.getSceneBank() had been wired to the model's global 64-scene bank, although the track bank exposes an eight-slot clip-launcher page. That made the simulator ask the four-row Push 1 LCD to render rows that cannot exist. The virtual host now models the global scene bank and each track's eight-slot page separately, and a focused assertion protects that API boundary.
 
+## Optional live Bitwig MIDI transport probe
+
+`scripts/live_bitwig_midi_probe.py` creates two RtMidi virtual ports for a manually configured Bitwig session. It can passively capture Bitwig MIDI output or send a selected CC into Bitwig. Install the optional dependencies with `python3 -m pip install mido python-rtmidi`, then run:
+
+```bash
+python3 scripts/live_bitwig_midi_probe.py --duration=30
+```
+
+Configure Bitwig's controller MIDI input to `PUSHdriver Bitwig Input` and its MIDI output to `PUSHdriver Bitwig Output` where the controller setup permits manual port selection. To inject a deliberate control event, add `--cc=62 --value=127`; this is the Push 1 In control and can change the selected device hierarchy in a live project.
+
+This is a manual transport diagnostic, not a Bitwig automation harness: it does not create a Push 1 firmware identity, guarantee that Bitwig will attach the PUSHdriver extension to virtual ports, or certify controller behavior. It is supported on macOS/Linux with RtMidi virtual ports; Windows requires a different virtual-MIDI backend. Physical Push 1 acceptance remains separate.
+
 ## External techniques and why they matter
 
 - **Ableton Push 1 manual** — use it to derive musical workflows: Browser navigation, Session clip launching, Note/Drum layouts, sequencer editing, Duplicate/Mute/Delete chords, device control and touch-strip behavior. Only adopt behaviors that the PUSHdriver/Bitwig project actually intends to support; Ableton Live-only semantics are not automatically Bitwig requirements.
@@ -78,7 +90,7 @@ The extended fuzzer separately creates dense command bursts and varies when queu
 2. Add a separate reference-profile test for every physical input/output mapping, sourced from the Push 1 protocol reference and pinned upstream map, never from the simulator itself.
 3. Add event trace export/replay (MIDI short messages, SysEx, virtual timestamps, active view and seed) so a failure can become a permanent named regression scenario.
 4. The standalone runner now has a deterministic prefix reducer and independent guard-mutation tests. Next, migrate production behavior tests into discoverable test cases before introducing QuickTheories arbitrary-sequence shrinking and PIT mutation coverage on Java production overrides.
-5. Add an optional macOS live-host profile using Mido/RtMidi virtual ports and a manually launched Bitwig 4.3.10 instance. Verify port discovery, actual API callbacks, event ordering and feedback loopback. Keep this profile separate from headless CI.
+5. A manual Mido/RtMidi virtual-port probe is now available for live Bitwig transport diagnostics. The next qualification step is to connect it to a manually launched Bitwig 4.3.10 session, verify actual controller-extension attachment, callback ordering and feedback loopback, and keep that profile separate from headless CI.
 6. Keep physical Push 1 qualification for facts that software cannot observe: USB enumeration quirks, electrical/noise behavior, analog pressure curve, actual LED brightness/colour, LCD module/glass and hardware-specific latency.
 
 ## Acceptance rules

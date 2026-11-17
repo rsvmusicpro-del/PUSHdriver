@@ -294,6 +294,10 @@ replace_once(poly_sequencer,
     "        final int step = hasClip ? clip.getCurrentStep () : -1;",
     "Poly sequencer checks clip existence before reading the playhead")
 replace_once(poly_sequencer,
+    "        final int hiStep = this.isInXRange (step) ? step % this.sequencerSteps : -1;",
+    "        final int hiStep = hasClip && this.isInXRange (step) ? step % this.sequencerSteps : -1;",
+    "Poly sequencer skips clip-range queries when the selected slot has no clip")
+replace_once(poly_sequencer,
     "            final IStepInfo stepInfo = this.getStep (clip, col);\n"
     "            final boolean hilite = col == hiStep;",
     "            final IStepInfo stepInfo = hasClip ? this.getStep (clip, col) : null;\n"

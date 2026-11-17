@@ -79,8 +79,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Validate one-command local bench runner
-        run: python3 -m py_compile scripts/run_virtual_push1.py
+      - name: Validate local and optional live-host diagnostic runners
+        run: python3 -m py_compile scripts/run_virtual_push1.py scripts/live_bitwig_midi_probe.py
 
       - name: Prepare Bitwig extension
         run: |

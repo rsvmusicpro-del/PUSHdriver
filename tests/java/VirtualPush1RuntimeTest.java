@@ -2203,6 +2203,9 @@ public final class VirtualPush1RuntimeTest
         IDrumDevice drumDevice () { return this.drumDevice; }
         void setCanHoldNotes (final boolean value) { this.canHold[0] = value; }
         boolean canHoldNotes () { return this.canHold[0]; }
+        void setNoteClipExists (final boolean exists) { this.noteClipExists[0] = exists; }
+        int currentStepReadCount () { return this.currentStepReads[0]; }
+        int stepReadCount () { return this.stepReads[0]; }
         int toggleCount () { return this.toggleCount[0]; }
         NotePosition lastToggle () { return this.lastToggle == null ? new NotePosition () : new NotePosition (this.lastToggle); }
         int pageBackCount () { return this.pageBack[0]; }
@@ -2282,10 +2285,6 @@ public final class VirtualPush1RuntimeTest
                 });
         }
 
-        void setNoteClipExists (final boolean exists) { this.noteClipExists[0] = exists; }
-        int currentStepReadCount () { return this.currentStepReads[0]; }
-        int stepReadCount () { return this.stepReads[0]; }
-        int toggleCount () { return this.toggleCount[0]; }
         ICursorTrack cursorTrack () { return this.cursorTrack; }
         void setSlotAvailable (final int index, final boolean value) { this.available[index] = value; }
         void setSelectedSlot (final int index) { this.selectedSlot[0] = Math.max (0, Math.min (this.slots.length - 1, index)); }
