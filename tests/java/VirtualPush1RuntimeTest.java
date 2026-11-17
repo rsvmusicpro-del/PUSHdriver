@@ -127,6 +127,7 @@ public final class VirtualPush1RuntimeTest
     private static boolean virtualSuppressParentCursorUpdate;
     private static boolean virtualSuppressChainCursorUpdate;
     private static boolean virtualNullSlotChains;
+    private static boolean virtualUnexpectedNestedCursorUpdate;
     private static boolean virtualDeferCursorUpdates;
     private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
     // Model API capabilities independently; Bitwig hosts may support one feature but not another.
@@ -772,6 +773,20 @@ public final class VirtualPush1RuntimeTest
             "Navigation remained busy after the bounded queue drained");
         require (!virtualCursorDeviceNested, "Queue overflow cancelled the in-flight action or broke serialized hierarchy order");
         virtualDeferCursorUpdates = false;
+
+        // An unrelated move into another nested device must not confirm the
+        // requested chain entry merely because the cursor became nested.
+        virtualUnexpectedNestedCursorUpdate = true;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "IN while an unrelated nested cursor update is delivered");
+        drainScheduled (state, 73);
+        require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
+            "Unexpected nested cursor movement did not time out the pending chain entry");
+        require (virtualCursorDeviceNested && deviceIndex == 1,
+            "Unexpected nested cursor update was incorrectly accepted as the first child of the requested chain");
+        virtualUnexpectedNestedCursorUpdate = false;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return after rejected unrelated nested cursor update");
+        drainScheduled (state, 73);
+        require (!virtualCursorDeviceNested, "Out could not recover after rejecting an unrelated nested cursor update");
 
         // If Bitwig never confirms a chain entry, the bounded timeout must release
         // the queue rather than leaving future button presses permanently blocked.
@@ -2548,16 +2563,32 @@ public final class VirtualPush1RuntimeTest
                                 // Simulate a chain child whose name, position and
                                 // nesting flags match the previous cursor. The
                                 // sibling-bank contents still identify the change.
-                                virtualCursorDeviceName = "Slot " + args[0] + " child 0";
-                                virtualCursorDevicePosition = 0;
-                                deviceIndex = 0;
-                                virtualCursorDeviceNested = true;
-                                virtualDeviceBankNames = new String [] {
-                                    "Slot " + args[0] + " child 0", "Slot " + args[0] + " child 1",
-                                    "Slot " + args[0] + " child 2", "Slot " + args[0] + " child 3",
-                                    "Slot " + args[0] + " child 4", "Slot " + args[0] + " child 5",
-                                    "Slot " + args[0] + " child 6", "Slot " + args[0] + " child 7"
-                                };
+                                if (virtualUnexpectedNestedCursorUpdate)
+                                {
+                                    // Model an unrelated host cursor move into a different nested
+                                    // chain while the requested slot-chain callback is outstanding.
+                                    virtualCursorDeviceName = "External nested device";
+                                    virtualCursorDevicePosition = 1;
+                                    deviceIndex = 1;
+                                    virtualCursorDeviceNested = true;
+                                    virtualDeviceBankNames = new String [] {
+                                        "External child 0", "External child 1", "External child 2", "External child 3",
+                                        "External child 4", "External child 5", "External child 6", "External child 7"
+                                    };
+                                }
+                                else
+                                {
+                                    virtualCursorDeviceName = "Slot " + args[0] + " child 0";
+                                    virtualCursorDevicePosition = 0;
+                                    deviceIndex = 0;
+                                    virtualCursorDeviceNested = true;
+                                    virtualDeviceBankNames = new String [] {
+                                        "Slot " + args[0] + " child 0", "Slot " + args[0] + " child 1",
+                                        "Slot " + args[0] + " child 2", "Slot " + args[0] + " child 3",
+                                        "Slot " + args[0] + " child 4", "Slot " + args[0] + " child 5",
+                                        "Slot " + args[0] + " child 6", "Slot " + args[0] + " child 7"
+                                    };
+                                }
                             }));
                         return null;
                     case "toggleEnabledState":
