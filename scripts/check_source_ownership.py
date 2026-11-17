@@ -11,6 +11,7 @@ OVERRIDE_ALLOWLIST={
 "de/mossgrabers/controller/ableton/push/command/trigger/PageRightCommand.java",
 "de/mossgrabers/controller/ableton/push/command/trigger/PushCursorCommand.java",
 "de/mossgrabers/controller/ableton/push/command/trigger/PushNewCommand.java",
+"de/mossgrabers/controller/ableton/push/command/trigger/PushDeviceNavigation.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1DisplayGlyphs.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
@@ -132,15 +133,15 @@ def validate_mode_method_inventory(project_source, upstream_source, path):
  return [f"Device mode method inventory differs from upstream in {path}: added={sorted(set(project_methods)-set(upstream_methods))}, removed={sorted(set(upstream_methods)-set(project_methods))}"]
 
 
-def validate_in_out_contract(setup, left, right, control, virtual, hardware, runtime):
+def validate_in_out_contract(setup, left, right, control, virtual, hardware, runtime, navigation):
  errors=[]
  checks=[
   (re.search(r"PUSH_BUTTON_DEVICE_LEFT\s*=\s*62",control) is not None,"Physical left/CC62 must be In."),
   (re.search(r"PUSH_BUTTON_DEVICE_RIGHT\s*=\s*63",control) is not None,"Physical right/CC63 must be Out."),
   ('this.addButton (ButtonID.PAGE_LEFT, "In"' in setup,"CC62/Page Left label must be In."),
   ('this.addButton (ButtonID.PAGE_RIGHT, "Out"' in setup,"CC63/Page Right label must be Out."),
-  ("Capability.HAS_SLOT_CHAINS" in left and "getSlotChains ()" in left and "selectSlotChain (slotChains[0])" in left,"In must enter the first available slot chain."),
-  ("cursorDevice.isNested ()" in right and "cursorDevice.selectParent ()" in right,"Out must select the parent device only from a nested chain."),
+  ("PushDeviceNavigation.enterFirstSlotChain" in left and "cursor.selectSlotChain(selected)" in navigation,"In must enter the first available slot chain through the serialized navigator."),
+  ("PushDeviceNavigation.exitParent" in right and "cursor.selectParent()" in navigation,"Out must select the parent device through the serialized navigator."),
   ("public static final int IN = 62;" in virtual and "public static final int OUT = 63;" in virtual,"Virtual Push button IDs must match hardware CC62/CC63."),
   ("In (CC 62) enters the first available slot chain" in hardware and "Out (CC 63) returns to its parent device" in hardware,"Hardware documentation must define hierarchy navigation."),
   ('requireAction ("device.selectSlotChain:Chain 1"' in runtime and 'requireAction ("cursorDevice.selectParent"' in runtime and '"cursorDevice.selectNext"' in runtime and '"cursorDevice.selectPrevious"' in runtime,"Runtime test must verify hierarchy entry/exit and nested ROW1 device selection."),
@@ -191,11 +192,12 @@ def main():
    virtual_file=ROOT/"tests/java/VirtualPush1Device.java"
    hardware_file=ROOT/"docs/PUSH1-HARDWARE.md"
    runtime_file=ROOT/"tests/java/VirtualPush1RuntimeTest.java"
+   navigation_file=ASSEMBLED/"de/mossgrabers/controller/ableton/push/command/trigger/PushDeviceNavigation.java"
    errors += validate_in_out_contract(
     setup_file.read_text(encoding="utf-8"),left_file.read_text(encoding="utf-8"),
     right_file.read_text(encoding="utf-8"),control_file.read_text(encoding="utf-8"),
     virtual_file.read_text(encoding="utf-8"),hardware_file.read_text(encoding="utf-8"),
-    runtime_file.read_text(encoding="utf-8"))
+    runtime_file.read_text(encoding="utf-8"),navigation_file.read_text(encoding="utf-8"))
   config_file=ASSEMBLED/"de/mossgrabers/controller/ableton/push/PushConfiguration.java"
   surface_file=ASSEMBLED/"de/mossgrabers/controller/ableton/push/controller/PushControlSurface.java"
   if config_file.is_file():
