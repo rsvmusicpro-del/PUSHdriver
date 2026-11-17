@@ -11,7 +11,6 @@ import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.framework.utils.ButtonEvent;
-import de.mossgrabers.framework.view.Views;
 
 
 /** Push 1 Out control: leave the current Device Chains hierarchy level. */
@@ -27,7 +26,7 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
     @Override
     public void execute (final ButtonEvent event, final int velocity)
     {
-        if (event != ButtonEvent.DOWN || this.surface.getViewManager ().isActive (Views.SESSION))
+        if (event != ButtonEvent.DOWN)
             return;
 
         final var modeManager = this.surface.getModeManager ();
