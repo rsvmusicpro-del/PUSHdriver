@@ -146,7 +146,13 @@ public final class PushDeviceNavigation
                 default -> false;
             };
             if(complete)
-            {if(waiting!=Wait.MOVE)state.actions.removeFirst();state.running=false;state.wait=Wait.NONE;state.polls=0;startNext(surface,state);return;}
+            {
+                // Nested sibling selection can require several adjacent moves. Keep
+                // the action only until its requested index is reached; do not run
+                // the same-device reselect callback after a successful movement.
+                if(waiting!=Wait.MOVE||cursor.getIndex()==action.index)state.actions.removeFirst();
+                state.running=false;state.wait=Wait.NONE;state.polls=0;startNext(surface,state);return;
+            }
             if(++state.polls>=MAX_POLLS)
             {
                 state.actions.clear();state.running=false;state.wait=Wait.NONE;
