@@ -763,6 +763,7 @@ public final class VirtualPush1RuntimeTest
 
         // A queue overflow must reject new intent without cancelling the host
         // operation already in flight or releasing serialization early.
+        MODEL_ACTIONS.clear ();
         virtualDeferCursorUpdates = true;
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Start in-flight action before queue overflow");
         for (int i = 0; i < 40; i++)
@@ -772,6 +773,28 @@ public final class VirtualPush1RuntimeTest
         require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
             "Navigation remained busy after the bounded queue drained");
         require (!virtualCursorDeviceNested, "Queue overflow cancelled the in-flight action or broke serialized hierarchy order");
+        final long queuedEntries = MODEL_ACTIONS.stream ().filter (a -> a.startsWith ("device.selectSlotChain:")).count ();
+        final long queuedExits = MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectParent")).count ();
+        final long completedEntries = MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.chainCallback")).count ();
+        final long completedExits = MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.parentCallback")).count ();
+        require (queuedEntries == 16 && queuedExits == 16 && completedEntries == queuedEntries && completedExits == queuedExits,
+            "Queue overflow dropped/cancelled an in-flight host operation or started overlapping hierarchy operations: "
+                + MODEL_ACTIONS);
+        boolean awaitingHostCallback = false;
+        for (final String action : MODEL_ACTIONS)
+        {
+            if (action.startsWith ("device.selectSlotChain:") || action.equals ("cursorDevice.selectParent"))
+            {
+                require (!awaitingHostCallback, "A second hierarchy operation was sent before the first host callback: " + MODEL_ACTIONS);
+                awaitingHostCallback = true;
+            }
+            else if (action.equals ("cursorDevice.chainCallback") || action.equals ("cursorDevice.parentCallback"))
+            {
+                require (awaitingHostCallback, "Received an unexpected hierarchy callback: " + MODEL_ACTIONS);
+                awaitingHostCallback = false;
+            }
+        }
+        require (!awaitingHostCallback, "Queue overflow left a host operation without its completion callback: " + MODEL_ACTIONS);
         virtualDeferCursorUpdates = false;
 
         // An unrelated move into another nested device must not confirm the
@@ -2528,6 +2551,7 @@ public final class VirtualPush1RuntimeTest
                         MODEL_ACTIONS.add ("cursorDevice.selectParent");
                         if (!virtualSuppressParentCursorUpdate)
                             state.scheduled.add (new ScheduledTask (73, () -> {
+                                MODEL_ACTIONS.add ("cursorDevice.parentCallback");
                                 virtualCursorDeviceName = virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
                                 virtualCursorDevicePosition = 0;
                                 deviceIndex = 0;
@@ -2560,6 +2584,7 @@ public final class VirtualPush1RuntimeTest
                         MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
                         if (!virtualSuppressChainCursorUpdate)
                             state.scheduled.add (new ScheduledTask (73, () -> {
+                                MODEL_ACTIONS.add ("cursorDevice.chainCallback");
                                 // Simulate a chain child whose name, position and
                                 // nesting flags match the previous cursor. The
                                 // sibling-bank contents still identify the change.
