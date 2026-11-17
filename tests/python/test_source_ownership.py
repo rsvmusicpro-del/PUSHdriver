@@ -39,6 +39,12 @@ class SourceOwnershipTests(unittest.TestCase):
             MODULE.PATCH_TARGET_ALLOWLIST,
         )
 
+    def test_empty_note_sequencer_patch_is_reviewed(self):
+        self.assertIn(
+            "de/mossgrabers/framework/view/sequencer/AbstractNoteSequencerView.java",
+            MODULE.PATCH_TARGET_ALLOWLIST,
+        )
+
     def test_push1_display_name_fitting_targets_are_reviewed(self):
         expected = {
             "de/mossgrabers/controller/ableton/push/mode/NoteMode.java",
