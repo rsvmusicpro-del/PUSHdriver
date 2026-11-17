@@ -95,9 +95,11 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             return;
 
         final INoteClip clip = this.getClip ();
+        if (!clip.doesExist ())
+            return;
         final int stepsPerPage = this.numDisplayCols;
         final int currentStep = clip.getCurrentStep ();
-        if (!clip.doesExist () || stepsPerPage <= 0 || currentStep < 0)
+        if (stepsPerPage <= 0 || currentStep < 0)
             return;
 
         final int playheadColumn = currentStep - clip.getEditPage () * stepsPerPage;
@@ -169,8 +171,9 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
 
         // The engine owns page-lock policy; the view supplies current host state.
         final INoteClip clip = this.getClip ();
-        this.engine.onPageGesture (pressedPage, pad, velocity, clip.doesExist (),
-                this.numDisplayCols, clip.getCurrentStep ());
+        final boolean clipExists = clip.doesExist ();
+        this.engine.onPageGesture (pressedPage, pad, velocity, clipExists,
+                this.numDisplayCols, clipExists ? clip.getCurrentStep () : -1);
     }
 
 
@@ -213,7 +216,9 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             return;
 
         final NotePosition notePosition = new NotePosition (this.configuration.getMidiEditChannel (), Push1PadGrid.columnForIndex (index), this.keyManager.map (y));
-        this.editNote (this.getClip (), notePosition, false);
+        final INoteClip clip = this.getClip ();
+        if (clip.doesExist ())
+            this.editNote (clip, notePosition, false);
     }
 
 

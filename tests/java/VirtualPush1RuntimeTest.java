@@ -1151,6 +1151,25 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 6);
         sequencerView.updateControlSurface ();
 
+        // Empty slots are a first-class Bitwig state. The shared renderer, the
+        // Push playhead overlay, pad editing and loop-page gestures must never
+        // query a playhead or mutate note data when no clip exists.
+        musicalModel.setNoteClipExists (false);
+        state.playing = true;
+        final int emptyClipStepReads = musicalModel.currentStepReadCount ();
+        final int emptyClipToggles = musicalModel.toggleCount ();
+        sequencerView.drawGrid ();
+        midi.device ().pressPad (0, 0, 100);
+        midi.device ().releasePad (0, 0);
+        midi.device ().pressPad (7, 0, 100);
+        midi.device ().releasePad (7, 0);
+        require (musicalModel.currentStepReadCount () == emptyClipStepReads,
+            "Classic Sequencer queried the playhead while the selected slot had no clip");
+        require (musicalModel.toggleCount () == emptyClipToggles,
+            "Classic Sequencer edited note data while the selected slot had no clip");
+        state.playing = false;
+        musicalModel.setNoteClipExists (true);
+
         // Physical MIDI pad taps must still create and remove a classic sequencer note.
         final int classicPadNote = sequencerView.getKeyManager ().map (3);
         final NotePosition classicPadPosition = new NotePosition (0, 1, classicPadNote);
@@ -1224,6 +1243,19 @@ public final class VirtualPush1RuntimeTest
         polySequencerView.updateNoteMapping ();
         drainScheduled (state, 6);
         polySequencerView.updateControlSurface ();
+
+        // The Poly Sequencer must keep its keyboard rendering path safe while
+        // skipping playhead and note reads for an empty selected slot.
+        musicalModel.setNoteClipExists (false);
+        final int emptyPolyStepReads = musicalModel.stepReadCount ();
+        final int emptyPolyPlayheadReads = musicalModel.currentStepReadCount ();
+        polySequencerView.drawGrid ();
+        polySequencerView.onGridNoteLongPress (68);
+        require (musicalModel.stepReadCount () == emptyPolyStepReads,
+            "Poly Sequencer queried note steps while the selected slot had no clip");
+        require (musicalModel.currentStepReadCount () == emptyPolyPlayheadReads,
+            "Poly Sequencer queried the playhead while the selected slot had no clip");
+        musicalModel.setNoteClipExists (true);
 
         final ITrack rootTrack = newClipModel.cursorTrack ();
         final int mappedRoot = polySequencerView.getKeyManager ().map (36);
@@ -1491,6 +1523,13 @@ public final class VirtualPush1RuntimeTest
             Views.SCENE_PLAY,
             Views.DRUM64
         };
+        final String requestedFuzzView = System.getProperty ("push1.fuzz.view");
+        final List<Views> fuzzViews = new java.util.ArrayList<> ();
+        for (final Views candidate: allPushViews)
+            if (requestedFuzzView == null || candidate.name ().equalsIgnoreCase (requestedFuzzView))
+                fuzzViews.add (candidate);
+        if (fuzzViews.isEmpty ())
+            throw new IllegalArgumentException ("Unknown Push 1 fuzz view: " + requestedFuzzView);
         final int [][] padModifierCombinations =
         {
             { VirtualPush1Device.SHIFT },
@@ -1618,14 +1657,16 @@ public final class VirtualPush1RuntimeTest
             }
         }
         final int fuzzActionCount = Integer.getInteger ("push1.fuzz.actions", 256);
-        if (fuzzActionCount < 64 || fuzzActionCount > 100000)
-            throw new IllegalArgumentException ("push1.fuzz.actions must be between 64 and 100000");
+        final int minimumFuzzActions = requestedFuzzView == null ? 64 : 1;
+        if (fuzzActionCount < minimumFuzzActions || fuzzActionCount > 100000)
+            throw new IllegalArgumentException ("push1.fuzz.actions must be between "
+                + minimumFuzzActions + " and 100000 for this run");
         int fuzzedScenarios = 0;
         int fuzzedActions = 0;
         for (final long seed: fuzzSeeds)
         {
             final long [] randomState = { seed };
-            for (final Views fuzzView: allPushViews)
+            for (final Views fuzzView: fuzzViews)
             {
                 final List<String> trace = new java.util.ArrayList<> ();
                 try
@@ -1814,8 +1855,8 @@ public final class VirtualPush1RuntimeTest
                 }
             }
         }
-        require (fuzzedScenarios == fuzzSeeds.size () * allPushViews.length,
-            "Generated scenario matrix did not cover every view and seed");
+        require (fuzzedScenarios == fuzzSeeds.size () * fuzzViews.size (),
+            "Generated scenario matrix did not cover every selected view and seed");
         require (fuzzedActions == fuzzedScenarios * fuzzActionCount,
             "Generated scenario matrix did not execute the configured action count per view/seed scenario");
         System.out.println ("Generated Push 1 interaction scenarios passed: " + fuzzedScenarios
@@ -1964,6 +2005,9 @@ public final class VirtualPush1RuntimeTest
         private final Map<String, Double> durations = new java.util.HashMap<> ();
         private final boolean [] canHold = { false };
         private final int [] currentStep = { 5 };
+        private final int [] currentStepReads = { 0 };
+        private final int [] stepReads = { 0 };
+        private final boolean [] noteClipExists = { true };
         private final int [] editPage = { 0 };
         private final int [] pageBack = { 0 };
         private final int [] pageForward = { 0 };
@@ -1988,11 +2032,11 @@ public final class VirtualPush1RuntimeTest
                 (proxy, method, args) -> {
                     switch (method.getName ())
                     {
-                        case "doesExist": return true;
+                        case "doesExist": return this.noteClipExists[0];
                         case "getName": return "Virtual Push note clip";
                         case "getColor": return ColorEx.BLUE;
                         case "getNumRows", "getNumSteps": return 128;
-                        case "getCurrentStep": return this.currentStep[0];
+                        case "getCurrentStep": this.currentStepReads[0]++; return this.currentStep[0];
                         case "getStepLength": return this.stepLength[0];
                         case "setStepLength": this.stepLength[0] = ((Number) args[0]).doubleValue (); return null;
                         case "getLoopStart": return this.loopStart[0];
@@ -2003,7 +2047,7 @@ public final class VirtualPush1RuntimeTest
                         case "scrollToPage": this.editPage[0] = (int) args[0]; return null;
                         case "scrollStepsPageBackwards": this.pageBack[0]++; this.editPage[0] = Math.max (0, this.editPage[0] - 1); return null;
                         case "scrollStepsPageForward": this.pageForward[0]++; this.editPage[0] = Math.min (7, this.editPage[0] + 1); return null;
-                        case "getStep": return this.stepInfo ((NotePosition) args[0]);
+                        case "getStep": this.stepReads[0]++; return this.stepInfo ((NotePosition) args[0]);
                         case "toggleStep":
                         {
                             final NotePosition position = (NotePosition) args[0];
@@ -2238,6 +2282,10 @@ public final class VirtualPush1RuntimeTest
                 });
         }
 
+        void setNoteClipExists (final boolean exists) { this.noteClipExists[0] = exists; }
+        int currentStepReadCount () { return this.currentStepReads[0]; }
+        int stepReadCount () { return this.stepReads[0]; }
+        int toggleCount () { return this.toggleCount[0]; }
         ICursorTrack cursorTrack () { return this.cursorTrack; }
         void setSlotAvailable (final int index, final boolean value) { this.available[index] = value; }
         void setSelectedSlot (final int index) { this.selectedSlot[0] = Math.max (0, Math.min (this.slots.length - 1, index)); }

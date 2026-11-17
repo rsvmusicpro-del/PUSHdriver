@@ -38,6 +38,15 @@ def main() -> int:
         "--fuzz-seed",
         help="Replay one generated interaction seed (decimal or 0x-prefixed hexadecimal).",
     )
+    parser.add_argument(
+        "--fuzz-view",
+        help="Replay generated actions on one named Push view (for example SEQUENCER).",
+    )
+    parser.add_argument(
+        "--no-shrink-failures",
+        action="store_true",
+        help="Disable automatic shortest-failing-prefix reduction after a generated failure.",
+    )
     args = parser.parse_args()
 
     if shutil.which("java") is None:
@@ -64,6 +73,10 @@ def main() -> int:
         test_command.append("--gui")
     if args.fuzz_seed is not None:
         test_command.append(f"--fuzz-seed={args.fuzz_seed}")
+    if args.fuzz_view is not None:
+        test_command.append(f"--fuzz-view={args.fuzz_view}")
+    if args.no_shrink_failures:
+        test_command.append("--no-shrink-failures")
     if args.fuzz_actions is not None:
         test_command.append(f"--fuzz-actions={args.fuzz_actions}")
     if args.fuzz_seeds is not None:

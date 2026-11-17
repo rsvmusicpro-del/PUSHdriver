@@ -282,6 +282,36 @@ sequencer_colors.write_text(source.replace(old, new))
 
 poly_sequencer = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractPolySequencerView.java"
 
+# The Poly Sequencer must preserve keyboard feedback but avoid querying an
+# absent clip's playhead/steps. Empty slots are not equivalent to empty notes.
+replace_once(poly_sequencer,
+    "        final INoteClip clip = this.getClip ();\n"
+    "        final boolean isActive = this.isActive ();\n"
+    "        final int step = clip.getCurrentStep ();",
+    "        final INoteClip clip = this.getClip ();\n"
+    "        final boolean isActive = this.isActive ();\n"
+    "        final boolean hasClip = clip.doesExist ();\n"
+    "        final int step = hasClip ? clip.getCurrentStep () : -1;",
+    "Poly sequencer checks clip existence before reading the playhead")
+replace_once(poly_sequencer,
+    "            final IStepInfo stepInfo = this.getStep (clip, col);\n"
+    "            final boolean hilite = col == hiStep;",
+    "            final IStepInfo stepInfo = hasClip ? this.getStep (clip, col) : null;\n"
+    "            final boolean hilite = col == hiStep;",
+    "Poly sequencer skips note reads when the selected slot has no clip")
+replace_once(poly_sequencer,
+    "            padGrid.lightEx (x, y, isActive ? this.getStepColor (stepInfo, hilite, col, editNotes) : AbstractSequencerView.COLOR_NO_CONTENT);",
+    "            padGrid.lightEx (x, y, hasClip && isActive ? this.getStepColor (stepInfo, hilite, col, editNotes) : AbstractSequencerView.COLOR_NO_CONTENT);",
+    "Poly sequencer renders empty clip steps as no content")
+replace_once(poly_sequencer,
+    "        final INoteClip clip = this.getClip ();\n"
+    "        final int step = this.numColumns * (this.numRows - 1 - y) + x;",
+    "        final INoteClip clip = this.getClip ();\n"
+    "        if (!clip.doesExist ())\n"
+    "            return;\n"
+    "        final int step = this.numColumns * (this.numRows - 1 - y) + x;",
+    "Poly sequencer ignores step edits when the selected slot has no clip")
+
 # The upstream Poly view is a persistent model observer. API 17 exposes no
 # removeNoteObserver method, so route note feedback only to the currently
 # selected view. This keeps the inactive Poly engine's KeyManager untouched

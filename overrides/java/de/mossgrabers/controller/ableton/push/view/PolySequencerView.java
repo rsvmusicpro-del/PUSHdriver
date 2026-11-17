@@ -81,6 +81,8 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
             return;
 
         final INoteClip clip = this.getClip ();
+        if (!clip.doesExist ())
+            return;
         final int step = this.engine.stepForPad (x, y, this.numColumns, this.numRows);
         if (step < 0)
             return;

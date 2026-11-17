@@ -61,6 +61,9 @@ def main():
         if not re.search(declaration, grid_source):
             errors.append(f"Push 1 grid contract missing declaration: {declaration}")
 
+    classic_source = classic_view.read_text(encoding="utf-8")
+    if "final int currentStep = clip.getCurrentStep ();\n        if (!clip.doesExist" in classic_source:
+        errors.append("Classic Sequencer must check clip existence before reading the playhead.")
     for path in (classic_view, poly_view):
         source = path.read_text(encoding="utf-8")
         if "Push1PadGrid.indexForNote (note)" not in source:
