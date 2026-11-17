@@ -32,6 +32,7 @@ PATCH_TARGET_ALLOWLIST={
 "de/mossgrabers/controller/ableton/push/mode/NoteMode.java",
 "de/mossgrabers/controller/ableton/push/mode/track/AbstractTrackMode.java",
 "de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java",
+"de/mossgrabers/controller/ableton/push/mode/device/DeviceChainsMode.java",
 "de/mossgrabers/controller/ableton/push/mode/ConfigurationMode.java",
 "de/mossgrabers/framework/view/sequencer/AbstractSequencerView.java",
 "de/mossgrabers/framework/view/sequencer/AbstractPolySequencerView.java",
@@ -138,17 +139,16 @@ def validate_in_out_contract(setup, left, right, control, virtual, hardware, run
   (re.search(r"PUSH_BUTTON_DEVICE_RIGHT\s*=\s*63",control) is not None,"Physical right/CC63 must be Out."),
   ('this.addButton (ButtonID.PAGE_LEFT, "In"' in setup,"CC62/Page Left label must be In."),
   ('this.addButton (ButtonID.PAGE_RIGHT, "Out"' in setup,"CC63/Page Right label must be Out."),
-  ("deviceParamsMode.selectNextItem ()" in left and "deviceParamsMode.selectNextItemPage ()" in left and "activeMode.selectNextItemPage ()" in left,"In command must delegate to upstream next-item/page methods."),
-  ("deviceParamsMode.selectPreviousItem ()" in right and "deviceParamsMode.selectPreviousItemPage ()" in right and "activeMode.selectPreviousItemPage ()" in right,"Out command must delegate to upstream previous-item/page methods."),
+  ("Capability.HAS_SLOT_CHAINS" in left and "getSlotChains ()" in left and "selectSlotChain (slotChains[0])" in left,"In must enter the first available slot chain."),
+  ("cursorDevice.isNested ()" in right and "cursorDevice.selectParent ()" in right,"Out must select the parent device only from a nested chain."),
   ("public static final int IN = 62;" in virtual and "public static final int OUT = 63;" in virtual,"Virtual Push button IDs must match hardware CC62/CC63."),
-  ("In (CC 62) selects the next device" in hardware and "Out (CC 63) selects the previous" in hardware,"Hardware documentation must define the In/Out direction."),
-  ('requireAction ("device.selectNextItem", "In (CC 62)' in runtime and 'requireAction ("device.selectPreviousItem", "Out (CC 63)' in runtime,"Runtime test must verify each physical button independently."),
-  ('parameterBank.selectNextPage' in runtime and 'parameterBank.selectPreviousPage' in runtime and 'contentTypeIndex () == inOutContentBefore + 1' in runtime and 'contentTypeIndex () == inOutContentBefore' in runtime,"Runtime test must verify parameter-page and Browser direction independently."),
+  ("In (CC 62) enters the first available slot chain" in hardware and "Out (CC 63) returns to its parent device" in hardware,"Hardware documentation must define hierarchy navigation."),
+  ('requireAction ("device.selectSlotChain:Chain 1"' in runtime and 'requireAction ("cursorDevice.selectParent"' in runtime and '"cursorDevice.selectNext"' in runtime and '"cursorDevice.selectPrevious"' in runtime,"Runtime test must verify hierarchy entry/exit and nested ROW1 device selection."),
+  ("contentTypeIndex () == inOutContentBefore + 1" in runtime and "contentTypeIndex () == inOutContentBefore" in runtime,"Runtime test must retain Browser content-type direction."),
  ]
  for ok,message in checks:
   if not ok: errors.append(message)
  return errors
-
 
 def validate_unique_types(files):
  owners={}; errors=[]

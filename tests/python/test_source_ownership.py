@@ -33,6 +33,12 @@ class SourceOwnershipTests(unittest.TestCase):
             errors = MODULE.validate_unique_types([first, second])
         self.assertTrue(any("Duplicate Java type example.Collision" in e for e in errors))
 
+    def test_device_chains_mode_patch_is_reviewed(self):
+        self.assertIn(
+            "de/mossgrabers/controller/ableton/push/mode/device/DeviceChainsMode.java",
+            MODULE.PATCH_TARGET_ALLOWLIST,
+        )
+
     def test_push1_display_name_fitting_targets_are_reviewed(self):
         expected = {
             "de/mossgrabers/controller/ableton/push/mode/NoteMode.java",
@@ -99,12 +105,12 @@ class SourceOwnershipTests(unittest.TestCase):
     def test_in_out_direction_contract_accepts_physical_mapping(self):
         errors = MODULE.validate_in_out_contract(
             'this.addButton (ButtonID.PAGE_LEFT, "In" this.addButton (ButtonID.PAGE_RIGHT, "Out"',
-            "deviceParamsMode.selectNextItem () deviceParamsMode.selectNextItemPage () activeMode.selectNextItemPage ()",
-            "deviceParamsMode.selectPreviousItem () deviceParamsMode.selectPreviousItemPage () activeMode.selectPreviousItemPage ()",
+            "Capability.HAS_SLOT_CHAINS getSlotChains () selectSlotChain (slotChains[0])",
+            "cursorDevice.isNested () cursorDevice.selectParent ()",
             "PUSH_BUTTON_DEVICE_LEFT = 62; PUSH_BUTTON_DEVICE_RIGHT = 63;",
             "public static final int IN = 62; public static final int OUT = 63;",
-            "In (CC 62) selects the next device; Out (CC 63) selects the previous device",
-            'requireAction ("device.selectNextItem", "In (CC 62)"); requireAction ("device.selectPreviousItem", "Out (CC 63)"); parameterBank.selectNextPage parameterBank.selectPreviousPage contentTypeIndex () == inOutContentBefore + 1 contentTypeIndex () == inOutContentBefore',
+            "In (CC 62) enters the first available slot chain; Out (CC 63) returns to its parent device",
+            'requireAction ("device.selectSlotChain:Chain 1", "In (CC 62)"); requireAction ("cursorDevice.selectParent", "Out (CC 63)"); "cursorDevice.selectNext"; "cursorDevice.selectPrevious"; contentTypeIndex () == inOutContentBefore + 1 contentTypeIndex () == inOutContentBefore',
         )
         self.assertEqual(errors, [])
 

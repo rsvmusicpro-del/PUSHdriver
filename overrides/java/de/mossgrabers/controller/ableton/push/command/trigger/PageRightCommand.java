@@ -5,7 +5,6 @@ package de.mossgrabers.controller.ableton.push.command.trigger;
 
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
-import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.framework.command.core.AbstractTriggerCommand;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.featuregroup.IMode;
@@ -16,7 +15,7 @@ import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
 
-/** Push 1 Out control: delegate navigation to the active upstream mode. */
+/** Push 1 Out control: return to the parent device in the current chain. */
 public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface, PushConfiguration>
 {
     public PageRightCommand (final IModel model, final PushControlSurface surface)
@@ -43,14 +42,13 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
         if (modeManager.isActive (Modes.DEVICE_CHAINS))
             return;
 
-        if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
+        if (modeManager.isActive (Modes.DEVICE_PARAMS))
         {
             if (event == ButtonEvent.DOWN)
             {
-                if (deviceParamsMode.isShowDevices ())
-                    deviceParamsMode.selectPreviousItem ();
-                else
-                    deviceParamsMode.selectPreviousItemPage ();
+                final var cursorDevice = this.model.getCursorDevice ();
+                if (cursorDevice.doesExist () && cursorDevice.isNested ())
+                    cursorDevice.selectParent ();
             }
             return;
         }

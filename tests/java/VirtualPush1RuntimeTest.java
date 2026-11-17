@@ -697,25 +697,27 @@ public final class VirtualPush1RuntimeTest
         requireAction ("parameterPage.selectPage:2", "Top-row selector did not select parameter page 3");
         deviceParamsMode.setShowDevices (true);
 
-        // In/Out retains the upstream device-bank and parameter-page navigation.
+        // In/Out traverse the device hierarchy instead of duplicating the
+        // arrow/ROW1 device and parameter-page selectors.
         deviceIndex = 4;
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceNested = false;
+        deviceParamsMode.setShowDevices (false);
+        virtualSlotChains = new String [] { "Chain 1", "Chain 2", "Chain 3" };
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
-        requireAction ("device.selectNextItem", "In (CC 62) must select the next device");
+        requireAction ("device.selectSlotChain:Chain 1", "In (CC 62) must enter the first available slot chain");
+        drainScheduled (state, 73);
+        require (virtualCursorDeviceNested && deviceIndex == 0,
+            "In did not move the Bitwig cursor into the selected slot chain");
+        require (deviceParamsMode.isShowDevices (),
+            "In did not restore ROW1 device selectors after entering a chain from Banks mode");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63)");
-        requireAction ("device.selectPreviousItem", "Out (CC 63) must select the previous device");
-
-        // Parameter-page In/Out delegates to the upstream page-bank methods.
+        requireAction ("cursorDevice.selectParent", "Out (CC 63) must select the parent device");
+        drainScheduled (state, 73);
+        require (!virtualCursorDeviceNested, "Out did not return the Bitwig cursor to its parent device");
         deviceParamsMode.setShowDevices (false);
-        parameterPageIndex = 2;
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Parameter page In");
-        requireAction ("parameterBank.selectNextPage", "In (CC 62) must use upstream next-page navigation");
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page Out");
-        requireAction ("parameterBank.selectPreviousPage", "Out (CC 63) must use upstream previous-page navigation");
-        deviceParamsMode.setShowDevices (true);
 
         // Device Chains is an upstream submode: top row selects a chain and
         // bottom row remains the Device action row.
@@ -726,6 +728,21 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Ableton Device Chain selector 8");
         requireAction ("device.selectSlotChain:Chain 8", "Top-row selector did not select chain 8");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Selecting a chain did not return to Device parameters");
+        drainScheduled (state, 73);
+        require (virtualCursorDeviceNested && deviceIndex == 0,
+            "Selecting a Device Chain did not expose its child-device cursor");
+        require (deviceParamsMode.isShowDevices (),
+            "Selecting a chain did not restore ROW1 device selectors after Banks mode");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Nested chain device selector 4");
+        require (deviceIndex == 3, "ROW1 did not select device 4 inside the active chain");
+        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 3,
+            "Nested ROW1 selection did not advance the cursor to the requested chain device");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "Nested chain device selector 2");
+        require (deviceIndex == 1, "ROW1 did not select device 2 inside the active chain");
+        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectPrevious")).count () == 2,
+            "Nested ROW1 selection did not move the cursor back to the requested chain device");
 
         // Returning to Device mode must keep the real controller bindings active.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Re-enter Device mode");
@@ -2248,6 +2265,8 @@ public final class VirtualPush1RuntimeTest
                             case "select" -> {
                                 MODEL_ACTIONS.add ("device.select");
                                 MODEL_ACTIONS.add ("device.select:" + targetIndex);
+                                deviceIndex = targetIndex;
+                                virtualCursorDevicePosition = targetIndex;
                                 yield null;
                             }
                             default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
@@ -2304,12 +2323,25 @@ public final class VirtualPush1RuntimeTest
                     case "getName": return virtualCursorDeviceName;
                     case "isNested": return Boolean.valueOf (virtualCursorDeviceNested);
                     case "hasLayers": return Boolean.valueOf (virtualCursorDeviceHasLayers);
+                    case "canSelectNext": return Boolean.valueOf (deviceIndex < 7);
+                    case "canSelectPrevious": return Boolean.valueOf (deviceIndex > 0);
+                    case "selectNext":
+                        MODEL_ACTIONS.add ("cursorDevice.selectNext");
+                        deviceIndex = Math.min (7, deviceIndex + 1);
+                        virtualCursorDevicePosition = deviceIndex;
+                        return null;
+                    case "selectPrevious":
+                        MODEL_ACTIONS.add ("cursorDevice.selectPrevious");
+                        deviceIndex = Math.max (0, deviceIndex - 1);
+                        virtualCursorDevicePosition = deviceIndex;
+                        return null;
                     case "selectParent":
                         MODEL_ACTIONS.add ("cursorDevice.selectParent");
                         if (!virtualSuppressParentCursorUpdate)
                             state.scheduled.add (new ScheduledTask (73, () -> {
                                 virtualCursorDeviceName = virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
-                                virtualCursorDevicePosition = Math.max (0, virtualCursorDevicePosition - 1);
+                                virtualCursorDevicePosition = 0;
+                                deviceIndex = 0;
                                 virtualCursorDeviceNested = virtualParentNestedAfterSelect;
                                 virtualCursorDeviceHasLayers = virtualParentHasLayersAfterSelect;
                                 virtualDeviceBankNames = virtualParentNestedAfterSelect
@@ -2342,6 +2374,10 @@ public final class VirtualPush1RuntimeTest
                                 // Simulate a chain child whose name, position and
                                 // nesting flags match the previous cursor. The
                                 // sibling-bank contents still identify the change.
+                                virtualCursorDeviceName = "Slot " + args[0] + " child 0";
+                                virtualCursorDevicePosition = 0;
+                                deviceIndex = 0;
+                                virtualCursorDeviceNested = true;
                                 virtualDeviceBankNames = new String [] {
                                     "Slot " + args[0] + " child 0", "Slot " + args[0] + " child 1",
                                     "Slot " + args[0] + " child 2", "Slot " + args[0] + " child 3",

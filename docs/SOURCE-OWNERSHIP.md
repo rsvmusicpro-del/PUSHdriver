@@ -29,7 +29,7 @@ The old guard only searched for three named files under `overrides/java/.../mode
 
 ## In/Out adapter boundary
 
-The Push 1 In/Out command classes may choose which existing upstream item/page method to call, based on the upstream mode's own state. They must not own filter-column cursors, duplicate navigation state, or add new methods to Device/Browser mode classes. The virtual runtime test asserts device selection, parameter-bank scrolling and Browser content-type paging through those upstream methods.
+The Push 1 In/Out command classes own only context routing: In enters the first available slot chain and Out selects the parent cursor device; Browser content-type paging and Session/sequencer fallbacks remain delegated to existing owners. They must not own filter-column cursors or duplicate navigation state. The existing upstream DeviceParamsMode and DeviceChainsMode remain the sole Device mode implementations. prepare_push1.py narrowly adapts the existing DeviceParamsMode ROW1 handler to use ICursorDevice.selectNext/selectPrevious for nested-chain children, and ensures both In and Device Chains entry restore DeviceParamsMode.showDevices=true before returning to the selector view. No second mode, public method or private cursor is introduced. The virtual runtime test asserts the nested cursor movement through production MIDI bindings.
 
 
 ## Current intentional project-owned classes
@@ -38,7 +38,7 @@ These are explicit, reviewed overlays or additions, not parallel classes loaded 
 
 | File | Ownership role |
 |---|---|
-| `PageLeftCommand`, `PageRightCommand` | Push 1 In/Out command adapter. They call existing upstream mode item/page methods; they do not maintain Device or Browser state. |
+| `PageLeftCommand`, `PageRightCommand` | Push 1 In/Out adapter. In enters the first slot chain and restores device selectors, Out selects the parent device, and Browser/Session/sequencer fallbacks remain delegated; no independent cursor is maintained. |
 | `PushCursorCommand` | Shift-aware arrow routing through the active mode's existing navigation API and the scene bank. |
 | `SequencerView`, `PolySequencerView` | Push 1-specific sequencer presentation and note/step editing built on DrivenByMoss abstract sequencer views. They replace the upstream concrete view classes at the same FQCN. |
 | `PushNewCommand` | New Push 1 clip-launcher command extending the upstream New command; not a second mode. |
@@ -49,7 +49,7 @@ The two sequencer views are the largest remaining full-class overlays. They are 
 
 ## Physical In/Out direction contract
 
-In is CC62 on the left/Page Left button and advances to the next device, parameter page or Browser content type. Out is CC63 on the right/Page Right button and moves to the previous item/page. The command adapters must delegate to the upstream methods in those directions. The static ownership gate and virtual runtime bench both enforce this mapping so a swapped label, command or test constant cannot pass unnoticed.
+In is CC62 on the left/Page Left button and enters the first available slot chain of the selected device. Out is CC63 on the right/Page Right button and selects the parent device when the cursor is nested. Browser content-type paging and the established Session/sequencer fallbacks remain unchanged. The static ownership gate and virtual runtime bench enforce these distinct roles.
 
 The Push 1 color menu is an intentional upstream adaptation: `DAWColor.java` is regenerated during assembly with 64 RGB values from the pinned Push 1 hardware palette, while `PushColorManager.java` maps each enum ordinal to the same static pad palette index. The exact source patch is allowlisted in `scripts/check_source_ownership.py` and validated after assembly by `scripts/check_push1_color_palette.py`.
 

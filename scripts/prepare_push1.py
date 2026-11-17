@@ -1349,6 +1349,10 @@ setup_source = setup_source.replace("Push 2", "Push 1")
 if "isPush2" in setup_source or "Push2Display" in setup_source or "Push 2" in setup_source:
     raise SystemExit("PushControllerSetup still contains Push 2 runtime references")
 setup.write_text(setup_source)
+replace_once(setup,
+    "import de.mossgrabers.framework.daw.IModel;\n",
+    "import de.mossgrabers.framework.daw.constants.Capability;\nimport de.mossgrabers.framework.daw.IModel;\n",
+    "Push 1 Device hierarchy capability import")
 
 # Map the physical Push 1 Page Left/Right CC controls to their Ableton In/Out
 # roles in Device and Browser modes. Preserve their established Session and
@@ -1372,12 +1376,15 @@ replace_once(setup,
                 return activeMode.hasNextItemPage ();
             if (modeManager.isActive (Modes.DEVICE_CHAINS))
                 return false;
-            if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
-                return deviceParamsMode.isShowDevices () ? deviceParamsMode.hasNextItem () : deviceParamsMode.hasNextItemPage ();
+            if (modeManager.isActive (Modes.DEVICE_PARAMS))
+            {
+                final var cursorDevice = this.model.getCursorDevice ();
+                return cursorDevice.doesExist () && this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS) && cursorDevice.getSlotChains ().length > 0;
+            }
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
                 return activeMode.hasNextItemPage ();
             if (viewManager.isActive (Views.SESSION))""",
-    "Push 1 Out button LED state")
+    "Push 1 In button LED state")
 replace_once(setup,
     """PushControlSurface.PUSH_BUTTON_DEVICE_RIGHT, () -> {
 
@@ -1389,12 +1396,15 @@ replace_once(setup,
                 return activeMode.hasPreviousItemPage ();
             if (modeManager.isActive (Modes.DEVICE_CHAINS))
                 return false;
-            if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
-                return deviceParamsMode.isShowDevices () ? deviceParamsMode.hasPreviousItem () : deviceParamsMode.hasPreviousItemPage ();
+            if (modeManager.isActive (Modes.DEVICE_PARAMS))
+            {
+                final var cursorDevice = this.model.getCursorDevice ();
+                return cursorDevice.doesExist () && cursorDevice.isNested ();
+            }
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
                 return activeMode.hasPreviousItemPage ();
             if (viewManager.isActive (Views.SESSION))""",
-    "Push 1 In button LED state")
+    "Push 1 Out button LED state")
 
 # DeviceBrowserMode remains the pinned upstream state machine. Only the
 # defensive Bitwig empty-bank guards below are applied; no project-owned
@@ -1518,9 +1528,50 @@ replace_once(browser_mode,
     "items[item] = pos < results.length && results[pos] != null && results[pos].doesExist () ? results[pos].getName (14) : \"\";\n                        selected[item] = pos < results.length && results[pos] != null && results[pos].doesExist () && results[pos].isSelected ();",
     "Push 1 Browser graphic result item guard")
 
-# DeviceParamsMode remains byte-for-byte on the pinned upstream implementation.
-# The Push 1 In/Out command adapter calls its existing item/page methods.
-# Never inject a second DeviceParamsMode navigation implementation.
+# Keep DeviceParamsMode upstream-owned. Patch only its existing ROW1 selection
+# branch: inside a slot chain, select through Bitwig's sibling cursor API so
+# the active cursor follows the device shown at that ROW1 position.
+device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
+replace_once(device_params_mode,
+    """            if (cd.getIndex () != index)
+            {
+                cd.getDeviceBank ().getItem (index).select ();
+                return;
+            }
+""",
+    """            if (cd.getIndex () != index)
+            {
+                if (cd.isNested ())
+                {
+                    final int currentIndex = cd.getIndex ();
+                    if (index > currentIndex)
+                        for (int i = currentIndex; i < index; i++)
+                            cd.selectNext ();
+                    else
+                        for (int i = currentIndex; i > index; i--)
+                            cd.selectPrevious ();
+                }
+                else
+                    cd.getDeviceBank ().getItem (index).select ();
+                return;
+            }
+""",
+    "Push 1 nested Device ROW1 cursor selection")
+
+# Selecting a chain returns to Device mode with the device selector visible,
+# even if the Banks action had previously switched ROW1 to parameter pages.
+device_chains_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceChainsMode.java"
+replace_once(device_chains_mode,
+    """            cd.selectSlotChain (slotChains[index]);
+            this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+            return;
+""",
+    """            cd.selectSlotChain (slotChains[index]);
+            ((DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS)).setShowDevices (true);
+            this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+            return;
+""",
+    "Restore Device selector after choosing a chain")
 
 # Keep the physical Push 1 New button on its native dedicated binding, while
 # stopping the cursor track's current clip before preparing its next note clip.

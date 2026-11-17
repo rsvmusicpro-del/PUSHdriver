@@ -1,22 +1,24 @@
 # Device mode candidate verification
 
-Candidate PR: #38  
+Candidate branch: `feature/push1-in-out-device-hierarchy`  
 Target: Push 1 / Bitwig Studio 4.3.10 / Extension API 17  
 Upstream: DrivenByMoss 19.2.2 at `013620c1330cdcf896e96ef8fdc8a2123e4fce6a`
 
 ## CI evidence
 
-GitHub Actions run: https://github.com/rsvmusicpro-del/PUSHdriver/actions/runs/43619358530
+No GitHub Actions run has yet been recorded for this feature branch. The successful run linked below belongs to the earlier Device-mode candidate and predates the current In/Out and nested-chain selector changes; it is historical evidence only:
 
-The run completed successfully on both supported CI jobs:
+https://github.com/rsvmusicpro-del/PUSHdriver/actions/runs/43619358530
 
-- Linux: source assembly reproducibility, Java 17 build, Push 1 package verification, full virtual protocol/runtime suite and extended fuzzing.
-- Intel macOS: Java 17 build, Push 1 package verification, full virtual protocol/runtime suite and extended fuzzing.
+The current branch adds virtual runtime assertions for:
+- In entering the first slot chain and restoring the device selector when Banks mode was active.
+- Out returning to the parent cursor device.
+- Device Chains selection restoring the Device selector after Banks mode.
+- ROW1 selecting nested-chain devices in both directions through the cursor-device API.
+- Browser content-type paging retaining its established direction.
 
-The virtual runtime suite boots the production `PushControllerSetup` and dispatches virtual MIDI through registered production bindings. The Device assertions verify the restored Ableton Push 1 row roles, selector/action behavior, parameter-page selection, In/Out navigation and Device Chains selection.
-
-The generated artifact is named `PUSHdriver-bwextension` and is attached to the successful workflow run above.
+The current branch still requires the repository quality-gate workflow to run before these changes can be called CI-verified. The workflow is configured for the protected `custom` branch and pull requests targeting it; no pull request has been opened as part of this task.
 
 ## Qualification boundary
 
-This CI run does not launch Bitwig Studio 4.3.10 or connect a physical Push 1. The final acceptance step remains a live test in Bitwig with the controller attached, confirming that the device selector row, Device action row, parameter encoders, In/Out and Chains behave as expected on the actual host and hardware.
+This CI run does not launch Bitwig Studio 4.3.10 or connect a physical Push 1. The final acceptance step remains a live test in Bitwig with the controller attached, confirming that the device selector row, nested-chain device selection, Device action row, parameter encoders, In/Out hierarchy navigation and Chains behave as expected on the actual host and hardware.

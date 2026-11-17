@@ -53,7 +53,7 @@ A repository administrator should confirm those two settings in GitHub. Until th
 
 The former guard checked only three named Device-family files in one override directory. It did not inventory every project override or the upstream files modified directly by the assembly script. The virtual bench exercised production MIDI bindings but did not independently enforce implementation ownership; tests could therefore confirm a self-consistent but incorrect mapping.
 
-The source-ownership gate makes the upstream/project boundary explicit. The DeviceParamsMode-specific In/Out methods and DeviceBrowserMode filter-column navigation methods have been removed. Push 1 In/Out now delegates to upstream item/page methods; DeviceBrowserMode remains the sole upstream class with only defensive Bitwig empty-bank guards.
+The source-ownership gate makes the upstream/project boundary explicit. DeviceParamsMode-specific In/Out methods and DeviceBrowserMode filter-column navigation methods remain absent. Push 1 In enters the first available slot chain and Out selects the parent cursor device; both In and Device Chains entry restore ROW1 device selectors after Banks mode. The existing DeviceParamsMode ROW1 handler is narrowly adapted for nested-device selection. Browser content-type paging remains upstream-owned.
 
 
-The quality gate also verifies the physical In/Out contract end-to-end: CC62 is In/next and CC63 is Out/previous, including setup labels, command delegation, virtual-device constants, hardware documentation and isolated runtime assertions.
+The quality gate also verifies the physical In/Out contract end-to-end: CC62 enters the first available slot chain, CC63 returns to its parent, and nested ROW1 taps select the corresponding chain devices. Setup labels, LED availability, virtual-device constants, hardware documentation and Browser paging are checked.

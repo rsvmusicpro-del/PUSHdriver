@@ -156,10 +156,12 @@ A successful build proves compilation, packaging, and the deterministic protocol
 ## In/Out controls and Browser navigation
 
 The physical In and Out buttons are CC 62 and CC 63 respectively. In Device
-mode, In (CC 62) selects the next device and Out (CC 63) selects the previous
-device. When the parameter-page selector is active, the same controls select
-the next and previous parameter pages respectively. These mappings are
-covered by the production `DeviceParamsMode` runtime scenario.
+mode, In (CC 62) enters the first available slot chain of the selected device;
+Out (CC 63) returns to its parent device when the cursor is inside a chain.
+This gives the two buttons a dedicated hierarchy role without duplicating
+ROW1 device selection or Shift+Left/Right bank-page navigation. In is lit
+only when the selected device exposes at least one slot chain; Out is lit
+only while the cursor device is nested.
 
 Browser navigation uses a different set of Push 1 controls in the pinned
 DrivenByMoss implementation; In/Out do not move Browser filter columns:
@@ -177,31 +179,30 @@ DrivenByMoss implementation; In/Out do not move Browser filter columns:
 The virtual runtime now exercises these Browser operations against a
 stateful API-17 `IBrowser` model, including filter/result selection,
 content-type paging, the LCD selection marker and filter-button LED state.
-Rack-chain navigation remains inactive because API 17 does not expose a
-reliable selected-chain cursor for safe previous/next navigation. No MIDI
-IDs or alternate controller dispatcher are introduced.
+Device-chain navigation uses the API-17 cursor-device surface: In enters the
+first available slot chain, Out returns to the parent, and ROW1 moves among
+devices in the active chain. No shadow cursor or alternate MIDI dispatcher
+is introduced.
 
 ## Device mode: physical row assignment and color language
 
 Device mode deliberately assigns the two physical button rows according to
 their LED capabilities:
 
-- **ROW1 / CC 20–27 — below the LCD:** the RGB row carries the eight Device
-  actions, in order: On (green), Parameters (cyan), Expanded (blue), Chains
-  (orchid/violet), Banks (yellow), Pin Device (magenta), Window (white), and
-  Up (red). Each action has its own hue; stateful actions use the dim/bright
-  intensity of that hue. Up remains red as a hierarchy action.
-- **ROW2 / CC 102–109 — above the LCD:** the static CC row selects the eight
-  visible devices or parameter pages. Existing entries use dim green and the
-  selected entry uses bright green; unavailable entries are off. This row
-  uses only the first-row static palette. Never send PUSH1_COLOR2_* RGB
-  indices to ROW2: several overlapping values are blink commands.
-- **Device Chains:** chain selectors also use ROW2's static green/off
-  feedback. The inherited Device actions remain on ROW1's RGB palette.
-- **LCD:** the first text row labels the selector row above the display; the
-  two middle rows show parameter names and values; the last row labels the
-  eight action buttons below the display. Device/page selection and the
-  action legends therefore follow the new physical positions.
+- **ROW1 / CC 20–27 — above the LCD:** the static CC row selects the eight
+  visible devices, parameter pages or slot chains. Existing entries use dim
+  green and the selected entry uses bright green; unavailable entries are off.
+  This row uses only the Push 1 static palette. Never send RGB palette indices
+  to ROW1 because overlapping values are blink commands.
+- **ROW2 / CC 102–109 — below the LCD:** the RGB row carries the eight Device
+  actions, in order: On, Parameters, Expanded, Chains, Banks, Pin Device,
+  Window and Up. Each action has its own semantic hue; stateful actions use
+  dim/bright intensity.
+- **Device Chains:** ROW1 selects a slot chain. Once the cursor enters that
+  chain, ROW1 selects its child devices through the nested cursor-device
+  navigation API; it does not keep targeting the parent track's device bank.
+- **LCD:** the upper display row labels ROW1 selectors; the lower display row
+  labels ROW2 actions, with parameter names and values between them.
 
 The virtual runtime checks the two physical row assignments, all eight
 distinct action hues, and the static-only selector feedback. These are native
