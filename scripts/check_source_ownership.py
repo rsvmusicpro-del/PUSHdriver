@@ -138,12 +138,33 @@ def validate_in_out_contract(setup, left, right, control, virtual, hardware, run
   (re.search(r"PUSH_BUTTON_DEVICE_RIGHT\s*=\s*63",control) is not None,"Physical right/CC63 must be Out."),
   ('this.addButton (ButtonID.PAGE_LEFT, "In"' in setup,"CC62/Page Left label must be In."),
   ('this.addButton (ButtonID.PAGE_RIGHT, "Out"' in setup,"CC63/Page Right label must be Out."),
-  ("deviceParamsMode.selectNextItem ()" in left and "deviceParamsMode.selectNextItemPage ()" in left and "activeMode.selectNextItemPage ()" in left,"In command must delegate to upstream next-item/page methods."),
-  ("deviceParamsMode.selectPreviousItem ()" in right and "deviceParamsMode.selectPreviousItemPage ()" in right and "activeMode.selectPreviousItemPage ()" in right,"Out command must delegate to upstream previous-item/page methods."),
-  ("public static final int IN = 62;" in virtual and "public static final int OUT = 63;" in virtual,"Virtual Push button IDs must match hardware CC62/CC63."),
-  ("In (CC 62) selects the next device" in hardware and "Out (CC 63) selects the previous" in hardware,"Hardware documentation must define the In/Out direction."),
-  ('requireAction ("device.selectNextItem", "In (CC 62)' in runtime and 'requireAction ("device.selectPreviousItem", "Out (CC 63)' in runtime,"Runtime test must verify each physical button independently."),
-  ('parameterBank.selectNextPage' in runtime and 'parameterBank.selectPreviousPage' in runtime and 'contentTypeIndex () == inOutContentBefore + 1' in runtime and 'contentTypeIndex () == inOutContentBefore' in runtime,"Runtime test must verify parameter-page and Browser direction independently."),
+  ("modeManager.isActive (Modes.DEVICE_PARAMS)" in left
+   and "Capability.HAS_SLOT_CHAINS" in left
+   and "cursorDevice.getSlotChains ()" in left
+   and "modeManager.setActive (Modes.DEVICE_CHAINS)" in left
+   and "selectNextItem" not in left
+   and "selectNextItemPage" not in left,
+   "In command must only open the native Device Chains selector when chains are available."),
+  ("modeManager.isActive (Modes.DEVICE_CHAINS)" in right
+   and "cursorDevice.isNested ()" in right
+   and "deviceMode.onSecondRow (7, ButtonEvent.DOWN)" in right
+   and "deviceMode.setShowDevices (true)" in right
+   and "selectPreviousItem" not in right
+   and "selectPreviousItemPage" not in right,
+   "Out command must use the native Up action to leave Device Chains, not page items."),
+  ("public static final int IN = 62;" in virtual and "public static final int OUT = 63;" in virtual,
+   "Virtual Push button IDs must match hardware CC62/CC63."),
+  ("In (CC 62) opens the existing upstream Device Chains selector" in hardware
+   and "Out (CC 63) leaves the chain selector" in hardware,
+   "Hardware documentation must define Device Chains entry and exit."),
+  ('require (modes.isActive (Modes.DEVICE_CHAINS), "In did not open the native Device Chains selector")' in runtime
+   and 'requireAction ("device.selectSlotChain:Chain 8"' in runtime
+   and 'requireAction ("cursorDevice.selectParent"' in runtime,
+   "Runtime test must verify chain-selector entry, chain selection and parent exit."),
+  ('"Session In must be inert"' in runtime
+   and '"Browser In must be inert"' in runtime
+   and '"Sequencer In must be inert"' in runtime,
+   "Runtime test must verify In/Out are inactive outside Device mode."),
  ]
  for ok,message in checks:
   if not ok: errors.append(message)

@@ -96,17 +96,18 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertEqual(MODULE.validate_mode_method_inventory(source, source, "DeviceParamsMode.java"), [])
 
 
-    def test_in_out_direction_contract_accepts_physical_mapping(self):
+    def test_in_out_direction_contract_accepts_device_chains_only(self):
         errors = MODULE.validate_in_out_contract(
             'this.addButton (ButtonID.PAGE_LEFT, "In" this.addButton (ButtonID.PAGE_RIGHT, "Out"',
-            "deviceParamsMode.selectNextItem () deviceParamsMode.selectNextItemPage () activeMode.selectNextItemPage ()",
-            "deviceParamsMode.selectPreviousItem () deviceParamsMode.selectPreviousItemPage () activeMode.selectPreviousItemPage ()",
+            "modeManager.isActive (Modes.DEVICE_PARAMS) Capability.HAS_SLOT_CHAINS cursorDevice.getSlotChains () modeManager.setActive (Modes.DEVICE_CHAINS)",
+            "modeManager.isActive (Modes.DEVICE_CHAINS) cursorDevice.isNested () deviceMode.onSecondRow (7, ButtonEvent.DOWN) deviceMode.setShowDevices (true)",
             "PUSH_BUTTON_DEVICE_LEFT = 62; PUSH_BUTTON_DEVICE_RIGHT = 63;",
             "public static final int IN = 62; public static final int OUT = 63;",
-            "In (CC 62) selects the next device; Out (CC 63) selects the previous device",
-            'requireAction ("device.selectNextItem", "In (CC 62)"); requireAction ("device.selectPreviousItem", "Out (CC 63)"); parameterBank.selectNextPage parameterBank.selectPreviousPage contentTypeIndex () == inOutContentBefore + 1 contentTypeIndex () == inOutContentBefore',
+            "In (CC 62) opens the existing upstream Device Chains selector; Out (CC 63) leaves the chain selector",
+            'require (modes.isActive (Modes.DEVICE_CHAINS), "In did not open the native Device Chains selector"); requireAction ("device.selectSlotChain:Chain 8", "select chain"); requireAction ("cursorDevice.selectParent", "parent"); "Session In must be inert"; "Browser In must be inert"; "Sequencer In must be inert"',
         )
         self.assertEqual(errors, [])
+
 
     def test_in_out_direction_contract_rejects_swapped_labels(self):
         errors = MODULE.validate_in_out_contract(

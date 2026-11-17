@@ -4,7 +4,7 @@
 
 The pinned DrivenByMoss 19.2.2 submodule is the sole owner of Push controller modes. PUSHdriver must never add or overlay project-owned `DeviceParamsMode`, `DeviceChainsMode`, or `DeviceBrowserMode` classes. Device, Chains and Browser state transitions and row semantics remain in the upstream classes.
 
-PUSHdriver may adapt upstream behavior only through narrowly scoped, reviewed patches where Bitwig/Push 1 integration requires them. Every such patch must be listed in `PATCH_TARGET_ALLOWLIST` in `scripts/check_source_ownership.py`. A second mode implementation is prohibited, not merely allowlisted. The DeviceParamsMode-specific In/Out methods and DeviceBrowserMode filter-column navigation methods were removed. The Push 1 In/Out command adapter now calls the upstream mode's existing item/page methods; it owns no Device or Browser state machine.
+PUSHdriver may adapt upstream behavior only through narrowly scoped, reviewed patches where Bitwig/Push 1 integration requires them. Every such patch must be listed in `PATCH_TARGET_ALLOWLIST` in `scripts/check_source_ownership.py`. A second mode implementation is prohibited, not merely allowlisted. The DeviceParamsMode-specific In/Out methods and DeviceBrowserMode filter-column navigation methods were removed. The Push 1 In/Out commands now have one narrow responsibility: In activates the upstream Device Chains selector when slot chains are available; Out invokes the upstream Up action to close that selector or select the parent device. They add no mode, cursor or navigation state.
 
 ## Required review for ownership changes
 
@@ -29,7 +29,7 @@ The old guard only searched for three named files under `overrides/java/.../mode
 
 ## In/Out adapter boundary
 
-The Push 1 In/Out command classes may choose which existing upstream item/page method to call, based on the upstream mode's own state. They must not own filter-column cursors, duplicate navigation state, or add new methods to Device/Browser mode classes. The virtual runtime test asserts device selection, parameter-bank scrolling and Browser content-type paging through those upstream methods.
+The Push 1 In/Out command classes may only enter or leave the existing Device Chains hierarchy. In opens the upstream Device Chains mode after checking `HAS_SLOT_CHAINS` and the selected device's chain list. Out reuses the upstream Device `Up` action, which returns from the selector or selects the parent device. They must not page devices, parameter banks or Browser content types, and must not own chain cursors or duplicate hierarchy state. The virtual runtime test asserts entry, chain selection, parent exit and no-op behavior in Browser, Session and Sequencer contexts.
 
 
 ## Current intentional project-owned classes
@@ -38,7 +38,7 @@ These are explicit, reviewed overlays or additions, not parallel classes loaded 
 
 | File | Ownership role |
 |---|---|
-| `PageLeftCommand`, `PageRightCommand` | Push 1 In/Out command adapter. They call existing upstream mode item/page methods; they do not maintain Device or Browser state. |
+| `PageLeftCommand`, `PageRightCommand` | Push 1 In/Out command adapter. In enters the existing Device Chains selector; Out reuses the upstream Up action. No new mode, chain cursor or navigation state is maintained. |
 | `PushCursorCommand` | Shift-aware arrow routing through the active mode's existing navigation API and the scene bank. |
 | `SequencerView`, `PolySequencerView` | Push 1-specific sequencer presentation and note/step editing built on DrivenByMoss abstract sequencer views. They replace the upstream concrete view classes at the same FQCN. |
 | `PushNewCommand` | New Push 1 clip-launcher command extending the upstream New command; not a second mode. |
@@ -49,7 +49,7 @@ The two sequencer views are the largest remaining full-class overlays. They are 
 
 ## Physical In/Out direction contract
 
-In is CC62 on the left/Page Left button and advances to the next device, parameter page or Browser content type. Out is CC63 on the right/Page Right button and moves to the previous item/page. The command adapters must delegate to the upstream methods in those directions. The static ownership gate and virtual runtime bench both enforce this mapping so a swapped label, command or test constant cannot pass unnoticed.
+In is CC62 on the left/Page Left button and opens the native Device Chains selector when the current device exposes slot chains. The top row selects a chain through the upstream `selectSlotChain()` API. Out is CC63 on the right/Page Right button and closes the selector or returns from a nested chain through the upstream `Up`/`selectParent()` path. Both buttons are inactive outside Device mode. The static ownership gate and virtual runtime bench enforce this contract and the absence of the former page-navigation fallbacks.
 
 The Push 1 color menu is an intentional upstream adaptation: `DAWColor.java` is regenerated during assembly with 64 RGB values from the pinned Push 1 hardware palette, while `PushColorManager.java` maps each enum ordinal to the same static pad palette index. The exact source patch is allowlisted in `scripts/check_source_ownership.py` and validated after assembly by `scripts/check_push1_color_palette.py`.
 

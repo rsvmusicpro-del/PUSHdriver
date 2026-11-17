@@ -25,9 +25,9 @@ ROW1 must use only the Push 1 static CC palette. ROW2 uses the RGB-capable palet
 
 ## Bitwig-specific integration
 
-The complete upstream modes remain authoritative. No project-owned DeviceParamsMode, DeviceChainsMode or DeviceBrowserMode class is allowed. DeviceParamsMode is assembled from pinned upstream source without injected navigation methods. Push 1 In/Out is only a command adapter: it dispatches to the existing upstream item/page methods according to the upstream selector state. Browser In/Out likewise delegates to the upstream content-type page methods. No PUSHdriver filter-column state or navigation methods are injected into DeviceBrowserMode; only defensive guards for transient/empty Bitwig browser banks remain.
+The complete upstream modes remain authoritative. No project-owned DeviceParamsMode, DeviceChainsMode or DeviceBrowserMode class is allowed. DeviceParamsMode is assembled from pinned upstream source without injected navigation methods. Push 1 In/Out is a narrow command adapter: In opens the existing upstream DeviceChainsMode when the cursor device exposes slot chains; the top row enters a named chain through `selectSlotChain()`. Out uses the existing upstream Device `Up` action to close the selector or select the parent device from a nested chain. In/Out no longer dispatch item/page navigation in Device, Browser, Session or Sequencer contexts. No PUSHdriver chain cursor or alternate navigation state is injected into any upstream mode.
 
-The existing Push 1 setup continues to route the physical In/Out controls into the active Device/Browser context while preserving their established behavior in Session and sequencer contexts. Optional Bitwig API capabilities must be checked before invoking parameter-section, pinning or slot-chain operations.
+The existing Push 1 setup routes In/Out only to their Device Chains hierarchy actions. The In command checks `HAS_SLOT_CHAINS` and the selected device's chain list before opening the selector; the Out command reuses the upstream Up action. Their LEDs advertise only those available Device actions. Optional Bitwig API capabilities must be checked before invoking parameter-section, pinning or slot-chain operations.
 
 ## Verification requirements
 
@@ -36,10 +36,10 @@ The virtual bench must exercise the actual registered PushControllerSetup MIDI b
 2. ROW1 selects a device; its LED values never overlap Push 1 blink opcodes.
 3. ROW2 performs the native Ableton Device actions.
 4. ROW1 selects parameter pages; Shift+Left/Right retains Ableton's device-swap gesture.
-5. In/Out navigate device and parameter-page banks at their boundaries.
-6. ROW2 Chains enters Device Chains; ROW1 selects a chain.
-7. Browser retains the upstream Ableton row mapping and filter/result navigation.
-8. Cross-mode tests continue to pass.
+5. In opens the native Device Chains selector only when the host and device expose slot chains; Out closes the selector.
+6. ROW1 selects a chain through `selectSlotChain()`; Out from the nested device invokes the upstream parent-selection action.
+7. Browser, Session and Sequencer In/Out presses are no-ops; Browser row/encoder navigation and Shift+Left/Right remain unchanged.
+8. Four-arrow item/page navigation remains unchanged and cross-mode tests continue to pass.
 
 CI builds the extension and runs the virtual API-17 host tests on Linux and Intel macOS. This is not equivalent to launching Bitwig Studio 4.3.10 with a physical Push 1. The candidate is not considered fully qualified until that live integration test is completed.
 
@@ -50,4 +50,4 @@ CI builds the extension and runs the virtual API-17 host tests on Linux and Inte
 - Reworked the LED guard so it checks the pinned upstream implementation instead of expecting a project override to exist.
 
 
-Physical direction is fixed by the Push 1 contract: In (CC62 / left) advances to the next device or parameter page; Out (CC63 / right) moves to the previous device or page. The In/Out command adapter delegates to the upstream DeviceParamsMode methods and maintains no independent navigation state.
+Physical direction is fixed by the Push 1 contract: In (CC62 / left) enters the native Device Chains selector; Out (CC63 / right) leaves it or selects the parent device from a nested chain. The command adapter owns no chain cursor or duplicate navigation state.

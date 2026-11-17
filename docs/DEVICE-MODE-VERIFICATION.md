@@ -13,10 +13,10 @@ The run completed successfully on both supported CI jobs:
 - Linux: source assembly reproducibility, Java 17 build, Push 1 package verification, full virtual protocol/runtime suite and extended fuzzing.
 - Intel macOS: Java 17 build, Push 1 package verification, full virtual protocol/runtime suite and extended fuzzing.
 
-The virtual runtime suite boots the production `PushControllerSetup` and dispatches virtual MIDI through registered production bindings. The Device assertions verify the restored Ableton Push 1 row roles, selector/action behavior, parameter-page selection, In/Out navigation and Device Chains selection.
+The virtual runtime suite boots the production `PushControllerSetup` and dispatches virtual MIDI through registered production bindings. The Device assertions verify the restored Ableton Push 1 row roles, selector/action behavior, In opening Device Chains, top-row chain selection, Out returning to the parent device, unsupported/empty-chain guards and no-op behavior outside Device mode.
 
 The generated artifact is named `PUSHdriver-bwextension` and is attached to the successful workflow run above.
 
 ## Qualification boundary
 
-This CI run does not launch Bitwig Studio 4.3.10 or connect a physical Push 1. The final acceptance step remains a live test in Bitwig with the controller attached, confirming that the device selector row, Device action row, parameter encoders, In/Out and Chains behave as expected on the actual host and hardware.
+This baseline CI run does not launch Bitwig Studio 4.3.10 or connect a physical Push 1. The revised In/Out chain-entry/exit scenarios are added on the dedicated work branch and still require its own CI run, followed by a live Bitwig test with the controller attached.

@@ -41,7 +41,7 @@ excluded from the packaged extension.
 ## Functional scope already adapted
 
 The branch history records work on Push 1-specific navigation and Shift page
-semantics, In/Out device/browser navigation, New clip behavior, Note/Session
+semantics, In/Out Device Chains entry/exit, New clip behavior, Note/Session
 workflows, Drum/Drum64 note behavior, sequencer page-follow and playhead
 safety, Note Repeat guards, LED color behavior, firmware inquiry parsing,
 Linux MIDI discovery, and fixed-width LCD safety. The existing DrivenByMoss
@@ -226,8 +226,8 @@ The Device/Chains/Browser project overrides were removed from
 `overrides/java/de/mossgrabers/controller/ableton/push/mode/device/`.
 The pinned DrivenByMoss 19.2.2 Ableton Push classes are now the single
 implementation of these modes. The project retains only small build-time
-adaptations in `scripts/prepare_push1.py` for Push 1 In/Out navigation and
-Bitwig Browser bank bounds.
+adaptations in `scripts/prepare_push1.py` for Push 1 In/Out Device Chains
+entry/exit semantics and Bitwig Browser bank bounds.
 
 The previous DeviceParamsMode override reversed Push 1's physical rows:
 ROW1 / CC20–27 above the LCD is the selector row, while ROW2 / CC102–109

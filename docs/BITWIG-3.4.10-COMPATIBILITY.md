@@ -44,8 +44,9 @@ against the older source rather than copied blindly:
 
 - Push 1 LCD SysEx framing, layout, glyphs and display formatting.
 - Push 1 firmware inquiry parsing and defensive MIDI/SysEx validation.
-- Device/Chains/Browser navigation adapters and the corrected In/Out
-  physical contract (CC62 In/next; CC63 Out/previous).
+- Device/Chains/Browser integration and the In/Out physical contract: CC62/In
+  enters the native Device Chains selector; CC63/Out exits to the parent; both
+  are inactive outside Device mode.
 - Push 1 sequencer and poly-sequencer view overlays.
 - Session, mixer, transport, browser and clip-launcher behavior represented
   by the virtual runtime tests.
