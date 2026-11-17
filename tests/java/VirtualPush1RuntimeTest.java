@@ -796,6 +796,29 @@ public final class VirtualPush1RuntimeTest
         deviceIndex = 1;
         virtualCursorDevicePosition = 1;
 
+        // Two-level hierarchy regression: returning from a child chain may
+        // land on another nested parent, not necessarily at the project root.
+        virtualParentNestedAfterSelect = true;
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return to nested parent device");
+        requireAction ("cursorDevice.selectParent", "Out did not request the parent at nested depth two");
+        drainScheduled (state, 73);
+        require (virtualCursorDeviceNested && deviceIndex == 0,
+            "Out incorrectly left the hierarchy when the parent was itself nested");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
+            "Select sibling inside nested parent chain");
+        require (deviceIndex == 2,
+            "ROW1 did not select a sibling at the second nested hierarchy depth");
+        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 2,
+            "Second-level nested selection did not use cursor sibling navigation");
+        virtualParentNestedAfterSelect = false;
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return from nested parent to root");
+        drainScheduled (state, 73);
+        require (!virtualCursorDeviceNested && deviceIndex == 0,
+            "Out did not return to the root after traversing two nested levels");
+
         // Returning to Device mode must keep the real controller bindings active.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Re-enter Device mode");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Device mode could not be re-entered");
