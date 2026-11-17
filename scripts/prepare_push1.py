@@ -1379,8 +1379,10 @@ replace_once(setup,
             if (modeManager.isActive (Modes.DEVICE_PARAMS))
             {
                 final var cursorDevice = this.model.getCursorDevice ();
-                return cursorDevice.doesExist () && this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS)
-                    && cursorDevice.getSlotChains ().length > 0 && !PushDeviceNavigation.isBusy (surface);
+                if (!cursorDevice.doesExist () || !this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+                    return false;
+                final String [] chains = cursorDevice.getSlotChains ();
+                return chains != null && chains.length > 0 && !PushDeviceNavigation.isBusy (surface);
             }
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
                 return activeMode.hasNextItemPage ();
@@ -1539,7 +1541,17 @@ replace_once(device_params_mode,
                 return;
             }
 """,
-    """            if (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.selectRow (this.surface, this.model, index))
+    """            if (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.selectRow (this.surface, this.model, index, () -> {
+                if (!cd.hasLayers ())
+                {
+                    this.setShowDevices (false);
+                    return;
+                }
+                final Optional<?> layer = cd.getLayerBank ().getSelectedItem ();
+                if (layer.isEmpty ())
+                    cd.getLayerBank ().getItem (0).select ();
+                this.surface.getModeManager ().setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
+            }))
                 return;
 
             if (cd.getIndex () != index)
