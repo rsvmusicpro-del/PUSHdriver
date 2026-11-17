@@ -144,8 +144,8 @@ def validate_in_out_contract(setup, left, right, control, virtual, hardware, run
    and "modeManager.setActive (Modes.DEVICE_CHAINS)" in left
    and "selectNextItem" not in left
    and "selectNextItemPage" not in left
-   and "onLeft" not in left
-   and "onRight" not in left
+   and "onLeft" not in left + right
+   and "onRight" not in left + right
    and "notifyEditPage" not in left + right,
    "In command must only open Device Chains and must not invoke Sequencer page handlers or Edit page notifications."),
   ("modeManager.isActive (Modes.DEVICE_CHAINS)" in right
