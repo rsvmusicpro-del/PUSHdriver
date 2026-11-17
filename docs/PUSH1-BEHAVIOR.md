@@ -1,6 +1,6 @@
 # Push 1 behavior characterization (reference contract)
 
-This document describes the behavior implemented on branch `custom` at the time the virtual MIDI bench was introduced. It is a characterization of the code and project-maintained hardware profile, not a claim that every path has been exercised on a physical Push 1.
+This document characterizes the behavior in the dedicated In/Out Device Chains work branch. It records the current code and hardware profile, not a claim that every path has been exercised on a physical Push 1.
 
 ## Runtime and compatibility boundary
 

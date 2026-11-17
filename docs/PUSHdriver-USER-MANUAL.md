@@ -5,7 +5,7 @@
 **Base logicielle :** DrivenByMoss 19.2.2 · Bitwig Extension API 17 · Java 17  
 **Matériel visé :** Ableton Push 1 d’origine, en USB-MIDI.
 
-Ce manuel décrit les fonctions présentes dans le code de la branche `custom`. PUSHdriver reprend les modes, vues, commandes et mappings de DrivenByMoss, avec des adaptations spécifiques au Push 1 et à Bitwig. Une fonction héritée du framework n’est pas nécessairement une nouveauté de PUSHdriver.
+Ce manuel décrit les fonctions de la branche de travail indiquée ci-dessus. PUSHdriver reprend les modes, vues, commandes et mappings de DrivenByMoss, avec des adaptations spécifiques au Push 1 et à Bitwig. Une fonction héritée du framework n’est pas nécessairement une nouveauté de PUSHdriver.
 
 > **Périmètre :** cette version de travail réserve In/Out à l’entrée et à la sortie de la hiérarchie Device Chains. Les flèches gauche/droite conservent la navigation des appareils et des pages.
 
