@@ -761,6 +761,9 @@ public final class VirtualPush1RuntimeTest
                 {
                     deviceIndex = startIndex;
                     virtualCursorDevicePosition = startIndex;
+                    deviceParamsMode.setShowDevices (true);
+                    require (virtualCursorDeviceNested,
+                        "Exhaustive ROW1 matrix lost nested cursor state for chain size " + childCount);
                     MODEL_ACTIONS.clear ();
                     requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + targetIndex,
                         "Chain size " + childCount + ", start " + startIndex + ", ROW1 " + (targetIndex + 1));
