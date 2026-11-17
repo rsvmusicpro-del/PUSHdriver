@@ -1541,18 +1541,29 @@ replace_once(device_params_mode,
 """,
     """            if (cd.getIndex () != index)
             {
+                // A ROW1 position is selectable only when the corresponding
+                // sibling exists. This is essential for short chains: do not
+                // clamp an invalid button to the final child.
+                final var targetDevice = cd.getDeviceBank ().getItem (index);
+                if (targetDevice == null || !targetDevice.doesExist ())
+                    return;
+
                 if (cd.isNested ())
                 {
                     final int currentIndex = cd.getIndex ();
                     if (index > currentIndex)
-                        for (int i = currentIndex; i < index; i++)
+                    {
+                        for (int i = currentIndex; i < index && cd.canSelectNext (); i++)
                             cd.selectNext ();
+                    }
                     else
-                        for (int i = currentIndex; i > index; i--)
+                    {
+                        for (int i = currentIndex; i > index && cd.canSelectPrevious (); i--)
                             cd.selectPrevious ();
+                    }
                 }
                 else
-                    cd.getDeviceBank ().getItem (index).select ();
+                    targetDevice.select ();
                 return;
             }
 """,
