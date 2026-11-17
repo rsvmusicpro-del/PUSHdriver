@@ -126,6 +126,7 @@ public final class VirtualPush1RuntimeTest
     private static boolean virtualParentHasLayersAfterSelect;
     private static boolean virtualSuppressParentCursorUpdate;
     private static boolean virtualSuppressChainCursorUpdate;
+    private static boolean virtualNullSlotChains;
     private static boolean virtualDeferCursorUpdates;
     private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
     // Model API capabilities independently; Bitwig hosts may support one feature but not another.
@@ -723,6 +724,63 @@ public final class VirtualPush1RuntimeTest
         drainScheduled (state, 73);
         require (!virtualCursorDeviceNested && deviceIndex == 3, "Immediate ROW1 selection after Out was not replayed against the parent device bank");
         require (MODEL_ACTIONS.stream ().anyMatch (a -> a.equals ("device.select:3")), "Queued parent ROW1 selection did not target the requested device");
+
+        // Regression: a second ROW1 tap must not rewrite the already-issued root selection.
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Re-enter chain before ROW1 coalescing regression");
+        drainScheduled (state, 73);
+        require (virtualCursorDeviceNested, "Precondition failed: In did not re-enter the chain");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out before two in-flight root ROW1 selections");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "First queued root ROW1 target");
+        require (runNextScheduled (state, 73), "Missing delayed parent-cursor callback");
+        require (runNextScheduled (state, 73), "Missing navigation poll after parent-cursor callback");
+        require (MODEL_ACTIONS.contains ("device.select:1"), "First root ROW1 selection was not issued after Out");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Second ROW1 target while first root selection is in flight");
+        drainScheduled (state, 73);
+        require (deviceIndex == 3, "A later ROW1 press rewrote or lost the in-flight root selection instead of running next");
+        require (MODEL_ACTIONS.contains ("device.select:3"), "Second root ROW1 selection was not issued as a separate serialized action");
+
+        // Regression: if queued ROW1 resolves to the parent device already active,
+        // preserve upstream's reselect gesture (Banks toggle / Layer Mix entry).
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Re-enter chain before same-device reselect regression");
+        drainScheduled (state, 73);
+        deviceParamsMode.setShowDevices (true);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out before queued same-device ROW1");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Queued ROW1 reselect of parent device zero");
+        drainScheduled (state, 73);
+        require (!deviceParamsMode.isShowDevices (), "Queued ROW1 reselect of the active parent did not preserve upstream Banks behavior");
+        deviceParamsMode.setShowDevices (true);
+
+        // Null slot-chain arrays are legal at a transient host boundary: IN is
+        // a no-op and its LED predicate must remain safe.
+        virtualNullSlotChains = true;
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "IN with null slot-chain bank");
+        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.startsWith ("device.selectSlotChain:")),
+            "IN attempted to select a chain from a null slot-chain bank");
+        virtualNullSlotChains = false;
+
+        // A queue overflow must reject new intent without cancelling the host
+        // operation already in flight or releasing serialization early.
+        virtualDeferCursorUpdates = true;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Start in-flight action before queue overflow");
+        for (int i = 0; i < 40; i++)
+            requireButtonMidiDelivery (midi, i % 2 == 0 ? VirtualPush1Device.OUT : VirtualPush1Device.IN,
+                "Queue-overflow stress command " + i);
+        drainScheduled (state, 73);
+        require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
+            "Navigation remained busy after the bounded queue drained");
+        require (!virtualCursorDeviceNested, "Queue overflow cancelled the in-flight action or broke serialized hierarchy order");
+        virtualDeferCursorUpdates = false;
+
+        // If Bitwig never confirms a chain entry, the bounded timeout must release
+        // the queue rather than leaving future button presses permanently blocked.
+        virtualSuppressChainCursorUpdate = true;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "IN with deliberately suppressed host cursor callback");
+        drainScheduled (state, 73);
+        require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
+            "Navigation timeout did not release the stalled queue");
+        virtualSuppressChainCursorUpdate = false;
 
         deviceIndex = 4;
         virtualCursorDevicePosition = 4;
@@ -2480,7 +2538,7 @@ public final class VirtualPush1RuntimeTest
                     case "getSlotChains":
                         if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
                             throw new AssertionError ("Unsupported slot-chain capability was queried");
-                        return virtualSlotChains.clone ();
+                        return virtualNullSlotChains ? null : virtualSlotChains.clone ();
                     case "selectSlotChain":
                         if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
                             throw new AssertionError ("Unsupported slot-chain capability was invoked");
@@ -3233,28 +3291,29 @@ public final class VirtualPush1RuntimeTest
     }
 
     /** Run only tasks for the requested virtual delay (1 ms flush or 100 ms test tick). */
+    private static boolean runNextScheduled (final State state, final long delay)
+    {
+        final Iterator<ScheduledTask> iterator = state.scheduled.iterator ();
+        while (iterator.hasNext ())
+        {
+            final ScheduledTask candidate = iterator.next ();
+            if (candidate.delay () == delay)
+            {
+                iterator.remove ();
+                candidate.task ().run ();
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void drainScheduled (final State state, final long delay)
     {
         int steps = 0;
-        while (steps++ < 100000)
-        {
-            ScheduledTask next = null;
-            final Iterator<ScheduledTask> iterator = state.scheduled.iterator ();
-            while (iterator.hasNext ())
-            {
-                final ScheduledTask candidate = iterator.next ();
-                if (candidate.delay () == delay)
-                {
-                    next = candidate;
-                    iterator.remove ();
-                    break;
-                }
-            }
-            if (next == null)
-                return;
-            next.task ().run ();
-        }
-        throw new AssertionError ("Virtual Bitwig scheduler exceeded 100000 tasks at delay " + delay);
+        while (steps++ < 100000 && runNextScheduled (state, delay))
+            ;
+        if (steps >= 100000)
+            throw new AssertionError ("Virtual Bitwig scheduler exceeded 100000 tasks at delay " + delay);
     }
 
     private static void requireAction (final String action, final String message)
