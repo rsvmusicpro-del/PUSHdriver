@@ -7,7 +7,7 @@ Upstream: DrivenByMoss 19.2.2 at `013620c1330cdcf896e96ef8fdc8a2123e4fce6a`
 
 ## CI evidence
 
-The current PR head (`f52d8ff0cb4020f7cb776fd2b2d5c1c41d57c41b`) passed GitHub Actions run [#1088](https://github.com/rsvmusicpro-del/PUSHdriver/actions/runs/44191919003) on Linux and Intel macOS. The `quality-gate` job also passed. This run includes the asynchronous-navigation regressions, queue-overflow callback-order assertions and unrelated nested-cursor rejection.
+The current PR head (`3b2605f9e1798a7fadd14ea8fbba3e404fd5c9fa`) passed GitHub Actions run [#1094](https://github.com/rsvmusicpro-del/PUSHdriver/actions/runs/44198649513) on Linux and Intel macOS. The aggregate `quality-gate` also passed. Linux CI additionally killed an injected production Java mutant by detecting the deliberate removal of the shared empty-clip guard, then restored and rebuilt the clean package.
 
 The virtual runtime exercises the production PushControllerSetup MIDI bindings and now verifies:
 
@@ -18,6 +18,9 @@ The virtual runtime exercises the production PushControllerSetup MIDI bindings a
 - The exhaustive ROW1 boundary matrix covers 288 combinations across chain sizes 1–8: 204 valid current/target pairs and 84 unavailable button targets. Missing children must not select a different device or issue cursor movement.
 - Browser content-type paging retains its established direction.
 - The repository's extended delayed-callback/interleaving and fuzz suite passes on both CI platforms.
+- Classic and Poly Sequencer empty-slot tests verify that rendering, playhead feedback, note editing and long-press inspection do not read clip data when `doesExist()` is false.
+- The deterministic fuzzer can replay a single view and seed; on failure it binary-searches and confirms the shortest failing action prefix, retaining the original trace and a reduced report.
+- Linux CI proves the empty-clip regression kills an injected Java production mutant; this is one targeted mutation smoke test, not a full PIT mutation score.
 
 ## Qualification boundary
 
