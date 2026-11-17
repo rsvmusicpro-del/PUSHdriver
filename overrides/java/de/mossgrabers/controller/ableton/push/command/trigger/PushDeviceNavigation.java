@@ -140,6 +140,7 @@ public final class PushDeviceNavigation
             final boolean complete=switch(waiting)
             {
                 case ENTER -> cursor.doesExist()&&cursor.isNested()&&cursor.getIndex()==state.expectedIndex&&!state.before.equals(fingerprint(cursor));
+                // API 17 has no parent reference/ID to compare after selectParent(); the fingerprint delta is the strongest available signal.
                 case EXIT -> cursor.doesExist()&&!state.before.equals(fingerprint(cursor));
                 case MOVE -> cursor.getIndex()==state.expectedIndex;
                 case ROOT_SELECT -> cursor.getIndex()==action.index;
