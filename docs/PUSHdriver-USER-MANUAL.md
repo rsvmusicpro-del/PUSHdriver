@@ -130,13 +130,13 @@ Le mode Device permet de parcourir les appareils de la piste ou du contexte sél
 ### Liste d’appareils
 - La rangée supérieure représente les appareils disponibles dans la banque visible.
 - Le bouton correspondant sélectionne l’appareil.
-- **In / Out** et les flèches horizontales naviguent entre les appareils sur `custom`.
+- **In / Out** est réservé à Device Chains ; utilisez les flèches horizontales pour naviguer entre appareils.
 - **Shift + ← / →** change de page d’appareils.
 - Un appareil absent ou un emplacement vide est signalé comme indisponible.
 
 ### Pages de paramètres
 - Le bouton de la rangée supérieure correspondant à une page sélectionne cette page.
-- **In / Out** passe à la page précédente/suivante.
+- **In / Out** ne change plus de page de paramètres ; utilisez les commandes de navigation horizontale.
 - Les encodeurs principaux règlent les paramètres affichés.
 - Les pages vides ne sont pas présentées comme sélectionnables.
 
@@ -238,6 +238,7 @@ Le séquenceur classique programme des notes dans un clip via la grille.
 - **Select + pad de pas** ouvre l’édition de note lorsque cette combinaison est disponible.
 - Un appui long sur un pas permet d’inspecter/éditer la note correspondante.
 - Les pages se parcourent avec les flèches horizontales ou les commandes de page de la vue.
+- **In / Out** est inactif dans le séquenceur : il ne change pas la page d’édition et n’affiche donc plus l’ancienne notification « Edit page: N ».
 
 ### Suivi du playhead
 Le séquenceur suit automatiquement la page du playhead pendant la lecture lorsqu’un clip de notes existe.

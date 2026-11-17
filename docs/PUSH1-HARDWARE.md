@@ -169,7 +169,9 @@ Device Chains hierarchy navigation only:
   This also preserves the upstream asynchronous parent/layer restoration.
 - Outside Device and Device Chains, In/Out do nothing. They no longer page
   devices, parameter banks, Browser content types, Session track banks or
-  Sequencer pages. The four directional arrows retain item/page navigation.
+  Sequencer pages. In particular, they no longer call the Sequencer page handlers,
+  so the associated transient `Edit page: N` notification is not emitted by In/Out.
+  The four directional arrows retain item/page navigation.
 
 Browser navigation continues to use its native controls:
 

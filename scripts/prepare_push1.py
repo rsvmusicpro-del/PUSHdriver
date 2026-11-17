@@ -1533,7 +1533,9 @@ replace_once(browser_mode,
     "Push 1 Browser graphic result item guard")
 
 # DeviceParamsMode remains byte-for-byte on the pinned upstream implementation.
-# The Push 1 In/Out command adapter calls its existing item/page methods.
+# Push 1 In/Out no longer call Sequencer onLeft/onRight page handlers or their
+# transient Edit page notification. Their Device Chains behavior lives only in
+# the dedicated command overrides; do not restore item/page navigation here.
 # Never inject a second DeviceParamsMode navigation implementation.
 
 # Keep the physical Push 1 New button on its native dedicated binding, while
