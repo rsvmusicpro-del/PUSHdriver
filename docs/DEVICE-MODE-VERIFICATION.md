@@ -7,7 +7,7 @@ Upstream: DrivenByMoss 19.2.2 at `013620c1330cdcf896e96ef8fdc8a2123e4fce6a`
 
 ## CI evidence
 
-GitHub Actions run [#1073](https://github.com/rsvmusicpro-del/PUSHdriver/actions/runs/44181267631) completed successfully on Linux and Intel macOS. The quality-gate job also passed.
+The previous PR revision passed GitHub Actions run [#1073](https://github.com/rsvmusicpro-del/PUSHdriver/actions/runs/44181267631) on Linux and Intel macOS. This run predates the asynchronous-navigation corrections in the current head and is not evidence for those new regressions. A fresh run on the current head is still required.
 
 The virtual runtime exercises the production PushControllerSetup MIDI bindings and now verifies:
 
