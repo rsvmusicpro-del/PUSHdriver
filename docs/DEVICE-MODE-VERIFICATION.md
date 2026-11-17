@@ -43,7 +43,13 @@ selection, same-device reselect, queue overflow, null slot-chain banks and a
 host callback that never arrives. Nested sibling moves require the exact
 expected adjacent index; chain entry additionally confirms the first child.
 A bounded timeout cancels stale queued intent rather than applying it to a
-different hierarchy level.
+different hierarchy level. ENTER also requires the cursor to report the first
+child, not merely any nested cursor. API 17 does not expose a parent-device
+handle or expected parent ID for `selectParent()`: EXIT therefore has to use a
+cursor-fingerprint change as its confirmation. A concurrent external cursor
+move during that exact wait window remains indistinguishable from the parent
+transition at the API boundary; this limitation is documented rather than
+claimed as fully eliminated.
 
 The simulator validates this asynchronous ordering contract, but it does not
 run Bitwig Studio or physical Push 1 hardware. A live hardware check remains
