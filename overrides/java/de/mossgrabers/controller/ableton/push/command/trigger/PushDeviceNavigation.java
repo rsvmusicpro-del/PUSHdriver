@@ -101,7 +101,7 @@ public final class PushDeviceNavigation
                 if(selected==null)selected=chains==null||chains.length==0?null:chains[0];
                 boolean found=false;if(selected!=null&&chains!=null)for(final String chain:chains)if(selected.equals(chain)){found=true;break;}
                 if(!found){state.actions.removeFirst();continue;}
-                state.before=fingerprint(cursor);state.wait=Wait.ENTER;state.polls=0;state.running=true;
+                state.before=fingerprint(cursor);state.expectedIndex=0;state.wait=Wait.ENTER;state.polls=0;state.running=true;
                 cursor.selectSlotChain(selected);schedule(surface,state,model);return;
             }
             if(action.type==Type.EXIT)
@@ -139,7 +139,7 @@ public final class PushDeviceNavigation
             final Wait waiting=state.wait;
             final boolean complete=switch(waiting)
             {
-                case ENTER -> cursor.doesExist()&&cursor.isNested()&&!state.before.equals(fingerprint(cursor));
+                case ENTER -> cursor.doesExist()&&cursor.isNested()&&cursor.getIndex()==state.expectedIndex&&!state.before.equals(fingerprint(cursor));
                 case EXIT -> cursor.doesExist()&&!state.before.equals(fingerprint(cursor));
                 case MOVE -> cursor.getIndex()==state.expectedIndex;
                 case ROOT_SELECT -> cursor.getIndex()==action.index;
