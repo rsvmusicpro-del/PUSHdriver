@@ -3309,11 +3309,10 @@ public final class VirtualPush1RuntimeTest
 
     private static void drainScheduled (final State state, final long delay)
     {
-        int steps = 0;
-        while (steps++ < 100000 && runNextScheduled (state, delay))
-            ;
-        if (steps >= 100000)
-            throw new AssertionError ("Virtual Bitwig scheduler exceeded 100000 tasks at delay " + delay);
+        for (int steps = 0; steps < 100000; steps++)
+            if (!runNextScheduled (state, delay))
+                return;
+        throw new AssertionError ("Virtual Bitwig scheduler exceeded 100000 tasks at delay " + delay);
     }
 
     private static void requireAction (final String action, final String message)
