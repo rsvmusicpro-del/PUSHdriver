@@ -1350,8 +1350,8 @@ if "isPush2" in setup_source or "Push2Display" in setup_source or "Push 2" in se
     raise SystemExit("PushControllerSetup still contains Push 2 runtime references")
 setup.write_text(setup_source)
 replace_once(setup,
-    "import de.mossgrabers.framework.daw.IModel;\n",
-    "import de.mossgrabers.framework.daw.constants.Capability;\nimport de.mossgrabers.framework.daw.IModel;\n",
+    "import de.mossgrabers.framework.daw.IHost;\n",
+    "import de.mossgrabers.framework.daw.constants.Capability;\nimport de.mossgrabers.framework.daw.IHost;\n",
     "Push 1 Device hierarchy capability import")
 
 # Map the physical Push 1 Page Left/Right CC controls to their Ableton In/Out
