@@ -1198,6 +1198,40 @@ replace_once(note_repeat,
     "                        return this.noteRepeat.isShuffle () ? hiColor : onColor;",
     "NoteRepeatMode repeat shuffle LED requires active input")
 
+# Empty clip slots are valid API-17 states. Guard the shared note-sequencer
+# input and renderer before asking the host for playhead or note data.
+note_sequencer = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractNoteSequencerView.java"
+replace_once(note_sequencer,
+    "        final INoteClip clip = this.getClip ();\n"
+    "        final int mappedY = this.keyManager.map (y);",
+    "        final INoteClip clip = this.getClip ();\n"
+    "        if (!clip.doesExist ())\n"
+    "            return;\n"
+    "        final int mappedY = this.keyManager.map (y);",
+    "Note sequencer ignores pad edits when the selected slot has no clip")
+replace_once(note_sequencer,
+    "        final INoteClip clip = this.getClip ();\n"
+    "        if (pad == this.loopPadPressed && pad != clip.getEditPage ())",
+    "        final INoteClip clip = this.getClip ();\n"
+    "        if (!clip.doesExist ())\n"
+    "        {\n"
+    "            this.loopPadPressed = -1;\n"
+    "            return;\n"
+    "        }\n"
+    "        if (pad == this.loopPadPressed && pad != clip.getEditPage ())",
+    "Note sequencer ignores loop gestures when the selected slot has no clip")
+replace_once(note_sequencer,
+    "        final INoteClip clip = this.getClip ();\n"
+    "        final int step = clip.getCurrentStep ();",
+    "        final INoteClip clip = this.getClip ();\n"
+    "        if (!clip.doesExist ())\n"
+    "        {\n"
+    "            gridPad.turnOff ();\n"
+    "            return;\n"
+    "        }\n"
+    "        final int step = clip.getCurrentStep ();",
+    "Note sequencer renderer clears safely when the selected slot has no clip")
+
 # Keep sequencer editing within the physical 8x8 MIDI pad matrix.
 sequencer = root / "src/main/java/de/mossgrabers/framework/view/sequencer/AbstractSequencerView.java"
 replace_once(sequencer,
