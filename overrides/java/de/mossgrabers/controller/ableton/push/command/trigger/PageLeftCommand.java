@@ -5,18 +5,16 @@ package de.mossgrabers.controller.ableton.push.command.trigger;
 
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
-import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.framework.command.core.AbstractTriggerCommand;
 import de.mossgrabers.framework.daw.IModel;
-import de.mossgrabers.framework.featuregroup.IMode;
-import de.mossgrabers.framework.featuregroup.ViewManager;
+import de.mossgrabers.framework.daw.constants.Capability;
+import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.view.Views;
-import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
 
-/** Push 1 In control: delegate navigation to the active upstream mode. */
+/** Push 1 In control: enter the native Device Chains selector. */
 public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, PushConfiguration>
 {
     public PageLeftCommand (final IModel model, final PushControlSurface surface)
@@ -29,48 +27,24 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     @Override
     public void execute (final ButtonEvent event, final int velocity)
     {
-        final ViewManager viewManager = this.surface.getViewManager ();
+        if (event != ButtonEvent.DOWN || this.surface.getViewManager ().isActive (Views.SESSION))
+            return;
+
         final var modeManager = this.surface.getModeManager ();
-        final IMode activeMode = modeManager.getActive ();
-
-        if (modeManager.isActive (Modes.BROWSER))
-        {
-            if (event == ButtonEvent.DOWN && activeMode != null)
-                activeMode.selectNextItemPage ();
-            return;
-        }
-
-        if (modeManager.isActive (Modes.DEVICE_CHAINS))
+        if (!modeManager.isActive (Modes.DEVICE_PARAMS))
             return;
 
-        if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
-        {
-            if (event == ButtonEvent.DOWN)
-            {
-                if (deviceParamsMode.isShowDevices ())
-                    deviceParamsMode.selectNextItem ();
-                else
-                    deviceParamsMode.selectNextItemPage ();
-            }
+        if (!this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
             return;
-        }
 
-        if (Modes.isDeviceMode (modeManager.getActiveID ()))
-        {
-            if (event == ButtonEvent.DOWN && activeMode != null)
-                activeMode.selectNextItemPage ();
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist ())
             return;
-        }
 
-        if (viewManager.isActive (Views.SESSION))
-        {
-            if (event == ButtonEvent.DOWN)
-                this.model.getCurrentTrackBank ().selectPreviousPage ();
+        final String [] slotChains = cursorDevice.getSlotChains ();
+        if (slotChains == null || slotChains.length == 0)
             return;
-        }
 
-        final var activeView = viewManager.getActive ();
-        if (activeView instanceof final AbstractSequencerView<?, ?> sequencerView)
-            sequencerView.onLeft (event);
+        modeManager.setActive (Modes.DEVICE_CHAINS);
     }
 }

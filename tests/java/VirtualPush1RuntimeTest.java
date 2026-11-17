@@ -636,14 +636,12 @@ public final class VirtualPush1RuntimeTest
             requireButtonMidiDelivery (midi, arrow, "Session arrow " + arrow);
         requireAction ("scene.scrollBackwards", "Session Up must move one scene backwards");
         requireAction ("scene.scrollForwards", "Session Down must move one scene forwards");
-        // In Session view the dedicated In/Out buttons become track-bank
-        // page navigation; their first/last pages must remain clamped.
-        trackIndex = 0;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Track page lower boundary");
-        require (trackIndex == 0, "Track bank moved before its first page");
-        trackIndex = 15;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Track page upper boundary");
-        require (trackIndex == 15, "Track bank moved beyond its last page");
+        // In/Out no longer navigate Session track-bank pages.
+        trackIndex = 7;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Session In must be inert");
+        require (trackIndex == 7, "In changed the Session track-bank page");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Session Out must be inert");
+        require (trackIndex == 7, "Out changed the Session track-bank page");
         sceneIndex = 0;
         requireButtonMidiDelivery (midi, VirtualPush1Device.UP, "Session scene lower boundary");
         require (sceneIndex == 0, "Session scene navigation moved before the first scene");
@@ -697,35 +695,54 @@ public final class VirtualPush1RuntimeTest
         requireAction ("parameterPage.selectPage:2", "Top-row selector did not select parameter page 3");
         deviceParamsMode.setShowDevices (true);
 
-        // In/Out retains the upstream device-bank and parameter-page navigation.
+        // In opens only the native Device Chains selector; it no longer pages
+        // devices or parameter banks. Out closes the selector at this level.
+        virtualSlotChains = new String [] { "Chain 1", "Chain 2", "Chain 3", "Chain 4", "Chain 5", "Chain 6", "Chain 7", "Chain 8" };
         deviceIndex = 4;
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
-        requireAction ("device.selectNextItem", "In (CC 62) must select the next device");
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63)");
-        requireAction ("device.selectPreviousItem", "Out (CC 63) must select the previous device");
-
-        // Parameter-page In/Out delegates to the upstream page-bank methods.
-        deviceParamsMode.setShowDevices (false);
         parameterPageIndex = 2;
         MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Parameter page In");
-        requireAction ("parameterBank.selectNextPage", "In (CC 62) must use upstream next-page navigation");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
+        require (modes.isActive (Modes.DEVICE_CHAINS), "In did not open the native Device Chains selector");
+        require (deviceIndex == 4 && parameterPageIndex == 2 && MODEL_ACTIONS.isEmpty (),
+            "In still performs device or parameter-page navigation");
         MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page Out");
-        requireAction ("parameterBank.selectPreviousPage", "Out (CC 63) must use upstream previous-page navigation");
-        deviceParamsMode.setShowDevices (true);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63) from chain selector");
+        require (modes.isActive (Modes.DEVICE_PARAMS), "Out did not leave the Device Chains selector");
+        require (MODEL_ACTIONS.isEmpty (), "Out from the chain selector invoked an unrelated model action");
 
-        // Device Chains is an upstream submode: top row selects a chain and
-        // bottom row remains the Device action row.
-        virtualSlotChains = new String [] { "Chain 1", "Chain 2", "Chain 3", "Chain 4", "Chain 5", "Chain 6", "Chain 7", "Chain 8" };
+        // In is unavailable when the host does not expose slot-chain support
+        // or the selected device has no slot chains.
+        SUPPORTED_CAPABILITIES.remove (Capability.HAS_SLOT_CHAINS);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In without slot-chain support");
+        require (modes.isActive (Modes.DEVICE_PARAMS), "In entered Device Chains without API slot-chain support");
+        SUPPORTED_CAPABILITIES.add (Capability.HAS_SLOT_CHAINS);
+        final String [] availableSlotChains = virtualSlotChains;
+        virtualSlotChains = new String [0];
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In without available chains");
+        require (modes.isActive (Modes.DEVICE_PARAMS), "In entered Device Chains when the device had no chains");
+        virtualSlotChains = availableSlotChains;
         MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Ableton Device Chains action");
-        require (modes.isActive (Modes.DEVICE_CHAINS), "Bottom-row Chains action did not activate Device Chains");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Ableton Device Chain selector 8");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out at root level");
+        require (modes.isActive (Modes.DEVICE_PARAMS) && MODEL_ACTIONS.isEmpty (),
+            "Out moved above the root device or invoked an unrelated action");
+
+        // In opens the upstream chain selector. The existing top row selects
+        // a named chain through ICursorDevice.selectSlotChain; Out then uses
+        // the upstream Up action to leave that nested chain.
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In opens Device Chains");
+        require (modes.isActive (Modes.DEVICE_CHAINS), "In did not enter Device Chains");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Device Chain selector 8");
         requireAction ("device.selectSlotChain:Chain 8", "Top-row selector did not select chain 8");
+        drainScheduled (state, 73);
+        require (virtualCursorDeviceNested, "Selecting a slot chain did not enter its nested device hierarchy");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Selecting a chain did not return to Device parameters");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out leaves selected Device Chain");
+        requireAction ("cursorDevice.selectParent", "Out did not invoke the upstream parent-device selection");
+        drainScheduled (state, 73);
+        require (!virtualCursorDeviceNested, "Out did not return to the parent device hierarchy");
+        require (modes.isActive (Modes.DEVICE_PARAMS), "Out from a nested chain left Device mode");
 
         // Returning to Device mode must keep the real controller bindings active.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Re-enter Device mode");
@@ -815,14 +832,15 @@ public final class VirtualPush1RuntimeTest
             "Shift+Right did not page to the next Browser content type");
         midi.device ().releaseButton (VirtualPush1Device.SHIFT);
 
-        // In/Out delegates Browser paging to upstream content-type methods.
+        // In/Out are reserved for Device Chains and must not page Browser
+        // content types; Browser paging remains on Shift+Left/Right.
         final int inOutContentBefore = browserModel.contentTypeIndex ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Browser In content type");
-        require (browserModel.contentTypeIndex () == inOutContentBefore + 1,
-            "In (CC 62) did not use the upstream Browser next-content-type method");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Browser Out content type");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Browser In must be inert");
         require (browserModel.contentTypeIndex () == inOutContentBefore,
-            "Out (CC 63) did not use the upstream Browser previous-content-type method");
+            "In changed the Browser content type");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Browser Out must be inert");
+        require (browserModel.contentTypeIndex () == inOutContentBefore,
+            "Out changed the Browser content type");
 
         final int resultBefore = browserModel.resultCursor ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Browser previous result");
@@ -992,6 +1010,14 @@ public final class VirtualPush1RuntimeTest
         sequencerView.onRight (ButtonEvent.DOWN);
         require (musicalModel.pageBackCount () == 1 && musicalModel.pageForwardCount () == 1,
             "Sequencer page navigation did not reach the note clip model");
+        modes.setActive (Modes.TRACK);
+        final int sequencerPagesBackBeforeInOut = musicalModel.pageBackCount ();
+        final int sequencerPagesForwardBeforeInOut = musicalModel.pageForwardCount ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Sequencer In must be inert");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Sequencer Out must be inert");
+        require (musicalModel.pageBackCount () == sequencerPagesBackBeforeInOut
+                && musicalModel.pageForwardCount () == sequencerPagesForwardBeforeInOut,
+            "In/Out still invoke Sequencer page navigation");
         musicalModel.setEditPage (0);
         sequencerView.onLeft (ButtonEvent.DOWN);
         require (musicalModel.editPage () == 0, "Sequencer clip page moved before its first page");
@@ -2339,9 +2365,11 @@ public final class VirtualPush1RuntimeTest
                         MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
                         if (!virtualSuppressChainCursorUpdate)
                             state.scheduled.add (new ScheduledTask (73, () -> {
-                                // Simulate a chain child whose name, position and
-                                // nesting flags match the previous cursor. The
-                                // sibling-bank contents still identify the change.
+                                // A selected slot chain moves the cursor into
+                                // its nested device hierarchy.
+                                virtualCursorDeviceName = "Chain " + args[0];
+                                virtualCursorDeviceNested = true;
+                                virtualCursorDeviceHasLayers = false;
                                 virtualDeviceBankNames = new String [] {
                                     "Slot " + args[0] + " child 0", "Slot " + args[0] + " child 1",
                                     "Slot " + args[0] + " child 2", "Slot " + args[0] + " child 3",

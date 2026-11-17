@@ -1350,9 +1350,13 @@ if "isPush2" in setup_source or "Push2Display" in setup_source or "Push 2" in se
     raise SystemExit("PushControllerSetup still contains Push 2 runtime references")
 setup.write_text(setup_source)
 
-# Map the physical Push 1 Page Left/Right CC controls to their Ableton In/Out
-# roles in Device and Browser modes. Preserve their established Session and
-# sequencer page behavior in all other contexts.
+# Reserve Push 1 In/Out exclusively for entering and leaving Device Chains.
+# The four directional arrows retain all item and page navigation.
+replace_once(setup,
+    "import de.mossgrabers.framework.daw.data.ICursorDevice;\n",
+    "import de.mossgrabers.framework.daw.constants.Capability;\n"
+    "import de.mossgrabers.framework.daw.data.ICursorDevice;\n",
+    "PushControllerSetup chain capability import")
 replace_once(setup,
     'this.addButton (ButtonID.PAGE_LEFT, "Page Left"',
     'this.addButton (ButtonID.PAGE_LEFT, "In"',
@@ -1364,37 +1368,47 @@ replace_once(setup,
 replace_once(setup,
     """PushControlSurface.PUSH_BUTTON_DEVICE_LEFT, () -> {
 
-            if (viewManager.isActive (Views.SESSION))""",
+            if (viewManager.isActive (Views.SESSION))
+                return this.model.getCurrentTrackBank ().canScrollPageBackwards ();
+            final IView activeView = viewManager.getActive ();
+            final INoteClip clip = activeView instanceof final AbstractSequencerView<?, ?> sequencerView && !(activeView instanceof ClipLengthView) ? sequencerView.getClip () : null;
+            return clip != null && clip.doesExist () && clip.canScrollStepsBackwards ();
+
+        }, ColorManager.BUTTON_STATE_OFF, ColorManager.BUTTON_STATE_ON);""",
     """PushControlSurface.PUSH_BUTTON_DEVICE_LEFT, () -> {
 
-            final IMode activeMode = modeManager.getActive ();
-            if (modeManager.isActive (Modes.BROWSER) && activeMode != null)
-                return activeMode.hasNextItemPage ();
-            if (modeManager.isActive (Modes.DEVICE_CHAINS))
-                return false;
-            if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
-                return deviceParamsMode.isShowDevices () ? deviceParamsMode.hasNextItem () : deviceParamsMode.hasNextItemPage ();
-            if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
-                return activeMode.hasNextItemPage ();
-            if (viewManager.isActive (Views.SESSION))""",
-    "Push 1 Out button LED state")
+            final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+            return !viewManager.isActive (Views.SESSION)
+                && modeManager.isActive (Modes.DEVICE_PARAMS)
+                && this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS)
+                && cursorDevice.doesExist ()
+                && cursorDevice.getSlotChains ().length > 0;
+
+        }, ColorManager.BUTTON_STATE_OFF, ColorManager.BUTTON_STATE_ON);""",
+    "Push 1 In chain-selector LED state")
 replace_once(setup,
     """PushControlSurface.PUSH_BUTTON_DEVICE_RIGHT, () -> {
 
-            if (viewManager.isActive (Views.SESSION))""",
+            if (viewManager.isActive (Views.SESSION))
+                return this.model.getCurrentTrackBank ().canScrollPageForwards ();
+            final IView activeView = viewManager.getActive ();
+            final INoteClip clip = activeView instanceof final AbstractSequencerView<?, ?> sequencerView && !(activeView instanceof ClipLengthView) ? sequencerView.getClip () : null;
+            return clip != null && clip.doesExist () && clip.canScrollStepsForwards ();
+
+        }, ColorManager.BUTTON_STATE_OFF, ColorManager.BUTTON_STATE_ON);""",
     """PushControlSurface.PUSH_BUTTON_DEVICE_RIGHT, () -> {
 
-            final IMode activeMode = modeManager.getActive ();
-            if (modeManager.isActive (Modes.BROWSER) && activeMode != null)
-                return activeMode.hasPreviousItemPage ();
-            if (modeManager.isActive (Modes.DEVICE_CHAINS))
+            if (viewManager.isActive (Views.SESSION))
                 return false;
-            if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
-                return deviceParamsMode.isShowDevices () ? deviceParamsMode.hasPreviousItem () : deviceParamsMode.hasPreviousItemPage ();
-            if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
-                return activeMode.hasPreviousItemPage ();
-            if (viewManager.isActive (Views.SESSION))""",
-    "Push 1 In button LED state")
+            if (modeManager.isActive (Modes.DEVICE_CHAINS))
+                return true;
+            if (!modeManager.isActive (Modes.DEVICE_PARAMS))
+                return false;
+            final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+            return cursorDevice.doesExist () && cursorDevice.isNested ();
+
+        }, ColorManager.BUTTON_STATE_OFF, ColorManager.BUTTON_STATE_ON);""",
+    "Push 1 Out parent-navigation LED state")
 
 # DeviceBrowserMode remains the pinned upstream state machine. Only the
 # defensive Bitwig empty-bank guards below are applied; no project-owned

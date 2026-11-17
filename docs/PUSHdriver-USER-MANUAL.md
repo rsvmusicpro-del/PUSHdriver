@@ -1,13 +1,13 @@
 # PUSHdriver — Manuel d’utilisation
 ## Ableton Push 1 avec Bitwig Studio
 
-**Branche décrite :** `custom`  
+**Branche décrite :** `work/push1-in-out-device-chains-20261117`  
 **Base logicielle :** DrivenByMoss 19.2.2 · Bitwig Extension API 17 · Java 17  
 **Matériel visé :** Ableton Push 1 d’origine, en USB-MIDI.
 
 Ce manuel décrit les fonctions présentes dans le code de la branche `custom`. PUSHdriver reprend les modes, vues, commandes et mappings de DrivenByMoss, avec des adaptations spécifiques au Push 1 et à Bitwig. Une fonction héritée du framework n’est pas nécessairement une nouveauté de PUSHdriver.
 
-> **Périmètre :** ce document décrit `custom`, pas les changements encore proposés dans la PR #16. Sur `custom`, In/Out peut encore sélectionner des appareils dans le mode Device. La PR #16 propose de réserver cette sélection aux flèches ; elle n’est pas incluse dans le build de référence décrit ici.
+> **Périmètre :** cette version de travail réserve In/Out à l’entrée et à la sortie de la hiérarchie Device Chains. Les flèches gauche/droite conservent la navigation des appareils et des pages.
 
 ---
 
@@ -48,7 +48,7 @@ Le nom du port MIDI dépend du système et du pilote. Le simulateur logiciel du 
 | Touches des encodeurs | Sélection de colonne, contrôle tactile ou geste contextuel selon le mode |
 | Quatre flèches | Navigation horizontale et verticale |
 | Shift | Modifie plusieurs gestes, notamment la navigation par pages |
-| In / Out | Navigation contextuelle Device / Browser et pages de paramètres |
+| In / Out | Entrer dans le sélecteur Device Chains et remonter au parent ; inactif hors Device |
 | Touch Strip | Ruban tactile et pitch bend selon la vue/le mode |
 | LCD | Quatre lignes de 68 caractères logiques |
 | Transport | Lecture/arrêt, enregistrement et métronome selon le contexte |
@@ -70,16 +70,11 @@ Les boutons sont momentanés : appui = valeur MIDI 127, relâchement = 0. Les en
 
 Les LED des flèches indiquent si le déplacement demandé est disponible. Avec Shift, elles reflètent la disponibilité d’une page entière.
 
-### In / Out sur `custom`
-- **In** : progression vers l’élément, la colonne ou la page suivante.
-- **Out** : retour vers l’élément, la colonne ou la page précédente.
-- En **Device**, In/Out sélectionne l’appareil précédent/suivant lorsque la liste d’appareils est affichée, et change de page de paramètres lorsque les paramètres sont affichés.
-- En **Browser**, In/Out parcourt les colonnes de filtres.
-- En **Device Chains**, In/Out reste inactif : l’API 17 ne fournit pas de curseur de chaîne sélectionnée suffisamment fiable pour une navigation précédente/suivante sûre.
-- En **Session**, les commandes de pages de banque de pistes conservent leur comportement établi.
-- Dans les vues **Sequencer**, les commandes sont transmises à la navigation de page de la vue.
-
-> Le comportement In/Out ci-dessus est celui de `custom`. Il ne préjuge pas du résultat de la PR #16, qui n’est pas intégrée à cette branche de référence.
+### In / Out
+- **In (CC 62), en mode Device** : ouvre le sélecteur natif des chaînes si l’appareil expose des slot chains.
+- **Rangée supérieure** : choisit la chaîne ; le mode natif appelle `selectSlotChain()` pour entrer dans cette chaîne.
+- **Out (CC 63)** : quitte le sélecteur ; une fois dans une chaîne imbriquée, remonte à l’appareil parent via l’action native **Up**.
+- Hors du mode Device/Device Chains, In/Out est inactif. Les flèches gauche/droite restent responsables de la navigation entre appareils et pages.
 
 ---
 
@@ -171,13 +166,20 @@ Les couleurs sont les indices de palette natifs du Push 1, pas des valeurs RGB d
 
 ## 7. Device Chains
 
-La vue Chains sert à parcourir la hiérarchie de chaînes d’un appareil lorsque Bitwig expose cette capacité.
-- Le bouton **Chains** ouvre ou ferme cette vue.
-- **Up** remonte à l’appareil ou au niveau parent.
-- Les commandes de chaînes non prises en charge par l’API 17 restent désactivées.
-- In/Out n’y navigue pas : l’extension évite de déplacer une sélection qui ne peut pas être identifiée de manière fiable par l’API.
+La vue Chains sert à parcourir les chaînes d’un appareil lorsque Bitwig expose
+la capacité `HAS_SLOT_CHAINS`.
 
-La présence et la profondeur des chaînes dépendent de l’appareil Bitwig sélectionné.
+- **In** ouvre le sélecteur natif Device Chains.
+- La rangée supérieure sélectionne une chaîne ; l’API `selectSlotChain()`
+  entre dans le premier appareil de cette chaîne.
+- **Out** ferme le sélecteur ou, depuis un appareil imbriqué, remonte au parent
+  avec l’action native **Up** et sa restauration asynchrone.
+- Le bouton **Chains** de la rangée d’actions reste également disponible pour
+  ouvrir ou fermer le sélecteur.
+- Si l’hôte ne prend pas en charge les slot chains ou si l’appareil n’en expose
+  aucune, In reste inactif.
+
+La profondeur des chaînes dépend de l’appareil Bitwig sélectionné.
 
 ---
 
@@ -187,7 +189,7 @@ Le Browser utilise les rangées de boutons, les encodeurs et les flèches pour p
 
 ### Colonnes de filtres
 - Les colonnes visibles sont présentées sur les boutons de rangée.
-- **In / Out** : colonne de filtre suivante/précédente.
+- **In / Out** : inactifs dans le Browser. Les filtres et résultats se parcourent avec les boutons de rangée et les encodeurs.
 - **Bouton supérieur d’une colonne** : élément précédent dans cette colonne.
 - **Bouton inférieur d’une colonne** : élément suivant dans cette colonne.
 - **Toucher un encodeur** : sélectionne la colonne correspondante.
@@ -304,7 +306,7 @@ Le simulateur expose les 64 pads, vélocité, aftertouch, boutons, Shift, 11 enc
 | Bouton grisé | Fonction non exposée par API 17 ou indisponible pour l’objet courant |
 | Browser sans résultat | Contenu, filtres et disponibilité du Browser Bitwig |
 | Séquenceur qui ne suit plus | Une navigation manuelle peut avoir verrouillé la page ; sélectionner la page du playhead restaure le suivi |
-| In/Out inattendu | Vérifier le contexte : Device, paramètres, Browser, Chains, Session ou Sequencer |
+| In/Out inattendu | Vérifier que le mode Device expose des slot chains ; ailleurs, In/Out est volontairement inactif |
 
 ---
 

@@ -8,15 +8,13 @@ import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.framework.command.core.AbstractTriggerCommand;
 import de.mossgrabers.framework.daw.IModel;
-import de.mossgrabers.framework.featuregroup.IMode;
-import de.mossgrabers.framework.featuregroup.ViewManager;
+import de.mossgrabers.framework.daw.data.ICursorDevice;
 import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.view.Views;
-import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
 
-/** Push 1 Out control: delegate navigation to the active upstream mode. */
+/** Push 1 Out control: leave the current Device Chains hierarchy level. */
 public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface, PushConfiguration>
 {
     public PageRightCommand (final IModel model, final PushControlSurface surface)
@@ -29,48 +27,33 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
     @Override
     public void execute (final ButtonEvent event, final int velocity)
     {
-        final ViewManager viewManager = this.surface.getViewManager ();
+        if (event != ButtonEvent.DOWN || this.surface.getViewManager ().isActive (Views.SESSION))
+            return;
+
         final var modeManager = this.surface.getModeManager ();
-        final IMode activeMode = modeManager.getActive ();
-
-        if (modeManager.isActive (Modes.BROWSER))
-        {
-            if (event == ButtonEvent.DOWN && activeMode != null)
-                activeMode.selectPreviousItemPage ();
-            return;
-        }
-
         if (modeManager.isActive (Modes.DEVICE_CHAINS))
-            return;
-
-        if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
         {
-            if (event == ButtonEvent.DOWN)
-            {
-                if (deviceParamsMode.isShowDevices ())
-                    deviceParamsMode.selectPreviousItem ();
-                else
-                    deviceParamsMode.selectPreviousItemPage ();
-            }
+            final var chainsMode = modeManager.getActive ();
+            if (chainsMode instanceof final DeviceParamsMode deviceMode)
+                deviceMode.onSecondRow (7, ButtonEvent.DOWN);
             return;
         }
 
-        if (Modes.isDeviceMode (modeManager.getActiveID ()))
-        {
-            if (event == ButtonEvent.DOWN && activeMode != null)
-                activeMode.selectPreviousItemPage ();
+        if (!modeManager.isActive (Modes.DEVICE_PARAMS))
             return;
-        }
 
-        if (viewManager.isActive (Views.SESSION))
-        {
-            if (event == ButtonEvent.DOWN)
-                this.model.getCurrentTrackBank ().selectNextPage ();
+        final ICursorDevice cursorDevice = this.model.getCursorDevice ();
+        if (!cursorDevice.doesExist () || !cursorDevice.isNested ())
             return;
-        }
 
-        final var activeView = viewManager.getActive ();
-        if (activeView instanceof final AbstractSequencerView<?, ?> sequencerView)
-            sequencerView.onRight (event);
+        // Upstream's native Up action also handles the asynchronous parent
+        // selection and layer-mode restoration. Ensure one Out press leaves
+        // the chain even when the parameter-page selector was showing.
+        final var activeMode = modeManager.getActive ();
+        if (activeMode instanceof final DeviceParamsMode deviceMode)
+        {
+            deviceMode.setShowDevices (true);
+            deviceMode.onSecondRow (7, ButtonEvent.DOWN);
+        }
     }
 }

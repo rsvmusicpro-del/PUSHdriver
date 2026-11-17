@@ -155,14 +155,23 @@ A successful build proves compilation, packaging, and the deterministic protocol
 
 ## In/Out controls and Browser navigation
 
-The physical In and Out buttons are CC 62 and CC 63 respectively. In Device
-mode, In (CC 62) selects the next device and Out (CC 63) selects the previous
-device. When the parameter-page selector is active, the same controls select
-the next and previous parameter pages respectively. These mappings are
-covered by the production `DeviceParamsMode` runtime scenario.
+The physical In and Out buttons are CC 62 and CC 63. They are reserved for
+Device Chains hierarchy navigation only:
 
-Browser navigation uses a different set of Push 1 controls in the pinned
-DrivenByMoss implementation; In/Out do not move Browser filter columns:
+- **In (CC 62)** opens the existing upstream Device Chains selector when the
+  cursor device exists, exposes slot chains and the host advertises
+  `HAS_SLOT_CHAINS`.
+- The existing top-row chain selectors call `ICursorDevice.selectSlotChain()`
+  to enter the selected chain. No separate chain cursor or navigation state
+  is maintained by PUSHdriver.
+- **Out (CC 63)** leaves the chain selector, or invokes the existing upstream
+  Device `Up` action to select the parent device after entering a nested chain.
+  This also preserves the upstream asynchronous parent/layer restoration.
+- Outside Device and Device Chains, In/Out do nothing. They no longer page
+  devices, parameter banks, Browser content types, Session track banks or
+  Sequencer pages. The four directional arrows retain item/page navigation.
+
+Browser navigation continues to use its native controls:
 
 - Left/Right arrows page to the previous/next Browser content type when Shift
   is held.
@@ -174,12 +183,10 @@ DrivenByMoss implementation; In/Out do not move Browser filter columns:
   filter/result state is shown on the Push 1 LCD, and LED availability follows
   the existence of the corresponding filter column.
 
-The virtual runtime now exercises these Browser operations against a
-stateful API-17 `IBrowser` model, including filter/result selection,
-content-type paging, the LCD selection marker and filter-button LED state.
-Rack-chain navigation remains inactive because API 17 does not expose a
-reliable selected-chain cursor for safe previous/next navigation. No MIDI
-IDs or alternate controller dispatcher are introduced.
+The virtual runtime exercises these Browser operations against a stateful
+API-17 `IBrowser` model. Device-chain entry and parent exit are exercised
+through the production Push 1 MIDI bindings and the native cursor-device API.
+No MIDI IDs or alternate controller dispatcher are introduced.
 
 ## Device mode: physical row assignment and color language
 
