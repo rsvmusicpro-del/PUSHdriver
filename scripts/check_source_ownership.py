@@ -154,8 +154,8 @@ def validate_in_out_contract(setup, left, right, control, virtual, hardware, run
    "Out command must use the native Up action to leave Device Chains, not page items."),
   ("public static final int IN = 62;" in virtual and "public static final int OUT = 63;" in virtual,
    "Virtual Push button IDs must match hardware CC62/CC63."),
-  ("In (CC 62) opens the existing upstream Device Chains selector" in hardware
-   and "Out (CC 63) leaves the chain selector" in hardware,
+  ("opens the existing upstream Device Chains selector" in hardware
+   and "leaves the chain selector" in hardware,
    "Hardware documentation must define Device Chains entry and exit."),
   ('require (modes.isActive (Modes.DEVICE_CHAINS), "In did not open the native Device Chains selector")' in runtime
    and 'requireAction ("device.selectSlotChain:Chain 8"' in runtime

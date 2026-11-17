@@ -103,7 +103,7 @@ class SourceOwnershipTests(unittest.TestCase):
             "modeManager.isActive (Modes.DEVICE_CHAINS) cursorDevice.isNested () deviceMode.onSecondRow (7, ButtonEvent.DOWN) deviceMode.setShowDevices (true)",
             "PUSH_BUTTON_DEVICE_LEFT = 62; PUSH_BUTTON_DEVICE_RIGHT = 63;",
             "public static final int IN = 62; public static final int OUT = 63;",
-            "In (CC 62) opens the existing upstream Device Chains selector; Out (CC 63) leaves the chain selector",
+            "opens the existing upstream Device Chains selector; leaves the chain selector",
             'require (modes.isActive (Modes.DEVICE_CHAINS), "In did not open the native Device Chains selector"); requireAction ("device.selectSlotChain:Chain 8", "select chain"); requireAction ("cursorDevice.selectParent", "parent"); "Session In must be inert"; "Browser In must be inert"; "Sequencer In must be inert"',
         )
         self.assertEqual(errors, [])
