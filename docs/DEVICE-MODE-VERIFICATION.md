@@ -7,7 +7,7 @@ Upstream: DrivenByMoss 19.2.2 at `013620c1330cdcf896e96ef8fdc8a2123e4fce6a`
 
 ## CI evidence
 
-The previous PR revision passed GitHub Actions run [#1073](https://github.com/rsvmusicpro-del/PUSHdriver/actions/runs/44181267631) on Linux and Intel macOS. This run predates the asynchronous-navigation corrections in the current head and is not evidence for those new regressions. A fresh run on the current head is still required.
+The current PR head (`39b24a8e11695da1a769c9093d23e6c7153997ce`) passed GitHub Actions run [#1087](https://github.com/rsvmusicpro-del/PUSHdriver/actions/runs/44191602348) on Linux and Intel macOS. The `quality-gate` job also passed. This run includes the asynchronous-navigation regressions, queue-overflow callback-order assertions and unrelated nested-cursor rejection.
 
 The virtual runtime exercises the production PushControllerSetup MIDI bindings and now verifies:
 
@@ -40,8 +40,10 @@ the newest command and never cancels an operation already sent to Bitwig.
 The virtual host deliberately delays and interleaves cursor callbacks to cover
 immediate ROW1-after-In, ROW1-after-Out, two ROW1 presses during a root-device
 selection, same-device reselect, queue overflow, null slot-chain banks and a
-host callback that never arrives. Nested sibling moves require the exact
-expected adjacent index; chain entry additionally confirms the first child.
+host callback that never arrives, an unrelated nested cursor update during
+chain entry, and exact host-callback pairing while the bounded queue overflows.
+Nested sibling moves require the exact expected adjacent index; chain entry
+additionally confirms the first child.
 A bounded timeout cancels stale queued intent rather than applying it to a
 different hierarchy level. ENTER also requires the cursor to report the first
 child, not merely any nested cursor. API 17 does not expose a parent-device
