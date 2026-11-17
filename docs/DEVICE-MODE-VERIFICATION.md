@@ -24,3 +24,20 @@ The virtual runtime exercises the production PushControllerSetup MIDI bindings a
 CI validates compilation, packaging, deterministic API-17 host models, production MIDI bindings, and the virtual runtime. It does not launch Bitwig Studio 4.3.10 or connect a physical Push 1.
 
 The remaining acceptance step is a live test in Bitwig with the controller attached. In particular, verify ROW1 presses immediately after entering or leaving a chain, rapid repeated ROW1 presses, nested chains with fewer than eight Devices, and the In/Out LEDs against the actual host cursor state.
+
+
+## Asynchronous hierarchy regression coverage
+
+In, Out, Device Chains selection and ROW1 share a serialized navigation
+queue. Each hierarchy transition or nested sibling movement is considered
+complete only after Bitwig's cursor reports the expected state change.
+Consecutive ROW1 requests are coalesced to the latest target while preserving
+their order relative to In and Out. The virtual host deliberately delays
+cursor updates and exercises immediate ROW1-after-In, ROW1-after-Out and
+back-to-back In/Out/ROW1 sequences through the production MIDI bindings.
+A bounded timeout cancels stale queued intent rather than applying it to a
+different hierarchy level.
+
+The simulator validates this asynchronous ordering contract, but it does not
+run Bitwig Studio or physical Push 1 hardware. A live hardware check remains
+necessary to qualify host-specific callback latency and LED refresh timing.

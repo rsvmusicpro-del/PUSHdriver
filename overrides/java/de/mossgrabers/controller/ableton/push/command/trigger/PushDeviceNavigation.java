@@ -1,0 +1,153 @@
+// Written by PUSHdriver maintainers.
+// Licensed under the same LGPL-3.0 terms as the pinned DrivenByMoss sources.
+package de.mossgrabers.controller.ableton.push.command.trigger;
+import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
+import de.mossgrabers.framework.daw.IModel;
+import de.mossgrabers.framework.daw.constants.Capability;
+import de.mossgrabers.framework.daw.data.ICursorDevice;
+import de.mossgrabers.framework.daw.data.IDevice;
+import java.lang.ref.WeakReference;
+import java.util.ArrayDeque;
+import java.util.Map;
+import java.util.WeakHashMap;
+
+/** Serializes Push 1 hierarchy commands against Bitwig's asynchronous cursor updates. */
+public final class PushDeviceNavigation
+{
+    private static final long POLL_DELAY_MS=73;
+    private static final int MAX_POLLS=40,MAX_ACTIONS=32;
+    private static final Map<PushControlSurface,State> STATES=new WeakHashMap<> ();
+    private enum Type { ENTER, EXIT, SELECT }
+    private enum Wait { NONE, ENTER, EXIT, MOVE, ROOT_SELECT }
+    private static final class Action
+    {
+        final Type type; final String chain; int index;
+        Action(final Type type,final String chain,final int index){this.type=type;this.chain=chain;this.index=index;}
+    }
+    private static final class State
+    {
+        final WeakReference<IModel> model; final ArrayDeque<Action> actions=new ArrayDeque<> ();
+        Wait wait=Wait.NONE; String before; int previousIndex,polls; boolean running;
+        State(final IModel model){this.model=new WeakReference<> (model);}
+    }
+    private PushDeviceNavigation(){}
+    public static void enterFirstSlotChain(final PushControlSurface surface,final IModel model)
+    {enqueue(surface,model,new Action(Type.ENTER,null,-1));}
+    public static void selectSlotChain(final PushControlSurface surface,final IModel model,final String chain)
+    {if(chain!=null&&!chain.isBlank())enqueue(surface,model,new Action(Type.ENTER,chain,-1));}
+    public static void exitParent(final PushControlSurface surface,final IModel model)
+    {enqueue(surface,model,new Action(Type.EXIT,null,-1));}
+    /** Queue ROW1 while a hierarchy transition or nested cursor move is outstanding. */
+    public static boolean selectRow(final PushControlSurface surface,final IModel model,final int index)
+    {
+        final ICursorDevice cursor=model.getCursorDevice();final State state=stateFor(surface,model);
+        synchronized(state)
+        {
+            if(!state.running&&state.actions.isEmpty()&&!cursor.isNested())return false;
+            enqueueLocked(state,new Action(Type.SELECT,null,index));startNext(surface,state);return true;
+        }
+    }
+    public static boolean isEntering(final PushControlSurface surface)
+    {
+        final State state=stateFor(surface);if(state==null)return false;
+        synchronized(state){if(state.wait==Wait.ENTER)return true;for(final Action a:state.actions)if(a.type==Type.ENTER)return true;return false;}
+    }
+    public static boolean isBusy(final PushControlSurface surface)
+    {
+        final State state=stateFor(surface);if(state==null)return false;
+        synchronized(state){return state.running||!state.actions.isEmpty();}
+    }
+    private static void enqueue(final PushControlSurface surface,final IModel model,final Action action)
+    {
+        final State state=stateFor(surface,model);synchronized(state){enqueueLocked(state,action);startNext(surface,state);}
+    }
+    private static void enqueueLocked(final State state,final Action action)
+    {
+        final Action last=state.actions.peekLast();
+        if(action.type==Type.SELECT&&last!=null&&last.type==Type.SELECT){last.index=action.index;return;}
+        if(state.actions.size()>=MAX_ACTIONS)
+        {
+            state.actions.clear();state.wait=Wait.NONE;state.running=false;
+            final IModel model=state.model.get();if(model!=null)model.getHost().showNotification("Push Device navigation queue cleared: too many rapid commands");
+            return;
+        }
+        state.actions.addLast(action);
+    }
+    private static State stateFor(final PushControlSurface surface,final IModel model)
+    {
+        synchronized(STATES){State s=STATES.get(surface);if(s==null||s.model.get()!=model){s=new State(model);STATES.put(surface,s);}return s;}
+    }
+    private static State stateFor(final PushControlSurface surface){synchronized(STATES){return STATES.get(surface);}}
+    private static void startNext(final PushControlSurface surface,final State state)
+    {
+        if(state.running)return;
+        final IModel model=state.model.get();if(model==null){state.actions.clear();return;}
+        final ICursorDevice cursor=model.getCursorDevice();
+        while(!state.actions.isEmpty())
+        {
+            final Action action=state.actions.peekFirst();
+            if(!cursor.doesExist()){state.actions.clear();return;}
+            if(action.type==Type.ENTER)
+            {
+                if(!model.getHost().supports(Capability.HAS_SLOT_CHAINS)){state.actions.removeFirst();continue;}
+                final String[] chains=cursor.getSlotChains();String selected=action.chain;
+                if(selected==null)selected=chains==null||chains.length==0?null:chains[0];
+                boolean found=false;if(selected!=null&&chains!=null)for(final String chain:chains)if(selected.equals(chain)){found=true;break;}
+                if(!found){state.actions.removeFirst();continue;}
+                state.before=fingerprint(cursor);state.wait=Wait.ENTER;state.polls=0;state.running=true;
+                cursor.selectSlotChain(selected);schedule(surface,state,model);return;
+            }
+            if(action.type==Type.EXIT)
+            {
+                if(!cursor.isNested()){state.actions.removeFirst();continue;}
+                state.before=fingerprint(cursor);state.wait=Wait.EXIT;state.polls=0;state.running=true;
+                cursor.selectParent();schedule(surface,state,model);return;
+            }
+            final IDevice target=cursor.getDeviceBank().getItem(action.index);
+            if(target==null||!target.doesExist()){state.actions.removeFirst();continue;}
+            final int current=cursor.getIndex();
+            if(current==action.index){state.actions.removeFirst();continue;}
+            if(cursor.isNested())
+            {
+                if(action.index>current)
+                {if(!cursor.canSelectNext()){state.actions.removeFirst();continue;}state.previousIndex=current;state.wait=Wait.MOVE;state.polls=0;state.running=true;cursor.selectNext();}
+                else
+                {if(!cursor.canSelectPrevious()){state.actions.removeFirst();continue;}state.previousIndex=current;state.wait=Wait.MOVE;state.polls=0;state.running=true;cursor.selectPrevious();}
+                schedule(surface,state,model);return;
+            }
+            state.wait=Wait.ROOT_SELECT;state.polls=0;state.running=true;target.select();schedule(surface,state,model);return;
+        }
+        state.running=false;state.wait=Wait.NONE;
+    }
+    private static void schedule(final PushControlSurface surface,final State state,final IModel model)
+    {model.getHost().scheduleTask(()->advance(surface,state),POLL_DELAY_MS);}
+    private static void advance(final PushControlSurface surface,final State state)
+    {
+        synchronized(state)
+        {
+            if(!state.running)return;
+            final IModel model=state.model.get();if(model==null){state.actions.clear();state.running=false;state.wait=Wait.NONE;return;}
+            final ICursorDevice cursor=model.getCursorDevice();final Action action=state.actions.peekFirst();
+            if(action==null){state.running=false;state.wait=Wait.NONE;return;}
+            final Wait waiting=state.wait;
+            final boolean complete=switch(waiting)
+            {
+                case ENTER -> cursor.doesExist()&&cursor.isNested()&&!state.before.equals(fingerprint(cursor));
+                case EXIT -> cursor.doesExist()&&!state.before.equals(fingerprint(cursor));
+                case MOVE -> cursor.getIndex()!=state.previousIndex;
+                case ROOT_SELECT -> cursor.getIndex()==action.index;
+                default -> false;
+            };
+            if(complete)
+            {if(waiting!=Wait.MOVE)state.actions.removeFirst();state.running=false;state.wait=Wait.NONE;state.polls=0;startNext(surface,state);return;}
+            if(++state.polls>=MAX_POLLS)
+            {
+                state.actions.clear();state.running=false;state.wait=Wait.NONE;
+                model.getHost().showNotification("Push Device navigation timed out waiting for Bitwig's cursor; pending selections were cancelled");return;
+            }
+            schedule(surface,state,model);
+        }
+    }
+    private static String fingerprint(final ICursorDevice cursor)
+    {return cursor.getID()+"|"+cursor.getName()+"|"+cursor.getPosition()+"|"+cursor.getIndex()+"|"+cursor.isNested();}
+}

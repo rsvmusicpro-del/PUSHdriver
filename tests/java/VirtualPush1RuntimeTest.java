@@ -126,6 +126,7 @@ public final class VirtualPush1RuntimeTest
     private static boolean virtualParentHasLayersAfterSelect;
     private static boolean virtualSuppressParentCursorUpdate;
     private static boolean virtualSuppressChainCursorUpdate;
+    private static boolean virtualDeferCursorUpdates;
     private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
     // Model API capabilities independently; Bitwig hosts may support one feature but not another.
     private static final EnumSet<Capability> SUPPORTED_CAPABILITIES = EnumSet.allOf (Capability.class);
@@ -697,26 +698,41 @@ public final class VirtualPush1RuntimeTest
         requireAction ("parameterPage.selectPage:2", "Top-row selector did not select parameter page 3");
         deviceParamsMode.setShowDevices (true);
 
-        // In/Out traverse the device hierarchy instead of duplicating the
-        // arrow/ROW1 device and parameter-page selectors.
+        // Exercise In/Out and ROW1 before Bitwig confirms the cursor change.
+        // The virtual host deliberately delays cursor updates to expose stale-cursor bugs.
         deviceIndex = 4;
         virtualCursorDevicePosition = 4;
         virtualCursorDeviceNested = false;
         deviceParamsMode.setShowDevices (false);
         virtualSlotChains = new String [] { "Chain 1", "Chain 2", "Chain 3" };
+        virtualDeferCursorUpdates = true;
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
         requireAction ("device.selectSlotChain:Chain 1", "In (CC 62) must enter the first available slot chain");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2, "Immediate ROW1 selection after In");
+        require (deviceIndex == 4 && !virtualCursorDeviceNested, "ROW1 acted on the stale parent cursor before the chain callback");
         drainScheduled (state, 73);
-        require (virtualCursorDeviceNested && deviceIndex == 0,
-            "In did not move the Bitwig cursor into the selected slot chain");
-        require (deviceParamsMode.isShowDevices (),
-            "In did not restore ROW1 device selectors after entering a chain from Banks mode");
+        require (virtualCursorDeviceNested && deviceIndex == 2, "Immediate ROW1 selection after In was not replayed against the child chain");
+        require (deviceParamsMode.isShowDevices (), "In did not restore ROW1 device selectors after entering a chain from Banks mode");
+
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63)");
         requireAction ("cursorDevice.selectParent", "Out (CC 63) must select the parent device");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Immediate ROW1 selection after Out");
+        require (virtualCursorDeviceNested, "ROW1 changed the nested cursor before the parent callback was delivered");
         drainScheduled (state, 73);
-        require (!virtualCursorDeviceNested, "Out did not return the Bitwig cursor to its parent device");
+        require (!virtualCursorDeviceNested && deviceIndex == 3, "Immediate ROW1 selection after Out was not replayed against the parent device bank");
+        require (MODEL_ACTIONS.stream ().anyMatch (a -> a.equals ("device.select:3")), "Queued parent ROW1 selection did not target the requested device");
+
+        deviceIndex = 4;
+        virtualCursorDevicePosition = 4;
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Rapid In before Out");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Rapid Out before In callback");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "ROW1 after queued In/Out");
+        drainScheduled (state, 73);
+        require (!virtualCursorDeviceNested && deviceIndex == 1, "Rapid In/Out/ROW1 sequence did not preserve physical command order");
+        virtualDeferCursorUpdates = false;
         deviceParamsMode.setShowDevices (false);
 
         // Device Chains is an upstream submode: top row selects a chain and
@@ -2346,8 +2362,9 @@ public final class VirtualPush1RuntimeTest
                             case "select" -> {
                                 MODEL_ACTIONS.add ("device.select");
                                 MODEL_ACTIONS.add ("device.select:" + targetIndex);
-                                deviceIndex = targetIndex;
-                                virtualCursorDevicePosition = targetIndex;
+                                if (virtualDeferCursorUpdates)
+                                    state.scheduled.add (new ScheduledTask (73, () -> { deviceIndex = targetIndex; virtualCursorDevicePosition = targetIndex; }));
+                                else { deviceIndex = targetIndex; virtualCursorDevicePosition = targetIndex; }
                                 yield null;
                             }
                             default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
@@ -2410,16 +2427,24 @@ public final class VirtualPush1RuntimeTest
                         if (deviceIndex + 1 < virtualDeviceBankNames.length)
                         {
                             MODEL_ACTIONS.add ("cursorDevice.selectNext");
-                            deviceIndex++;
-                            virtualCursorDevicePosition = deviceIndex;
+                            if (virtualDeferCursorUpdates)
+                            {
+                                final int nextIndex = deviceIndex + 1;
+                                state.scheduled.add (new ScheduledTask (73, () -> { deviceIndex = nextIndex; virtualCursorDevicePosition = nextIndex; }));
+                            }
+                            else { deviceIndex++; virtualCursorDevicePosition = deviceIndex; }
                         }
                         return null;
                     case "selectPrevious":
                         if (deviceIndex > 0)
                         {
                             MODEL_ACTIONS.add ("cursorDevice.selectPrevious");
-                            deviceIndex--;
-                            virtualCursorDevicePosition = deviceIndex;
+                            if (virtualDeferCursorUpdates)
+                            {
+                                final int previousIndex = deviceIndex - 1;
+                                state.scheduled.add (new ScheduledTask (73, () -> { deviceIndex = previousIndex; virtualCursorDevicePosition = previousIndex; }));
+                            }
+                            else { deviceIndex--; virtualCursorDevicePosition = deviceIndex; }
                         }
                         return null;
                     case "selectParent":

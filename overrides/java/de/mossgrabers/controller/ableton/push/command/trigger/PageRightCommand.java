@@ -5,6 +5,7 @@ package de.mossgrabers.controller.ableton.push.command.trigger;
 
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
+import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.framework.command.core.AbstractTriggerCommand;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.featuregroup.IMode;
@@ -47,8 +48,12 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
             if (event == ButtonEvent.DOWN)
             {
                 final var cursorDevice = this.model.getCursorDevice ();
-                if (cursorDevice.doesExist () && cursorDevice.isNested ())
-                    cursorDevice.selectParent ();
+                if (cursorDevice.doesExist () && (cursorDevice.isNested () || PushDeviceNavigation.isEntering (this.surface)))
+                {
+                    if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
+                        deviceParamsMode.setShowDevices (true);
+                    PushDeviceNavigation.exitParent (this.surface, this.model);
+                }
             }
             return;
         }

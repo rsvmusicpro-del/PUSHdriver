@@ -1379,7 +1379,8 @@ replace_once(setup,
             if (modeManager.isActive (Modes.DEVICE_PARAMS))
             {
                 final var cursorDevice = this.model.getCursorDevice ();
-                return cursorDevice.doesExist () && this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS) && cursorDevice.getSlotChains ().length > 0;
+                return cursorDevice.doesExist () && this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS)
+                    && cursorDevice.getSlotChains ().length > 0 && !PushDeviceNavigation.isBusy (surface);
             }
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
                 return activeMode.hasNextItemPage ();
@@ -1399,7 +1400,7 @@ replace_once(setup,
             if (modeManager.isActive (Modes.DEVICE_PARAMS))
             {
                 final var cursorDevice = this.model.getCursorDevice ();
-                return cursorDevice.doesExist () && cursorDevice.isNested ();
+                return cursorDevice.doesExist () && (cursorDevice.isNested () || PushDeviceNavigation.isEntering (surface));
             }
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
                 return activeMode.hasPreviousItemPage ();
@@ -1528,9 +1529,8 @@ replace_once(browser_mode,
     "items[item] = pos < results.length && results[pos] != null && results[pos].doesExist () ? results[pos].getName (14) : \"\";\n                        selected[item] = pos < results.length && results[pos] != null && results[pos].doesExist () && results[pos].isSelected ();",
     "Push 1 Browser graphic result item guard")
 
-# Keep DeviceParamsMode upstream-owned. Patch only its existing ROW1 selection
-# branch: inside a slot chain, select through Bitwig's sibling cursor API so
-# the active cursor follows the device shown at that ROW1 position.
+# Keep DeviceParamsMode upstream-owned. Route nested ROW1 through the
+# callback-aware helper; root-device selection remains upstream-owned.
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
 replace_once(device_params_mode,
     """            if (cd.getIndex () != index)
@@ -1539,31 +1539,15 @@ replace_once(device_params_mode,
                 return;
             }
 """,
-    """            if (cd.getIndex () != index)
+    """            if (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.selectRow (this.surface, this.model, index))
+                return;
+
+            if (cd.getIndex () != index)
             {
-                // A ROW1 position is selectable only when the corresponding
-                // sibling exists. This is essential for short chains: do not
-                // clamp an invalid button to the final child.
                 final var targetDevice = cd.getDeviceBank ().getItem (index);
                 if (targetDevice == null || !targetDevice.doesExist ())
                     return;
-
-                if (cd.isNested ())
-                {
-                    final int currentIndex = cd.getIndex ();
-                    if (index > currentIndex)
-                    {
-                        for (int i = currentIndex; i < index && cd.canSelectNext (); i++)
-                            cd.selectNext ();
-                    }
-                    else
-                    {
-                        for (int i = currentIndex; i > index && cd.canSelectPrevious (); i--)
-                            cd.selectPrevious ();
-                    }
-                }
-                else
-                    targetDevice.select ();
+                targetDevice.select ();
                 return;
             }
 """,
@@ -1577,8 +1561,8 @@ replace_once(device_chains_mode,
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
             return;
 """,
-    """            cd.selectSlotChain (slotChains[index]);
-            ((DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS)).setShowDevices (true);
+    """            ((DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS)).setShowDevices (true);
+            de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.selectSlotChain (this.surface, this.model, slotChains[index]);
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
             return;
 """,
@@ -1588,7 +1572,7 @@ replace_once(device_chains_mode,
 # stopping the cursor track's current clip before preparing its next note clip.
 replace_once(setup,
     "import de.mossgrabers.framework.command.trigger.clip.NewCommand;\n",
-    "import de.mossgrabers.controller.ableton.push.command.trigger.PushNewCommand;\n",
+    "import de.mossgrabers.controller.ableton.push.command.trigger.PushNewCommand;\nimport de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation;\n",
     "Push 1 New command import")
 replace_once(setup,
     "new NewCommand<> (this.model, surface)",
