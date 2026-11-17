@@ -2334,9 +2334,8 @@ public final class VirtualPush1RuntimeTest
                         new Class<?> [] { de.mossgrabers.framework.daw.data.IDevice.class },
                         (p, m, a) -> switch (m.getName ())
                         {
-                            case "doesExist" -> Boolean.valueOf (virtualCursorDeviceNested
-                                ? targetIndex >= 0 && targetIndex < virtualDeviceBankNames.length
-                                : deviceSlotExists);
+                            case "doesExist" -> Boolean.valueOf (
+                                targetIndex >= 0 && targetIndex < virtualDeviceBankNames.length);
                             case "getName" -> targetIndex >= 0 && targetIndex < virtualDeviceBankNames.length
                                 ? virtualDeviceBankNames[targetIndex] : "";
                             case "getPosition" -> Integer.valueOf (targetIndex);
