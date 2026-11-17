@@ -751,11 +751,13 @@ public final class VirtualPush1RuntimeTest
             "Selecting a chain did not restore ROW1 device selectors after Banks mode");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Nested chain device selector 4");
+        drainScheduled (state, 73);
         require (deviceIndex == 3, "ROW1 did not select device 4 inside the active chain");
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 3,
             "Nested ROW1 selection did not advance the cursor to the requested chain device");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "Nested chain device selector 2");
+        drainScheduled (state, 73);
         require (deviceIndex == 1, "ROW1 did not select device 2 inside the active chain");
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectPrevious")).count () == 2,
             "Nested ROW1 selection did not move the cursor back to the requested chain device");
@@ -783,6 +785,7 @@ public final class VirtualPush1RuntimeTest
                     MODEL_ACTIONS.clear ();
                     requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + targetIndex,
                         "Chain size " + childCount + ", start " + startIndex + ", ROW1 " + (targetIndex + 1));
+                    drainScheduled (state, 73);
 
                     if (targetIndex < childCount)
                     {
@@ -828,6 +831,7 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
             "Select sibling inside nested parent chain");
+        drainScheduled (state, 73);
         require (deviceIndex == 2,
             "ROW1 did not select a sibling at the second nested hierarchy depth");
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 2,
