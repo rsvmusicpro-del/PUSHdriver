@@ -656,6 +656,8 @@ public final class VirtualPush1RuntimeTest
         // through real MIDI bindings, not direct mode-method calls.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Device mode");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Device button did not activate Device mode");
+        require (Views.isSessionView (surface.getViewManager ().getActiveID ()),
+            "Device mode should preserve the active Session view while overlaying Device parameters");
         final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modes.get (Modes.DEVICE_PARAMS);
         require (deviceParamsMode.isShowDevices (), "Device mode must initially show device selectors");
 
