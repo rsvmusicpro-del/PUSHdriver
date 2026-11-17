@@ -31,10 +31,17 @@ The remaining acceptance step is a live test in Bitwig with the controller attac
 In, Out, Device Chains selection and ROW1 share a serialized navigation
 queue. Each hierarchy transition or nested sibling movement is considered
 complete only after Bitwig's cursor reports the expected state change.
-Consecutive ROW1 requests are coalesced to the latest target while preserving
-their order relative to In and Out. The virtual host deliberately delays
-cursor updates and exercises immediate ROW1-after-In, ROW1-after-Out and
-back-to-back In/Out/ROW1 sequences through the production MIDI bindings.
+Consecutive ROW1 requests that are still waiting in the queue are coalesced
+to the latest target; a ROW1 selection already sent to Bitwig is immutable,
+and a newer target runs only after its confirmation. If a queued target is
+already the active device when reached, the original upstream reselect gesture
+(Banks toggle or Layer Mix entry) is preserved. Queue overflow rejects only
+the newest command and never cancels an operation already sent to Bitwig.
+The virtual host deliberately delays and interleaves cursor callbacks to cover
+immediate ROW1-after-In, ROW1-after-Out, two ROW1 presses during a root-device
+selection, same-device reselect, queue overflow, null slot-chain banks and a
+host callback that never arrives. Nested sibling moves require the exact
+expected adjacent index; chain entry additionally confirms the first child.
 A bounded timeout cancels stale queued intent rather than applying it to a
 different hierarchy level.
 
