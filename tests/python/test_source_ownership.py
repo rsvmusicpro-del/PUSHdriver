@@ -39,6 +39,12 @@ class SourceOwnershipTests(unittest.TestCase):
             MODULE.PATCH_TARGET_ALLOWLIST,
         )
 
+    def test_add_track_mode_patch_is_reviewed(self):
+        self.assertIn(
+            "de/mossgrabers/controller/ableton/push/mode/track/AddTrackMode.java",
+            MODULE.PATCH_TARGET_ALLOWLIST,
+        )
+
     def test_empty_note_sequencer_patch_is_reviewed(self):
         self.assertIn(
             "de/mossgrabers/framework/view/sequencer/AbstractNoteSequencerView.java",
