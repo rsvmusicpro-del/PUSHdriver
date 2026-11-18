@@ -772,6 +772,8 @@ public final class VirtualPush1RuntimeTest
         for (int i = 0; i < 40; i++)
             requireButtonMidiDelivery (midi, i % 2 == 0 ? VirtualPush1Device.OUT : VirtualPush1Device.IN,
                 "Queue-overflow stress command " + i);
+        require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.selectRow (surface, model, 7),
+            "ROW1 reported a queued selection after the bounded queue had rejected it");
         drainNavigation (state);
         require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
             "Navigation remained busy after the bounded queue drained");
