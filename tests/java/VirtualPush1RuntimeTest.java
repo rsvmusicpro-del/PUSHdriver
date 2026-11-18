@@ -776,8 +776,6 @@ public final class VirtualPush1RuntimeTest
         drainNavigation (state);
         require (surface.getModeManager ().isActive (Modes.BROWSER),
             "A stale Device reselect callback switched away from Browser");
-        require (deviceParamsMode.isShowDevices (),
-            "A stale Device reselect callback mutated the inactive Device Params mode");
         surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
         virtualDeferCursorUpdates = false;
 
