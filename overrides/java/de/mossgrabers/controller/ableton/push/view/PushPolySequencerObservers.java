@@ -6,7 +6,6 @@ import de.mossgrabers.framework.observer.IItemSelectionObserver;
 import de.mossgrabers.framework.observer.INoteObserver;
 
 import java.lang.ref.WeakReference;
-import java.util.Map;
 import java.util.WeakHashMap;
 
 
@@ -19,7 +18,7 @@ import java.util.WeakHashMap;
  */
 public final class PushPolySequencerObservers
 {
-    private static final Map<ITrackBank, Observer> OBSERVERS = new WeakHashMap<> ();
+    private static final WeakHashMap<ITrackBank, Observer> OBSERVERS = new WeakHashMap<> ();
 
     private PushPolySequencerObservers ()
     {
