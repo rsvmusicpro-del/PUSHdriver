@@ -831,7 +831,11 @@ public final class VirtualPush1RuntimeTest
 
         // If Bitwig never confirms a chain entry, the bounded timeout must release
         // the queue rather than leaving future button presses permanently blocked.
-        require (state.scheduled.isEmpty (), "Unexpected virtual callbacks remained before the exact navigation-timeout test");
+        drainScheduled (state, 1);
+        drainScheduled (state, 8);
+        drainScheduled (state, 100);
+        require (state.scheduled.isEmpty (), "Unexpected virtual callbacks remained before the exact navigation-timeout test: "
+            + state.scheduled.stream ().map (ScheduledTask::delay).toList ());
         final long timeoutStartMs = state.scheduledDelayTotal;
         virtualSuppressChainCursorUpdate = true;
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "IN with deliberately suppressed host cursor callback");
