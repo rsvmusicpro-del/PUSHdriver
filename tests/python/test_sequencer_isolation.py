@@ -78,6 +78,13 @@ class SequencerIsolationContractTests(unittest.TestCase):
         self.assertIn("x >= columns", engine)
         self.assertIn("y >= rows", engine)
 
+    def test_poly_step_aggregation_bounds_reads_by_highest_occupied_row(self):
+        source = ASSEMBLY.read_text(encoding="utf-8")
+        self.assertIn("clip.getHighestRow (channel, col)", source)
+        self.assertIn("for (int row = 0; row <= highestRow; row++)", source)
+        poly = POLY_VIEW.read_text(encoding="utf-8")
+        self.assertIn("clip.getHighestRow (notePosition.getChannel (), step)", poly)
+
 
 if __name__ == "__main__":
     unittest.main()
