@@ -150,6 +150,8 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertIn("surfaceReference.get ()", navigation)
         self.assertIn("final WeakReference<IModel> model", navigation)
         self.assertIn("state.model.get () != model", navigation)
+        page_right = (root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PageRightCommand.java").read_text(encoding="utf-8")
+        self.assertIn("PushDeviceNavigation.isEntering (this.surface, this.model)", page_right)
         self.assertIn("WeakReference<DeviceParamsMode>", patch)
         callback_start = patch.index("final java.lang.ref.WeakReference<DeviceParamsMode>")
         lambda_start = patch.index("() -> {", callback_start)
