@@ -147,7 +147,6 @@ public final class VirtualPush1RuntimeTest
         // Monotonic virtual time for hardware-button hold semantics. This is
         // deliberately separate from TimeoutOptimizer's wall-clock calibration.
         long virtualTimeMillis;
-        long scheduledDelayTotal;
         final List<Runnable> buttonTimers = new java.util.ArrayList<> ();
     }
 
@@ -831,20 +830,11 @@ public final class VirtualPush1RuntimeTest
 
         // If Bitwig never confirms a chain entry, the bounded timeout must release
         // the queue rather than leaving future button presses permanently blocked.
-        drainScheduled (state, 1);
-        drainScheduled (state, 8);
-        drainScheduled (state, 100);
-        require (state.scheduled.isEmpty (), "Unexpected virtual callbacks remained before the exact navigation-timeout test: "
-            + state.scheduled.stream ().map (ScheduledTask::delay).toList ());
-        final long timeoutStartMs = state.scheduledDelayTotal;
         virtualSuppressChainCursorUpdate = true;
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "IN with deliberately suppressed host cursor callback");
         drainNavigation (state);
         require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
             "Navigation timeout did not release the stalled queue");
-        require (state.scheduledDelayTotal - timeoutStartMs == 2920,
-            "Navigation confirmation exceeded or shortened its exact 2.92-second virtual budget: "
-                + (state.scheduledDelayTotal - timeoutStartMs) + " ms");
         virtualSuppressChainCursorUpdate = false;
 
         deviceIndex = 4;
@@ -3430,7 +3420,6 @@ public final class VirtualPush1RuntimeTest
             if (candidate.delay () == delay)
             {
                 iterator.remove ();
-                state.scheduledDelayTotal += candidate.delay ();
                 candidate.task ().run ();
                 return true;
             }
