@@ -4,7 +4,9 @@ from pathlib import Path
 import shutil
 import subprocess
 
-root = Path.cwd()
+from push1_build.patching import replace_once, replace_java_method
+
+root = Path(__file__).resolve().parents[1]
 upstream = root / "upstream"
 EXPECTED_UPSTREAM_COMMIT = "013620c1330cdcf896e96ef8fdc8a2123e4fce6a"
 try:
@@ -18,6 +20,19 @@ if actual_upstream_commit != EXPECTED_UPSTREAM_COMMIT:
     raise SystemExit(
         f"Unexpected DrivenByMoss revision: {actual_upstream_commit}; "
         f"expected {EXPECTED_UPSTREAM_COMMIT}"
+    )
+
+try:
+    upstream_status = subprocess.run(
+        ["git", "-C", str(upstream), "status", "--porcelain"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+except (OSError, subprocess.CalledProcessError) as error:
+    raise SystemExit(f"Cannot verify DrivenByMoss worktree state: {error}") from error
+if upstream_status:
+    raise SystemExit(
+        "DrivenByMoss submodule has local changes; restore it to the pinned clean revision "
+        "before assembling PUSHdriver."
     )
 
 # Rebuild generated inputs from a clean state so repeated local builds cannot
@@ -46,39 +61,6 @@ shutil.copy2(
     upstream / "src/main/resources/Documentation/DrivenByMoss-Manual.pdf",
     root / "src/main/resources/DrivenByMoss-Manual.pdf",
 )
-
-def replace_once(path: Path, old: str, new: str, label: str) -> None:
-    content = path.read_text()
-    # Skip only when the requested replacement is already present, without
-    # confusing generic lines (for example, an existing null slot) elsewhere.
-    if new and new in content and (old in new or old not in content):
-        return
-    if content.count(old) != 1:
-        raise SystemExit(f"{label}: expected exactly one source match")
-    path.write_text(content.replace(old, new, 1))
-
-
-def replace_java_method(path: Path, signature: str, replacement: str, label: str) -> None:
-    source = path.read_text()
-    start = source.find(signature)
-    if start < 0:
-        raise SystemExit(f"{label}: method signature not found")
-    brace = source.find("{", start)
-    if brace < 0:
-        raise SystemExit(f"{label}: method body not found")
-    depth = 0
-    end = None
-    for position in range(brace, len(source)):
-        if source[position] == "{":
-            depth += 1
-        elif source[position] == "}":
-            depth -= 1
-            if depth == 0:
-                end = position + 1
-                break
-    if end is None:
-        raise SystemExit(f"{label}: unclosed method body")
-    path.write_text(source[:start] + replacement + source[end:])
 
 copy_tree("src/main/java/de/mossgrabers/framework", "src/main/java/de/mossgrabers/framework")
 copy_tree("src/main/java/de/mossgrabers/bitwig/framework", "src/main/java/de/mossgrabers/bitwig/framework")

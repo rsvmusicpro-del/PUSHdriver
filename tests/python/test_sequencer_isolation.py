@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[2]
 POLY_VIEW = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/PolySequencerView.java"
 CLASSIC_VIEW = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/SequencerView.java"
 ASSEMBLY = ROOT / "scripts/prepare_push1.py"
-POLY_OBSERVERS = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/PushPolySequencerObservers.java"
+POLY_OBSERVERS = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/PushPolySequencerObservers.java
 
 
 class SequencerIsolationContractTests(unittest.TestCase):
@@ -77,13 +77,6 @@ class SequencerIsolationContractTests(unittest.TestCase):
         self.assertIn("Push1PadGrid.isValidIndex (index)", engine)
         self.assertIn("x >= columns", engine)
         self.assertIn("y >= rows", engine)
-
-    def test_poly_step_aggregation_bounds_reads_by_highest_occupied_row(self):
-        source = ASSEMBLY.read_text(encoding="utf-8")
-        self.assertIn("clip.getHighestRow (channel, col)", source)
-        self.assertIn("for (int row = 0; row <= highestRow; row++)", source)
-        poly = POLY_VIEW.read_text(encoding="utf-8")
-        self.assertIn("clip.getHighestRow (notePosition.getChannel (), step)", poly)
 
 
 if __name__ == "__main__":

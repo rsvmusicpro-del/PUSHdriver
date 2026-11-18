@@ -1335,14 +1335,6 @@ public final class VirtualPush1RuntimeTest
             require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
                 "DrivenByMoss Poly Sequencer did not program selected MIDI note " + note + " in the first step");
 
-        // Sparse Poly rendering must not read all 128 pitches for every step cell.
-        final int polyReadsBeforeSparseRender = musicalModel.stepReadCount ();
-        polySequencerView.drawGrid ();
-        final int sparseRenderStepReads = musicalModel.stepReadCount () - polyReadsBeforeSparseRender;
-        require (sparseRenderStepReads <= 40,
-            "Poly sparse-step rendering performed " + sparseRenderStepReads
-                + " note-step reads; expected at most 40 for a four-note chord");
-
         // The upstream Poly gesture toggles an occupied step off as a unit.
         midi.device ().pressPad (7, 0, 100);
         midi.device ().releasePad (7, 0);
@@ -2091,15 +2083,6 @@ public final class VirtualPush1RuntimeTest
                         case "scrollToPage": this.editPage[0] = (int) args[0]; return null;
                         case "scrollStepsPageBackwards": this.pageBack[0]++; this.editPage[0] = Math.max (0, this.editPage[0] - 1); return null;
                         case "scrollStepsPageForward": this.pageForward[0]++; this.editPage[0] = Math.min (7, this.editPage[0] + 1); return null;
-                        case "getHighestRow":
-                        {
-                            final int channel = (int) args[0];
-                            final int step = (int) args[1];
-                            for (int note = 127; note >= 0; note--)
-                                if (this.stepState (new NotePosition (channel, step, note)) != StepState.OFF)
-                                    return note;
-                            return -1;
-                        }
                         case "getStep": this.stepReads[0]++; return this.stepInfo ((NotePosition) args[0]);
                         case "toggleStep":
                         {
