@@ -117,7 +117,8 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
         final NotePosition notePosition = new NotePosition (this.configuration.getMidiEditChannel (), step, 0);
 
         this.clearEditNotes ();
-        for (int row = 0; row < 128; row++)
+        final int highestRow = clip.getHighestRow (notePosition.getChannel (), step);
+        for (int row = 0; row <= highestRow; row++)
         {
             notePosition.setNote (row);
             if (clip.getStep (notePosition).getState () == StepState.START)
@@ -135,11 +136,12 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
 
         final boolean isSelectPressed = this.surface.isSelectPressed ();
         final NotePosition notePosition = new NotePosition (channel, step, 0);
+        final int highestRow = clip.getHighestRow (channel, step);
 
         // Change note repeat setting for step
         if (this.surface.isShiftPressed ())
         {
-            for (int row = 0; row < 128; row++)
+            for (int row = 0; row <= highestRow; row++)
             {
                 notePosition.setNote (row);
                 if (clip.getStep (notePosition).getState () == StepState.START)
@@ -151,7 +153,7 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
         // Add note to edit notes with SELECT
         if (isSelectPressed)
         {
-            for (int row = 0; row < 128; row++)
+            for (int row = 0; row <= highestRow; row++)
             {
                 notePosition.setNote (row);
                 if (clip.getStep (notePosition).getState () == StepState.START)
