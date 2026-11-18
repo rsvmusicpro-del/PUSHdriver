@@ -193,12 +193,6 @@ public final class PushDeviceNavigation
     }
 
 
-    public static boolean isBusy (final PushControlSurface surface, final IModel model)
-    {
-        return isBusy (stateFor (surface, model));
-    }
-
-
     private static boolean isBusy (final State state)
     {
         if (state == null)
