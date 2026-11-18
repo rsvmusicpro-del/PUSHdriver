@@ -61,4 +61,14 @@ The quality gate also verifies the physical In/Out contract end-to-end: CC62 ent
 
 ## Device navigation latency
 
-The Device hierarchy queue uses adaptive confirmation polling (12/16/24/36/73 ms) with the original 2.92-second maximum confirmation budget. Each scheduled probe is capped to the remaining budget, so the final wait cannot overshoot the deadline. The virtual runtime checks all four initial probe intervals, delayed host callback ordering, serialized queue completion and bounded timeout at the 2,920 ms budget. These are deterministic scheduler-contract checks, not measurements of Bitwig's real-time response. Hardware P50/P95/P99 figures require timestamped live MIDI/host observation and must not be inferred from CI.
+The Device hierarchy queue uses adaptive confirmation polling (12/16/24/36/73 ms) with a 2.92-second confirmation budget. The budget combines the virtual scheduler's requested poll intervals with monotonic elapsed time, so a late host callback cannot silently extend the deadline; the timeout is evaluated when the host next dispatches the scheduled probe. If the host never dispatches any scheduled callback, its own scheduler cannot execute the timeout handler. The virtual runtime checks the initial probe intervals, delayed host callback ordering, serialized queue completion and bounded timeout at the 2,920 ms scheduled budget. These are deterministic scheduler-contract checks, not measurements of Bitwig's real-time response. Hardware P50/P95/P99 figures require timestamped live MIDI/host observation and must not be inferred from CI.
+
+
+## Post-audit extension hardening
+
+- Poly observer registration is shared per track bank, fans note events out to every live active Push Poly view, and retains views only through weak references. This preserves multiple Push surfaces sharing one model while respecting the API-17 limitation that observers cannot be removed.
+- Device hierarchy actions retain the model weakly; scheduled callbacks retain the surface weakly; the delayed same-device reselect callback retains its DeviceParamsMode weakly and verifies that the mode is still active before changing it. Rebinding a surface to a new model cancels its previous queue.
+- Poly note aggregation and long-press/modifier scans use the clip's highest occupied row rather than blindly retrieving 128 step-info objects per step. The virtual runtime guards the sparse four-note case at no more than 40 getStep calls across the 32-cell grid; this is an API-call count, not a hardware latency claim.
+- Push 1 MIDI/button indices are bottom-up while framework coordinates are top-down. The adapter and virtual hardware tests cover all coordinate corners and verify that physical bottom-left maps to Poly step zero.
+- The source assembler is split into seven ordered patch batches. Its shared Java patch helpers are independently tested, the source-ownership inventory covers replaceJavaMethod targets, and CI compiles every build/validation Python script.
+- The display glyph pixel query reads immutable glyph data directly instead of allocating a defensive copy for each pixel; the public bitmap accessor remains defensive.
