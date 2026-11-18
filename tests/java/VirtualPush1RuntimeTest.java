@@ -784,8 +784,10 @@ public final class VirtualPush1RuntimeTest
         for (int i = 0; i < 40; i++)
             requireButtonMidiDelivery (midi, i % 2 == 0 ? VirtualPush1Device.OUT : VirtualPush1Device.IN,
                 "Queue-overflow stress command " + i);
-        require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.selectRow (surface, modelReference[0], 7),
-            "ROW1 reported a queued selection after the bounded queue had rejected it");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7,
+            "ROW1 press while the navigation queue is full");
+        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.equals ("device.select:7")),
+            "A rejected full-queue ROW1 press bypassed serialization through direct DeviceParamsMode selection");
         drainNavigation (state);
         require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
             "Navigation remained busy after the bounded queue drained");
@@ -854,6 +856,11 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Ableton Device Chains action");
         require (modes.isActive (Modes.DEVICE_CHAINS), "Bottom-row Chains action did not activate Device Chains");
+        virtualNullSlotChains = true;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Device Chains ROW1 with a null slot-chain bank");
+        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.startsWith ("device.selectSlotChain:")),
+            "Device Chains attempted to select an item from a null slot-chain bank");
+        virtualNullSlotChains = false;
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Ableton Device Chain selector 8");
         requireAction ("device.selectSlotChain:Chain 8", "Top-row selector did not select chain 8");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Selecting a chain did not return to Device parameters");

@@ -52,7 +52,7 @@ public final class PushDeviceNavigation
         synchronized(state)
         {
             if(!state.running&&state.actions.isEmpty()&&(!cursor.isNested()||cursor.getIndex()==index))return false;
-            final boolean accepted=enqueueLocked(state,new Action(Type.SELECT,null,index,onReselect));startNext(surface,state);return accepted;
+            enqueueLocked(state,new Action(Type.SELECT,null,index,onReselect));startNext(surface,state);return true;
         }
     }
     public static boolean isEntering(final PushControlSurface surface)

@@ -1636,6 +1636,45 @@ replace_once(device_params_mode,
 # Selecting a chain returns to Device mode with the device selector visible,
 # even if the Banks action had previously switched ROW1 to parameter pages.
 device_chains_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceChainsMode.java"
+
+# Bitwig may transiently return a null slot-chain array while the cursor
+# device is changing. Guard selection, LED feedback and both LCD renderers.
+replace_once(device_chains_mode,
+    "            final String [] slotChains = cd.getSlotChains ();\n            if (index >= slotChains.length)",
+    "            final String [] slotChains = cd.getSlotChains ();\n            if (slotChains == null || index >= slotChains.length)",
+    "Device Chains null slot-bank selection guard")
+replace_once(device_chains_mode,
+    "        return index < slotChains.length ? existsColor : offColor;",
+    "        return slotChains != null && index < slotChains.length ? existsColor : offColor;",
+    "Device Chains null slot-bank LED guard")
+replace_once(device_chains_mode,
+    """        final String [] slotChains = cd.getSlotChains ();
+        for (int i = 0; i < 8; i++)
+        {
+            final String bottomMenu = i < slotChains.length ? slotChains[i] : "";
+            display.setCell""",
+    """        final String [] slotChains = cd.getSlotChains ();
+        for (int i = 0; i < 8; i++)
+        {
+            final String bottomMenu = slotChains != null && i < slotChains.length ? slotChains[i] : "";
+            display.setCell""",
+    "Device Chains null slot-bank text LCD guard")
+replace_once(device_chains_mode,
+    """        final String [] slotChains = cd.getSlotChains ();
+        for (int i = 0; i < 8; i++)
+        {
+            final boolean isTopMenuOn = this.getTopMenuEnablement (cd, hasPinning, i);
+            final String bottomMenu = i < slotChains.length ? slotChains[i] : "";""",
+    """        final String [] slotChains = cd.getSlotChains ();
+        for (int i = 0; i < 8; i++)
+        {
+            final boolean isTopMenuOn = this.getTopMenuEnablement (cd, hasPinning, i);
+            final String bottomMenu = slotChains != null && i < slotChains.length ? slotChains[i] : "";""",
+    "Device Chains null slot-bank graphic LCD guard")
+replace_once(device_chains_mode,
+    "            final boolean isBottomMenuOn = i < slotChains.length;",
+    "            final boolean isBottomMenuOn = slotChains != null && i < slotChains.length;",
+    "Device Chains null slot-bank graphic LED guard")
 replace_once(device_chains_mode,
     """            cd.selectSlotChain (slotChains[index]);
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);

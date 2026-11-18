@@ -64,8 +64,13 @@ def main() -> int:
             "This bench is validated with Java 17. Detected Java output:\n" + java_version
         )
 
+    run([sys.executable, "-m", "unittest", "discover", "-s", "tests/python", "-v"])
     run([sys.executable, "scripts/check_push1_led_safety.py"])
     run([sys.executable, "scripts/prepare_push1.py"])
+    run([sys.executable, "scripts/check_push1_color_palette.py"])
+    run([sys.executable, "scripts/check_source_ownership.py"])
+    run([sys.executable, "scripts/check_engine_architecture.py"])
+    run([sys.executable, "scripts/check_push1_menu_row_contract.py"])
     run(["mvn", "--batch-mode", "--no-transfer-progress", "clean", "package"])
     run([sys.executable, "scripts/verify_push1.py"])
     test_command = [sys.executable, "scripts/test_push1_extension.py"]
@@ -82,8 +87,9 @@ def main() -> int:
     if args.fuzz_seeds is not None:
         test_command.append(f"--fuzz-seeds={args.fuzz_seeds}")
     run(test_command)
+    run([sys.executable, "scripts/test_push1_mutation.py"])
 
-    print("\nAbleton Push 1 virtual test bench completed successfully.", flush=True)
+    print("\nAbleton Push 1 virtual test bench and mutation gate completed successfully.", flush=True)
     return 0
 
 

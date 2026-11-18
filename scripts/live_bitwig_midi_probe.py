@@ -55,6 +55,11 @@ def main() -> int:
                 print("In Bitwig, route the controller's MIDI input to the first port and MIDI output to the second.")
                 print("This probe does not create a Push 1 device identity or guarantee the extension can be attached to virtual ports.")
                 if args.cc is not None:
+                    try:
+                        input("After routing both ports in Bitwig, press Enter to send the test CC...")
+                    except EOFError:
+                        print("Interactive confirmation is required when --cc is used.", file=sys.stderr)
+                        return 2
                     message = mido.Message("control_change", channel=args.channel, control=args.cc, value=args.value)
                     to_bitwig.send(message)
                     print(f"Sent to Bitwig: {message!r}", flush=True)
