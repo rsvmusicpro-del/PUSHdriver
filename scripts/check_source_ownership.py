@@ -51,6 +51,7 @@ PATCH_TARGET_ALLOWLIST={
 "de/mossgrabers/controller/ableton/push/mode/SessionMode.java",
 "de/mossgrabers/controller/ableton/push/mode/MarkerMode.java",
 "de/mossgrabers/controller/ableton/push/mode/track/MasterMode.java",
+"de/mossgrabers/controller/ableton/push/mode/track/AddTrackMode.java",
 "de/mossgrabers/controller/ableton/push/view/DrumView.java",
 "de/mossgrabers/framework/view/AbstractDrum64View.java",
 "de/mossgrabers/controller/ableton/push/PushControllerSetup.java",
