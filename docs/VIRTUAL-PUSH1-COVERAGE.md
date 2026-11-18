@@ -86,3 +86,8 @@ Ordinary feature work should be validated by this virtual bench and its CI regre
 ## Merge protection requirement
 
 The workflow's final check is named `quality-gate` and runs on pushes to `custom` and pull requests targeting it. GitHub's branch metadata currently reports `protected: true`. The connected integration cannot read the detailed branch-protection endpoint (GitHub returns HTTP 403), so the exact required status checks and bypass permissions cannot be independently verified here. Confirm in repository Settings that `quality-gate` is required for `custom` and that no role can bypass it before treating the gate as fully server-enforced.
+
+
+## Physical pad coordinate contract
+
+Push 1 MIDI pad notes ascend bottom-to-top: note 36 is bottom-left, note 43 bottom-right, note 92 top-left and note 99 top-right. Framework and view coordinates are top-down, row-major, so the note-to-index adapter must invert the MIDI row while keeping coordinate indices top-down. The virtual device's row argument is explicitly bottom-up. Tests assert all four corners and note/index round-trips to prevent simulator/hardware orientation drift.
