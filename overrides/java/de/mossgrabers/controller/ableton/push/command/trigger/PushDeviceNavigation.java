@@ -102,13 +102,13 @@ public final class PushDeviceNavigation
                 if(selected==null)selected=chains==null||chains.length==0?null:chains[0];
                 boolean found=false;if(selected!=null&&chains!=null)for(final String chain:chains)if(selected.equals(chain)){found=true;break;}
                 if(!found){state.actions.removeFirst();continue;}
-                state.before=fingerprint(cursor);state.expectedIndex=0;state.wait=Wait.ENTER;state.polls=0;state.running=true;
+                state.before=fingerprint(cursor);state.expectedIndex=0;state.wait=Wait.ENTER;state.polls=0;state.waitedMs=0;state.running=true;
                 cursor.selectSlotChain(selected);schedule(surface,state,model);return;
             }
             if(action.type==Type.EXIT)
             {
                 if(!cursor.isNested()){state.actions.removeFirst();continue;}
-                state.before=fingerprint(cursor);state.wait=Wait.EXIT;state.polls=0;state.running=true;
+                state.before=fingerprint(cursor);state.wait=Wait.EXIT;state.polls=0;state.waitedMs=0;state.running=true;
                 cursor.selectParent();schedule(surface,state,model);return;
             }
             final IDevice target=cursor.getDeviceBank().getItem(action.index);
@@ -118,12 +118,12 @@ public final class PushDeviceNavigation
             if(cursor.isNested())
             {
                 if(action.index>current)
-                {if(!cursor.canSelectNext()){state.actions.removeFirst();continue;}state.previousIndex=current;state.expectedIndex=current+1;state.wait=Wait.MOVE;state.polls=0;state.running=true;cursor.selectNext();}
+                {if(!cursor.canSelectNext()){state.actions.removeFirst();continue;}state.previousIndex=current;state.expectedIndex=current+1;state.wait=Wait.MOVE;state.polls=0;state.waitedMs=0;state.running=true;cursor.selectNext();}
                 else
-                {if(!cursor.canSelectPrevious()){state.actions.removeFirst();continue;}state.previousIndex=current;state.expectedIndex=current-1;state.wait=Wait.MOVE;state.polls=0;state.running=true;cursor.selectPrevious();}
+                {if(!cursor.canSelectPrevious()){state.actions.removeFirst();continue;}state.previousIndex=current;state.expectedIndex=current-1;state.wait=Wait.MOVE;state.polls=0;state.waitedMs=0;state.running=true;cursor.selectPrevious();}
                 schedule(surface,state,model);return;
             }
-            state.wait=Wait.ROOT_SELECT;state.polls=0;state.running=true;target.select();schedule(surface,state,model);return;
+            state.wait=Wait.ROOT_SELECT;state.polls=0;state.waitedMs=0;state.running=true;target.select();schedule(surface,state,model);return;
         }
         state.running=false;state.wait=Wait.NONE;
     }
@@ -160,7 +160,7 @@ public final class PushDeviceNavigation
                 // the action only until its requested index is reached; do not run
                 // the same-device reselect callback after a successful movement.
                 if(waiting!=Wait.MOVE||cursor.getIndex()==action.index)state.actions.removeFirst();
-                state.running=false;state.wait=Wait.NONE;state.polls=0;startNext(surface,state);return;
+                state.running=false;state.wait=Wait.NONE;state.polls=0;state.waitedMs=0;startNext(surface,state);return;
             }
             if(state.waitedMs>=MAX_WAIT_MS)
             {
