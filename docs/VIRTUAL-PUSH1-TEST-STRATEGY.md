@@ -46,7 +46,7 @@ This is the important difference between a broader test count and a useful test 
 
 The pinned DrivenByMoss `AbstractHwButton` uses a 300 ms `TimeoutOptimizer` interval before a held button becomes `LONG`. The virtual host now has a monotonic virtual clock and tests the exact 299/300 ms boundary. It does not run `TimeoutOptimizer`'s wall-clock calibration in simulated time: doing so would make a deterministic test depend on scheduler speed and `System.currentTimeMillis()`.
 
-The separate Device hierarchy scheduler probes at 12, 16, 24, 36 and then 73 ms. The runtime regression asserts that every initial probe leaves navigation pending before the delayed host callback, and that a suppressed callback reaches timeout at exactly 2,920 ms. The final scheduled delay is clipped to the remaining budget (58 ms for the current backoff sequence), so the timeout cannot overshoot by a full 73 ms interval.
+The separate Device hierarchy scheduler probes at 12, 16, 24, 36 and then 73 ms. The runtime regression asserts that every initial probe leaves navigation pending before the delayed host callback, and that a suppressed callback reaches the bounded 2,920 ms timeout. The final scheduled delay is clipped to the remaining budget (58 ms for the current backoff sequence), so the timeout cannot overshoot by a full 73 ms interval.
 
 This timing represents the controller framework's button semantics after MIDI delivery. It is not a claim that Push 1 firmware debounces its MIDI buttons at 300 ms.
 
