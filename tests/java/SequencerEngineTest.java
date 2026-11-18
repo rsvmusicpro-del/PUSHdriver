@@ -36,14 +36,14 @@ public final class SequencerEngineTest
     private static void testPush1PadGrid ()
     {
         require (Push1PadGrid.indexForNote (35) == -1, "note below Push grid rejected");
-        require (Push1PadGrid.indexForNote (36) == 56, "MIDI note 36 maps to the physical bottom-left coordinate");
-        require (Push1PadGrid.indexForNote (92) == 0, "MIDI note 92 maps to the physical top-left coordinate");
-        require (Push1PadGrid.indexForNote (99) == 7, "MIDI note 99 maps to the physical top-right coordinate");
-        require (Push1PadGrid.indexForNote (43) == 63, "MIDI note 43 maps to the physical bottom-right coordinate");
+        require (Push1PadGrid.indexForNote (36) == 0, "MIDI note 36 maps to the bottom-left button index");
+        require (Push1PadGrid.indexForNote (92) == 56, "MIDI note 92 maps to the top-left button index");
+        require (Push1PadGrid.indexForNote (99) == 63, "MIDI note 99 maps to the top-right button index");
+        require (Push1PadGrid.indexForNote (43) == 7, "MIDI note 43 maps to the bottom-right button index");
         require (Push1PadGrid.indexForNote (100) == -1, "note above Push grid rejected");
         require (Push1PadGrid.indexForNote (-1) == -1, "negative MIDI note rejected");
-        require (Push1PadGrid.noteForIndex (0) == 92, "top-left coordinate maps back to MIDI note 92");
-        require (Push1PadGrid.noteForIndex (56) == 36, "bottom-left coordinate maps back to MIDI note 36");
+        require (Push1PadGrid.noteForIndex (0) == 36, "bottom-left button index maps back to MIDI note 36");
+        require (Push1PadGrid.noteForIndex (56) == 92, "top-left button index maps back to MIDI note 92");
         require (Push1PadGrid.noteForIndex (-1) == -1, "negative pad index rejected");
         require (Push1PadGrid.noteForIndex (64) == -1, "pad index 64 rejected");
         require (Push1PadGrid.indexForCoordinate (0, 0) == 0, "top-left coordinate maps to first pad");
