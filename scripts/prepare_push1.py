@@ -321,12 +321,15 @@ replace_once(poly_sequencer,
 # selected view. This keeps the inactive Poly engine's KeyManager untouched
 # when the user switches to the classic sequencer or another view.
 replace_once(poly_sequencer,
+    "import de.mossgrabers.framework.daw.data.bank.ITrackBank;\n",
+    "",
+    "Remove the upstream per-view track-bank import")
+replace_once(poly_sequencer,
+    "        final ITrackBank tb = model.getTrackBank ();\n"
+    "        tb.addSelectionObserver ( (index, isSelected) -> this.keyManager.clearPressedKeys ());\n"
     "        tb.addNoteObserver (this.keyManager::call);",
-    "        tb.addNoteObserver ((trackIndex, note, velocity) -> {\n"
-    "            if (this.surface.getViewManager ().getActive () == this)\n"
-    "                this.keyManager.call (trackIndex, note, velocity);\n"
-    "        });",
-    "Poly sequencer active-view note observer routing")
+    "        // PushPolySequencerObservers installs one weakly routed observer pair per track bank.",
+    "Replace per-view observers with weak shared routing")
 
 source = poly_sequencer.read_text()
 old = """                if (hilite)

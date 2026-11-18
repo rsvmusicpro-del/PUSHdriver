@@ -1171,6 +1171,11 @@ public final class VirtualPush1RuntimeTest
         final var viewManager = surface.getViewManager ();
         viewManager.setActive (Views.SEQUENCER);
         final SequencerView sequencerView = (SequencerView) viewManager.get (Views.SEQUENCER);
+        final java.lang.reflect.Field classicEngineField = SequencerView.class.getDeclaredField ("engine");
+        classicEngineField.setAccessible (true);
+        final de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine classicEngine =
+            (de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine) classicEngineField.get (sequencerView);
+        require (classicEngine.isActive (), "Classic Sequencer engine did not activate with its ViewManager view");
         sequencerView.updateNoteMapping ();
         drainScheduled (state, 6);
         sequencerView.updateControlSurface ();
@@ -1261,7 +1266,13 @@ public final class VirtualPush1RuntimeTest
         // lower pads select/perform notes, upper pads toggle complete steps,
         // and the Push long-note continuation feedback remains intact.
         viewManager.setActive (Views.POLY_SEQUENCER);
+        require (!classicEngine.isActive (), "Classic Sequencer engine remained active after the view switch");
         final PolySequencerView polySequencerView = (PolySequencerView) viewManager.get (Views.POLY_SEQUENCER);
+        final java.lang.reflect.Field polyEngineField = PolySequencerView.class.getDeclaredField ("engine");
+        polyEngineField.setAccessible (true);
+        final de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine polyEngine =
+            (de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine) polyEngineField.get (polySequencerView);
+        require (polyEngine.isActive (), "Poly Sequencer engine did not activate with its ViewManager view");
         scaleModel[0].setChromatic (true);
         scaleModel[0].setScaleOffsetByName ("C");
         polySequencerView.updateNoteMapping ();
@@ -1488,6 +1499,7 @@ public final class VirtualPush1RuntimeTest
 
         final int togglesBeforeDrum = musicalModel.toggleCount ();
         viewManager.setActive (Views.DRUM);
+        require (!polyEngine.isActive (), "Poly Sequencer engine remained active after leaving its view");
         final DrumView drumView = (DrumView) viewManager.get (Views.DRUM);
         drumView.updateNoteMapping ();
         drainScheduled (state, 6);

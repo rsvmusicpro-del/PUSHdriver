@@ -64,6 +64,23 @@ def main():
     classic_source = classic_view.read_text(encoding="utf-8")
     if "final int currentStep = clip.getCurrentStep ();\n        if (!clip.doesExist" in classic_source:
         errors.append("Classic Sequencer must check clip existence before reading the playhead.")
+    poly_observers = OVERRIDES / "view/PushPolySequencerObservers.java"
+    if not poly_observers.is_file():
+        errors.append("Weak shared Poly observer router is missing.")
+    else:
+        observer_source = poly_observers.read_text(encoding="utf-8")
+        for contract in ("WeakHashMap<ITrackBank, Observer>", "WeakReference<PolySequencerView>",
+                         "view.isCurrentActiveView ()", "view.onTrackSelectionChanged ()"):
+            if contract not in observer_source:
+                errors.append(f"Poly observer lifetime contract missing: {contract}")
+    for path in (classic_view, poly_view):
+        source = path.read_text(encoding="utf-8")
+        if "synchronizeEngineLifecycle" in source:
+            errors.append(f"Sequencer engine lifecycle must not be inferred from clip availability: {path.relative_to(ROOT)}")
+        if "public void onActivate ()" not in source or "this.engine.activate ();" not in source:
+            errors.append(f"Sequencer engine is not activated by the ViewManager lifecycle: {path.relative_to(ROOT)}")
+        if "public void onDeactivate ()" not in source or "this.engine.deactivate ();" not in source:
+            errors.append(f"Sequencer engine is not deactivated by the ViewManager lifecycle: {path.relative_to(ROOT)}")
     for path in (classic_view, poly_view):
         source = path.read_text(encoding="utf-8")
         if "Push1PadGrid.indexForNote (note)" not in source:

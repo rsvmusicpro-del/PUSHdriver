@@ -36,13 +36,19 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     private final ClassicSequencerEngine engine = new ClassicSequencerEngine ();
 
 
-    /** Synchronize engine ownership with DrivenByMoss' active-view lifecycle. */
-    private void synchronizeEngineLifecycle ()
+    /** The engine follows the ViewManager lifecycle, not clip availability. */
+    @Override
+    public void onActivate ()
     {
-        if (this.isActive ())
-            this.engine.activate ();
-        else
-            this.engine.deactivate ();
+        super.onActivate ();
+        this.engine.activate ();
+    }
+
+    @Override
+    public void onDeactivate ()
+    {
+        this.engine.deactivate ();
+        super.onDeactivate ();
     }
 
 
@@ -66,7 +72,6 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void drawGrid ()
     {
-        this.synchronizeEngineLifecycle ();
         if (this.engine.shouldFollowPlayhead () && this.model.getTransport ().isPlaying ())
         {
             final INoteClip clip = this.getClip ();
@@ -162,7 +167,6 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     protected void handleLoopArea (final int pad, final int velocity)
     {
-        this.synchronizeEngineLifecycle ();
         if (!this.engine.isActive ())
             return;
 
@@ -181,7 +185,6 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void onLeft (final ButtonEvent event)
     {
-        this.synchronizeEngineLifecycle ();
         this.engine.onManualPageNavigation ();
         super.onLeft (event);
     }
@@ -191,7 +194,6 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void onRight (final ButtonEvent event)
     {
-        this.synchronizeEngineLifecycle ();
         this.engine.onManualPageNavigation ();
         super.onRight (event);
     }
@@ -201,7 +203,6 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void onGridNoteLongPress (final int note)
     {
-        this.synchronizeEngineLifecycle ();
         final int index = Push1PadGrid.indexForNote (note);
         if (!this.engine.isActive () || index < 0)
             return;
@@ -226,7 +227,6 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     protected boolean handleSequencerAreaButtonCombinations (final INoteClip clip, final NotePosition notePosition, final int row, final int velocity)
     {
-        this.synchronizeEngineLifecycle ();
         if (!this.engine.isActive ())
             return true;
 

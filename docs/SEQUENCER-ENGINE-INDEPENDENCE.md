@@ -165,3 +165,10 @@ architectural guarantee.
 The deterministic `SequencerEngineTest` is part of the mandatory virtual
 bench and covers token invalidation, classic page-follow policy, Push pad
 bounds, Poly step mapping and scale-fundamental classification.
+
+
+## Poly observer and view-lifecycle correction — 2026-11-18
+
+A follow-up inspection of the pinned API-17 source found that the previous active-view guard still installed two per-instance observer lambdas from the upstream Poly constructor. The track bank has no note-observer removal method, and those lambdas captured the view. The Push assembly now removes both per-instance registrations and the concrete Push Poly view registers a shared observer pair per track bank. The registry uses weak track-bank keys and each observer holds only a weak reference to its current Poly view, so the host-owned observer cannot keep an obsolete view alive. Note feedback is forwarded only while that exact view is active; track-selection changes clear pressed-key, chord-memory and pending-copy state.
+
+The same source inspection exposed a lifecycle wiring error in both feature engines: the inherited isActive() reports whether the selected track/clip can be sequenced, not whether the view owns the controller. Calling activate() from drawGrid() therefore conflated clip availability with ViewManager ownership and could leave both engines active. Both views now activate/deactivate their engines from DrivenByMoss onActivate()/onDeactivate() callbacks. Poly deactivation also clears transient note-selection state. The virtual runtime now asserts that the engines switch exclusively with the active view.
