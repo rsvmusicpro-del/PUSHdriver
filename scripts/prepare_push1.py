@@ -1969,12 +1969,12 @@ replace_once(device_params_mode,
 # These adaptations are deliberately local to the affected menus.
 def replace_menu_fragment(path: str, old: str, new: str, label: str) -> None:
     target = root / path
-    source = target.read_text()
+    source = target.read_text(encoding="utf-8")
     if new in source and old not in source:
         return
     if source.count(old) != 1:
         raise SystemExit(f"{label}: expected exactly one source block")
-    target.write_text(source.replace(old, new, 1))
+    target.write_text(source.replace(old, new, 1), encoding="utf-8")
 
 
 note_view = "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteViewSelectMode.java"
