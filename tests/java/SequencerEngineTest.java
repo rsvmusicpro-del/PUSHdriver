@@ -100,6 +100,14 @@ public final class SequencerEngineTest
         require (!engine.isHardwarePadIndex (64), "out-of-range pad rejected");
         require (engine.stepForPad (0, 0, 8, 4) == 24, "top-left maps to final matrix row");
         require (engine.stepForPad (7, 3, 8, 4) == 7, "bottom-right maps to step seven");
+        final int bottomLeftButton = Push1PadGrid.indexForNote (36);
+        require (engine.stepForPad (Push1PadGrid.columnForIndex (bottomLeftButton),
+                Push1PadGrid.rowForIndex (bottomLeftButton), 8, 8) == 0,
+                "physical bottom-left Push pad maps to Poly step zero");
+        final int topLeftButton = Push1PadGrid.indexForNote (92);
+        require (engine.stepForPad (Push1PadGrid.columnForIndex (topLeftButton),
+                Push1PadGrid.rowForIndex (topLeftButton), 8, 8) == 56,
+                "physical top-left Push pad maps to Poly step 56");
         require (engine.stepForPad (8, 0, 8, 4) == -1, "invalid column rejected");
         require (engine.stepForPad (0, 4, 8, 4) == -1, "invalid row rejected");
         require (engine.isScaleFundamental (62, 2), "scale fundamental recognized");
