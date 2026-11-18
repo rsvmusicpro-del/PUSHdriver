@@ -15,7 +15,8 @@ import java.util.WeakHashMap;
 public final class PushDeviceNavigation
 {
     private static final long MAX_WAIT_MS=2920;
-    private static final boolean TIMING_ENABLED=Boolean.parseBoolean(System.getenv("PUSHDRIVER_NAV_TIMING"));
+    private static final String TIMING_SETTING=System.getenv("PUSHDRIVER_NAV_TIMING");
+    private static final boolean TIMING_ENABLED="1".equals(TIMING_SETTING)||Boolean.parseBoolean(TIMING_SETTING);
     private static final int MAX_ACTIONS=32;
     private static final long [] POLL_BACKOFF_MS={12,16,24,36,73};
     private static final Map<PushControlSurface,State> STATES=new WeakHashMap<> ();
