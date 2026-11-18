@@ -59,3 +59,8 @@ claimed as fully eliminated.
 The simulator validates this asynchronous ordering contract, but it does not
 run Bitwig Studio or physical Push 1 hardware. A live hardware check remains
 necessary to qualify host-specific callback latency and LED refresh timing.
+
+
+## Navigation latency optimization
+
+Device hierarchy confirmation now uses adaptive polling: 12 ms, 16 ms, 24 ms, 36 ms, then 73 ms intervals. This reduces the extension's detection overhead immediately after a cursor command while avoiding sustained high-frequency polling during slow host transitions. The maximum confirmation budget remains 2.92 seconds. The virtual runtime verifies that the first probe is scheduled at 12 ms, that it cannot complete before the delayed host callback, and that serialized In/Out/ROW1 actions still drain and time out safely. This optimizes extension-side detection latency; it does not claim to shorten Bitwig's own internal cursor-update time. Physical latency percentiles must be measured in a live Bitwig session before quoting a hardware performance gain.
