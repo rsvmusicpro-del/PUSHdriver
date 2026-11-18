@@ -767,6 +767,20 @@ public final class VirtualPush1RuntimeTest
         require (!deviceParamsMode.isShowDevices (), "Queued ROW1 reselect of the active parent did not preserve upstream Banks behavior");
         deviceParamsMode.setShowDevices (true);
 
+        // A delayed reselect callback must not switch back to Device Params after
+        // the user has deliberately left that mode while the cursor is updating.
+        virtualDeferCursorUpdates = true;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out before stale same-device ROW1");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Queue same-device ROW1 before leaving Device Params");
+        surface.getModeManager ().setActive (Modes.BROWSER);
+        drainNavigation (state);
+        require (surface.getModeManager ().isActive (Modes.BROWSER),
+            "A stale Device reselect callback switched away from Browser");
+        require (deviceParamsMode.isShowDevices (),
+            "A stale Device reselect callback mutated the inactive Device Params mode");
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        virtualDeferCursorUpdates = false;
+
         // Null slot-chain arrays are legal at a transient host boundary: IN is
         // a no-op and its LED predicate must remain safe.
         virtualNullSlotChains = true;
