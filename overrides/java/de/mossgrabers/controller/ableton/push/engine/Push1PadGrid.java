@@ -14,7 +14,7 @@ public final class Push1PadGrid
         // Utility class.
     }
 
-    /** Return the top-down, row-major hardware index, or -1 for a non-pad MIDI note. */
+    /** Return the bottom-up MIDI/button index, or -1 for a non-pad MIDI note. */
     public static int indexForNote (final int note)
     {
         final int index = note - FIRST_NOTE;
@@ -36,7 +36,7 @@ public final class Push1PadGrid
     {
         if (column < 0 || column >= COLUMNS || row < 0 || row >= ROWS)
             return -1;
-        return row * COLUMNS + column;
+        return (ROWS - 1 - row) * COLUMNS + column;
     }
 
     public static int columnForIndex (final int index)
@@ -46,6 +46,6 @@ public final class Push1PadGrid
 
     public static int rowForIndex (final int index)
     {
-        return isValidIndex (index) ? index / COLUMNS : -1;
+        return isValidIndex (index) ? ROWS - 1 - index / COLUMNS : -1;
     }
 }
