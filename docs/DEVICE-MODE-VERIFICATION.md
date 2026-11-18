@@ -7,7 +7,7 @@ Upstream: DrivenByMoss 19.2.2 at `013620c1330cdcf896e96ef8fdc8a2123e4fce6a`
 
 ## CI evidence
 
-The current PR head (`c64f0a85adddbff9a5416b3c4ff384327be54834`) passed GitHub Actions run [#1115](https://github.com/rsvmusicpro-del/PUSHdriver/actions/runs/44406581697) on Linux and Intel macOS. The aggregate `quality-gate` also passed. Linux CI ran all 37 Python unit tests, 224 view/seed scenarios (57,344 generated actions), built and verified the 2,101-class Push 1-only package, and killed the injected empty-clip Java mutant before restoring and rebuilding the clean package.
+The current PR head (`1978a600aef6b3dbaa7a976ee27275138dd4b715`) passed GitHub Actions run [#1116](https://github.com/rsvmusicpro-del/PUSHdriver/actions/runs/44407224264) on Linux and Intel macOS. The aggregate `quality-gate` also passed. Linux CI ran all 37 Python unit tests, 224 view/seed scenarios (57,344 generated actions), built and verified the 2,101-class Push 1-only package, and killed the injected empty-clip Java mutant before restoring and rebuilding the clean package.
 
 The virtual runtime exercises the production PushControllerSetup MIDI bindings and now verifies:
 
