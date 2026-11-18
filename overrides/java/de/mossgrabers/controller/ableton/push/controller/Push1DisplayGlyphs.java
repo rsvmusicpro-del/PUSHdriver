@@ -50,7 +50,9 @@ public final class Push1DisplayGlyphs
     {
         if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT)
             throw new IllegalArgumentException ("Push 1 custom glyph pixel must be inside 5x8 bounds");
-        return (bitmapRows (characterCode)[y] & (1 << (WIDTH - 1 - x))) != 0;
+        if (!isKnownCustomGlyph (characterCode))
+            throw new IllegalArgumentException ("No extracted Push 1 custom glyph for character code " + characterCode);
+        return (CUSTOM[characterCode][y] & (1 << (WIDTH - 1 - x))) != 0;
     }
 
     /** @return an eight-line diagnostic bitmap using '#' for lit and '.' for dark */
