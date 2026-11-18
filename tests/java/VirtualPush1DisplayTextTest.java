@@ -1,6 +1,7 @@
 // Copyright (C) 2026 PUSHdriver contributors
 // Licensed under the same LGPLv3 terms as the adapted DrivenByMoss controller code.
 
+import de.mossgrabers.controller.ableton.push.controller.Push1DisplayGlyphs;
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayProtocol;
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayText;
@@ -16,6 +17,24 @@ public final class VirtualPush1DisplayTextTest
     {
         check (Push1DisplayText.fit ("A\nB\tC\rD", 8), "A B C D ",
             "line breaks and tabs must become one display cell each");
+
+        final int [] glyphRows = Push1DisplayGlyphs.bitmapRows (0);
+        glyphRows[1] = 0;
+        require (Push1DisplayGlyphs.bitmapRows (0)[1] == 0x04,
+            "custom glyph row arrays must remain defensive copies");
+        require (Push1DisplayGlyphs.isPixelOn (0, 2, 1),
+            "the Push 1 arrow-up glyph must expose its center pixel");
+        require (!Push1DisplayGlyphs.isPixelOn (0, 0, 1),
+            "dark custom glyph pixels must remain dark");
+        try
+        {
+            Push1DisplayGlyphs.isPixelOn (8, 0, 0);
+            throw new AssertionError ("unknown custom glyph codes must be rejected");
+        }
+        catch (final IllegalArgumentException expected)
+        {
+            // Expected: only the eight firmware custom glyphs are defined.
+        }
         check (Push1DisplayText.fit ("A😀B", 4), "A?B ",
             "a supplementary Unicode code point must occupy one replacement cell");
 
