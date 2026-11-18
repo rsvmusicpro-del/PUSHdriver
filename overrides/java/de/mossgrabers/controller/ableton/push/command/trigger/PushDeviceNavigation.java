@@ -49,7 +49,7 @@ public final class PushDeviceNavigation
         synchronized(state)
         {
             if(!state.running&&state.actions.isEmpty()&&(!cursor.isNested()||cursor.getIndex()==index))return false;
-            enqueueLocked(state,new Action(Type.SELECT,null,index,onReselect));startNext(surface,state);return true;
+            final boolean accepted=enqueueLocked(state,new Action(Type.SELECT,null,index,onReselect));startNext(surface,state);return accepted;
         }
     }
     public static boolean isEntering(final PushControlSurface surface)
@@ -66,20 +66,21 @@ public final class PushDeviceNavigation
     {
         final State state=stateFor(surface,model);synchronized(state){enqueueLocked(state,action);startNext(surface,state);}
     }
-    private static void enqueueLocked(final State state,final Action action)
+    private static boolean enqueueLocked(final State state,final Action action)
     {
         final Action last=state.actions.peekLast();
         if(action.type==Type.SELECT&&last!=null&&last.type==Type.SELECT
             &&(!state.running||last!=state.actions.peekFirst()))
-        {last.index=action.index;last.onReselect=action.onReselect;return;}
+        {last.index=action.index;last.onReselect=action.onReselect;return true;}
         if(state.actions.size()>=MAX_ACTIONS)
         {
             // A Bitwig operation already sent to the host cannot be cancelled. Keep
             // the in-flight head and its serialized queue; reject only the newest intent.
             final IModel model=state.model.get();if(model!=null)model.getHost().showNotification("Push Device navigation queue full: newest command ignored");
-            return;
+            return false;
         }
         state.actions.addLast(action);
+        return true;
     }
     private static State stateFor(final PushControlSurface surface,final IModel model)
     {
