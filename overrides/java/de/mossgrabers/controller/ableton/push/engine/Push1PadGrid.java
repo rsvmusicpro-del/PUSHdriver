@@ -1,7 +1,7 @@
 // Copyright (c) 2026 PUSHdriver contributors
 package de.mossgrabers.controller.ableton.push.engine;
 
-/** Stateless address and coordinate contract for the physical Push 1 8x8 pad grid. */
+/** Stateless address and coordinate contract for the physical Push 1 8x8 pad grid. MIDI notes ascend bottom-to-top; coordinates are top-down. */
 public final class Push1PadGrid
 {
     public static final int FIRST_NOTE = 36;
@@ -17,14 +17,22 @@ public final class Push1PadGrid
     /** Return the top-down, row-major hardware index, or -1 for a non-pad MIDI note. */
     public static int indexForNote (final int note)
     {
-        final int index = note - FIRST_NOTE;
-        return isValidIndex (index) ? index : -1;
+        final int offset = note - FIRST_NOTE;
+        if (!isValidIndex (offset))
+            return -1;
+        final int rowFromBottom = offset / COLUMNS;
+        final int column = offset % COLUMNS;
+        return indexForCoordinate (column, ROWS - 1 - rowFromBottom);
     }
 
     /** Return the MIDI note for a hardware index, or -1 when the index is invalid. */
     public static int noteForIndex (final int index)
     {
-        return isValidIndex (index) ? FIRST_NOTE + index : -1;
+        if (!isValidIndex (index))
+            return -1;
+        final int rowFromTop = index / COLUMNS;
+        final int column = index % COLUMNS;
+        return FIRST_NOTE + (ROWS - 1 - rowFromTop) * COLUMNS + column;
     }
 
     public static boolean isValidIndex (final int index)
