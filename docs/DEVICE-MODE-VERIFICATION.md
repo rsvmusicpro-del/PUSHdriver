@@ -64,3 +64,26 @@ necessary to qualify host-specific callback latency and LED refresh timing.
 ## Navigation latency optimization
 
 Device hierarchy confirmation now uses adaptive polling: 12 ms, 16 ms, 24 ms, 36 ms, then 73 ms intervals. This reduces the extension's detection overhead immediately after a cursor command while avoiding sustained high-frequency polling during slow host transitions. The maximum confirmation budget remains 2.92 seconds. The virtual runtime verifies that the first probe is scheduled at 12 ms, that it cannot complete before the delayed host callback, and that serialized In/Out/ROW1 actions still drain and time out safely. This optimizes extension-side detection latency; it does not claim to shorten Bitwig's own internal cursor-update time. Physical latency percentiles must be measured in a live Bitwig session before quoting a hardware performance gain.
+
+
+## Timestamped navigation measurements
+
+Optional live instrumentation is disabled by default and has no per-navigation logging overhead while disabled. To enable it, launch Bitwig with the environment variable `PUSHDRIVER_NAV_TIMING=1` set, then open the Bitwig Controller Script Console. On Linux, launch Bitwig from a terminal with:
+
+```sh
+PUSHDRIVER_NAV_TIMING=1 bitwig-studio
+```
+
+On macOS, launch the Bitwig executable from a terminal with the same environment variable, for example:
+
+```sh
+PUSHDRIVER_NAV_TIMING=1 "/Applications/Bitwig Studio.app/Contents/MacOS/BitwigStudio"
+```
+
+Each completed Device hierarchy action emits one `PUSHdriver_NAV_TIMING` line. It records queue wait, time from the first Bitwig cursor command to observed cursor confirmation, total extension-side duration, and poll count using `System.nanoTime()`. Timeouts are logged separately. Export/copy those console lines to a text file and calculate P50/P95/P99 with:
+
+```sh
+python3 scripts/analyze_navigation_latency.py bitwig-controller-console.txt
+```
+
+These figures start when the PUSHdriver Java command handler enqueues the action. They do **not** include the physical button's USB/MIDI delivery before the handler, nor the Push LED/LCD refresh after cursor confirmation. Therefore they isolate extension queueing and Bitwig cursor-confirmation time; a separate external timestamp is still needed to measure button-press-to-handler and visual-feedback latency.
