@@ -161,5 +161,13 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertNotIn("this.model", callback)
 
 
+    def test_all_build_and_validation_scripts_compile(self):
+        root = Path(__file__).resolve().parents[2]
+        for script in sorted((root / "scripts").rglob("*.py")):
+            with self.subTest(script=script.relative_to(root)):
+                source = script.read_text(encoding="utf-8")
+                compile(source, str(script), "exec")
+
+
 if __name__ == "__main__":
     unittest.main()
