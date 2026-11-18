@@ -57,3 +57,8 @@ The source-ownership gate makes the upstream/project boundary explicit. DevicePa
 
 
 The quality gate also verifies the physical In/Out contract end-to-end: CC62 enters the first available slot chain, CC63 returns to its parent, and nested ROW1 taps select the corresponding chain devices. Setup labels, LED availability, virtual-device constants, hardware documentation and Browser paging are checked.
+
+
+## Device navigation latency
+
+The Device hierarchy queue uses adaptive confirmation polling (12/16/24/36/73 ms) with the original 2.92-second maximum confirmation budget. The virtual runtime checks the first 12 ms probe, delayed host callback ordering, serialized queue completion and bounded timeout. These are deterministic scheduler-contract checks, not measurements of Bitwig's real-time response. Hardware P50/P95/P99 figures require timestamped live MIDI/host observation and must not be inferred from CI.
