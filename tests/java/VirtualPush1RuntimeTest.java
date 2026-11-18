@@ -711,9 +711,12 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
         requireAction ("device.selectSlotChain:Chain 1", "In (CC 62) must enter the first available slot chain");
+        require (runNextScheduled (state, 12), "Navigation did not schedule its first low-latency cursor probe at 12 ms");
+        require (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
+            "Navigation completed before Bitwig delivered its delayed cursor callback");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2, "Immediate ROW1 selection after In");
         require (deviceIndex == 4 && !virtualCursorDeviceNested, "ROW1 acted on the stale parent cursor before the chain callback");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (virtualCursorDeviceNested && deviceIndex == 2, "Immediate ROW1 selection after In was not replayed against the child chain");
         require (deviceParamsMode.isShowDevices (), "In did not restore ROW1 device selectors after entering a chain from Banks mode");
 
@@ -722,33 +725,33 @@ public final class VirtualPush1RuntimeTest
         requireAction ("cursorDevice.selectParent", "Out (CC 63) must select the parent device");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Immediate ROW1 selection after Out");
         require (virtualCursorDeviceNested, "ROW1 changed the nested cursor before the parent callback was delivered");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (!virtualCursorDeviceNested && deviceIndex == 3, "Immediate ROW1 selection after Out was not replayed against the parent device bank");
         require (MODEL_ACTIONS.stream ().anyMatch (a -> a.equals ("device.select:3")), "Queued parent ROW1 selection did not target the requested device");
 
         // Regression: a second ROW1 tap must not rewrite the already-issued root selection.
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Re-enter chain before ROW1 coalescing regression");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (virtualCursorDeviceNested, "Precondition failed: In did not re-enter the chain");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out before two in-flight root ROW1 selections");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "First queued root ROW1 target");
         require (runNextScheduled (state, 73), "Missing delayed parent-cursor callback");
-        require (runNextScheduled (state, 73), "Missing navigation poll after parent-cursor callback");
+        require (runNextScheduled (state, 12), "Missing first low-latency navigation poll after parent-cursor callback");
         require (MODEL_ACTIONS.contains ("device.select:1"), "First root ROW1 selection was not issued after Out");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Second ROW1 target while first root selection is in flight");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (deviceIndex == 3, "A later ROW1 press rewrote or lost the in-flight root selection instead of running next");
         require (MODEL_ACTIONS.contains ("device.select:3"), "Second root ROW1 selection was not issued as a separate serialized action");
 
         // Regression: if queued ROW1 resolves to the parent device already active,
         // preserve upstream's reselect gesture (Banks toggle / Layer Mix entry).
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Re-enter chain before same-device reselect regression");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         deviceParamsMode.setShowDevices (true);
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out before queued same-device ROW1");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Queued ROW1 reselect of parent device zero");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (!deviceParamsMode.isShowDevices (), "Queued ROW1 reselect of the active parent did not preserve upstream Banks behavior");
         deviceParamsMode.setShowDevices (true);
 
@@ -769,7 +772,7 @@ public final class VirtualPush1RuntimeTest
         for (int i = 0; i < 40; i++)
             requireButtonMidiDelivery (midi, i % 2 == 0 ? VirtualPush1Device.OUT : VirtualPush1Device.IN,
                 "Queue-overflow stress command " + i);
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
             "Navigation remained busy after the bounded queue drained");
         require (!virtualCursorDeviceNested, "Queue overflow cancelled the in-flight action or broke serialized hierarchy order");
@@ -801,21 +804,21 @@ public final class VirtualPush1RuntimeTest
         // requested chain entry merely because the cursor became nested.
         virtualUnexpectedNestedCursorUpdate = true;
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "IN while an unrelated nested cursor update is delivered");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
             "Unexpected nested cursor movement did not time out the pending chain entry");
         require (virtualCursorDeviceNested && deviceIndex == 1,
             "Unexpected nested cursor update was incorrectly accepted as the first child of the requested chain");
         virtualUnexpectedNestedCursorUpdate = false;
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return after rejected unrelated nested cursor update");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (!virtualCursorDeviceNested, "Out could not recover after rejecting an unrelated nested cursor update");
 
         // If Bitwig never confirms a chain entry, the bounded timeout must release
         // the queue rather than leaving future button presses permanently blocked.
         virtualSuppressChainCursorUpdate = true;
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "IN with deliberately suppressed host cursor callback");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
             "Navigation timeout did not release the stalled queue");
         virtualSuppressChainCursorUpdate = false;
@@ -826,7 +829,7 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Rapid In before Out");
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Rapid Out before In callback");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "ROW1 after queued In/Out");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (!virtualCursorDeviceNested && deviceIndex == 1, "Rapid In/Out/ROW1 sequence did not preserve physical command order");
         virtualDeferCursorUpdates = false;
         deviceParamsMode.setShowDevices (false);
@@ -840,20 +843,20 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Ableton Device Chain selector 8");
         requireAction ("device.selectSlotChain:Chain 8", "Top-row selector did not select chain 8");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Selecting a chain did not return to Device parameters");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Selecting a Device Chain did not expose its child-device cursor");
         require (deviceParamsMode.isShowDevices (),
             "Selecting a chain did not restore ROW1 device selectors after Banks mode");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Nested chain device selector 4");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (deviceIndex == 3, "ROW1 did not select device 4 inside the active chain");
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 3,
             "Nested ROW1 selection did not advance the cursor to the requested chain device");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "Nested chain device selector 2");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (deviceIndex == 1, "ROW1 did not select device 2 inside the active chain");
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectPrevious")).count () == 2,
             "Nested ROW1 selection did not move the cursor back to the requested chain device");
@@ -881,7 +884,7 @@ public final class VirtualPush1RuntimeTest
                     MODEL_ACTIONS.clear ();
                     requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + targetIndex,
                         "Chain size " + childCount + ", start " + startIndex + ", ROW1 " + (targetIndex + 1));
-                    drainScheduled (state, 73);
+                    drainNavigation (state);
 
                     if (targetIndex < childCount)
                     {
@@ -920,14 +923,14 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return to nested parent device");
         requireAction ("cursorDevice.selectParent", "Out did not request the parent at nested depth two");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Out incorrectly left the hierarchy when the parent was itself nested");
         deviceParamsMode.setShowDevices (true);
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
             "Select sibling inside nested parent chain");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (deviceIndex == 2,
             "ROW1 did not select a sibling at the second nested hierarchy depth");
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 2,
@@ -935,7 +938,7 @@ public final class VirtualPush1RuntimeTest
         virtualParentNestedAfterSelect = false;
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return from nested parent to root");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (!virtualCursorDeviceNested && deviceIndex == 0,
             "Out did not return to the root after traversing two nested levels");
 
@@ -3408,6 +3411,24 @@ public final class VirtualPush1RuntimeTest
             }
         }
         return false;
+    }
+
+    /** Drain serialized navigation while preserving delayed host callbacks and adaptive poll intervals. */
+    private static void drainNavigation (final State state)
+    {
+        final long [] delays={12,16,24,36,73};
+        for(int steps=0;steps<100000;steps++)
+        {
+            if(runNextScheduled(state,73))
+                continue;
+            boolean ran=false;
+            for(final long delay:delays)
+                if(delay!=73&&runNextScheduled(state,delay)){ran=true;break;}
+            if(ran)
+                continue;
+            return;
+        }
+        throw new AssertionError ("Adaptive Device navigation scheduler exceeded 100000 tasks");
     }
 
     private static void drainScheduled (final State state, final long delay)
