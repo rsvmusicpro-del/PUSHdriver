@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[2]
 POLY_VIEW = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/PolySequencerView.java"
 CLASSIC_VIEW = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/SequencerView.java"
 ASSEMBLY = ROOT / "scripts/prepare_push1.py"
-POLY_OBSERVERS = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/PushPolySequencerObservers.java
+POLY_OBSERVERS = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/PushPolySequencerObservers.java"
 
 
 class SequencerIsolationContractTests(unittest.TestCase):
