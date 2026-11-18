@@ -152,8 +152,9 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertIn("state.model.get () != model", navigation)
         self.assertIn("WeakReference<DeviceParamsMode>", patch)
         callback_start = patch.index("final java.lang.ref.WeakReference<DeviceParamsMode>")
-        callback_end = patch.index("}))", callback_start)
-        callback = patch[callback_start:callback_end]
+        lambda_start = patch.index("() -> {", callback_start)
+        callback_end = patch.index("}))", lambda_start)
+        callback = patch[lambda_start:callback_end]
         self.assertIn("modeReference.get ()", callback)
         self.assertNotIn("this.surface", callback)
         self.assertNotIn("this.model", callback)
