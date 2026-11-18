@@ -7,14 +7,17 @@ import de.mossgrabers.framework.observer.INoteObserver;
 
 import java.lang.ref.WeakReference;
 import java.util.WeakHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 
 /**
- * Shares the API-17 track-bank observers without retaining obsolete Poly views.
+ * Shares API-17 track-bank observers without retaining obsolete Poly views.
  *
  * Bitwig API 17 has no removeNoteObserver method. The bank therefore owns one
  * observer pair, while the registry and callbacks retain only weak references
- * to the bank and the current Push Poly view.
+ * to every Push Poly view using that bank. This also supports multiple Push
+ * surfaces sharing the same model without routing note feedback to only the
+ * most recently constructed view.
  */
 public final class PushPolySequencerObservers
 {
@@ -26,7 +29,7 @@ public final class PushPolySequencerObservers
     }
 
     /**
-     * Register or refresh the weak view target for a track bank.
+     * Register or refresh a weak view target for a track bank.
      *
      * @param trackBank The model track bank
      * @param view The concrete Push Poly view
@@ -46,33 +49,51 @@ public final class PushPolySequencerObservers
                 trackBank.addNoteObserver (observer);
                 OBSERVERS.put (trackBank, observer);
             }
-            observer.setView (view);
+            observer.addView (view);
         }
     }
 
     private static final class Observer implements IItemSelectionObserver, INoteObserver
     {
-        private volatile WeakReference<PolySequencerView> viewReference = new WeakReference<> (null);
+        private final CopyOnWriteArrayList<WeakReference<PolySequencerView>> views = new CopyOnWriteArrayList<> ();
 
-        private void setView (final PolySequencerView view)
+        private synchronized void addView (final PolySequencerView view)
         {
-            this.viewReference = new WeakReference<> (view);
+            for (final WeakReference<PolySequencerView> reference: this.views)
+            {
+                final PolySequencerView existing = reference.get ();
+                if (existing == view)
+                    return;
+                if (existing == null)
+                    this.views.remove (reference);
+            }
+            this.views.add (new WeakReference<> (view));
         }
 
         @Override
         public void call (final int index, final boolean isSelected)
         {
-            final PolySequencerView view = this.viewReference.get ();
-            if (view != null)
-                view.onTrackSelectionChanged ();
+            for (final WeakReference<PolySequencerView> reference: this.views)
+            {
+                final PolySequencerView view = reference.get ();
+                if (view == null)
+                    this.views.remove (reference);
+                else
+                    view.onTrackSelectionChanged ();
+            }
         }
 
         @Override
         public void call (final int trackIndex, final int note, final int velocity)
         {
-            final PolySequencerView view = this.viewReference.get ();
-            if (view != null && view.isCurrentActiveView ())
-                view.getKeyManager ().call (trackIndex, note, velocity);
+            for (final WeakReference<PolySequencerView> reference: this.views)
+            {
+                final PolySequencerView view = reference.get ();
+                if (view == null)
+                    this.views.remove (reference);
+                else if (view.isCurrentActiveView ())
+                    view.getKeyManager ().call (trackIndex, note, velocity);
+            }
         }
     }
 }
