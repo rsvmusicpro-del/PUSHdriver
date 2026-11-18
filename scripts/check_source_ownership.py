@@ -83,7 +83,7 @@ def patch_targets(source):
   string_assignment=re.match(r'^\s*(\w+)\s*=\s*"src/main/java/([^"]+)"',line)
   if string_assignment:
    current[string_assignment.group(1)]=string_assignment.group(2)
-  call=re.search(r"(?:replace_once|replace_menu_fragment)\s*\(\s*(\w+)",line)
+  call=re.search(r"(?:replace_once|replace_menu_fragment|replace_java_method)\s*\(\s*(\w+)",line)
   if call and call.group(1) in current:
    targets.add(current[call.group(1)])
   for name,path in current.items():
@@ -179,10 +179,19 @@ def main():
     errors.append(f"Override changes upstream type identity: {rel}")
   except ValueError as e: errors.append(str(e))
  prepare=(ROOT/"scripts/prepare_push1.py").read_text(encoding="utf-8")
- targets=patch_targets(prepare)
+ patch_directory=ROOT/"scripts/push1_build/patches"
+ patch_files=sorted(patch_directory.glob("*.py"))
+ patch_sources=[p.read_text(encoding="utf-8") for p in patch_files]
+ if len(patch_files)!=7:
+  errors.append(f"Expected seven ordered source patch batches, found {len(patch_files)}.")
+ targets=set()
+ for source in patch_sources:
+  targets.update(patch_targets(source))
  if targets!=PATCH_TARGET_ALLOWLIST:
   errors.append(f"Upstream patch inventory changed. Unreviewed={sorted(targets-PATCH_TARGET_ALLOWLIST)}; stale={sorted(PATCH_TARGET_ALLOWLIST-targets)}")
  errors += validate_forbidden_navigation(prepare)
+ for source in patch_sources:
+  errors += validate_forbidden_navigation(source)
  if not ASSEMBLED.exists(): errors.append("Assembled Java tree missing; run scripts/prepare_push1.py first.")
  else:
   errors += validate_unique_types(list(ASSEMBLED.rglob("*.java")))
