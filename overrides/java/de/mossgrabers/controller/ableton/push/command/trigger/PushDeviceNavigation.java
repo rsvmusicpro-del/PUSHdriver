@@ -215,7 +215,7 @@ public final class PushDeviceNavigation
     }
 
 
-    private static boolean enqueueLocked (final State state, final Action action)
+    private static void enqueueLocked (final State state, final Action action)
     {
         final Action last = state.actions.peekLast ();
         if (action.type == Type.SELECT && last != null && last.type == Type.SELECT
@@ -223,7 +223,7 @@ public final class PushDeviceNavigation
         {
             last.index = action.index;
             last.onReselect = action.onReselect;
-            return true;
+            return;
         }
 
         if (state.actions.size () >= MAX_ACTIONS)
@@ -233,11 +233,10 @@ public final class PushDeviceNavigation
             final IModel model = state.model.get ();
             if (model != null)
                 model.getHost ().showNotification ("Push Device navigation queue full: newest command ignored");
-            return false;
+            return;
         }
 
         state.actions.addLast (action);
-        return true;
     }
 
 
