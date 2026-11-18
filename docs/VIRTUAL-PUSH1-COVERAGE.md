@@ -90,4 +90,4 @@ The workflow's final check is named `quality-gate` and runs on pushes to `custom
 
 ## Physical pad coordinate contract
 
-Push 1 MIDI pad notes ascend bottom-to-top: note 36 is bottom-left, note 43 bottom-right, note 92 top-left and note 99 top-right. Framework and view coordinates are top-down, row-major, so the note-to-index adapter must invert the MIDI row while keeping coordinate indices top-down. The virtual device's row argument is explicitly bottom-up. Tests assert all four corners and note/index round-trips to prevent simulator/hardware orientation drift.
+Push 1 MIDI pad notes and button IDs ascend bottom-to-top: note 36 is bottom-left/button index 0, note 43 bottom-right/index 7, note 92 top-left/index 56 and note 99 top-right/index 63. Framework and view coordinates are top-down, so coordinate-to-button-index conversion inverts the row; note-to-button-index remains the MIDI ordinal. The virtual device's row argument is explicitly bottom-up. Tests assert all four corners and note/index round-trips to prevent simulator/hardware orientation drift.
