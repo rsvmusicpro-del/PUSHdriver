@@ -196,7 +196,7 @@ replace_once(device_params_mode,
                 new java.lang.ref.WeakReference<> (this);
             if (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.selectRow (this.surface, this.model, index, () -> {
                 final DeviceParamsMode mode = modeReference.get ();
-                if (mode == null)
+                if (mode == null || mode.surface.getModeManager ().getActive () != mode)
                     return;
                 final var currentDevice = mode.model.getCursorDevice ();
                 if (!currentDevice.doesExist ())
