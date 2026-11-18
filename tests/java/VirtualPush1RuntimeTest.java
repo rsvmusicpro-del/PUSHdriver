@@ -235,6 +235,7 @@ public final class VirtualPush1RuntimeTest
                 }
             });
 
+        final IModel [] modelReference = new IModel [1];
         final ISetupFactory factory = (ISetupFactory) Proxy.newProxyInstance (ISetupFactory.class.getClassLoader (),
             new Class<?> [] { ISetupFactory.class }, (proxy, method, callArgs) -> {
                 switch (method.getName ())
@@ -284,7 +285,6 @@ public final class VirtualPush1RuntimeTest
                 }
             });
 
-        final IModel [] modelReference = new IModel [1];
         final ISettingsUI global = settingsUI ();
         final ISettingsUI document = settingsUI ();
         final PushControllerSetup setup = new PushControllerSetup (host, factory, global, document);
