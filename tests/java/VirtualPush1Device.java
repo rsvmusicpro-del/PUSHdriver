@@ -109,6 +109,7 @@ public final class VirtualPush1Device
         Arrays.fill (this.lcd, " ".repeat (LCD_COLUMNS));
     }
 
+    /** Return a pad's MIDI note; row zero is the physical bottom row. */
     public static int padNote (final int row, final int column)
     {
         if (row < 0 || row >= 8 || column < 0 || column >= 8)
