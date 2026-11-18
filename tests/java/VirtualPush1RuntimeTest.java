@@ -257,7 +257,7 @@ public final class VirtualPush1RuntimeTest
                         final ISceneBank sceneBank = mixerModel.sceneBank ();
                         final IParameterBank parameterBank = parameterBankProxy ();
                         final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank, state);
-                        return Proxy.newProxyInstance (IModel.class.getClassLoader (),
+                        final IModel createdModel = (IModel) Proxy.newProxyInstance (IModel.class.getClassLoader (),
                             new Class<?> [] { IModel.class }, (p, m, a) -> switch (m.getName ())
                             {
                                 case "getHost" -> host;
@@ -278,10 +278,13 @@ public final class VirtualPush1RuntimeTest
                                 case "createNoteClip" -> { newClipModel.createNoteClip (a); yield null; }
                                 default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                             });
+                        modelReference[0] = createdModel;
+                        return createdModel;
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 }
             });
 
+        final IModel [] modelReference = new IModel [1];
         final ISettingsUI global = settingsUI ();
         final ISettingsUI document = settingsUI ();
         final PushControllerSetup setup = new PushControllerSetup (host, factory, global, document);
@@ -772,7 +775,7 @@ public final class VirtualPush1RuntimeTest
         for (int i = 0; i < 40; i++)
             requireButtonMidiDelivery (midi, i % 2 == 0 ? VirtualPush1Device.OUT : VirtualPush1Device.IN,
                 "Queue-overflow stress command " + i);
-        require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.selectRow (surface, model, 7),
+        require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.selectRow (surface, modelReference[0], 7),
             "ROW1 reported a queued selection after the bounded queue had rejected it");
         drainNavigation (state);
         require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
