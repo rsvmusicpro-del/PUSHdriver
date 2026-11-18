@@ -17,6 +17,11 @@ public final class VirtualPush1DeviceTest
                 @Override public void sysex (String frame) { sysexInput.add (frame); }
             }, null);
 
+        // Push 1 MIDI note numbers ascend from the bottom row to the top row.
+        if (VirtualPush1Device.padNote (0, 0) != 36 || VirtualPush1Device.padNote (7, 0) != 92
+                || VirtualPush1Device.padNote (7, 7) != 99)
+            throw new AssertionError ("Push 1 bottom-up MIDI pad note orientation regression");
+
         // Every physical pad has a stable, unique note identity and velocity.
         for (int row = 0; row < 8; row++)
             for (int col = 0; col < 8; col++)
