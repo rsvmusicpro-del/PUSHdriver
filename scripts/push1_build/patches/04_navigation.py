@@ -189,16 +189,27 @@ replace_once(device_params_mode,
                 return;
             }
 """,
-    """            if (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.selectRow (this.surface, this.model, index, () -> {
-                if (!cd.hasLayers ())
+    """            // The navigation queue can outlive this method while Bitwig updates
+            // its cursor asynchronously. Keep the callback from retaining this
+            // mode (and therefore the surface/model) through the queue's weak key.
+            final java.lang.ref.WeakReference<DeviceParamsMode> modeReference =
+                new java.lang.ref.WeakReference<> (this);
+            if (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.selectRow (this.surface, this.model, index, () -> {
+                final DeviceParamsMode mode = modeReference.get ();
+                if (mode == null)
+                    return;
+                final var currentDevice = mode.model.getCursorDevice ();
+                if (!currentDevice.doesExist ())
+                    return;
+                if (!currentDevice.hasLayers ())
                 {
-                    this.setShowDevices (false);
+                    mode.setShowDevices (false);
                     return;
                 }
-                final Optional<?> layer = cd.getLayerBank ().getSelectedItem ();
+                final Optional<?> layer = currentDevice.getLayerBank ().getSelectedItem ();
                 if (layer.isEmpty ())
-                    cd.getLayerBank ().getItem (0).select ();
-                this.surface.getModeManager ().setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
+                    currentDevice.getLayerBank ().getItem (0).select ();
+                mode.surface.getModeManager ().setActive (mode.surface.getConfiguration ().getCurrentLayerMixMode ());
             }))
                 return;
 
