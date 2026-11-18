@@ -316,10 +316,44 @@ replace_once(poly_sequencer,
     "        final int step = this.numColumns * (this.numRows - 1 - y) + x;",
     "Poly sequencer ignores step edits when the selected slot has no clip")
 
-# The upstream Poly view is a persistent model observer. API 17 exposes no
-# removeNoteObserver method, so route note feedback only to the currently
-# selected view. This keeps the inactive Poly engine's KeyManager untouched
-# when the user switches to the classic sequencer or another view.
+# Bound per-step note aggregation by the highest occupied pitch. The API-17
+# adapter can report empty steps without retrieving 128 individual step infos.
+replace_java_method(poly_sequencer,
+    "    protected IStepInfo getStep (final INoteClip clip, final int col)",
+    """    protected IStepInfo getStep (final INoteClip clip, final int col)
+    {
+        final DefaultStepInfo result = new DefaultStepInfo ();
+        boolean isMuted = true;
+        final int channel = this.configuration.getMidiEditChannel ();
+        final int highestRow = clip.getHighestRow (channel, col);
+        if (highestRow < 0)
+        {
+            result.setMuted (true);
+            return result;
+        }
+
+        final NotePosition notePosition = new NotePosition (channel, col, 0);
+        for (int row = 0; row <= highestRow; row++)
+        {
+            notePosition.setNote (row);
+            final IStepInfo stepInfo = clip.getStep (notePosition);
+            final StepState state = stepInfo.getState ();
+            if (state == StepState.START)
+                result.setState (StepState.START);
+            else if (state == StepState.CONTINUE && result.getState () != StepState.START)
+                result.setState (StepState.CONTINUE);
+
+            if ((state == StepState.START || state == StepState.CONTINUE) && !stepInfo.isMuted ())
+                isMuted = false;
+        }
+        result.setMuted (isMuted);
+        return result;
+    }""",
+    "Bound Poly step aggregation by the highest occupied note")
+
+# API 17 note observers cannot be unregistered. Remove the base class's
+# per-view callbacks and use a weakly routed observer pair from the Push view
+# so inactive views are neither retained nor fed note events.
 replace_once(poly_sequencer,
     "import de.mossgrabers.framework.daw.data.bank.ITrackBank;\n",
     "",
