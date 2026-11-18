@@ -4,7 +4,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 POLY_VIEW = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/PolySequencerView.java"
 CLASSIC_VIEW = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/SequencerView.java"
-ASSEMBLY = ROOT / "scripts/prepare_push1.py"
+POLY_PATCHES = ROOT / "scripts/push1_build/patches/01_framework.py"
 POLY_OBSERVERS = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/PushPolySequencerObservers.java"
 
 
@@ -36,7 +36,7 @@ class SequencerIsolationContractTests(unittest.TestCase):
         self.assertIn("view.isCurrentActiveView ()", source)
         self.assertIn("view.getKeyManager ().call (trackIndex, note, velocity)", source)
         self.assertIn("view.onTrackSelectionChanged ()", source)
-        assembly = ASSEMBLY.read_text(encoding="utf-8")
+        assembly = POLY_PATCHES.read_text(encoding="utf-8")
         self.assertIn("Replace per-view observers with weak shared routing", assembly)
         self.assertNotIn("tb.addNoteObserver ((trackIndex, note, velocity)", assembly)
 
