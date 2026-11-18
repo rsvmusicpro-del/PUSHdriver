@@ -149,6 +149,8 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertIn("WeakReference<PushControlSurface> surfaceReference", navigation)
         self.assertIn("surfaceReference.get ()", navigation)
         self.assertIn("final WeakReference<IModel> model", navigation)
+        self.assertIn("System.nanoTime () - state.waitStartedAtNanos", navigation)
+        self.assertIn("effectiveWaitedMs (state)", navigation)
         self.assertIn("state.model.get () != model", navigation)
         page_right = (root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PageRightCommand.java").read_text(encoding="utf-8")
         self.assertIn("PushDeviceNavigation.isEntering (this.surface, this.model)", page_right)
