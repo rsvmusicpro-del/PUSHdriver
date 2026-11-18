@@ -161,10 +161,20 @@ public final class PushDeviceNavigation
 
     public static boolean isEntering (final PushControlSurface surface)
     {
-        final State state = stateFor (surface);
+        return isEntering (stateFor (surface));
+    }
+
+
+    public static boolean isEntering (final PushControlSurface surface, final IModel model)
+    {
+        return isEntering (stateFor (surface, model));
+    }
+
+
+    private static boolean isEntering (final State state)
+    {
         if (state == null)
             return false;
-
         synchronized (state)
         {
             if (state.wait == Wait.ENTER)
@@ -179,10 +189,20 @@ public final class PushDeviceNavigation
 
     public static boolean isBusy (final PushControlSurface surface)
     {
-        final State state = stateFor (surface);
+        return isBusy (stateFor (surface));
+    }
+
+
+    public static boolean isBusy (final PushControlSurface surface, final IModel model)
+    {
+        return isBusy (stateFor (surface, model));
+    }
+
+
+    private static boolean isBusy (final State state)
+    {
         if (state == null)
             return false;
-
         synchronized (state)
         {
             return state.running || !state.actions.isEmpty ();
