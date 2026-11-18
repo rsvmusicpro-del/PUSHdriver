@@ -7,10 +7,10 @@ import sys
 from pathlib import Path
 
 PATTERN = re.compile(
-    r"PUSHdriver_NAV_TIMING status=(?P<status>\\w+) type=(?P<type>\\w+)"
-    r" index=(?P<index>-?\\d+) queue_us=(?P<queue_us>\\d+)"
-    r" host_us=(?P<host_us>\\d+) total_us=(?P<total_us>\\d+)"
-    r" polls=(?P<polls>\\d+)"
+    r"PUSHdriver_NAV_TIMING status=(?P<status>\w+) type=(?P<type>\w+)"
+    r" index=(?P<index>-?\d+) queue_us=(?P<queue_us>\d+)"
+    r" host_us=(?P<host_us>\d+) total_us=(?P<total_us>\d+)"
+    r" polls=(?P<polls>\d+)"
 )
 
 
