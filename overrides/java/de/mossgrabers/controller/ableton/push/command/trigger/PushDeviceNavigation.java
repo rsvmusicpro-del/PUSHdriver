@@ -130,10 +130,36 @@ public final class PushDeviceNavigation
     }
     private static void schedule(final PushControlSurface surface,final State state,final IModel model)
     {
+        // Bitwig may publish the cursor change synchronously. Confirm it before
+        // scheduling a timer so the common fast path pays no avoidable 12 ms.
+        final Action action=state.actions.peekFirst();
+        final ICursorDevice cursor=model.getCursorDevice();
+        if(action!=null&&isComplete(state.wait,cursor,action,state))
+        {
+            final Wait completed=state.wait;
+            if(completed!=Wait.MOVE||cursor.getIndex()==action.index)
+                state.actions.removeFirst();
+            state.running=false;state.wait=Wait.NONE;state.polls=0;state.waitedMs=0;
+            startNext(surface,state);
+            return;
+        }
         // Probe aggressively just after a command, then back off for genuinely
         // slow host transitions. The total confirmation timeout remains 2.92 s.
         state.lastPollDelayMs=POLL_BACKOFF_MS[Math.min(state.polls,POLL_BACKOFF_MS.length-1)];
         model.getHost().scheduleTask(()->advance(surface,state),state.lastPollDelayMs);
+    }
+    private static boolean isComplete(final Wait waiting,final ICursorDevice cursor,
+        final Action action,final State state)
+    {
+        return switch(waiting)
+        {
+            case ENTER -> cursor.doesExist()&&cursor.isNested()&&cursor.getIndex()==state.expectedIndex&&!state.before.equals(fingerprint(cursor));
+            // API 17 has no parent reference/ID to compare after selectParent(); the fingerprint delta is the strongest available signal.
+            case EXIT -> cursor.doesExist()&&!state.before.equals(fingerprint(cursor));
+            case MOVE -> cursor.getIndex()==state.expectedIndex;
+            case ROOT_SELECT -> cursor.getIndex()==action.index;
+            default -> false;
+        };
     }
     private static void advance(final PushControlSurface surface,final State state)
     {
@@ -146,16 +172,7 @@ public final class PushDeviceNavigation
             state.waitedMs+=state.lastPollDelayMs;
             state.polls++;
             final Wait waiting=state.wait;
-            final boolean complete=switch(waiting)
-            {
-                case ENTER -> cursor.doesExist()&&cursor.isNested()&&cursor.getIndex()==state.expectedIndex&&!state.before.equals(fingerprint(cursor));
-                // API 17 has no parent reference/ID to compare after selectParent(); the fingerprint delta is the strongest available signal.
-                case EXIT -> cursor.doesExist()&&!state.before.equals(fingerprint(cursor));
-                case MOVE -> cursor.getIndex()==state.expectedIndex;
-                case ROOT_SELECT -> cursor.getIndex()==action.index;
-                default -> false;
-            };
-            if(complete)
+            if(isComplete(waiting,cursor,action,state))
             {
                 // Nested sibling selection can require several adjacent moves. Keep
                 // the action only until its requested index is reached; do not run
