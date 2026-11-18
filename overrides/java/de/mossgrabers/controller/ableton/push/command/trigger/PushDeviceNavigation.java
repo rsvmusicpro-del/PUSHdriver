@@ -15,6 +15,7 @@ import java.util.WeakHashMap;
 public final class PushDeviceNavigation
 {
     private static final long MAX_WAIT_MS=2920;
+    private static final boolean TIMING_ENABLED=Boolean.parseBoolean(System.getenv("PUSHDRIVER_NAV_TIMING"));
     private static final int MAX_ACTIONS=32;
     private static final long [] POLL_BACKOFF_MS={12,16,24,36,73};
     private static final Map<PushControlSurface,State> STATES=new WeakHashMap<> ();
@@ -23,6 +24,7 @@ public final class PushDeviceNavigation
     private static final class Action
     {
         final Type type; final String chain; int index; Runnable onReselect;
+        final long queuedAtNanos=TIMING_ENABLED?System.nanoTime():0; long dispatchedAtNanos; int timingPolls;
         Action(final Type type,final String chain,final int index){this(type,chain,index,null);}
         Action(final Type type,final String chain,final int index,final Runnable onReselect){this.type=type;this.chain=chain;this.index=index;this.onReselect=onReselect;}
     }
@@ -104,13 +106,13 @@ public final class PushDeviceNavigation
                 boolean found=false;if(selected!=null&&chains!=null)for(final String chain:chains)if(selected.equals(chain)){found=true;break;}
                 if(!found){state.actions.removeFirst();continue;}
                 state.before=fingerprint(cursor);state.expectedIndex=0;state.wait=Wait.ENTER;state.polls=0;state.waitedMs=0;state.running=true;
-                cursor.selectSlotChain(selected);schedule(surface,state,model);return;
+                markDispatched(action);cursor.selectSlotChain(selected);schedule(surface,state,model);return;
             }
             if(action.type==Type.EXIT)
             {
                 if(!cursor.isNested()){state.actions.removeFirst();continue;}
                 state.before=fingerprint(cursor);state.wait=Wait.EXIT;state.polls=0;state.waitedMs=0;state.running=true;
-                cursor.selectParent();schedule(surface,state,model);return;
+                markDispatched(action);cursor.selectParent();schedule(surface,state,model);return;
             }
             final IDevice target=cursor.getDeviceBank().getItem(action.index);
             if(target==null||!target.doesExist()){state.actions.removeFirst();continue;}
@@ -119,12 +121,12 @@ public final class PushDeviceNavigation
             if(cursor.isNested())
             {
                 if(action.index>current)
-                {if(!cursor.canSelectNext()){state.actions.removeFirst();continue;}state.previousIndex=current;state.expectedIndex=current+1;state.wait=Wait.MOVE;state.polls=0;state.waitedMs=0;state.running=true;cursor.selectNext();}
+                {if(!cursor.canSelectNext()){state.actions.removeFirst();continue;}state.previousIndex=current;state.expectedIndex=current+1;state.wait=Wait.MOVE;state.polls=0;state.waitedMs=0;state.running=true;markDispatched(action);cursor.selectNext();}
                 else
-                {if(!cursor.canSelectPrevious()){state.actions.removeFirst();continue;}state.previousIndex=current;state.expectedIndex=current-1;state.wait=Wait.MOVE;state.polls=0;state.waitedMs=0;state.running=true;cursor.selectPrevious();}
+                {if(!cursor.canSelectPrevious()){state.actions.removeFirst();continue;}state.previousIndex=current;state.expectedIndex=current-1;state.wait=Wait.MOVE;state.polls=0;state.waitedMs=0;state.running=true;markDispatched(action);cursor.selectPrevious();}
                 schedule(surface,state,model);return;
             }
-            state.wait=Wait.ROOT_SELECT;state.polls=0;state.waitedMs=0;state.running=true;target.select();schedule(surface,state,model);return;
+            state.wait=Wait.ROOT_SELECT;state.polls=0;state.waitedMs=0;state.running=true;markDispatched(action);target.select();schedule(surface,state,model);return;
         }
         state.running=false;state.wait=Wait.NONE;
     }
@@ -138,7 +140,10 @@ public final class PushDeviceNavigation
         {
             final Wait completed=state.wait;
             if(completed!=Wait.MOVE||cursor.getIndex()==action.index)
+            {
                 state.actions.removeFirst();
+                reportTiming(model,action,"complete");
+            }
             state.running=false;state.wait=Wait.NONE;state.polls=0;state.waitedMs=0;
             startNext(surface,state);
             return;
@@ -147,6 +152,23 @@ public final class PushDeviceNavigation
         // slow host transitions. The total confirmation timeout remains 2.92 s.
         state.lastPollDelayMs=POLL_BACKOFF_MS[Math.min(state.polls,POLL_BACKOFF_MS.length-1)];
         model.getHost().scheduleTask(()->advance(surface,state),state.lastPollDelayMs);
+    }
+    private static void markDispatched(final Action action)
+    {
+        if(TIMING_ENABLED&&action.dispatchedAtNanos==0)
+            action.dispatchedAtNanos=System.nanoTime();
+    }
+    private static void reportTiming(final IModel model,final Action action,final String status)
+    {
+        if(!TIMING_ENABLED||action.dispatchedAtNanos==0)
+            return;
+        final long completedAt=System.nanoTime();
+        final long queueUs=(action.dispatchedAtNanos-action.queuedAtNanos)/1000;
+        final long hostUs=(completedAt-action.dispatchedAtNanos)/1000;
+        final long totalUs=(completedAt-action.queuedAtNanos)/1000;
+        model.getHost().println("PUSHdriver_NAV_TIMING status="+status+" type="+action.type
+            +" index="+action.index+" queue_us="+queueUs+" host_us="+hostUs
+            +" total_us="+totalUs+" polls="+action.timingPolls);
     }
     private static boolean isComplete(final Wait waiting,final ICursorDevice cursor,
         final Action action,final State state)
@@ -171,18 +193,24 @@ public final class PushDeviceNavigation
             if(action==null){state.running=false;state.wait=Wait.NONE;return;}
             state.waitedMs+=state.lastPollDelayMs;
             state.polls++;
+            if(TIMING_ENABLED)action.timingPolls++;
             final Wait waiting=state.wait;
             if(isComplete(waiting,cursor,action,state))
             {
                 // Nested sibling selection can require several adjacent moves. Keep
                 // the action only until its requested index is reached; do not run
                 // the same-device reselect callback after a successful movement.
-                if(waiting!=Wait.MOVE||cursor.getIndex()==action.index)state.actions.removeFirst();
+                if(waiting!=Wait.MOVE||cursor.getIndex()==action.index)
+                {
+                    state.actions.removeFirst();
+                    reportTiming(model,action,"complete");
+                }
                 state.running=false;state.wait=Wait.NONE;state.polls=0;state.waitedMs=0;startNext(surface,state);return;
             }
             if(state.waitedMs>=MAX_WAIT_MS)
             {
                 state.actions.clear();state.running=false;state.wait=Wait.NONE;
+                reportTiming(model,action,"timeout");
                 model.getHost().showNotification("Push Device navigation timed out waiting for Bitwig's cursor; pending selections were cancelled");return;
             }
             schedule(surface,state,model);
