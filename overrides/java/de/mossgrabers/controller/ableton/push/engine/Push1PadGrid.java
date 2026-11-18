@@ -32,6 +32,7 @@ public final class Push1PadGrid
         return index >= 0 && index < PAD_COUNT;
     }
 
+    /** Convert top-down framework coordinates to the bottom-up MIDI/button index. */
     public static int indexForCoordinate (final int column, final int row)
     {
         if (column < 0 || column >= COLUMNS || row < 0 || row >= ROWS)
@@ -44,6 +45,7 @@ public final class Push1PadGrid
         return isValidIndex (index) ? index % COLUMNS : -1;
     }
 
+    /** Return the top-down framework row for a bottom-up MIDI/button index. */
     public static int rowForIndex (final int index)
     {
         return isValidIndex (index) ? ROWS - 1 - index / COLUMNS : -1;
