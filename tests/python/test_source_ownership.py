@@ -156,6 +156,7 @@ class SourceOwnershipTests(unittest.TestCase):
         callback_end = patch.index("}))", lambda_start)
         callback = patch[lambda_start:callback_end]
         self.assertIn("modeReference.get ()", callback)
+        self.assertIn("mode.surface.getModeManager ().getActive () != mode", callback)
         self.assertNotIn("this.surface", callback)
         self.assertNotIn("this.model", callback)
 
