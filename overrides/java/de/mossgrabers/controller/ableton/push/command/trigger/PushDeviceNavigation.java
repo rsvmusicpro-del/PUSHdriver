@@ -151,7 +151,8 @@ public final class PushDeviceNavigation
         }
         // Probe aggressively just after a command, then back off for genuinely
         // slow host transitions. The total confirmation timeout remains 2.92 s.
-        state.lastPollDelayMs=POLL_BACKOFF_MS[Math.min(state.polls,POLL_BACKOFF_MS.length-1)];
+        final long remainingMs=MAX_WAIT_MS-state.waitedMs;
+        state.lastPollDelayMs=Math.min(POLL_BACKOFF_MS[Math.min(state.polls,POLL_BACKOFF_MS.length-1)],remainingMs);
         model.getHost().scheduleTask(()->advance(surface,state),state.lastPollDelayMs);
     }
     private static void markDispatched(final Action action)
