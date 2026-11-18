@@ -7,7 +7,7 @@ Upstream: DrivenByMoss 19.2.2 at `013620c1330cdcf896e96ef8fdc8a2123e4fce6a`
 
 ## CI evidence
 
-The current PR head (`3b2605f9e1798a7fadd14ea8fbba3e404fd5c9fa`) passed GitHub Actions run [#1094](https://github.com/rsvmusicpro-del/PUSHdriver/actions/runs/44198649513) on Linux and Intel macOS. The aggregate `quality-gate` also passed. Linux CI additionally killed an injected production Java mutant by detecting the deliberate removal of the shared empty-clip guard, then restored and rebuilt the clean package.
+The current PR head (`c64f0a85adddbff9a5416b3c4ff384327be54834`) passed GitHub Actions run [#1115](https://github.com/rsvmusicpro-del/PUSHdriver/actions/runs/44406581697) on Linux and Intel macOS. The aggregate `quality-gate` also passed. Linux CI ran all 37 Python unit tests, 224 view/seed scenarios (57,344 generated actions), built and verified the 2,101-class Push 1-only package, and killed the injected empty-clip Java mutant before restoring and rebuilding the clean package.
 
 The virtual runtime exercises the production PushControllerSetup MIDI bindings and now verifies:
 
@@ -45,6 +45,10 @@ immediate ROW1-after-In, ROW1-after-Out, two ROW1 presses during a root-device
 selection, same-device reselect, queue overflow, null slot-chain banks and a
 host callback that never arrives, an unrelated nested cursor update during
 chain entry, and exact host-callback pairing while the bounded queue overflows.
+A new production-MIDI regression verifies that a rejected ROW1 press is still
+consumed and cannot bypass serialization through DeviceParamsMode's direct
+selection fallback. Device Chains selection, LED state and both LCD renderers
+are also guarded against transient null slot-chain arrays.
 Nested sibling moves require the exact expected adjacent index; chain entry
 additionally confirms the first child.
 A bounded timeout cancels stale queued intent rather than applying it to a

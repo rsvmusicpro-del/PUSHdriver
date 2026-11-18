@@ -44,9 +44,9 @@ After saving, verify that GitHub reports the `custom` branch as protected and th
 
 ## Current enforcement status
 
-The workflow itself is configured correctly and runs on every push and pull request to `custom`. The repository's branch metadata now reports `protected: true`. However, the connected GitHub integration cannot read the detailed branch-protection endpoint (GitHub returns HTTP 403), so it cannot independently verify that `quality-gate` is required or that administrators and other roles are prevented from bypassing the rule.
+The workflow itself is configured correctly and runs on every push and pull request to `custom`. GitHub's branch metadata reports `protected: true` and exposes `quality-gate` as a required status check with enforcement level `everyone`. The separate branch-protection endpoint returns HTTP 403, so other settings such as required PR reviews and administrator-bypass restrictions are not independently verified here.
 
-A repository administrator should confirm those two settings in GitHub. Until then, describe the workflow as an active CI gate and the branch as protected, but do not claim that every possible merge path is guaranteed to require `quality-gate`.
+Describe the verified state precisely: `custom` is protected and requires the `quality-gate` status check. Do not infer additional review or bypass rules from that status alone.
 
 
 ## Why this gate is necessary

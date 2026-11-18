@@ -42,7 +42,11 @@ public final class PushDeviceNavigation
     {if(chain!=null&&!chain.isBlank())enqueue(surface,model,new Action(Type.ENTER,chain,-1));}
     public static void exitParent(final PushControlSurface surface,final IModel model)
     {enqueue(surface,model,new Action(Type.EXIT,null,-1));}
-    /** Queue ROW1 while a hierarchy transition or nested cursor move is outstanding. */
+    /**
+     * Queue ROW1 while a hierarchy transition or nested cursor move is outstanding.
+     * @return false only when upstream must handle an immediate selection; true when
+     *         this helper consumed the request, including when queue capacity rejects it.
+     */
     public static boolean selectRow(final PushControlSurface surface,final IModel model,final int index)
     {return selectRow(surface,model,index,null);}
     /** Queue ROW1 and preserve upstream's same-device reselect gesture if the cursor reaches that target first. */

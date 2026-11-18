@@ -2,7 +2,7 @@
 
 This is the durable project hand-off for future work. It summarizes the intent,
 compatibility constraints, current architecture and verification boundaries
-established on branch `custom`.
+for the `custom` target branch and its feature pull requests.
 
 ## Project objective
 
@@ -28,8 +28,7 @@ excluded from the packaged extension.
 
 ## Working rules
 
-- Work only on the Git branch `custom`; inspect its history before making
-  changes.
+- Target `custom`, but implement changes on an isolated feature branch and submit a pull request; inspect both branch histories before editing. Do not push directly to `custom`.
 - Preserve the upstream source pin and API 17 compatibility.
 - Keep production behavior changes separate from test infrastructure.
 - Prefer small, regression-backed changes to production commands and modes.
@@ -174,10 +173,11 @@ USB-MIDI discovery, analog pressure calibration, firmware timing or LCD glass
 appearance.
 
 The GitHub Actions workflow's Linux build, Intel macOS validation and
-`quality-gate` must all pass on the final `custom` head. The branch metadata
-currently reports `protected: false`; the repository owner still needs to
-configure `quality-gate` as a required branch-protection status check for
-server-enforced merge protection.
+`quality-gate` must all pass on the final `custom` head. GitHub currently
+reports `custom` as protected, with `quality-gate` configured as a required
+status check enforced for everyone. The separate branch-protection endpoint
+is not readable through the connected integration, so other rule details
+(such as required-review and administrator-bypass settings) are not asserted.
 
 
 ## Extended virtual hardware and DAW model (2026-11-13)
@@ -214,10 +214,11 @@ job is the aggregate result and requires both Linux build/virtual simulation and
 Intel macOS build/virtual simulation to succeed. The local equivalent is
 `python3 scripts/run_virtual_push1.py`. See
 `docs/DEVELOPMENT-QUALITY-GATE.md` for the required repository settings and
-verification procedure. Important: GitHub still reports `custom` as unprotected;
-the connected integration cannot modify branch protection (HTTP 403). A
-repository administrator must require `quality-gate` and PRs in GitHub Settings
-before the server enforces the rule against bypasses or direct pushes.
+verification procedure. GitHub reports `custom` as protected and exposes
+`quality-gate` as a required status check enforced for everyone. The connected
+integration cannot inspect the separate protection endpoint (HTTP 403), so
+confirm any additional pull-request review and bypass restrictions in GitHub
+Settings rather than assuming they are enabled.
 
 
 ## Device mode source-of-truth reset (2026-11-14)
