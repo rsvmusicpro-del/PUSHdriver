@@ -32,7 +32,9 @@ class SequencerIsolationContractTests(unittest.TestCase):
     def test_poly_observers_are_shared_and_do_not_retain_view_instances(self):
         source = POLY_OBSERVERS.read_text(encoding="utf-8")
         self.assertIn("WeakHashMap<ITrackBank, Observer>", source)
+        self.assertIn("CopyOnWriteArrayList<WeakReference<PolySequencerView>>", source)
         self.assertIn("WeakReference<PolySequencerView>", source)
+        self.assertIn("observer.addView (view)", source)
         self.assertIn("view.isCurrentActiveView ()", source)
         self.assertIn("view.getKeyManager ().call (trackIndex, note, velocity)", source)
         self.assertIn("view.onTrackSelectionChanged ()", source)
