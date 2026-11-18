@@ -80,6 +80,7 @@ public final class PushDeviceNavigation
         private int expectedIndex;
         private int polls;
         private long waitedMs;
+        private long waitStartedAtNanos;
         private long lastPollDelayMs;
         private boolean running;
 
@@ -95,6 +96,7 @@ public final class PushDeviceNavigation
             this.wait = Wait.NONE;
             this.polls = 0;
             this.waitedMs = 0;
+            this.waitStartedAtNanos = 0;
             this.lastPollDelayMs = 0;
             this.before = null;
         }
@@ -327,10 +329,7 @@ public final class PushDeviceNavigation
 
                 state.before = fingerprint (cursor);
                 state.expectedIndex = 0;
-                state.wait = Wait.ENTER;
-                state.polls = 0;
-                state.waitedMs = 0;
-                state.running = true;
+                beginWait (state, Wait.ENTER);
                 markDispatched (action);
                 cursor.selectSlotChain (selected);
                 schedule (surface, state, model);
@@ -346,10 +345,7 @@ public final class PushDeviceNavigation
                 }
 
                 state.before = fingerprint (cursor);
-                state.wait = Wait.EXIT;
-                state.polls = 0;
-                state.waitedMs = 0;
-                state.running = true;
+                beginWait (state, Wait.EXIT);
                 markDispatched (action);
                 cursor.selectParent ();
                 schedule (surface, state, model);
@@ -381,10 +377,7 @@ public final class PushDeviceNavigation
                         continue;
                     }
                     state.expectedIndex = current + 1;
-                    state.wait = Wait.MOVE;
-                    state.polls = 0;
-                    state.waitedMs = 0;
-                    state.running = true;
+                    beginWait (state, Wait.MOVE);
                     markDispatched (action);
                     cursor.selectNext ();
                 }
@@ -396,10 +389,7 @@ public final class PushDeviceNavigation
                         continue;
                     }
                     state.expectedIndex = current - 1;
-                    state.wait = Wait.MOVE;
-                    state.polls = 0;
-                    state.waitedMs = 0;
-                    state.running = true;
+                    beginWait (state, Wait.MOVE);
                     markDispatched (action);
                     cursor.selectPrevious ();
                 }
@@ -408,10 +398,7 @@ public final class PushDeviceNavigation
                 return;
             }
 
-            state.wait = Wait.ROOT_SELECT;
-            state.polls = 0;
-            state.waitedMs = 0;
-            state.running = true;
+            beginWait (state, Wait.ROOT_SELECT);
             markDispatched (action);
             target.select ();
             schedule (surface, state, model);
@@ -456,13 +443,20 @@ public final class PushDeviceNavigation
             state.wait = Wait.NONE;
             state.polls = 0;
             state.waitedMs = 0;
+            state.waitStartedAtNanos = 0;
+            state.lastPollDelayMs = 0;
             startNext (surface, state);
             return;
         }
 
         // Probe aggressively just after a command, then back off for genuinely
         // slow host transitions. The total confirmation timeout remains 2.92 s.
-        final long remainingMs = MAX_WAIT_MS - state.waitedMs;
+        final long remainingMs = MAX_WAIT_MS - effectiveWaitedMs (state);
+        if (remainingMs <= 0)
+        {
+            advance (surface, state);
+            return;
+        }
         state.lastPollDelayMs = Math.min (POLL_BACKOFF_MS[Math.min (state.polls, POLL_BACKOFF_MS.length - 1)], remainingMs);
 
         // Do not let a host-owned timer keep a disposed PushControlSurface alive.
@@ -478,6 +472,25 @@ public final class PushDeviceNavigation
                     state.cancel ();
                 }
         }, delayMs);
+    }
+
+
+    private static void beginWait (final State state, final Wait wait)
+    {
+        state.wait = wait;
+        state.polls = 0;
+        state.waitedMs = 0;
+        state.waitStartedAtNanos = System.nanoTime ();
+        state.lastPollDelayMs = 0;
+        state.running = true;
+    }
+
+
+    private static long effectiveWaitedMs (final State state)
+    {
+        final long elapsedNanos = System.nanoTime () - state.waitStartedAtNanos;
+        final long elapsedMs = Math.max (0, elapsedNanos / 1_000_000);
+        return Math.max (state.waitedMs, elapsedMs);
     }
 
 
@@ -561,11 +574,13 @@ public final class PushDeviceNavigation
                 state.wait = Wait.NONE;
                 state.polls = 0;
                 state.waitedMs = 0;
+                state.waitStartedAtNanos = 0;
+                state.lastPollDelayMs = 0;
                 startNext (surface, state);
                 return;
             }
 
-            if (state.waitedMs >= MAX_WAIT_MS)
+            if (effectiveWaitedMs (state) >= MAX_WAIT_MS)
             {
                 state.cancel ();
                 reportTiming (model, action, "timeout");
