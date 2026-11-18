@@ -14,8 +14,9 @@ import java.util.WeakHashMap;
 /** Serializes Push 1 hierarchy commands against Bitwig's asynchronous cursor updates. */
 public final class PushDeviceNavigation
 {
-    private static final long POLL_DELAY_MS=73;
-    private static final int MAX_POLLS=40,MAX_ACTIONS=32;
+    private static final long MAX_WAIT_MS=2920;
+    private static final int MAX_ACTIONS=32;
+    private static final long [] POLL_BACKOFF_MS={12,16,24,36,73};
     private static final Map<PushControlSurface,State> STATES=new WeakHashMap<> ();
     private enum Type { ENTER, EXIT, SELECT }
     private enum Wait { NONE, ENTER, EXIT, MOVE, ROOT_SELECT }
@@ -28,7 +29,7 @@ public final class PushDeviceNavigation
     private static final class State
     {
         final WeakReference<IModel> model; final ArrayDeque<Action> actions=new ArrayDeque<> ();
-        Wait wait=Wait.NONE; String before; int previousIndex,expectedIndex,polls; boolean running;
+        Wait wait=Wait.NONE; String before; int previousIndex,expectedIndex,polls; long waitedMs,lastPollDelayMs; boolean running;
         State(final IModel model){this.model=new WeakReference<> (model);}
     }
     private PushDeviceNavigation(){}
@@ -127,7 +128,12 @@ public final class PushDeviceNavigation
         state.running=false;state.wait=Wait.NONE;
     }
     private static void schedule(final PushControlSurface surface,final State state,final IModel model)
-    {model.getHost().scheduleTask(()->advance(surface,state),POLL_DELAY_MS);}
+    {
+        // Probe aggressively just after a command, then back off for genuinely
+        // slow host transitions. The total confirmation timeout remains 2.92 s.
+        state.lastPollDelayMs=POLL_BACKOFF_MS[Math.min(state.polls,POLL_BACKOFF_MS.length-1)];
+        model.getHost().scheduleTask(()->advance(surface,state),state.lastPollDelayMs);
+    }
     private static void advance(final PushControlSurface surface,final State state)
     {
         synchronized(state)
@@ -136,6 +142,8 @@ public final class PushDeviceNavigation
             final IModel model=state.model.get();if(model==null){state.actions.clear();state.running=false;state.wait=Wait.NONE;return;}
             final ICursorDevice cursor=model.getCursorDevice();final Action action=state.actions.peekFirst();
             if(action==null){state.running=false;state.wait=Wait.NONE;return;}
+            state.waitedMs+=state.lastPollDelayMs;
+            state.polls++;
             final Wait waiting=state.wait;
             final boolean complete=switch(waiting)
             {
@@ -154,7 +162,7 @@ public final class PushDeviceNavigation
                 if(waiting!=Wait.MOVE||cursor.getIndex()==action.index)state.actions.removeFirst();
                 state.running=false;state.wait=Wait.NONE;state.polls=0;startNext(surface,state);return;
             }
-            if(++state.polls>=MAX_POLLS)
+            if(state.waitedMs>=MAX_WAIT_MS)
             {
                 state.actions.clear();state.running=false;state.wait=Wait.NONE;
                 model.getHost().showNotification("Push Device navigation timed out waiting for Bitwig's cursor; pending selections were cancelled");return;
