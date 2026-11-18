@@ -143,8 +143,9 @@ class SourceOwnershipTests(unittest.TestCase):
 
 
     def test_device_navigation_queue_does_not_retain_disposed_surface_or_mode(self):
-        navigation = (ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PushDeviceNavigation.java").read_text(encoding="utf-8")
-        patch = (ROOT / "scripts/push1_build/patches/04_navigation.py").read_text(encoding="utf-8")
+        root = Path(__file__).resolve().parents[2]
+        navigation = (root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PushDeviceNavigation.java").read_text(encoding="utf-8")
+        patch = (root / "scripts/push1_build/patches/04_navigation.py").read_text(encoding="utf-8")
         self.assertIn("WeakReference<PushControlSurface> surfaceReference", navigation)
         self.assertIn("surfaceReference.get ()", navigation)
         self.assertIn("final WeakReference<IModel> model", navigation)
