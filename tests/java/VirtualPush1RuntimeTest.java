@@ -147,6 +147,7 @@ public final class VirtualPush1RuntimeTest
         // Monotonic virtual time for hardware-button hold semantics. This is
         // deliberately separate from TimeoutOptimizer's wall-clock calibration.
         long virtualTimeMillis;
+        long scheduledDelayTotal;
         final List<Runnable> buttonTimers = new java.util.ArrayList<> ();
     }
 
@@ -717,6 +718,15 @@ public final class VirtualPush1RuntimeTest
         require (runNextScheduled (state, 12), "Navigation did not schedule its first low-latency cursor probe at 12 ms");
         require (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
             "Navigation completed before Bitwig delivered its delayed cursor callback");
+        require (runNextScheduled (state, 16), "Navigation did not schedule its second adaptive cursor probe at 16 ms");
+        require (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
+            "Navigation completed before Bitwig delivered its delayed cursor callback at the 16 ms probe");
+        require (runNextScheduled (state, 24), "Navigation did not schedule its third adaptive cursor probe at 24 ms");
+        require (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
+            "Navigation completed before Bitwig delivered its delayed cursor callback at the 24 ms probe");
+        require (runNextScheduled (state, 36), "Navigation did not schedule its fourth adaptive cursor probe at 36 ms");
+        require (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
+            "Navigation completed before Bitwig delivered its delayed cursor callback at the 36 ms probe");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2, "Immediate ROW1 selection after In");
         require (deviceIndex == 4 && !virtualCursorDeviceNested, "ROW1 acted on the stale parent cursor before the chain callback");
         drainNavigation (state);
@@ -821,11 +831,16 @@ public final class VirtualPush1RuntimeTest
 
         // If Bitwig never confirms a chain entry, the bounded timeout must release
         // the queue rather than leaving future button presses permanently blocked.
+        require (state.scheduled.isEmpty (), "Unexpected virtual callbacks remained before the exact navigation-timeout test");
+        final long timeoutStartMs = state.scheduledDelayTotal;
         virtualSuppressChainCursorUpdate = true;
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "IN with deliberately suppressed host cursor callback");
         drainNavigation (state);
         require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
             "Navigation timeout did not release the stalled queue");
+        require (state.scheduledDelayTotal - timeoutStartMs == 2920,
+            "Navigation confirmation exceeded or shortened its exact 2.92-second virtual budget: "
+                + (state.scheduledDelayTotal - timeoutStartMs) + " ms");
         virtualSuppressChainCursorUpdate = false;
 
         deviceIndex = 4;
@@ -3411,6 +3426,7 @@ public final class VirtualPush1RuntimeTest
             if (candidate.delay () == delay)
             {
                 iterator.remove ();
+                state.scheduledDelayTotal += candidate.delay ();
                 candidate.task ().run ();
                 return true;
             }
@@ -3421,7 +3437,7 @@ public final class VirtualPush1RuntimeTest
     /** Drain serialized navigation while preserving delayed host callbacks and adaptive poll intervals. */
     private static void drainNavigation (final State state)
     {
-        final long [] delays={12,16,24,36,73};
+        final long [] delays={12,16,24,36,58,73};
         for(int steps=0;steps<100000;steps++)
         {
             if(runNextScheduled(state,73))
