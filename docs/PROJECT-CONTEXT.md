@@ -139,8 +139,10 @@ coverage inventory and explicit gaps are tracked in
 `docs/VIRTUAL-PUSH1-COVERAGE.md`. Protocol regressions cover every valid pad
 velocity and pressure value on all 64 pads, all signed relative-step values on
 all 11 encoders, and all 16,384 ribbon positions. The
-`quality-gate` must be configured as a required status check in GitHub branch
-protection; workflow presence alone does not prevent direct pushes or merges.
+As verified on 2026-11-19, the active `protection` ruleset on `custom` requires
+pull requests and the strict `quality-gate` status check, blocks deletion and
+non-fast-forward updates, and has no bypass actor. Required human approvals are
+currently zero. See https://github.com/rsvmusicpro-del/PUSHdriver/rules/27227660.
 
 A successful CI run does not itself launch Bitwig Studio 4.3.10, emulate the
 Bitwig scheduler/model in full, test native MIDI port discovery on every
