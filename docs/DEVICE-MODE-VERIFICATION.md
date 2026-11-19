@@ -1,4 +1,6 @@
-# Device mode verification
+# Device mode verification (historical record)
+
+This document records the original implementation and CI evidence for PR #76. Its recorded head SHA and workflow run are historical and must not be treated as the current branch validation.
 
 Implementation branch: `feature/push1-in-out-device-hierarchy`  
 Pull request: [#76](https://github.com/rsvmusicpro-del/PUSHdriver/pull/76)  
