@@ -138,7 +138,8 @@ the API-17 extension and enforces a combined `quality-gate` job. The detailed
 coverage inventory and explicit gaps are tracked in
 `docs/VIRTUAL-PUSH1-COVERAGE.md`. Protocol regressions cover every valid pad
 velocity and pressure value on all 64 pads, all signed relative-step values on
-all 11 encoders, and all 16,384 ribbon positions. The
+all 11 encoders, and all 16,384 ribbon positions.
+
 As verified on 2026-11-19, the active `protection` ruleset on `custom` requires
 pull requests and the strict `quality-gate` status check, blocks deletion and
 non-fast-forward updates, and has no bypass actor. Required human approvals are
