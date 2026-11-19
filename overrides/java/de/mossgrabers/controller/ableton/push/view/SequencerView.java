@@ -83,8 +83,8 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
                 final int currentStep = clip.getCurrentStep ();
                 if (stepsPerPage > 0 && currentStep >= 0)
                 {
-                    final int playheadPage = currentStep / stepsPerPage;
-                    if (playheadPage != clip.getEditPage ())
+                    final int playheadPage = ClassicSequencerEngine.pageForStep (currentStep, stepsPerPage);
+                    if (playheadPage >= 0 && playheadPage != clip.getEditPage ())
                         clip.scrollToPage (playheadPage);
                 }
             }

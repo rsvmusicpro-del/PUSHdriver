@@ -8,9 +8,23 @@ PATCHING = ROOT / "scripts/push1_build/patching.py"
 SPEC = importlib.util.spec_from_file_location("push1_patching", PATCHING)
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+ARGUMENTS = ROOT / "scripts/push1_build/arguments.py"
+ARGUMENTS_SPEC = importlib.util.spec_from_file_location("push1_arguments", ARGUMENTS)
+ARGUMENTS_MODULE = importlib.util.module_from_spec(ARGUMENTS_SPEC)
+ARGUMENTS_SPEC.loader.exec_module(ARGUMENTS_MODULE)
 
 
 class PatchHelperTests(unittest.TestCase):
+    def test_positive_integer_accepts_valid_values(self):
+        self.assertEqual(ARGUMENTS_MODULE.positive_integer("1", "--fuzz-seeds"), 1)
+        self.assertEqual(ARGUMENTS_MODULE.positive_integer("50", "--fuzz-seeds"), 50)
+
+    def test_positive_integer_rejects_zero_negative_and_invalid_values(self):
+        for value in ("0", "-1", "not-a-number"):
+            with self.subTest(value=value):
+                with self.assertRaises(SystemExit):
+                    ARGUMENTS_MODULE.positive_integer(value, "--fuzz-seeds")
+
     def test_replace_once_is_idempotent_after_exact_replacement(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "sample.txt"

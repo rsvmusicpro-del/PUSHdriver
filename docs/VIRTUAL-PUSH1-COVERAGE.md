@@ -85,7 +85,7 @@ Ordinary feature work should be validated by this virtual bench and its CI regre
 
 ## Merge protection requirement
 
-The workflow's final check is named `quality-gate` and runs on pushes to `custom` and pull requests targeting it. GitHub's branch metadata currently reports `protected: true`. The connected integration cannot read the detailed branch-protection endpoint (GitHub returns HTTP 403), so the exact required status checks and bypass permissions cannot be independently verified here. Confirm in repository Settings that `quality-gate` is required for `custom` and that no role can bypass it before treating the gate as fully server-enforced.
+The workflow's final check is named `quality-gate` and runs on pushes to `custom` and pull requests targeting it. As verified on 2026-11-19, active ruleset `protection` (ID `27227660`) requires pull requests and the strict `quality-gate` status check, blocks deletion and non-fast-forward updates, and has no bypass actor; required human approvals are zero. See https://github.com/rsvmusicpro-del/PUSHdriver/rules/27227660. Recheck this ruleset if repository governance changes.
 
 
 ## Physical pad coordinate contract

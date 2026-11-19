@@ -83,9 +83,15 @@ public final class SequencerEngineTest
         require (engine.shouldFollowPlayhead (), "deactivation resets feature-local page-follow state");
         engine.onPageGesture (1, 1, 127, true, 8, 16);
         require (engine.shouldFollowPlayhead (), "pad-down preserves reset follow state");
+        require (ClassicSequencerEngine.pageForStep (0, 8) == 0, "first step maps to first page");
+        require (ClassicSequencerEngine.pageForStep (7, 8) == 0, "last step maps to first page");
+        require (ClassicSequencerEngine.pageForStep (8, 8) == 1, "first step after page boundary maps to next page");
+        require (ClassicSequencerEngine.pageForStep (15, 8) == 1, "last step maps to second page");
+        require (ClassicSequencerEngine.pageForStep (16, 8) == 2, "page mapping remains correct beyond second page");
         require (ClassicSequencerEngine.pageForStep (17, 8) == 2, "global step maps to page");
         require (ClassicSequencerEngine.pageForStep (-1, 8) == -1, "negative step rejected");
         require (ClassicSequencerEngine.pageForStep (1, 0) == -1, "zero page width rejected");
+        require (ClassicSequencerEngine.pageForStep (1, -8) == -1, "negative page width rejected");
     }
 
     private static void testPolyGridAndScaleRules ()
