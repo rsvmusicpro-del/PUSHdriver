@@ -15,7 +15,6 @@ import de.mossgrabers.framework.daw.clip.INoteClip;
 import de.mossgrabers.framework.daw.clip.NotePosition;
 import de.mossgrabers.framework.daw.clip.StepState;
 import de.mossgrabers.framework.view.sequencer.AbstractPolySequencerView;
-import de.mossgrabers.framework.view.AbstractPlayView;
 import de.mossgrabers.framework.daw.data.ITrack;
 
 
