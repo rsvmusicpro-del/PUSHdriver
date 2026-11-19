@@ -46,12 +46,6 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
         super.onDeactivate ();
     }
 
-    @Override
-    public void drawGrid ()
-    {
-        super.drawGrid ();
-    }
-
     /** True only while this exact view owns the Push pad grid. */
     boolean isCurrentActiveView ()
     {
