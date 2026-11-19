@@ -29,7 +29,7 @@ The runtime suite also checks the pinned DrivenByMoss 300 ms button long-press b
 
 ## Required GitHub repository setting
 
-A workflow running on pushes and pull requests is not, by itself, a merge lock. GitHub must be configured to require the aggregate check for branch `custom`.
+A workflow running on pushes and pull requests is not, by itself, a merge lock. As verified on 2026-11-19, the active `protection` ruleset (ID `27227660`) on `custom` requires pull requests and the strict `quality-gate` status check, blocks deletion and non-fast-forward updates, and has no bypass actor. Required human approvals are zero. If this ruleset is ever recreated, preserve the settings below.
 
 In repository **Settings → Branches → Add branch protection rule** (or an equivalent repository ruleset), configure:
 
