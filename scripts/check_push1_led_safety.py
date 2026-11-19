@@ -32,10 +32,10 @@ def main() -> None:
     for name in ("DeviceParamsMode.java", "DeviceChainsMode.java", "DeviceBrowserMode.java"):
         if (DEVICE_OVERRIDES / name).exists():
             raise SystemExit(f"Conflicting project Device/Browser override remains: {name}")
-    
+
     if not UPSTREAM_DEVICE.exists():
         raise SystemExit("Pinned upstream DeviceParamsMode.java is missing; initialize the upstream submodule")
-    
+
     source = UPSTREAM_DEVICE.read_text(encoding="utf-8")
     first_row = section(
         source,
@@ -46,7 +46,7 @@ def main() -> None:
     violations = forbidden_static_row_identifiers(first_row)
     if violations:
         raise SystemExit(f"Push 1 static ROW1 uses RGB/blink palette identifiers: {', '.join(violations)}")
-    
+
     # DeviceParamsMode remains upstream-owned. Its Push 1 RGB adaptation is
     # deliberately applied by prepare_push1.py during assembly, so validate that
     # reproducible patch recipe before assembly rather than expecting it in the
@@ -83,7 +83,7 @@ def main() -> None:
     ):
         if expected not in second_row:
             raise SystemExit(f"Push 1 Device ROW2 state mapping is incorrect: {expected}")
-    
+
     print("Push 1 Device LED safety passed: native Ableton row mapping is used and static ROW1 contains no RGB/blink identifiers.")
 
 
