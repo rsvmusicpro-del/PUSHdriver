@@ -44,9 +44,7 @@ After saving, verify that GitHub reports the `custom` branch as protected and th
 
 ## Current enforcement status
 
-The workflow itself is configured correctly and runs on every push and pull request to `custom`. GitHub's branch metadata reports `protected: true` and exposes `quality-gate` as a required status check with enforcement level `everyone`. The separate branch-protection endpoint returns HTTP 403, so other settings such as required PR reviews and administrator-bypass restrictions are not independently verified here.
-
-Describe the verified state precisely: `custom` is protected and requires the `quality-gate` status check. Do not infer additional review or bypass rules from that status alone.
+The workflow itself is configured correctly and runs on every push and pull request to `custom`. The active `protection` ruleset requires PRs and the strict `quality-gate` check, blocks branch deletion and non-fast-forward updates, and has no bypass actor. Required human approvals are zero. See https://github.com/rsvmusicpro-del/PUSHdriver/rules/27227660. These statements describe the ruleset actually read from GitHub, not an inference from branch metadata.
 
 
 ## Why this gate is necessary
