@@ -52,7 +52,7 @@ else:
 # deliberately applied by prepare_push1.py during assembly, so validate that
 # reproducible patch recipe before assembly rather than expecting it in the
 # pristine submodule source.
-prepare_source = (ROOT / "scripts/prepare_push1.py").read_text(encoding="utf-8")
+prepare_source = (ROOT / "scripts/push1_build/patches/06_menus.py").read_text(encoding="utf-8")
 second_row = section(
     prepare_source,
     "final int off",

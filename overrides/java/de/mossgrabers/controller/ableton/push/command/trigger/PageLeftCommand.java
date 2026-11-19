@@ -8,6 +8,7 @@ import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.framework.command.core.AbstractTriggerCommand;
 import de.mossgrabers.framework.daw.IModel;
+import de.mossgrabers.framework.daw.constants.Capability;
 import de.mossgrabers.framework.featuregroup.IMode;
 import de.mossgrabers.framework.featuregroup.ViewManager;
 import de.mossgrabers.framework.mode.Modes;
@@ -16,7 +17,7 @@ import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
 
-/** Push 1 In control: delegate navigation to the active upstream mode. */
+/** Push 1 In control: enter the first available device slot chain. */
 public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, PushConfiguration>
 {
     public PageLeftCommand (final IModel model, final PushControlSurface surface)
@@ -43,14 +44,17 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (modeManager.isActive (Modes.DEVICE_CHAINS))
             return;
 
-        if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
+        if (modeManager.isActive (Modes.DEVICE_PARAMS))
         {
-            if (event == ButtonEvent.DOWN)
+            if (event == ButtonEvent.DOWN && this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
             {
-                if (deviceParamsMode.isShowDevices ())
-                    deviceParamsMode.selectNextItem ();
-                else
-                    deviceParamsMode.selectNextItemPage ();
+                final var cursorDevice = this.model.getCursorDevice ();
+                if (!cursorDevice.doesExist ())
+                    return;
+
+                if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
+                    deviceParamsMode.setShowDevices (true);
+                PushDeviceNavigation.enterFirstSlotChain (this.surface, this.model);
             }
             return;
         }

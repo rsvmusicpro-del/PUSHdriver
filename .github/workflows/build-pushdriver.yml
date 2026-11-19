@@ -79,8 +79,10 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Validate one-command local bench runner
-        run: python3 -m py_compile scripts/run_virtual_push1.py
+      - name: Prove empty-clip regression kills injected Java mutant
+        run: python3 scripts/test_push1_mutation.py
+      - name: Validate local and optional live-host diagnostic runners
+        run: python3 -m py_compile scripts/run_virtual_push1.py scripts/live_bitwig_midi_probe.py scripts/test_push1_mutation.py scripts/analyze_navigation_latency.py
 
       - name: Prepare Bitwig extension
         run: |

@@ -16,7 +16,7 @@ import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
 
-/** Push 1 Out control: delegate navigation to the active upstream mode. */
+/** Push 1 Out control: return to the parent device in the current chain. */
 public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface, PushConfiguration>
 {
     public PageRightCommand (final IModel model, final PushControlSurface surface)
@@ -43,14 +43,17 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
         if (modeManager.isActive (Modes.DEVICE_CHAINS))
             return;
 
-        if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
+        if (modeManager.isActive (Modes.DEVICE_PARAMS))
         {
             if (event == ButtonEvent.DOWN)
             {
-                if (deviceParamsMode.isShowDevices ())
-                    deviceParamsMode.selectPreviousItem ();
-                else
-                    deviceParamsMode.selectPreviousItemPage ();
+                final var cursorDevice = this.model.getCursorDevice ();
+                if (cursorDevice.doesExist () && (cursorDevice.isNested () || PushDeviceNavigation.isEntering (this.surface, this.model)))
+                {
+                    if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
+                        deviceParamsMode.setShowDevices (true);
+                    PushDeviceNavigation.exitParent (this.surface, this.model);
+                }
             }
             return;
         }

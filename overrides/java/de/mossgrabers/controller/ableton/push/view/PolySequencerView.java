@@ -29,19 +29,47 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
     /** The feature-local Push 1 Poly Sequencer engine. */
     private final PolySequencerEngine engine = new PolySequencerEngine ();
 
-    private void synchronizeEngineLifecycle ()
+    /** The engine follows the ViewManager lifecycle, not clip availability. */
+    @Override
+    public void onActivate ()
     {
-        if (this.isActive ())
-            this.engine.activate ();
-        else
-            this.engine.deactivate ();
+        super.onActivate ();
+        this.engine.activate ();
+    }
+
+    /** Invalidate Poly-local state whenever another view takes ownership. */
+    @Override
+    public void onDeactivate ()
+    {
+        this.engine.deactivate ();
+        this.clearInteractionState ();
+        super.onDeactivate ();
     }
 
     @Override
     public void drawGrid ()
     {
-        this.synchronizeEngineLifecycle ();
         super.drawGrid ();
+    }
+
+    /** True only while this exact view owns the Push pad grid. */
+    boolean isCurrentActiveView ()
+    {
+        return this.surface.getViewManager ().getActive () == this;
+    }
+
+    /** Clear transient note selection and pressed-key state at ownership boundaries. */
+    void onTrackSelectionChanged ()
+    {
+        this.clearInteractionState ();
+    }
+
+    private void clearInteractionState ()
+    {
+        this.keyManager.clearPressedKeys ();
+        this.noteMemory.clear ();
+        this.copyStep = -1;
+        this.lastPressedNoteTime = 0;
     }
 
 
@@ -55,6 +83,7 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
     public PolySequencerView (final PushControlSurface surface, final IModel model, final boolean useTrackColor)
     {
         super (surface, model, useTrackColor);
+        PushPolySequencerObservers.register (model.getTrackBank (), this);
     }
 
 
@@ -62,8 +91,7 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
     @Override
     public void onGridNoteLongPress (final int note)
     {
-        this.synchronizeEngineLifecycle ();
-        if (!this.engine.isActive () || !this.engine.isHardwarePadNote (note))
+        if (!this.engine.isActive () || !this.isCurrentActiveView () || !this.engine.isHardwarePadNote (note))
             return;
 
         final int index = Push1PadGrid.indexForNote (note);
@@ -81,13 +109,16 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
             return;
 
         final INoteClip clip = this.getClip ();
+        if (!clip.doesExist ())
+            return;
         final int step = this.engine.stepForPad (x, y, this.numColumns, this.numRows);
         if (step < 0)
             return;
         final NotePosition notePosition = new NotePosition (this.configuration.getMidiEditChannel (), step, 0);
 
         this.clearEditNotes ();
-        for (int row = 0; row < 128; row++)
+        final int highestRow = clip.getHighestRow (notePosition.getChannel (), step);
+        for (int row = 0; row <= highestRow; row++)
         {
             notePosition.setNote (row);
             if (clip.getStep (notePosition).getState () == StepState.START)
@@ -100,17 +131,17 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
     @Override
     protected boolean handleSequencerAreaButtonCombinations (final INoteClip clip, final int channel, final int step)
     {
-        this.synchronizeEngineLifecycle ();
-        if (!this.engine.isActive ())
+        if (!this.engine.isActive () || !this.isCurrentActiveView ())
             return true;
 
         final boolean isSelectPressed = this.surface.isSelectPressed ();
         final NotePosition notePosition = new NotePosition (channel, step, 0);
+        final int highestRow = clip.getHighestRow (channel, step);
 
         // Change note repeat setting for step
         if (this.surface.isShiftPressed ())
         {
-            for (int row = 0; row < 128; row++)
+            for (int row = 0; row <= highestRow; row++)
             {
                 notePosition.setNote (row);
                 if (clip.getStep (notePosition).getState () == StepState.START)
@@ -122,7 +153,7 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
         // Add note to edit notes with SELECT
         if (isSelectPressed)
         {
-            for (int row = 0; row < 128; row++)
+            for (int row = 0; row <= highestRow; row++)
             {
                 notePosition.setNote (row);
                 if (clip.getStep (notePosition).getState () == StepState.START)
