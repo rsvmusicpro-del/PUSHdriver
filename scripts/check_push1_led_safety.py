@@ -7,6 +7,14 @@ DEVICE_OVERRIDES = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push
 UPSTREAM_DEVICE = ROOT / "upstream/src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
 
 
+FORBIDDEN_STATIC_ROW_IDENTIFIERS = ("PUSH1_COLOR2_", "BUTTON_COLOR2_ON", "BUTTON_COLOR2_OFF")
+
+
+def forbidden_static_row_identifiers(source: str) -> tuple[str, ...]:
+    """Return every RGB/blink identifier that is invalid in a static Push 1 row."""
+    return tuple(identifier for identifier in FORBIDDEN_STATIC_ROW_IDENTIFIERS if identifier in source)
+
+
 def section(source: str, start: str, end: str, label: str) -> str:
     begin = source.find(start)
     if begin < 0:
@@ -34,19 +42,9 @@ first_row = section(
     "index = this.isButtonRow (1, buttonID);",
     "Ableton Device first-row selector LED mapping",
 )
-for forbidden in ("PUSH1_COLOR2_", "BUTTON_COLOR2_ON", "BUTTON_COLOR2_OFF"):
-    if forbidden in first_row:
-        raise SystemExit(f"Push 1 static ROW1 uses RGB/blink palette identifier: {forbidden}")
-
-# Self-test: prove the static-row guard rejects a representative RGB/blink token.
-try:
-    for forbidden in ("PUSH1_COLOR2_", "BUTTON_COLOR2_ON", "BUTTON_COLOR2_OFF"):
-        if forbidden in "return PushColorManager.PUSH1_COLOR2_BLUE_HI;":
-            raise SystemExit(f"guard self-test: rejected {forbidden}")
-except SystemExit:
-    pass
-else:
-    raise SystemExit("Guard self-test failed: RGB/blink identifier was not rejected")
+violations = forbidden_static_row_identifiers(first_row)
+if violations:
+    raise SystemExit(f"Push 1 static ROW1 uses RGB/blink palette identifiers: {', '.join(violations)}")
 
 # DeviceParamsMode remains upstream-owned. Its Push 1 RGB adaptation is
 # deliberately applied by prepare_push1.py during assembly, so validate that
