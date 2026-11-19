@@ -72,7 +72,7 @@ All of these tests run without a physical Push, native MIDI driver or running Bi
 
 ## Regression protection
 
-The workflow runs on pushes to `custom` and pull requests targeting `custom`. Its `quality-gate` job fails unless both Linux and Intel macOS validations succeed. For server-side enforcement, configure the `quality-gate` status check as required on the `custom` branch and disallow direct pushes/force pushes. The integration can update workflow files, but GitHub denied access to the legacy branch-protection endpoint; no repository rulesets are currently exposed, so I cannot truthfully claim that required-check enforcement has been enabled.
+The workflow runs on pushes to `custom` and pull requests targeting `custom`. Its `quality-gate` job fails unless both Linux and Intel macOS validations succeed. As verified on 2026-11-19, GitHub ruleset `protection` (ID `27227660`) actively protects the default branch `custom`: pull requests are required, the `quality-gate` check is required in strict mode, branch deletion and non-fast-forward updates are blocked, and no bypass actor is configured. Required human approvals are set to zero. See [the active repository ruleset](https://github.com/rsvmusicpro-del/PUSHdriver/rules/27227660).
 
 Local test sequence after assembling the extension:
 
