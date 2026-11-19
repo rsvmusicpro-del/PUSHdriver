@@ -243,5 +243,5 @@ controller was unusable.
 Do not recreate a second DeviceParamsMode or DeviceChainsMode under
 `overrides/java`. Any Bitwig 4.3.10 adaptation must remain a narrow,
 explicit source-assembly patch with a corresponding MIDI-level regression
-test. The candidate implementation and CI status are tracked in PR #38;
-a live Bitwig 4.3.10 + physical Push 1 qualification is still required.
+test. The implementation is part of the current `custom` integration history;
+the original Device hierarchy change was delivered in [PR #76](https://github.com/rsvmusicpro-del/PUSHdriver/pull/76). A live Bitwig 4.3.10 + physical Push 1 qualification is still required.
