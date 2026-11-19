@@ -1,4 +1,6 @@
 from pathlib import Path
+
+from push1_build.arguments import positive_integer
 import importlib.util
 import tempfile
 import unittest
@@ -11,6 +13,16 @@ SPEC.loader.exec_module(MODULE)
 
 
 class PatchHelperTests(unittest.TestCase):
+    def test_positive_integer_accepts_valid_values(self):
+        self.assertEqual(positive_integer("1", "--fuzz-seeds"), 1)
+        self.assertEqual(positive_integer("50", "--fuzz-seeds"), 50)
+
+    def test_positive_integer_rejects_zero_negative_and_invalid_values(self):
+        for value in ("0", "-1", "not-a-number"):
+            with self.subTest(value=value):
+                with self.assertRaises(SystemExit):
+                    positive_integer(value, "--fuzz-seeds")
+
     def test_replace_once_is_idempotent_after_exact_replacement(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "sample.txt"
