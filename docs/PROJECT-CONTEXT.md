@@ -175,11 +175,11 @@ USB-MIDI discovery, analog pressure calibration, firmware timing or LCD glass
 appearance.
 
 The GitHub Actions workflow's Linux build, Intel macOS validation and
-`quality-gate` must all pass on the final `custom` head. GitHub currently
-reports `custom` as protected, with `quality-gate` configured as a required
-status check enforced for everyone. The separate branch-protection endpoint
-is not readable through the connected integration, so other rule details
-(such as required-review and administrator-bypass settings) are not asserted.
+`quality-gate` must all pass on the final `custom` head. GitHub's active `protection` ruleset (ID `27227660`) requires pull requests and
+the strict `quality-gate` status check, blocks branch deletion and
+non-fast-forward updates, and configures no bypass actor. Required human
+approvals are zero. The ruleset is visible at
+https://github.com/rsvmusicpro-del/PUSHdriver/rules/27227660.
 
 
 ## Extended virtual hardware and DAW model (2026-11-13)
