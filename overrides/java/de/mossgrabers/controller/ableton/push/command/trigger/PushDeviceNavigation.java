@@ -598,12 +598,12 @@ public final class PushDeviceNavigation
      * them into a delimiter-separated string: device IDs/names are host data and
      * may themselves contain delimiters, which could otherwise hide a real move.
      */
-    private record CursorFingerprint (String id, String name, int position, int index, boolean nested)
+    record CursorFingerprint (String id, String name, int position, int index, boolean nested)
     {
     }
 
 
-    private static CursorFingerprint fingerprint (final ICursorDevice cursor)
+    static CursorFingerprint fingerprint (final ICursorDevice cursor)
     {
         return new CursorFingerprint (cursor.getID (), cursor.getName (), cursor.getPosition (), cursor.getIndex (), cursor.isNested ());
     }
