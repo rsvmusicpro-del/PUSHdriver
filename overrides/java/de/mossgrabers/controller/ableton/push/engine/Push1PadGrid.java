@@ -50,4 +50,10 @@ public final class Push1PadGrid
     {
         return isValidIndex (index) ? ROWS - 1 - index / COLUMNS : -1;
     }
+
+    /** Return the bottom-up logical sequencer row for a MIDI/button index. */
+    public static int sequencerRowForIndex (final int index)
+    {
+        return isValidIndex (index) ? index / COLUMNS : -1;
+    }
 }
