@@ -755,8 +755,8 @@ replace_once(push_display,
 
 
 
-// Universal Push 1 button edge guard. State-based rather than time-based:
-// duplicate DOWN/UP edges are removed, while complete rapid taps are preserved.
+# Universal Push 1 button edge guard. State-based rather than time-based:
+# duplicate DOWN/UP edges are removed, while complete rapid taps are preserved.
 button_guard = root / "src/main/java/de/mossgrabers/framework/controller/hardware/AbstractHwButton.java"
 replace_once(button_guard,
     "    private ButtonEvent                    state;\n",
