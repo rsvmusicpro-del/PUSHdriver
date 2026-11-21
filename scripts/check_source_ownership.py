@@ -29,6 +29,7 @@ OVERRIDE_ALLOWLIST={
 }
 PATCH_TARGET_ALLOWLIST={
 "de/mossgrabers/framework/daw/midi/DeviceInquiry.java",
+"de/mossgrabers/framework/controller/hardware/AbstractHwButton.java",
 "de/mossgrabers/controller/ableton/push/controller/PushControlSurface.java",
 "de/mossgrabers/controller/ableton/push/mode/device/DeviceLayerMode.java",
 "de/mossgrabers/controller/ableton/push/mode/NoteMode.java",

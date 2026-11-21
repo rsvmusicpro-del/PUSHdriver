@@ -2,7 +2,7 @@
 
 `prepare_push1.py` verifies the pinned, clean DrivenByMoss submodule, reconstructs the upstream source tree, then executes these patch batches in this fixed order:
 
-1. `01_framework.py` — firmware inquiry, Push surface, sequencer foundations, display protocol.
+1. `01_framework.py` — firmware inquiry, universal button edge/long-press safety, Push surface, sequencer foundations, display protocol.
 2. `02_controls.py` — ribbon, note-repeat and control feedback.
 3. `03_workflow.py` — Session/Marker/Master workflows, note sequencing, setup integration.
 4. `04_navigation.py` — Device and Browser navigation adaptation.
