@@ -26,6 +26,7 @@ classpath = os.pathsep.join((str(extension), str(api)))
 test_sources = (
     root / "tests/java/VirtualPush1MidiBench.java",
     root / "tests/java/VirtualPush1MidiConcurrencyTest.java",
+    root / "tests/java/AbstractHwButtonSafetyTest.java",
     root / "tests/java/VirtualPush1Device.java",
     root / "tests/java/VirtualPush1DeviceTest.java",
     root / "tests/java/VirtualPush1DisplayLayoutTest.java",
@@ -66,6 +67,7 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
                       if argument.startswith(option)), None)
         if value is not None:
             command.append(f"-D{property_name}={positive_integer(value, option[:-1])}")
+    subprocess.run(["java", "-cp", runtime_classpath, "AbstractHwButtonSafetyTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "VirtualPush1MidiConcurrencyTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "SequencerEngineTest"], cwd=root, check=True)
     command.extend(["-cp", runtime_classpath, "VirtualPush1RuntimeTest"])
