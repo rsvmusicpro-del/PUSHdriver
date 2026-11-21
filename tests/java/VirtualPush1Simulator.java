@@ -473,7 +473,11 @@ public final class VirtualPush1Simulator
                 tip.append (" — Push firmware glyph ").append (code)
                     .append ("\n").append (Push1DisplayGlyphs.renderAscii (code));
             else
+            {
+                if (!VirtualPush1LcdRasterizer.hasReferenceGlyph (code))
+                    tip.append (" — approximate Latin fallback; exact ROM bitmap not verified");
                 tip.append ("\n").append (VirtualPush1LcdRasterizer.renderAscii (code));
+            }
         }
         return tip.toString ();
     }
