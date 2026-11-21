@@ -4,7 +4,7 @@
 
 The original Push 1 has four character LCD modules side by side. Each module is 17 columns by 4 rows, giving the controller a physical text surface of 68 columns by 4 rows. A module is not a separate display protocol endpoint: each physical row is transmitted as one 68-character SysEx payload.
 
-The eight parameter cells are a logical overlay on that geometry. Their widths alternate 9, 8, 9, 8, 9, 8, 9, 8 columns. Each adjacent pair exactly fills one 17-column module. The geometry is centralized in `Push1DisplayLayout`; display writers must not hard-code 8, 9, 17 or 68.
+The eight parameter cells are a logical partition of that geometry. Their widths alternate 9, 8, 9, 8, 9, 8, 9, 8 columns. Each adjacent pair exactly fills one 17-column module. The geometry is centralized in `Push1DisplayLayout`; display writers must not hard-code 8, 9, 17 or 68.
 
 ## One rendering pipeline for every view
 
