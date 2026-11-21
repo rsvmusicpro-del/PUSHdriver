@@ -151,11 +151,12 @@ require(display_text_path.is_file()
         "Push 1 text helpers must not expose the removed right-block overlay path")
 
 session = read("SessionViewSelectMode.java")
-require("display.setCell (0, i" in method(session, "public void updateDisplay1"),
-        "Session view choices must be drawn in the upper LCD row")
-require("display.setCell (3, 6, \"Markers\")" in method(session, "public void updateDisplay1")
-        and "display.setCell (3, 7" in method(session, "public void updateDisplay1"),
-        "Markers and Clips must remain in the lower LCD row")
+session_display = method(session, "public void updateDisplay1")
+require("views[i]" in session_display and "encoderLabels (views)" in session_display,
+        "Session view choices must use the shared upper LCD row")
+require('actions[6] = "Markers"' in session_display and 'actions[7] =' in session_display
+        and "actionHints (actions)" in session_display,
+        "Markers and Clips must remain aligned in the shared lower action row")
 require("setActive (Modes.MARKERS)" in method(session, "public void onSecondRow")
         and "toggleScenesClipMode" in method(session, "public void onSecondRow"),
         "Session lower-half actions must be handled by Row 2")
