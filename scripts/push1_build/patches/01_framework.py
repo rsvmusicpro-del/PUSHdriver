@@ -614,7 +614,7 @@ replace_once(push_display,
     "Remove obsolete Push1Display Arrays import")
 
 replace_once(push_display,
-    "import de.mossgrabers.framework.utils.StringUtils;\\n",
+    "import de.mossgrabers.framework.utils.StringUtils;\n",
     "",
     "Remove obsolete Push1Display StringUtils import")
 
