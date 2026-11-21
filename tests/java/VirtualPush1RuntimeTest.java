@@ -154,6 +154,8 @@ public final class VirtualPush1RuntimeTest
 
     private VirtualPush1RuntimeTest () { }
 
+        de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigationFingerprintTest.main (new String [0]);
+
     public static void main (final String [] args) throws Exception
     {
         // Protocol and device-contract checks are subtests of the same virtual
