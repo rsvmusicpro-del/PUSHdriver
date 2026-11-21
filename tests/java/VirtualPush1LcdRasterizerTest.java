@@ -10,12 +10,19 @@ public final class VirtualPush1LcdRasterizerTest
     {
         check (VirtualPush1LcdRasterizer.RASTER_WIDTH == 102, "17 characters at six-dot pitch");
         check (VirtualPush1LcdRasterizer.RASTER_HEIGHT == 8, "eight vertical LCD dots");
-        final String module = "PUSH1 LCD 012345678";
+        final String module = "PUSH1 LCD 0123456";
         final boolean [][] pixels = VirtualPush1LcdRasterizer.rasterize (module);
         check (pixels.length == 8 && pixels[0].length == 102, "module raster dimensions");
+        int litPixels = 0;
         for (int y = 0; y < 8; y++)
             for (int x = 0; x < 102; x++)
-                check (pixels[y][x] == pixels[y][x], "pixel access remains deterministic");
+            {
+                if (pixels[y][x])
+                    litPixels++;
+                if (x % 6 == 5)
+                    check (!pixels[y][x], "inter-character pitch remains a dark spacer column");
+            }
+        check (litPixels > 0, "visible text must produce lit LCD dots");
 
         for (int glyph = 0; glyph < 8; glyph++)
         {
@@ -31,8 +38,10 @@ public final class VirtualPush1LcdRasterizerTest
             check (rows.length == 8, "all seven-bit characters have eight raster rows: " + code);
             for (int y = 0; y < 8; y++)
                 check ((rows[y] & ~0x1F) == 0, "glyph row stays within five dots: " + code + "/" + y);
-            check (VirtualPush1LcdRasterizer.hasReferenceGlyph (code),
-                "every seven-bit code has an identified reference or fallback glyph: " + code);
+            final boolean known = (code >= 0 && code <= 7) || code == 9 || code == 24
+                || code == 28 || code == 30 || code == 127 || (code >= 32 && code <= 126);
+            check (VirtualPush1LcdRasterizer.hasReferenceGlyph (code) == known,
+                "known ROM glyph profile is explicit; other controls use the visible fallback: " + code);
         }
 
         final StringBuilder allCodes = new StringBuilder (Push1DisplayLayout.MODULE_COLUMNS);
