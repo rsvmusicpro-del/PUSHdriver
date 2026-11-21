@@ -544,50 +544,6 @@ replace_once(push_display,
     "        this.output.sendSysex (Push1Display.SYSEX_MESSAGE[row] + StringUtils.asciiToHex (text) + \"F7\");",
     "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, Push1DisplayText.fit (text, 68)));",
     "Push1Display SysEx protocol delegation")
-replace_once(push_display,
-    "    private final int              maxParameterValue;",
-    "    private final int              maxParameterValue;\n"
-    "    private boolean                compactNotification;",
-    "Push1Display compact notification state")
-replace_once(push_display,
-    "    public void writeLine (final int row, final String text)\n"
-    "    {\n"
-    "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, Push1DisplayText.fit (text, 68)));\n"
-    "    }",
-    "    public void writeLine (final int row, final String text)\n"
-    "    {\n"
-    "        this.output.sendSysex (Push1DisplayProtocol.encodeLine (row, Push1DisplayText.fit (text, 68)));\n"
-    "    }\n\n"
-    "    /** {@inheritDoc} */\n"
-    "    @Override\n"
-    "    protected void notifyOnDisplay (final String message)\n"
-    "    {\n"
-    "        this.compactNotification = message.codePointCount (0, message.length ()) <= 17;\n"
-    "        super.notifyOnDisplay (message);\n"
-    "    }\n\n"
-    "    /** {@inheritDoc} */\n"
-    "    @Override\n"
-    "    public void flush ()\n"
-    "    {\n"
-    "        if (this.compactNotification && this.isNotificationActive ())\n"
-    "        {\n"
-    "            final String trimmed = this.notificationMessage.trim ();\n"
-    "            final String row0 = this.currentMessage[0] == null ? this.emptyLine : this.currentMessage[0];\n"
-    "            final String row1 = this.currentMessage[1] == null ? this.emptyLine : this.currentMessage[1];\n"
-    "            this.updateLine (0, Push1DisplayText.overlayRightBlock (row0, trimmed));\n"
-    "            this.updateLine (1, Push1DisplayText.overlayRightBlock (row1, \"\"));\n"
-    "            return;\n"
-    "        }\n"
-    "        super.flush ();\n"
-    "    }\n\n"
-    "    /** {@inheritDoc} */\n"
-    "    @Override\n"
-    "    public void forceFlush ()\n"
-    "    {\n"
-    "        this.compactNotification = false;\n"
-    "        super.forceFlush ();\n"
-    "    }",
-    "Push1Display compact notification overlay")
 
 # Clamp parameter values before formatting the eight LCD bar cells. The
 # upstream overlay calculation indexes one cell beyond the array when both
