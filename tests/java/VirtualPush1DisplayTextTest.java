@@ -77,6 +77,16 @@ public final class VirtualPush1DisplayTextTest
         check (Push1DisplayLayout.fitBlock ("Push 1"), "Push 1           ",
             "physical LCD blocks must contain exactly 17 cells");
 
+        final String deviceContext = Push1DisplayText.fitAscii (
+            "DEVICE:" + " ".repeat (10) + "Analog Four - Multi Timbral Synthesizer", Push1DisplayLayout.COLUMNS);
+        require (deviceContext.length () == Push1DisplayLayout.COLUMNS,
+            "full-width device context must fill exactly 68 LCD columns");
+        check (deviceContext.substring (0, Push1DisplayLayout.MODULE_COLUMNS), "DEVICE:" + " ".repeat (10),
+            "the first physical module must retain the device context label");
+        require (deviceContext.substring (Push1DisplayLayout.MODULE_COLUMNS).strip ().startsWith ("Analog Four"),
+            "the remaining three physical modules must carry the device name");
+
+
         final String line = "L".repeat (68);
         final String notification = Push1DisplayText.overlayRightBlock (line, "GO");
         require (notification.length () == 68, "right-block overlay must preserve exact LCD width");
