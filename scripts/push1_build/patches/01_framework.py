@@ -753,3 +753,62 @@ replace_once(push_display,
     "    }",
     "Push 1 bounded pan bar formatting")
 
+
+
+// Universal Push 1 button edge guard. State-based rather than time-based:
+// duplicate DOWN/UP edges are removed, while complete rapid taps are preserved.
+button_guard = root / "src/main/java/de/mossgrabers/framework/controller/hardware/AbstractHwButton.java"
+replace_once(button_guard,
+    "    private ButtonEvent                    state;\n",
+    "    private ButtonEvent                    state;\n"
+    "    /** Generation of the current physical press; invalidates stale long-press callbacks. */\n"
+    "    private long                          pressGeneration = 0;\n",
+    "Universal button press generation")
+replace_java_method(button_guard, "public void clearState ()", """    public void clearState ()
+    {
+        // A queued long-press callback from the previous press must never affect
+        // a later press after the state has been cleared or the surface rebound.
+        this.pressGeneration++;
+        this.state = null;
+    }""", "Invalidate pending long-press callbacks when clearing button state")
+replace_java_method(button_guard, "protected void handleButtonPressed (final double value)", """    protected void handleButtonPressed (final double value)
+    {
+        if (value == 0 || this.isPressed ())
+            return;
+
+        final long generation = ++this.pressGeneration;
+        this.state = ButtonEvent.DOWN;
+        this.isConsumed = false;
+
+        this.host.scheduleTask ( () -> this.checkButtonState (generation), this.optimizer.getTimeout ());
+        this.pressedVelocity = (int) (value * 127.0);
+        if (this.command != null)
+            this.command.execute (ButtonEvent.DOWN, this.pressedVelocity);
+
+        this.downEventHandlers.forEach (handler -> handler.handle (ButtonEvent.DOWN));
+    }""", "Deduplicate repeated button DOWN edges")
+replace_java_method(button_guard, "protected void handleButtonRelease ()", """    protected void handleButtonRelease ()
+    {
+        // Only a matching release closes an active press. Repeated or orphaned
+        // release edges are harmless and cannot execute a command twice.
+        if (!this.isBound () || !this.isPressed ())
+            return;
+
+        this.pressGeneration++;
+        this.state = ButtonEvent.UP;
+        if (this.command != null && !this.isConsumed)
+            this.command.execute (ButtonEvent.UP, 0);
+
+        this.upEventHandlers.forEach (handler -> handler.handle (ButtonEvent.UP));
+    }""", "Deduplicate repeated and orphaned button UP edges")
+replace_java_method(button_guard, "private void checkButtonState ()", """    private void checkButtonState (final long generation)
+    {
+        // A callback belongs only to the exact press that scheduled it. This
+        // also makes duplicate scheduler delivery idempotent.
+        if (generation != this.pressGeneration || this.state != ButtonEvent.DOWN)
+            return;
+
+        this.state = ButtonEvent.LONG;
+        if (this.command != null)
+            this.command.execute (ButtonEvent.LONG, this.pressedVelocity);
+    }""", "Guard long-press callbacks against stale or duplicate delivery")
