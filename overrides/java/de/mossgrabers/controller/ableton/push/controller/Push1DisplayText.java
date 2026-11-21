@@ -108,7 +108,9 @@ public final class Push1DisplayText
         if (line != null)
         {
             line.codePoints ().limit (prefixWidth).forEach (codePoint -> {
-                if (codePoint == '\n' || codePoint == '\r' || codePoint == '\t')
+                if (codePoint == 0x2026)
+                    prefix.append ((char) ELLIPSIS_CHARACTER_CODE);
+                else if (codePoint == '\n' || codePoint == '\r' || codePoint == '\t')
                     prefix.append (' ');
                 else
                     prefix.append (codePoint <= 0x7F ? (char) codePoint : '?');
