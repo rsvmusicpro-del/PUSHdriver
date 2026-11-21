@@ -131,6 +131,10 @@ require("Push1DisplayLayout.fitRow (text)" in simulator_writer
 require("overlayRightBlock" not in push_display and "compactNotification" not in push_display
         and "public void flush" not in push_display,
         "Push 1 notifications must not overlay or replace part of persistent display rows")
+display_text_path = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayText.java"
+require(display_text_path.is_file()
+        and "overlayRightBlock" not in display_text_path.read_text(),
+        "Push 1 text helpers must not expose the removed right-block overlay path")
 
 session = read("SessionViewSelectMode.java")
 require("display.setCell (0, i" in method(session, "public void updateDisplay1"),
