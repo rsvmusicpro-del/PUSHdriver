@@ -88,9 +88,9 @@ public final class VirtualPush1LcdRasterizerTest
                 for (int y = 0; y < 8; y++)
                     check ((rows[y] & ~0x1F) == 0,
                         "glyph row stays within five dots: " + profile + "/" + code + "/" + y);
-                final boolean known = (code >= 0 && code <= 10) || code == 12 || code == 13
-                    || code == 15 || code == 16 || code == 23 || code == 24 || code == 26
-                    || (code >= 28 && code <= 31) || code == 127 || (code >= 32 && code <= 126);
+                final boolean known = (code >= 0 && code <= 7) || code == 10 || code == 12 || code == 13
+                    || code == 15 || code == 16 || code == 23 || code == 26
+                    || (code >= 29 && code <= 31) || (code >= 32 && code <= 126);
                 check (VirtualPush1LcdRasterizer.hasReferenceGlyph (code) == known,
                     "known ROM glyph profile is explicit; other controls use the visible fallback: " + code);
             }
