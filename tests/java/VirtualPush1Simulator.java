@@ -160,7 +160,8 @@ public final class VirtualPush1Simulator
     {
         final JPanel root = panel ();
         root.setLayout (new GridLayout (1, 4, 5, 0));
-        root.setBorder (BorderFactory.createTitledBorder ("LCD — 4 modules × 4 rows × 17 characters"));
+        root.setBorder (BorderFactory.createTitledBorder (
+            "LCD — 4 modules × 4 rows × 17 characters — HD44780U " + VirtualPush1LcdRasterizer.activeRomProfile ().id ()));
         for (int module = 0; module < 4; module++)
         {
             final JPanel block = panel ();
