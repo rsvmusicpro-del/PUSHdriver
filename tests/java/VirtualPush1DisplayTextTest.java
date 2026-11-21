@@ -77,6 +77,19 @@ public final class VirtualPush1DisplayTextTest
         check (Push1DisplayLayout.fitBlock ("Push 1"), "Push 1           ",
             "physical LCD blocks must contain exactly 17 cells");
 
+        check (Push1DisplayLayout.fitCell ("Über", 0), "Ueber    ",
+            "logical cells must transliterate accented text before fitting");
+        check (Push1DisplayLayout.fitBlock ("Über"), "Ueber" + " ".repeat (12),
+            "physical modules must transliterate accented text before fitting");
+        check (Push1DisplayLayout.fitRow ("Über"), "Ueber" + " ".repeat (63),
+            "full LCD rows must transliterate accented text before fitting");
+        check (Push1DisplayLayout.fitCell ("A→B", 0), "A->B     ",
+            "unsupported Unicode arrows must use the existing ASCII arrow fallback");
+        final String folderGlyph = String.valueOf ((char) 7);
+        check (Push1DisplayLayout.fitCell (folderGlyph, 0), folderGlyph + " ".repeat (8),
+            "ASCII transliteration must preserve Push 1 programmable glyph codes");
+
+
         final String deviceContext = Push1DisplayText.fitAscii (
             "DEVICE:" + " ".repeat (10) + "Analog Four - Multi Timbral Synthesizer", Push1DisplayLayout.COLUMNS);
         require (deviceContext.length () == Push1DisplayLayout.COLUMNS,
