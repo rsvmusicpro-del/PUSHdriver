@@ -73,3 +73,10 @@ Notifications use the base full-display notification path; no notification is pa
 The virtual bench checks all four rows, all 68 columns, all 128 seven-bit character values, module and cell coordinates, custom glyph transport, value formatting, and production display writes across registered modes. The static menu/display contract additionally checks that the assembled Push 1 display overrides `setCell`, `setBlock`, `setRow`, simulator conversion and row transmission with the shared geometry helpers.
 
 A virtual bench cannot prove LCD glass contrast, viewing angle, backlight aging, firmware-specific optical glyph rendering, or whether a particular physical unit has a damaged segment. Those checks still require the actual Push 1.
+
+
+## Production display snapshot review
+
+The runtime test exports one composite PNG and one lossless hexadecimal character dump for every packaged Push 1 view and every registered mode. The PNG uses the same A00/A02 dot-matrix rasterizer as the interactive simulator and shows all four modules and all four rows in their physical order. The text companion records all 68 seven-bit character codes for each row, including firmware glyphs that are not printable in a terminal.
+
+The Linux and Intel macOS CI jobs publish these files as `push1-display-snapshots-linux` and `push1-display-snapshots-macos` artifacts. They are intended for side-by-side ergonomic review: label truncation, blank space, row hierarchy, selected-state visibility and cross-mode consistency. The runtime test asserts that a complete snapshot pair was produced for every view and registered mode. These captures are deterministic software-rendered evidence, not photographs of the physical LCD.
