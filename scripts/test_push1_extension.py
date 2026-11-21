@@ -39,6 +39,7 @@ test_sources = (
     root / "tests/java/de/mossgrabers/controller/ableton/push/command/trigger/PushDeviceNavigationFingerprintTest.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/engine/Push1PadGrid.java",
     root / "tests/java/VirtualPush1Simulator.java",
+    root / "tests/java/VirtualPush1DisplaySnapshots.java",
     root / "tests/java/VirtualPush1LcdRasterizer.java",
     root / "tests/java/VirtualPush1LcdRasterizerTest.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
@@ -53,7 +54,7 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
         cwd=root, check=True,
     )
     runtime_classpath = os.pathsep.join((classpath, output, str(root / "tests/resources")))
-    command = ["java"]
+    command = ["java", "-Dpush1.display.snapshots=target/push1-display-snapshots"]
     lcd_rom = next(
         (argument.split("=", 1)[1] for argument in sys.argv[1:] if argument.startswith("--lcd-rom=")),
         "A00",
