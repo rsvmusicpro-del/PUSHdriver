@@ -111,6 +111,9 @@ device_display = method(device_params, "public void updateDisplay1")
 require('display.setRow (2, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.contextRow ("DEVICE:", cd.getName ()));'
         in device_display,
         "Device context row must use the shared semantic composition helper")
+require("encoderLabels (parameterLabels)" in device_display
+        and "encoderValues (parameterValues)" in device_display,
+        "Device parameter names and values must share encoder-aligned LCD rows")
 
 # Selection and utility menus share the same semantic LCD row compositor.
 for menu in ("NoteViewSelectMode.java", "SessionViewSelectMode.java", "ScalesMode.java",
