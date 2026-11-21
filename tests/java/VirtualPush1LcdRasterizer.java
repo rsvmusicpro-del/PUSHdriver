@@ -27,10 +27,29 @@ public final class VirtualPush1LcdRasterizer
     public static final int RASTER_WIDTH = MODULE_CHARACTERS * CHARACTER_PITCH;
     public static final int RASTER_HEIGHT = DOT_ROWS;
 
-    private static final int [][] ROM_A00 = loadRomA00 ();
+    public enum RomProfile
+    {
+        HD44780U_A00 ("A00"),
+        HD44780U_A02 ("A02");
+
+        private final String id;
+
+        RomProfile (final String id) { this.id = id; }
+        public String id () { return this.id; }
+    }
+
+    private static final int [][] ROM_A00 = loadRom ("A00");
+    private static final int [][] ROM_A02 = loadRom ("A02");
+    private static final RomProfile ACTIVE_PROFILE = resolveProfile ();
 
     private VirtualPush1LcdRasterizer ()
     {
+    }
+
+    /** ROM profile selected by the optional -Dpush1.lcd.rom=A00|A02 property. */
+    public static RomProfile activeRomProfile ()
+    {
+        return ACTIVE_PROFILE;
     }
 
     /** Render exactly one 17-character physical module row to lit-dot pixels. */
@@ -52,8 +71,16 @@ public final class VirtualPush1LcdRasterizer
     /** Return the eight 5-bit row masks used by the virtual LCD renderer. */
     public static int [] glyphRows (final int characterCode)
     {
+        return glyphRows (characterCode, ACTIVE_PROFILE);
+    }
+
+    /** Render a glyph using an explicitly selected HD44780U ROM profile. */
+    public static int [] glyphRows (final int characterCode, final RomProfile profile)
+    {
         if (characterCode < 0 || characterCode > 0x7F)
             throw new IllegalArgumentException ("Push 1 LCD character codes must be seven-bit values");
+        if (profile == null)
+            throw new IllegalArgumentException ("An HD44780U ROM profile is required");
         if (Push1DisplayGlyphs.isKnownCustomGlyph (characterCode))
             return Push1DisplayGlyphs.bitmapRows (characterCode);
 
@@ -64,7 +91,7 @@ public final class VirtualPush1LcdRasterizer
             case 0x1C -> bitmap ("00000", "00000", "00000", "00000", "00000", "10101", "00000", "00000"); // ellipsis
             case 0x1E -> bitmap ("00100", "00010", "11111", "00010", "00100", "00000", "00000", "00000"); // right arrow
             case 0x7F -> bitmap ("10000", "11000", "11100", "11110", "11100", "11000", "10000", "00000"); // selection arrow
-            default -> asciiGlyph (characterCode);
+            default -> asciiGlyph (characterCode, profile);
         };
     }
 
@@ -92,24 +119,36 @@ public final class VirtualPush1LcdRasterizer
         return result.toString ();
     }
 
-    private static int [] asciiGlyph (final int code)
+    private static int [] asciiGlyph (final int code, final RomProfile profile)
     {
         if (code < 0x20 || code > 0x7E)
             return bitmap ("01110", "10001", "00001", "00010", "00100", "00000", "00100", "00000");
-        return ROM_A00[code].clone ();
+        return (profile == RomProfile.HD44780U_A00 ? ROM_A00 : ROM_A02)[code].clone ();
+    }
+
+    private static RomProfile resolveProfile ()
+    {
+        final String configured = System.getProperty ("push1.lcd.rom", "A00").trim ().toUpperCase ();
+        return switch (configured)
+        {
+            case "A00" -> RomProfile.HD44780U_A00;
+            case "A02" -> RomProfile.HD44780U_A02;
+            default -> throw new IllegalArgumentException (
+                "Unsupported Push 1 LCD ROM profile '" + configured + "'; choose A00 or A02");
+        };
     }
 
     /**
      * Load the documented HD44780U A00 5x7 character ROM reference bitmap.
      * The source font and its OFL licence are kept as separate test resources.
      */
-    private static int [][] loadRomA00 ()
+    private static int [][] loadRom (final String profile)
     {
         final int [][] glyphs = new int [128][];
-        try (InputStream stream = VirtualPush1LcdRasterizer.class.getResourceAsStream ("/fonts/hd44780u-a00.chars.txt"))
+        try (InputStream stream = VirtualPush1LcdRasterizer.class.getResourceAsStream ("/fonts/hd44780u-" + profile.toLowerCase () + ".chars.txt"))
         {
             if (stream == null)
-                throw new IllegalStateException ("Missing HD44780U A00 LCD font resource");
+                throw new IllegalStateException ("Missing HD44780U " + profile + " LCD font resource");
             final String source = new String (stream.readAllBytes (), StandardCharsets.UTF_8);
             final Pattern blockPattern = Pattern.compile (
                 "(?m)^STARTCHAR U\\+([0-9A-Fa-f]{4})[^\\r\\n]*\\R([\\s\\S]*?)^ENDCHAR\\s*$");
@@ -133,18 +172,18 @@ public final class VirtualPush1LcdRasterizer
                     y++;
                 }
                 if (y != 7)
-                    throw new IllegalStateException ("HD44780U A00 glyph 0x" + Integer.toHexString (code)
+                    throw new IllegalStateException ("HD44780U " + profile + " glyph 0x" + Integer.toHexString (code)
                         + " does not contain seven 5-dot rows");
                 glyphs[code] = bitmap;
                 loaded++;
             }
             if (loaded != 95)
-                throw new IllegalStateException ("Expected 95 printable HD44780U A00 glyphs, loaded " + loaded);
+                throw new IllegalStateException ("Expected 95 printable HD44780U " + profile + " glyphs, loaded " + loaded);
             return glyphs;
         }
         catch (final IOException error)
         {
-            throw new IllegalStateException ("Cannot read HD44780U A00 LCD font resource", error);
+            throw new IllegalStateException ("Cannot read HD44780U " + profile + " LCD font resource", error);
         }
     }
 
