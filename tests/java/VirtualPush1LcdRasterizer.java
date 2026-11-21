@@ -139,7 +139,7 @@ public final class VirtualPush1LcdRasterizer
     }
 
     /**
-     * Load the documented HD44780U A00 5x7 character ROM reference bitmap.
+     * Load the documented HD44780U A00 or A02 5x7 character ROM reference bitmap.
      * The source font and its OFL licence are kept as separate test resources.
      */
     private static int [][] loadRom (final String profile)
