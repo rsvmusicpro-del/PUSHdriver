@@ -533,20 +533,11 @@ replace_menu_fragment(quantize_mode,
 # Give menu selection screens the same semantic LCD row compositor. The
 # physical button rows, selected-state glyphs and per-mode choices remain
 # mode-specific; only their common row geometry is centralized.
-def add_composition_import(path: str, label: str) -> None:
-    replace_menu_fragment(path,
-        "import de.mossgrabers.controller.ableton.push.controller.Push1Display;\\n",
-        "import de.mossgrabers.controller.ableton.push.controller.Push1Display;\\n"
-        "import de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition;\\n",
-        label)
-
-
 def replace_menu_display(path: str, replacement: str, label: str) -> None:
     replace_java_method(root / path, "public void updateDisplay1 (final ITextDisplay display)", replacement, label)
 
 
 note_view = "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteViewSelectMode.java"
-add_composition_import(note_view, "Note View Select shared row compositor")
 replace_menu_display(note_view, """public void updateDisplay1 (final ITextDisplay display)
     {
         final ViewManager viewManager = this.surface.getViewManager ();
@@ -572,13 +563,12 @@ replace_menu_display(note_view, """public void updateDisplay1 (final ITextDispla
         display.setBlock (1, 0, "Sequence:");
         display.setBlock (2, 0, "Play:");
         display.setBlock (2, 3, "Tools:");
-        display.setRow (0, Push1DisplayComposition.encoderLabels (playbackViews));
-        display.setRow (3, Push1DisplayComposition.encoderLabels (sequenceViews));
+        display.setRow (0, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.encoderLabels (playbackViews));
+        display.setRow (3, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.encoderLabels (sequenceViews));
     }""", "Note View Select semantic LCD rows")
 
 
 session_view = "src/main/java/de/mossgrabers/controller/ableton/push/mode/SessionViewSelectMode.java"
-add_composition_import(session_view, "Session View Select shared row compositor")
 replace_menu_display(session_view, """public void updateDisplay1 (final ITextDisplay display)
     {
         final ViewManager viewManager = this.surface.getViewManager ();
@@ -596,13 +586,12 @@ replace_menu_display(session_view, """public void updateDisplay1 (final ITextDis
 
         display.setBlock (1, 0, "Session view:");
         display.setBlock (1, 3, "Session mode:");
-        display.setRow (0, Push1DisplayComposition.encoderLabels (views));
-        display.setRow (3, Push1DisplayComposition.actionHints (actions));
+        display.setRow (0, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.encoderLabels (views));
+        display.setRow (3, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.actionHints (actions));
     }""", "Session View Select semantic LCD rows")
 
 
 scales_mode = "src/main/java/de/mossgrabers/controller/ableton/push/mode/ScalesMode.java"
-add_composition_import(scales_mode, "Scales shared row compositor")
 replace_menu_display(scales_mode, """public void updateDisplay1 (final ITextDisplay display)
     {
         final int selIndex = this.scales.getScale ().ordinal ();
@@ -624,13 +613,12 @@ replace_menu_display(scales_mode, """public void updateDisplay1 (final ITextDisp
             lowerBases[i + 1] = "  " + (offset == 6 + i ? Push1Display.SELECT_ARROW : " ") + Scales.BASES.get (6 + i);
         }
         lowerBases[7] = this.scales.isChromatic () ? "Chromatc" : "In Key";
-        display.setRow (2, Push1DisplayComposition.encoderLabels (upperBases));
-        display.setRow (3, Push1DisplayComposition.encoderLabels (lowerBases));
+        display.setRow (2, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.encoderLabels (upperBases));
+        display.setRow (3, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.encoderLabels (lowerBases));
     }""", "Scales semantic base-note rows")
 
 
 fixed_mode = "src/main/java/de/mossgrabers/controller/ableton/push/mode/FixedMode.java"
-add_composition_import(fixed_mode, "Fixed Length shared row compositor")
 replace_menu_display(fixed_mode, """public void updateDisplay1 (final ITextDisplay display)
     {
         display.setBlock (1, 0, "Create Clip (leng").setBlock (1, 1, "th not stored):");
@@ -644,13 +632,12 @@ replace_menu_display(fixed_mode, """public void updateDisplay1 (final ITextDispl
             createClipActions[i] = value;
             clipLengths[i] = (newClipLength == i ? Push1Display.SELECT_ARROW : "") + value;
         }
-        display.setRow (0, Push1DisplayComposition.actionHints (createClipActions));
-        display.setRow (3, Push1DisplayComposition.encoderLabels (clipLengths));
+        display.setRow (0, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.actionHints (createClipActions));
+        display.setRow (3, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.encoderLabels (clipLengths));
     }""", "Fixed Length semantic LCD rows")
 
 
 quantize_mode = "src/main/java/de/mossgrabers/controller/ableton/push/mode/QuantizeMode.java"
-add_composition_import(quantize_mode, "Quantize shared row compositor")
 replace_menu_display(quantize_mode, """public void updateDisplay1 (final ITextDisplay display)
     {
         final String [] topActions = new String [8];
@@ -673,15 +660,14 @@ replace_menu_display(quantize_mode, """public void updateDisplay1 (final ITextDi
 
         final int quantizeAmount = this.surface.getConfiguration ().getQuantizeAmount ();
         topActions[7] = "Quant Amnt";
-        display.setRow (0, Push1DisplayComposition.actionHints (topActions));
+        display.setRow (0, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.actionHints (topActions));
         display.setCell (1, 7, quantizeAmount + "%");
         display.setCell (2, 7, quantizeAmount * 1023 / 100, Format.FORMAT_VALUE);
-        display.setRow (3, Push1DisplayComposition.encoderLabels (recordQuantize));
+        display.setRow (3, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.encoderLabels (recordQuantize));
     }""", "Quantize semantic LCD rows")
 
 
 note_repeat = "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteRepeatMode.java"
-add_composition_import(note_repeat, "Note Repeat shared row compositor")
 replace_menu_display(note_repeat, """public void updateDisplay1 (final ITextDisplay display)
     {
         final String [] labels = new String [8];
@@ -745,13 +731,12 @@ replace_menu_display(note_repeat, """public void updateDisplay1 (final ITextDisp
             actions[7] = "Shuffle";
         }
 
-        display.setRow (0, Push1DisplayComposition.encoderLabels (labels));
-        display.setRow (3, Push1DisplayComposition.actionHints (actions));
+        display.setRow (0, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.encoderLabels (labels));
+        display.setRow (3, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.actionHints (actions));
     }""", "Note Repeat semantic LCD rows")
 
 
 marker_mode = "src/main/java/de/mossgrabers/controller/ableton/push/mode/MarkerMode.java"
-add_composition_import(marker_mode, "Marker shared row compositor")
 replace_menu_display(marker_mode, """public void updateDisplay1 (final ITextDisplay display)
     {
         final String [] actions = new String [8];
@@ -770,8 +755,8 @@ replace_menu_display(marker_mode, """public void updateDisplay1 (final ITextDisp
                 markers[i] = StringUtils.shortenAndFixASCII (getMarkerName (marker), 8);
         }
 
-        display.setRow (0, Push1DisplayComposition.actionHints (actions));
-        display.setRow (3, Push1DisplayComposition.encoderLabels (markers));
+        display.setRow (0, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.actionHints (actions));
+        display.setRow (3, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.encoderLabels (markers));
     }""", "Marker semantic LCD rows")
 
 # The device context row is a full-width status line, not a two-module label.
@@ -789,7 +774,7 @@ replace_menu_fragment(device_params_mode,
     """        // Row 3
         display.setBlock (2, 0, "Selected Device:").setBlock (2, 1, cd.getName ());""",
     """        // Row 3: one stable context module, followed by three modules of detail.
-        display.setRow (2, Push1DisplayComposition.contextRow ("DEVICE:", cd.getName ()));""",
+        display.setRow (2, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.contextRow ("DEVICE:", cd.getName ()));""",
     "Device context row uses all four LCD modules")
 
 
