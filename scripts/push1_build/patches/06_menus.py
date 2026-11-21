@@ -694,7 +694,7 @@ replace_menu_display(note_repeat, """public void updateDisplay1 (final ITextDisp
         }
 
         if (this.host.supports (Capability.NOTE_REPEAT_LATCH))
-            actions[4] = "Latch";
+            actions[4] = " Latch";
 
         final int upperBound = this.model.getValueChanger ().getUpperBound ();
         if (this.host.supports (Capability.NOTE_REPEAT_MODE))
@@ -743,7 +743,7 @@ replace_menu_display(marker_mode, """public void updateDisplay1 (final ITextDisp
         final String [] markers = new String [8];
         display.setCell (2, 0, "Markers:");
 
-        actions[0] = EDIT_MENU[0];
+        actions[0] = "";
         actions[5] = "Action:";
         actions[6] = (!this.actionModeLaunch ? Push1Display.SELECT_ARROW : "") + EDIT_MENU[6];
         actions[7] = (this.actionModeLaunch ? Push1Display.SELECT_ARROW : "") + EDIT_MENU[7];
@@ -756,6 +756,7 @@ replace_menu_display(marker_mode, """public void updateDisplay1 (final ITextDisp
         }
 
         display.setRow (0, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.actionHints (actions));
+        display.setBlock (0, 0, EDIT_MENU[0]);
         display.setRow (3, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.encoderLabels (markers));
     }""", "Marker semantic LCD rows")
 
