@@ -90,7 +90,7 @@ public final class VirtualPush1LcdRasterizer
             case 0x18 -> bitmap ("00000", "00100", "00000", "11111", "00000", "00100", "00000", "00000"); // division
             case 0x1C -> bitmap ("00000", "00000", "00000", "00000", "00000", "10101", "00000", "00000"); // ellipsis
             case 0x1E -> bitmap ("00100", "00010", "11111", "00010", "00100", "00000", "00000", "00000"); // right arrow
-            case 0x7F -> bitmap ("10000", "11000", "11100", "11110", "11100", "11000", "10000", "00000"); // selection arrow
+            case 0x7F -> bitmap ("00100", "00010", "00001", "00010", "00100", "00000", "00000", "00000"); // selection chevron
             default -> asciiGlyph (characterCode, profile);
         };
     }
