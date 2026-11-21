@@ -52,6 +52,12 @@ public final class SequencerEngineTest
         require (Push1PadGrid.indexForCoordinate (7, 0) == 63, "top-right coordinate maps to last MIDI button index");
         require (Push1PadGrid.rowForIndex (0) == 7, "first MIDI button index is on the bottom row");
         require (Push1PadGrid.rowForIndex (56) == 0, "top-left MIDI button index is on the top row");
+        require (Push1PadGrid.sequencerRowForIndex (0) == 0, "bottom MIDI row maps to sequencer row zero");
+        require (Push1PadGrid.sequencerRowForIndex (7) == 0, "bottom MIDI row maps to sequencer row zero across all columns");
+        require (Push1PadGrid.sequencerRowForIndex (56) == 7, "top MIDI row maps to sequencer row seven");
+        require (Push1PadGrid.sequencerRowForIndex (63) == 7, "top MIDI row maps to sequencer row seven across all columns");
+        require (Push1PadGrid.sequencerRowForIndex (-1) == -1, "invalid MIDI index has no sequencer row");
+        require (Push1PadGrid.sequencerRowForIndex (64) == -1, "out-of-range MIDI index has no sequencer row");
         require (Push1PadGrid.indexForCoordinate (8, 0) == -1, "out-of-range column rejected");
         require (Push1PadGrid.indexForCoordinate (0, 8) == -1, "out-of-range row rejected");
         for (int index = 0; index < Push1PadGrid.PAD_COUNT; index++)

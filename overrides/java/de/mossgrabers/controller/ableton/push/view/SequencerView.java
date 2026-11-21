@@ -212,11 +212,11 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             return;
         padButton.setConsumed ();
 
-        final int y = Push1PadGrid.rowForIndex (index);
-        if (y >= this.numSequencerRows)
+        final int sequencerRow = Push1PadGrid.sequencerRowForIndex (index);
+        if (sequencerRow < 0 || sequencerRow >= this.numSequencerRows)
             return;
 
-        final NotePosition notePosition = new NotePosition (this.configuration.getMidiEditChannel (), Push1PadGrid.columnForIndex (index), this.keyManager.map (y));
+        final NotePosition notePosition = new NotePosition (this.configuration.getMidiEditChannel (), Push1PadGrid.columnForIndex (index), this.keyManager.map (sequencerRow));
         final INoteClip clip = this.getClip ();
         if (clip.doesExist ())
             this.editNote (clip, notePosition, false);
