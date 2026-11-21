@@ -613,6 +613,11 @@ replace_once(push_display,
     "",
     "Remove obsolete Push1Display Arrays import")
 
+replace_once(push_display,
+    "import de.mossgrabers.framework.utils.StringUtils;\\n",
+    "",
+    "Remove obsolete Push1Display StringUtils import")
+
 # Make the physical four-module LCD geometry a single production contract.
 replace_once(push_display,
     "        super (host, output, 4 /* No of rows */, 8 /* No of cells */, 68 /* No of characters */);",
