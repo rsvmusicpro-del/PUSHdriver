@@ -25,8 +25,21 @@ public final class Push1DisplayText
      */
     public static String fitAscii (final String value, final int width)
     {
-        final String normalized = value == null ? "" : value.replace ('…', (char) ELLIPSIS_CHARACTER_CODE);
-        return fit (StringUtils.fixASCII (normalized), width);
+        final StringBuilder ascii = new StringBuilder ();
+        if (value != null)
+        {
+            value.codePoints ().forEach (codePoint -> {
+                if (codePoint == 0x2026)
+                    ascii.append ((char) ELLIPSIS_CHARACTER_CODE);
+                else if (codePoint <= 0x7F)
+                    ascii.append ((char) codePoint);
+                else if (codePoint <= Character.MAX_VALUE && !Character.isSurrogate ((char) codePoint))
+                    ascii.append (StringUtils.fixASCII (Character.toString ((char) codePoint)));
+                else
+                    ascii.append ('?');
+            });
+        }
+        return fit (ascii.toString (), width);
     }
 
     /**
