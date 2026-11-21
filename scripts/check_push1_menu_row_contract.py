@@ -60,10 +60,12 @@ expected_bottom = """    private static final Views [] VIEWS     =
 require(expected_top in note, "Note menu upper-row choices must match the requested eight-button layout")
 require(expected_bottom in note, "Note menu lower row must preserve Play/Chords/Piano/Drum64 and fixed tools")
 note_display = method(note, "public void updateDisplay1")
-require("VIEWS_TOP[i]" in note_display and "display.setCell (0, i" in note_display,
-        "Note menu upper LCD labels must follow the upper-row view mapping")
-require("VIEWS[i]" in note_display and "display.setCell (3, i" in note_display,
-        "Note menu lower LCD labels must preserve the lower-row mapping")
+require("VIEWS_TOP[i]" in note_display and "playbackViews[i]" in note_display
+        and "encoderLabels (playbackViews)" in note_display,
+        "Note menu upper LCD labels must follow the shared upper-row composition")
+require("VIEWS[i]" in note_display and "sequenceViews[i]" in note_display
+        and "encoderLabels (sequenceViews)" in note_display,
+        "Note menu lower LCD labels must follow the shared lower-row composition")
 views_source = (ROOT / "src/main/java/de/mossgrabers/framework/view/Views.java").read_text()
 setup_source = (ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/PushControllerSetup.java").read_text()
 require("RAINDROPS" in views_source and "VIEW_NAMES.put (NAME_RAINDROPS, RAINDROPS)" in views_source,
