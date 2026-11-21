@@ -535,11 +535,9 @@ replace_menu_fragment(quantize_mode,
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
 replace_menu_fragment(device_params_mode,
     """import de.mossgrabers.controller.ableton.push.controller.Push1Display;
-import de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition;
 """,
     """import de.mossgrabers.controller.ableton.push.controller.Push1Display;
-import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
-import de.mossgrabers.controller.ableton.push.controller.Push1DisplayText;
+import de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition;
 """,
     "Device context full-width LCD helpers")
 replace_menu_fragment(device_params_mode,
