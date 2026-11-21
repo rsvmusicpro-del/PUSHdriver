@@ -109,6 +109,12 @@ public final class VirtualPush1DisplayTextTest
             "right-block overlay must preserve the left 51 cells");
         require (notification.substring (51).equals ("GO" + " ".repeat (15)),
             "right-block notification must be fitted to the final 17 cells");
+        final String overlayEllipsis = Push1DisplayText.overlayRightBlock ("…".repeat (51), "OK");
+        require (overlayEllipsis.substring (0, 51).equals (ellipsis.repeat (51)),
+            "right-block composition must preserve firmware ellipsis glyphs in the existing row");
+        final String overlayCustomGlyph = Push1DisplayText.overlayRightBlock (folderGlyph.repeat (51), "OK");
+        require (overlayCustomGlyph.substring (0, 51).equals (folderGlyph.repeat (51)),
+            "right-block composition must preserve Push programmable glyphs in the existing row");
 
         final String normalized = Push1DisplayText.overlayRightBlock ("A😀B", "");
         require (normalized.length () == 68, "Unicode normalization must preserve 68-cell rows");
