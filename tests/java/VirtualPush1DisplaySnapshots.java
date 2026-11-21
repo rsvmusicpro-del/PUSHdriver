@@ -25,6 +25,7 @@ public final class VirtualPush1DisplaySnapshots
     private static final int ROW_GAP = 12;
     private static final Color BACKGROUND = new Color (29, 34, 27);
     private static final Color LIT_DOT = new Color (177, 210, 130);
+    private static int captureCount;
 
     private VirtualPush1DisplaySnapshots ()
     {
@@ -82,6 +83,7 @@ public final class VirtualPush1DisplaySnapshots
             if (!ImageIO.write (image, "png", png.toFile ()))
                 throw new IOException ("No PNG writer is available");
             Files.writeString (txt, codes.toString (), StandardCharsets.UTF_8);
+            captureCount++;
         }
         catch (final IOException error)
         {
@@ -91,5 +93,11 @@ public final class VirtualPush1DisplaySnapshots
         {
             graphics.dispose ();
         }
+    }
+
+    /** Number of complete PNG/text snapshot pairs exported in this JVM. */
+    public static int captureCount ()
+    {
+        return captureCount;
     }
 }
