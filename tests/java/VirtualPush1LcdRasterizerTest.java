@@ -49,7 +49,7 @@ public final class VirtualPush1LcdRasterizerTest
         checkArray (VirtualPush1LcdRasterizer.glyphRows (0x1E),
             new int [] { 0x04, 0x02, 0x1F, 0x02, 0x04, 0, 0, 0 }, "right-arrow glyph");
         checkArray (VirtualPush1LcdRasterizer.glyphRows (0x7F),
-            new int [] { 0x10, 0x18, 0x1C, 0x1E, 0x1C, 0x18, 0x10, 0 }, "selection-arrow glyph");
+            new int [] { 0x04, 0x02, 0x01, 0x02, 0x04, 0, 0, 0 }, "selection-chevron glyph");
 
         for (int glyph = 0; glyph < 8; glyph++)
         {
