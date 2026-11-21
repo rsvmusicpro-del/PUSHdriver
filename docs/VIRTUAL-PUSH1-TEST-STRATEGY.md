@@ -7,7 +7,7 @@ The test target is the original Ableton Push 1, Bitwig Studio 4.3.10, Bitwig Ext
 
 ## Pixel-level LCD rendering
 
-The optional Swing simulator paints the four character LCD modules as dot matrices rather than using a desktop text font. It uses the eight extracted Push 1 custom glyphs and a separately licensed HD44780U A00 ROM reference bitmap set. The deterministic rasterizer test covers all 128 seven-bit codes, and the headless Swing smoke test paints the same component used by the interactive simulator. The exact controller ROM fitted to Push 1 production revisions is not yet confirmed; A00 is therefore a documented reference profile, not a claim that every standard glyph is optically identical to every unit.
+The optional Swing simulator paints the four character LCD modules as dot matrices rather than using a desktop text font. It uses the eight extracted Push 1 custom glyphs and separately licensed HD44780U A00/A02 ROM reference bitmap sets. The profile is selectable with `-Dpush1.lcd.rom=A00|A02`; CI exercises both. The deterministic rasterizer test covers all 128 seven-bit codes, and the headless Swing smoke test paints the same component used by the interactive simulator. The exact controller ROM fitted to Push 1 production revisions is not yet confirmed; these are documented reference profiles, not a claim that every standard glyph is optically identical to every unit.
 
 ## Why a single simulator is not enough
 
