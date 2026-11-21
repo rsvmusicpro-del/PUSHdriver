@@ -7,6 +7,10 @@ on:
     branches: [custom]
   workflow_dispatch:
 
+concurrency:
+  group: push1-display-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
