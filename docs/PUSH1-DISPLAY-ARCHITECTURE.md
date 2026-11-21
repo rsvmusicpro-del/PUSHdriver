@@ -23,7 +23,7 @@ This is deliberately enforced at the display boundary, rather than relying on ea
 
 ## Pixel-level virtual LCD
 
-The Swing simulator no longer delegates LCD text to the host operating-system font. Each of the four physical modules is painted as 17 independent 5×8 dot-matrix characters at six-dot horizontal pitch. The eight programmable glyphs (codes 0–7) use the Push 1 firmware bitmaps already checked into the project. Printable character ROM glyphs are loaded from separately licensed HD44780U A00 and A02 5×7 reference bitmap sets in `tests/resources/fonts/`; their SIL Open Font License is included as `tests/resources/fonts/OFL-1.1.txt`. The eighth dot row is blank for these 5×7 ROM profiles. Select the simulator profile with `python3 scripts/run_virtual_push1.py --gui --lcd-rom=A00` (default) or `--lcd-rom=A02`. Push-specific codes 9, 24, 28, 30 and 127 have explicit virtual glyphs.
+The Swing simulator no longer delegates LCD text to the host operating-system font. Each of the four physical modules is painted as 17 independent 5×8 dot-matrix characters at six-dot horizontal pitch. The eight programmable glyphs (codes 0–7) use the Push 1 firmware bitmaps already checked into the project. Printable character ROM glyphs are loaded from separately licensed HD44780U A00 and A02 5×7 reference bitmap sets in `tests/resources/fonts/`; their SIL Open Font License is included as `tests/resources/fonts/OFL-1.1.txt`. The eighth dot row is blank for these 5×7 ROM profiles. Select the simulator profile with `python3 scripts/run_virtual_push1.py --gui --lcd-rom=A00` (default) or `--lcd-rom=A02`. Push-specific codes 9, 24, 28, 29, 30, 31 and 127 have explicit virtual glyphs (degree, division, ellipsis, full block, left/right arrows and selection bullet).
 
 The rasterizer is deterministic and independent of AWT fonts. Its test checks all 128 seven-bit character codes, 5-bit row bounds, the six-dot pitch, the 17-character module width, and byte-for-byte equality of the eight custom glyphs against the firmware bitmap table. The Swing smoke test paints the actual dot-matrix component in headless mode.
 
@@ -36,7 +36,7 @@ The A00 and A02 ROMs are documented HD44780U references, not confirmed Push 1 BO
 - Text is transliterated before width fitting, so expansions such as `Ü → Ue`, `ß → ss` and `→ → ->` cannot overflow a cell after truncation.
 - Long labels use the Push firmware's single-cell ellipsis character (code `0x1C`) and retain context from both ends.
 - Supplementary Unicode code points are replaced as one display cell; malformed surrogate halves are never sent as separate characters.
-- Push-specific seven-bit glyphs are retained. Codes 0–7 are the eight programmable 5×8 glyphs; the controller also uses firmware glyphs for degree (9), division (24), ellipsis (28), right arrow (30) and selection arrow (127).
+- Push-specific seven-bit glyphs are retained. Codes 0–7 are the eight programmable 5×8 glyphs; the controller also uses firmware glyphs for degree (9), division (24), ellipsis (28), full block (29), left/right arrows (30/31) and selection bullet (127).
 - The simulator converts the firmware ellipsis to one visible Unicode ellipsis cell. It does not expand it to three ASCII dots and shift the module geometry.
 
 ## Values, bars and parameter feedback
