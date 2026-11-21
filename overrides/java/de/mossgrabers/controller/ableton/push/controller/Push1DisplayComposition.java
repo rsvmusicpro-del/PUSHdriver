@@ -42,7 +42,7 @@ public final class Push1DisplayComposition
     public static String contextRow (final String label, final String detail)
     {
         return Push1DisplayLayout.fitBlock (label)
-            + Push1DisplayText.fit (detail, CONTEXT_VALUE_WIDTH);
+            + Push1DisplayText.fitAscii (detail, CONTEXT_VALUE_WIDTH);
     }
 
     private static String composeCells (final String... fields)
