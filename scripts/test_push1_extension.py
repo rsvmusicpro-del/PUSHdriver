@@ -25,6 +25,7 @@ classpath = os.pathsep.join((str(extension), str(api)))
 test_sources = (
     root / "tests/java/VirtualPush1MidiBench.java",
     root / "tests/java/VirtualPush1MidiConcurrencyTest.java",
+    root / "tests/java/AbstractHwButtonSafetyTest.java",
     root / "tests/java/VirtualPush1Device.java",
     root / "tests/java/VirtualPush1DeviceTest.java",
     root / "tests/java/VirtualPush1DisplayLayoutTest.java",
