@@ -50,6 +50,8 @@ public final class VirtualPush1DisplayTextTest
             "ASCII transliteration must preserve an existing Unicode ellipsis as the firmware glyph");
         check (Push1DisplayText.fitAscii ("Übergrößen", 8), "Uebe" + ellipsis + "sen",
             "long names must retain existing ASCII transliteration before firmware-ellipsis fitting");
+        check (Push1DisplayText.fitAscii ("A😀B", 4), "A?B ",
+            "supplementary Unicode characters must occupy one safe replacement cell after transliteration");
 
         final String cell = Push1DisplayLayout.fitCell ("SuperLongTrackName", 0);
         check (cell, "Supe" + ellipsis + "ame ",
