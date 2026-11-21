@@ -52,6 +52,13 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
     )
     runtime_classpath = os.pathsep.join((classpath, output, str(root / "tests/resources")))
     command = ["java"]
+    lcd_rom = next(
+        (argument.split("=", 1)[1] for argument in sys.argv[1:] if argument.startswith("--lcd-rom=")),
+        "A00",
+    )
+    if lcd_rom not in ("A00", "A02"):
+        raise SystemExit("--lcd-rom must be A00 or A02")
+    command.append(f"-Dpush1.lcd.rom={lcd_rom}")
     fuzz_seed = next(
         (argument.split("=", 1)[1] for argument in sys.argv[1:] if argument.startswith("--fuzz-seed=")),
         None,
@@ -98,9 +105,9 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
 
             def reproduces(action_count: int) -> bool:
                 replay = [
-                    "java", f"-Dpush1.fuzz.seed={seed}", f"-Dpush1.fuzz.view={view}",
-                    f"-Dpush1.fuzz.actions={action_count}", "-cp", runtime_classpath,
-                    "VirtualPush1RuntimeTest",
+                    "java", f"-Dpush1.lcd.rom={lcd_rom}", f"-Dpush1.fuzz.seed={seed}",
+                    f"-Dpush1.fuzz.view={view}", f"-Dpush1.fuzz.actions={action_count}",
+                    "-cp", runtime_classpath, "VirtualPush1RuntimeTest",
                 ]
                 result = subprocess.run(replay, cwd=root, capture_output=True, text=True)
                 combined = result.stdout + "\n" + result.stderr
