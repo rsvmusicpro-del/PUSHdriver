@@ -1945,6 +1945,9 @@ public final class VirtualPush1RuntimeTest
             renderedModes++;
         }
         require (renderedModes > 0, "No registered Push 1 modes were exercised by the display matrix");
+        if (System.getProperty ("push1.display.snapshots") != null)
+            require (VirtualPush1DisplaySnapshots.captureCount () == allPushViews.length + renderedModes,
+                "Production LCD visual snapshot count must match every Push 1 view and registered mode");
         modes.setActive (Modes.TRACK);
 
         // DrivenByMoss' own setup test traverses every registered view/mode
