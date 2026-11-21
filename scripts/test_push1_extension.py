@@ -68,6 +68,7 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
             if not value.isdigit():
                 raise SystemExit(f"{option[:-1]} must be a positive integer")
             command.append(f"-D{property_name}={value}")
+    subprocess.run(["java", "-cp", runtime_classpath, "AbstractHwButtonSafetyTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "VirtualPush1MidiConcurrencyTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "SequencerEngineTest"], cwd=root, check=True)
     command.extend(["-cp", runtime_classpath, "VirtualPush1RuntimeTest"])
