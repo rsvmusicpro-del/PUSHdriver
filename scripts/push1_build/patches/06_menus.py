@@ -529,5 +529,16 @@ replace_menu_fragment(quantize_mode,
         index = this.isButtonRow (0, buttonID);""",
     "Quantize row LED feedback")
 
+# The device context row is a full-width status line, not a two-module label.
+# Keep a short, stable label in the first 17-character module and let the
+# selected device name use the remaining three modules (51 characters).
+device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
+replace_menu_fragment(device_params_mode,
+    """        // Row 3
+        display.setBlock (2, 0, "Selected Device:").setBlock (2, 1, cd.getName ());""",
+    """        // Row 3: dedicate module 0 to the label and modules 1-3 to the device name.
+        display.setRow (2, Push1DisplayText.fitAscii ("DEVICE:" + " ".repeat (10) + cd.getName (), Push1DisplayLayout.COLUMNS));""",
+    "Device context row uses all four LCD modules")
+
 
 
