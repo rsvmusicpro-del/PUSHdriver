@@ -2,7 +2,7 @@ name: Build PUSHdriver
 
 on:
   push:
-    branches: [custom]
+    branches: [custom, feature/push1-display-refinement]
   pull_request:
     branches: [custom]
   workflow_dispatch:
