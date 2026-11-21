@@ -111,14 +111,19 @@ require('display.setRow (2, Push1DisplayText.fitAscii ("DEVICE:" + " ".repeat (1
         "Device context row must use all four 17-character LCD modules")
 
 # All upstream mode writers pass through the physical Push 1 geometry.
-push_display = read("controller/Push1Display.java")
+display_path = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push1Display.java"
+if not display_path.is_file():
+    raise SystemExit(f"Missing assembled Push 1 display: {display_path}")
+push_display = display_path.read_text()
 cell_writer = method(push_display, "public ITextDisplay setCell (final int row, final int cell, final String value)")
 block_writer = method(push_display, "public ITextDisplay setBlock (final int row, final int block, final String value)")
 require("Push1DisplayLayout.fitCell (value, cell)" in cell_writer,
         "every Push 1 cell write must be transliterated and bounded to its physical 9/8 width")
 require("Push1DisplayLayout.fitBlock (value)" in block_writer
-        and "substring (0, 9)" in block_writer and "substring (9, 17)" in block_writer,
-        "every Push 1 module write must be bounded to exactly 17 characters")
+        and "Push1DisplayLayout.firstCellForBlock (block)" in block_writer
+        and "Push1DisplayLayout.cellWidth (firstCell)" in block_writer
+        and "fitted.substring" in block_writer,
+        "every Push 1 module write must be bounded to exactly 17 characters and split at the physical 9/8 boundary")
 require("Push1DisplayLayout.fitRow (text)" in method(push_display, "public void writeLine"),
         "every physical LCD row must use the shared 68-column fitter")
 row_writer = method(push_display, "public ITextDisplay setRow (final int row, final String str)")
