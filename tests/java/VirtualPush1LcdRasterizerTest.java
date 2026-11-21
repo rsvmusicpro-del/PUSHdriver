@@ -24,6 +24,13 @@ public final class VirtualPush1LcdRasterizerTest
             }
         check (litPixels > 0, "visible text must produce lit LCD dots");
 
+        checkArray (VirtualPush1LcdRasterizer.glyphRows ('A'),
+            new int [] { 0x0E, 0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x00 },
+            "printable ASCII uses the sourced HD44780U A00 bitmap, not a host font");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows ('a'),
+            new int [] { 0x00, 0x00, 0x0E, 0x01, 0x0F, 0x11, 0x0F, 0x00 },
+            "lowercase glyphs retain the LCD ROM's actual lowercase form");
+
         for (int glyph = 0; glyph < 8; glyph++)
         {
             final int [] expected = Push1DisplayGlyphs.bitmapRows (glyph);
@@ -65,6 +72,11 @@ public final class VirtualPush1LcdRasterizerTest
         }
 
         System.out.println ("Virtual Push 1 LCD rasterizer passed: 5x8 dots, 6-dot pitch, 17 columns, all 128 codes and exact eight custom glyph bitmaps.");
+    }
+
+    private static void checkArray (final int [] actual, final int [] expected, final String label)
+    {
+        check (java.util.Arrays.equals (actual, expected), label);
     }
 
     private static void expectInvalid (final String row)
