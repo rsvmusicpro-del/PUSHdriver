@@ -276,6 +276,6 @@ replace_once(push_display,
     "Push 1 full-row writes are normalized to 68 physical columns")
 
 replace_once(push_display,
-    """final String t = text.replace (Push1Display.BARS_NON, "-").replace (Push1Display.BARS_ONE, "|").replace (Push1Display.BARS_TWO, "|").replace (Push1Display.BARS_ONE_L, "|").replace (Push1Display.SELECT_ARROW, ">").replace (Push1Display.RIGHT_ARROW, ">");""",
-    """final String t = Push1DisplayLayout.fitRow (text).replace (Push1Display.BARS_NON, "-").replace (Push1Display.BARS_ONE, "|").replace (Push1Display.BARS_TWO, "|").replace (Push1Display.BARS_ONE_L, "|").replace (Push1Display.SELECT_ARROW, ">").replace (Push1Display.RIGHT_ARROW, ">").replace (Character.toString ((char) 0x1C), "…");""",
-    "Push 1 simulator shares the 68-column fitter and one-cell ellipsis")
+    """return Push1DisplayLayout.separateModulesForSimulator (t);""",
+    """return Push1DisplayLayout.separateModulesForSimulator (t).replace (Character.toString ((char) 0x1C), "…");""",
+    "Push 1 simulator renders firmware ellipsis after physical module segmentation")
