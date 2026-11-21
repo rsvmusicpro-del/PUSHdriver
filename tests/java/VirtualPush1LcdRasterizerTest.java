@@ -44,6 +44,14 @@ public final class VirtualPush1LcdRasterizerTest
             new int [] { 0x0A, 0, 0x0E, 0x11, 0x1F, 0x11, 0x11, 0 }, "Push Ä extended ROM glyph");
         checkArray (VirtualPush1LcdRasterizer.glyphRows (0x0D),
             new int [] { 0x0A, 0, 0x11, 0x11, 0x11, 0x11, 0x0E, 0 }, "Push Ü extended ROM glyph");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x0F),
+            new int [] { 0x08, 0x04, 0x0E, 0x01, 0x0F, 0x11, 0x0F, 0 }, "Push à extended ROM glyph");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x10),
+            new int [] { 0x0A, 0, 0x0E, 0x01, 0x0F, 0x11, 0x0F, 0 }, "Push ä extended ROM glyph");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x17),
+            new int [] { 0, 0x0A, 0, 0x0E, 0x11, 0x11, 0x0E, 0 }, "Push ö extended ROM glyph");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x1A),
+            new int [] { 0x0A, 0, 0x11, 0x11, 0x11, 0x13, 0x0D, 0 }, "Push ü extended ROM glyph");
         checkArray (VirtualPush1LcdRasterizer.glyphRows (0x1E),
             new int [] { 0, 0x04, 0x08, 0x1F, 0x08, 0x04, 0, 0 }, "Push left-arrow ROM glyph");
         checkArray (VirtualPush1LcdRasterizer.glyphRows (0x1F),
