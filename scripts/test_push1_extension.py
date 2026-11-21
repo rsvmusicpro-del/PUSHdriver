@@ -39,6 +39,7 @@ test_sources = (
     root / "tests/java/de/mossgrabers/controller/ableton/push/command/trigger/PushDeviceNavigationFingerprintTest.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/engine/Push1PadGrid.java",
     root / "tests/java/VirtualPush1Simulator.java",
+    root / "tests/java/VirtualPush1LcdRasterizer.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayGlyphs.java",
@@ -68,6 +69,7 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
                       if argument.startswith(option)), None)
         if value is not None:
             command.append(f"-D{property_name}={positive_integer(value, option[:-1])}")
+    subprocess.run(["java", "-cp", runtime_classpath, "VirtualPush1LcdRasterizerTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "AbstractHwButtonSafetyTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "VirtualPush1MidiConcurrencyTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "SequencerEngineTest"], cwd=root, check=True)
