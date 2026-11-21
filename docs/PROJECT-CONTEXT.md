@@ -217,11 +217,13 @@ job is the aggregate result and requires both Linux build/virtual simulation and
 Intel macOS build/virtual simulation to succeed. The local equivalent is
 `python3 scripts/run_virtual_push1.py`. See
 `docs/DEVELOPMENT-QUALITY-GATE.md` for the required repository settings and
-verification procedure. GitHub reports `custom` as protected and exposes
-`quality-gate` as a required status check enforced for everyone. The connected
-integration cannot inspect the separate protection endpoint (HTTP 403), so
-confirm any additional pull-request review and bypass restrictions in GitHub
-Settings rather than assuming they are enabled.
+verification procedure. As verified on 2026-11-19, active ruleset
+`protection` (ID `27227660`) requires pull requests and the strict
+`quality-gate` status check, blocks branch deletion and non-fast-forward
+updates, and has no bypass actor; required human approvals are zero. This
+verified state supersedes the earlier note that the detailed protection
+endpoint was unreadable. Recheck the live ruleset if repository governance
+changes.
 
 
 ## Device mode source-of-truth reset (2026-11-14)
