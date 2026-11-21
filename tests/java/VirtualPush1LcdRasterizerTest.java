@@ -46,10 +46,14 @@ public final class VirtualPush1LcdRasterizerTest
             new int [] { 0, 0x04, 0, 0x1F, 0, 0x04, 0, 0 }, "Push division glyph");
         checkArray (VirtualPush1LcdRasterizer.glyphRows (0x1C),
             new int [] { 0, 0, 0, 0, 0, 0x15, 0, 0 }, "single-cell ellipsis glyph");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x1D),
+            new int [] { 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F }, "full-block glyph");
         checkArray (VirtualPush1LcdRasterizer.glyphRows (0x1E),
-            new int [] { 0x04, 0x02, 0x1F, 0x02, 0x04, 0, 0, 0 }, "right-arrow glyph");
+            new int [] { 0, 0x04, 0x08, 0x1F, 0x08, 0x04, 0, 0 }, "Push left-arrow glyph");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x1F),
+            new int [] { 0, 0x04, 0x02, 0x1F, 0x02, 0x04, 0, 0 }, "Push right-arrow glyph");
         checkArray (VirtualPush1LcdRasterizer.glyphRows (0x7F),
-            new int [] { 0x04, 0x02, 0x01, 0x02, 0x04, 0, 0, 0 }, "selection-chevron glyph");
+            new int [] { 0, 0x04, 0x06, 0x07, 0x06, 0x04, 0, 0 }, "selection-bullet glyph");
 
         for (int glyph = 0; glyph < 8; glyph++)
         {
@@ -68,7 +72,7 @@ public final class VirtualPush1LcdRasterizerTest
                     check ((rows[y] & ~0x1F) == 0,
                         "glyph row stays within five dots: " + profile + "/" + code + "/" + y);
                 final boolean known = (code >= 0 && code <= 7) || code == 9 || code == 24
-                    || code == 28 || code == 30 || code == 127 || (code >= 32 && code <= 126);
+                    || code == 28 || code == 29 || code == 30 || code == 31 || code == 127 || (code >= 32 && code <= 126);
                 check (VirtualPush1LcdRasterizer.hasReferenceGlyph (code) == known,
                     "known ROM glyph profile is explicit; other controls use the visible fallback: " + code);
             }
