@@ -42,7 +42,7 @@ The pinned `AbstractTextDisplay.flush()` already compares each completed row wit
 
 Modes continue to decide what information belongs on each of the four rows; the renderer guarantees that every resulting row is physically valid. Module writes stay within their 17-column module, cell writes stay within their 9/8 logical cell, and full-row writes occupy the complete 68-column surface. A full-row context (such as the selected device name) is rendered as a normal 68-column row; it does not paint over another row or use a notification overlay.
 
-The base notification system remains a temporary display message. It is separate from persistent mode content and is restored by the existing force-refresh flow.
+Notifications use the base full-display notification path; no notification is painted over a persistent row or module.
 
 ## Verification boundary
 
