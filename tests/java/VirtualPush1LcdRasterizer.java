@@ -4,6 +4,12 @@
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayGlyphs;
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * Deterministic 5x8 dot-matrix renderer for one physical Push 1 LCD module row.
  *
@@ -20,6 +26,8 @@ public final class VirtualPush1LcdRasterizer
     public static final int MODULE_CHARACTERS = Push1DisplayLayout.MODULE_COLUMNS;
     public static final int RASTER_WIDTH = MODULE_CHARACTERS * CHARACTER_PITCH;
     public static final int RASTER_HEIGHT = DOT_ROWS;
+
+    private static final int [][] ROM_A00 = loadRomA00 ();
 
     private VirtualPush1LcdRasterizer ()
     {
@@ -86,72 +94,58 @@ public final class VirtualPush1LcdRasterizer
 
     private static int [] asciiGlyph (final int code)
     {
-        if (code == 0x20)
-            return bitmap ("00000", "00000", "00000", "00000", "00000", "00000", "00000", "00000");
-        final char c = Character.toUpperCase ((char) code);
-        return switch (c)
+        if (code < 0x20 || code > 0x7E)
+            return bitmap ("01110", "10001", "00001", "00010", "00100", "00000", "00100", "00000");
+        return ROM_A00[code].clone ();
+    }
+
+    /**
+     * Load the documented HD44780U A00 5x7 character ROM reference bitmap.
+     * The source font and its OFL licence are kept as separate test resources.
+     */
+    private static int [][] loadRomA00 ()
+    {
+        final int [][] glyphs = new int [128][];
+        try (InputStream stream = VirtualPush1LcdRasterizer.class.getResourceAsStream ("/fonts/hd44780u-a00.chars.txt"))
         {
-            case '0' -> bitmap ("01110","10001","10011","10101","11001","10001","01110","00000");
-            case '1' -> bitmap ("00100","01100","00100","00100","00100","00100","01110","00000");
-            case '2' -> bitmap ("01110","10001","00001","00010","00100","01000","11111","00000");
-            case '3' -> bitmap ("11110","00001","00001","01110","00001","00001","11110","00000");
-            case '4' -> bitmap ("00010","00110","01010","10010","11111","00010","00010","00000");
-            case '5' -> bitmap ("11111","10000","10000","11110","00001","00001","11110","00000");
-            case '6' -> bitmap ("01110","10000","10000","11110","10001","10001","01110","00000");
-            case '7' -> bitmap ("11111","00001","00010","00100","01000","01000","01000","00000");
-            case '8' -> bitmap ("01110","10001","10001","01110","10001","10001","01110","00000");
-            case '9' -> bitmap ("01110","10001","10001","01111","00001","00001","01110","00000");
-            case 'A' -> bitmap ("01110","10001","10001","11111","10001","10001","10001","00000");
-            case 'B' -> bitmap ("11110","10001","10001","11110","10001","10001","11110","00000");
-            case 'C' -> bitmap ("01111","10000","10000","10000","10000","10000","01111","00000");
-            case 'D' -> bitmap ("11110","10001","10001","10001","10001","10001","11110","00000");
-            case 'E' -> bitmap ("11111","10000","10000","11110","10000","10000","11111","00000");
-            case 'F' -> bitmap ("11111","10000","10000","11110","10000","10000","10000","00000");
-            case 'G' -> bitmap ("01111","10000","10000","10111","10001","10001","01111","00000");
-            case 'H' -> bitmap ("10001","10001","10001","11111","10001","10001","10001","00000");
-            case 'I' -> bitmap ("01110","00100","00100","00100","00100","00100","01110","00000");
-            case 'J' -> bitmap ("00111","00010","00010","00010","10010","10010","01100","00000");
-            case 'K' -> bitmap ("10001","10010","10100","11000","10100","10010","10001","00000");
-            case 'L' -> bitmap ("10000","10000","10000","10000","10000","10000","11111","00000");
-            case 'M' -> bitmap ("10001","11011","10101","10101","10001","10001","10001","00000");
-            case 'N' -> bitmap ("10001","11001","10101","10011","10001","10001","10001","00000");
-            case 'O' -> bitmap ("01110","10001","10001","10001","10001","10001","01110","00000");
-            case 'P' -> bitmap ("11110","10001","10001","11110","10000","10000","10000","00000");
-            case 'Q' -> bitmap ("01110","10001","10001","10001","10101","10010","01101","00000");
-            case 'R' -> bitmap ("11110","10001","10001","11110","10100","10010","10001","00000");
-            case 'S' -> bitmap ("01111","10000","10000","01110","00001","00001","11110","00000");
-            case 'T' -> bitmap ("11111","00100","00100","00100","00100","00100","00100","00000");
-            case 'U' -> bitmap ("10001","10001","10001","10001","10001","10001","01110","00000");
-            case 'V' -> bitmap ("10001","10001","10001","10001","10001","01010","00100","00000");
-            case 'W' -> bitmap ("10001","10001","10001","10101","10101","10101","01010","00000");
-            case 'X' -> bitmap ("10001","10001","01010","00100","01010","10001","10001","00000");
-            case 'Y' -> bitmap ("10001","10001","01010","00100","00100","00100","00100","00000");
-            case 'Z' -> bitmap ("11111","00001","00010","00100","01000","10000","11111","00000");
-            case '.' -> bitmap ("00000","00000","00000","00000","00000","00110","00110","00000");
-            case ',' -> bitmap ("00000","00000","00000","00000","00110","00110","00100","01000");
-            case ':' -> bitmap ("00000","00110","00110","00000","00110","00110","00000","00000");
-            case ';' -> bitmap ("00000","00110","00110","00000","00110","00110","00100","01000");
-            case '-' -> bitmap ("00000","00000","00000","11111","00000","00000","00000","00000");
-            case '_' -> bitmap ("00000","00000","00000","00000","00000","00000","11111","00000");
-            case '+' -> bitmap ("00000","00100","00100","11111","00100","00100","00000","00000");
-            case '=' -> bitmap ("00000","00000","11111","00000","11111","00000","00000","00000");
-            case '/' -> bitmap ("00001","00010","00010","00100","01000","01000","10000","00000");
-            case '\\' -> bitmap ("10000","01000","01000","00100","00010","00010","00001","00000");
-            case '?' -> bitmap ("01110","10001","00001","00010","00100","00000","00100","00000");
-            case '!' -> bitmap ("00100","00100","00100","00100","00100","00000","00100","00000");
-            case '(' -> bitmap ("00010","00100","01000","01000","01000","00100","00010","00000");
-            case ')' -> bitmap ("01000","00100","00010","00010","00010","00100","01000","00000");
-            case '[' -> bitmap ("01110","01000","01000","01000","01000","01000","01110","00000");
-            case ']' -> bitmap ("01110","00010","00010","00010","00010","00010","01110","00000");
-            case '<' -> bitmap ("00010","00100","01000","10000","01000","00100","00010","00000");
-            case '>' -> bitmap ("01000","00100","00010","00001","00010","00100","01000","00000");
-            case '*' -> bitmap ("00000","10101","01110","11111","01110","10101","00000","00000");
-            case '#' -> bitmap ("01010","11111","01010","01010","11111","01010","00000","00000");
-            case '%' -> bitmap ("11001","11010","00100","01000","10110","00110","00000","00000");
-            case '\'' -> bitmap ("00100","00100","00010","00000","00000","00000","00000","00000");
-            case '"' -> bitmap ("01010","01010","00100","00000","00000","00000","00000","00000");
-            default -> bitmap ("01110","10001","00001","00010","00100","00000","00100","00000");
-        };
+            if (stream == null)
+                throw new IllegalStateException ("Missing HD44780U A00 LCD font resource");
+            final String source = new String (stream.readAllBytes (), StandardCharsets.UTF_8);
+            final Pattern blockPattern = Pattern.compile (
+                "(?m)^STARTCHAR U\\+([0-9A-Fa-f]{4})[^\\r\\n]*\\R([\\s\\S]*?)^ENDCHAR\\s*$");
+            final Pattern rowPattern = Pattern.compile ("(?m)^[|+]([ #]{5})[|+]\\s*$");
+            final Matcher blocks = blockPattern.matcher (source);
+            int loaded = 0;
+            while (blocks.find ())
+            {
+                final int code = Integer.parseInt (blocks.group (1), 16);
+                if (code < 0x20 || code > 0x7E)
+                    continue;
+                final Matcher rows = rowPattern.matcher (blocks.group (2));
+                final int [] bitmap = new int [DOT_ROWS];
+                int y = 0;
+                while (rows.find () && y < 7)
+                {
+                    final String row = rows.group (1);
+                    for (int x = 0; x < DOT_COLUMNS; x++)
+                        if (row.charAt (x) == '#')
+                            bitmap[y] |= 1 << (DOT_COLUMNS - 1 - x);
+                    y++;
+                }
+                if (y != 7)
+                    throw new IllegalStateException ("HD44780U A00 glyph 0x" + Integer.toHexString (code)
+                        + " does not contain seven 5-dot rows");
+                glyphs[code] = bitmap;
+                loaded++;
+            }
+            if (loaded != 95)
+                throw new IllegalStateException ("Expected 95 printable HD44780U A00 glyphs, loaded " + loaded);
+            return glyphs;
+        }
+        catch (final IOException error)
+        {
+            throw new IllegalStateException ("Cannot read HD44780U A00 LCD font resource", error);
+        }
     }
 
     private static int [] bitmap (final String... rows)
