@@ -107,3 +107,10 @@ This is a manual transport diagnostic, not a Bitwig automation harness: it does 
 - A physical test is required only for properties with a physical boundary; do not use it as a substitute for repeatable software regression testing.
 - Never report a percentage such as "90% hardware simulated" without a complete inventory, explicit weights and measured coverage.
 - Any newly found defect must have a failing reproduction before the production correction, then a passing regression test on the final integrated branch.
+ 
+
+## Visual review artifacts
+
+Every full CI runtime pass exports a PNG and a hexadecimal row dump for each of the 14 packaged views and every mode registered by `PushControllerSetup`. PNGs use the exact dot-matrix renderer selected for the run; text companions preserve every seven-bit character code across the four 68-column rows. The runtime suite verifies the expected number of completed PNG/text pairs.
+
+Download the `push1-display-snapshots-linux` or `push1-display-snapshots-macos` artifact from the corresponding GitHub Actions run. Compare captures across views and modes for readable hierarchy, meaningful use of all four rows, truncation, selected-state visibility and consistent action placement. The images are simulator renderings, not physical-device photographs, and cannot qualify LCD contrast, viewing angle or the exact ROM fitted to a specific Push 1 revision.
