@@ -122,11 +122,10 @@ public final class VirtualPush1LcdRasterizer
     public static boolean hasReferenceGlyph (final int characterCode)
     {
         return Push1DisplayGlyphs.isKnownCustomGlyph (characterCode)
-            || characterCode == 0x08 || characterCode == 0x09 || characterCode == 0x0A
-            || characterCode == 0x0C || characterCode == 0x0D || characterCode == 0x0F
-            || characterCode == 0x10 || characterCode == 0x17 || characterCode == 0x18
-            || characterCode == 0x1A || (characterCode >= 0x1C && characterCode <= 0x1F)
-            || characterCode == 0x7F || (characterCode >= 0x20 && characterCode <= 0x7E);
+            || characterCode == 0x0A || characterCode == 0x0C || characterCode == 0x0D
+            || characterCode == 0x0F || characterCode == 0x10 || characterCode == 0x17
+            || characterCode == 0x1A || (characterCode >= 0x1D && characterCode <= 0x1F)
+            || (characterCode >= 0x20 && characterCode <= 0x7E);
     }
 
     /** ASCII diagnostic view; '#' is a lit dot and '.' is a dark dot. */
