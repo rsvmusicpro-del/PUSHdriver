@@ -5,6 +5,7 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Graphics2D;
+import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -53,7 +54,7 @@ public final class VirtualPush1Simulator
     private final VirtualPush1MidiBench bench;
     private final VirtualPush1Device device;
     private final Runnable onClose;
-    private final JLabel [][] lcd = new JLabel [4][4];
+    private final LcdPixelRow [][] lcd = new LcdPixelRow [4][4];
     private final JButton [][] pads = new JButton [8][8];
     private final JButton [] bottom = new JButton [8];
     private final Map<Integer, JButton> controlButtons = new HashMap<> ();
@@ -151,12 +152,7 @@ public final class VirtualPush1Simulator
             block.setBorder (BorderFactory.createTitledBorder ("Module " + (module + 1)));
             for (int row = 0; row < 4; row++)
             {
-                final JLabel cell = new JLabel ("                 ");
-                cell.setOpaque (true);
-                cell.setBackground (LCD);
-                cell.setForeground (new Color (35, 48, 30));
-                cell.setFont (LCD_FONT);
-                cell.setBorder (BorderFactory.createEmptyBorder (3, 4, 3, 4));
+                final LcdPixelRow cell = new LcdPixelRow ();
                 lcd[module][row] = cell;
                 block.add (cell);
             }
@@ -395,26 +391,71 @@ public final class VirtualPush1Simulator
             for (int row = 0; row < 4; row++)
             {
                 final String raw = device.getLcdModuleRow (row, module);
-                final StringBuilder visible = new StringBuilder (17);
-                for (int i = 0; i < raw.length (); i++)
-                {
-                    final char ch = raw.charAt (i);
-                    visible.append (ch >= 32 && ch <= 126 ? ch : '·');
-                }
-                lcd[module][row].setText (visible.toString ());
+                lcd[module][row].setModuleRow (raw);
                 lcd[module][row].setToolTipText (glyphTooltip (raw));
             }
     }
 
+    /**
+     * Pixel-level LCD row: each character is a 5x8 dot matrix at six-dot pitch.
+     * The four module instances remain physically separated in the simulator.
+     */
+    private static final class LcdPixelRow extends JPanel
+    {
+        private static final int SCALE = 3;
+        private static final Color DOT = new Color (35, 48, 30);
+        private boolean [][] pixels = new boolean [8][102];
+
+        LcdPixelRow ()
+        {
+            setOpaque (true);
+            setBackground (LCD);
+            setBorder (BorderFactory.createEmptyBorder (3, 4, 3, 4));
+            setPreferredSize (new Dimension (
+                VirtualPush1LcdRasterizer.RASTER_WIDTH * SCALE + 8,
+                VirtualPush1LcdRasterizer.RASTER_HEIGHT * SCALE + 6));
+        }
+
+        void setModuleRow (final String raw)
+        {
+            this.pixels = VirtualPush1LcdRasterizer.rasterize (raw);
+            repaint ();
+        }
+
+        @Override
+        protected void paintComponent (final Graphics graphics)
+        {
+            super.paintComponent (graphics);
+            final Graphics2D g = (Graphics2D) graphics.create ();
+            try
+            {
+                g.setColor (DOT);
+                for (int y = 0; y < this.pixels.length; y++)
+                    for (int x = 0; x < this.pixels[y].length; x++)
+                        if (this.pixels[y][x])
+                            g.fillRoundRect (4 + x * SCALE, 3 + y * SCALE,
+                                SCALE - 1, SCALE - 1, 1, 1);
+            }
+            finally
+            {
+                g.dispose ();
+            }
+        }
+    }
+
     private static String glyphTooltip (final String raw)
     {
-        final StringBuilder tip = new StringBuilder ("Raw LCD codes / custom 5×8 glyphs");
+        final StringBuilder tip = new StringBuilder ("Raw 7-bit LCD character codes / 5×8 dot matrices");
         for (int i = 0; i < raw.length (); i++)
         {
             final int code = raw.charAt (i);
+            tip.append ("\nColumn ").append (i + 1).append (" — 0x")
+                .append (String.format ("%02X", code)).append (" (").append (code).append (")");
             if (Push1DisplayGlyphs.isKnownCustomGlyph (code))
-                tip.append ("\nColumn ").append (i + 1).append (" — glyph ").append (code)
+                tip.append (" — Push firmware glyph ").append (code)
                     .append ("\n").append (Push1DisplayGlyphs.renderAscii (code));
+            else
+                tip.append ("\n").append (VirtualPush1LcdRasterizer.renderAscii (code));
         }
         return tip.toString ();
     }
