@@ -7,6 +7,8 @@ import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,6 +42,7 @@ public final class VirtualPush1LcdRasterizer
 
     private static final int [][] ROM_A00 = loadRom ("A00");
     private static final int [][] ROM_A02 = loadRom ("A02");
+    private static final Map<Integer, int []> ROM_EXTENDED = loadExtendedGlyphs ();
     private static final RomProfile ACTIVE_PROFILE = resolveProfile ();
 
     private VirtualPush1LcdRasterizer ()
@@ -86,12 +89,30 @@ public final class VirtualPush1LcdRasterizer
 
         return switch (characterCode)
         {
+            case 0x08 -> bitmap ("00100", "00100", "00100", "00000", "00100", "00100", "00100", "00000"); // broken bar
             case 0x09 -> bitmap ("01100", "10010", "10010", "01100", "00000", "00000", "00000", "00000"); // degree
+            case 0x0A -> extendedGlyph (0x00C4); // Ä
+            case 0x0B -> accentedFallback ('C', 0x00C7); // Ç
+            case 0x0C -> extendedGlyph (0x00D6); // Ö
+            case 0x0D -> extendedGlyph (0x00DC); // Ü
+            case 0x0E -> accentedFallback ('B', 0x00DF); // ß
+            case 0x0F -> extendedGlyph (0x00E0); // à
+            case 0x10 -> extendedGlyph (0x00E4); // ä
+            case 0x11 -> accentedFallback ('c', 0x00E7); // ç
+            case 0x12 -> accentedFallback ('e', 0x00E8); // è
+            case 0x13 -> accentedFallback ('e', 0x00E9); // é
+            case 0x14 -> accentedFallback ('e', 0x00EA); // ê
+            case 0x15 -> accentedFallback ('i', 0x00EE); // î
+            case 0x16 -> accentedFallback ('n', 0x00F1); // ñ
+            case 0x17 -> extendedGlyph (0x00F6); // ö
             case 0x18 -> bitmap ("00000", "00100", "00000", "11111", "00000", "00100", "00000", "00000"); // division
+            case 0x19 -> accentedFallback ('o', 0x00F8); // ø
+            case 0x1A -> extendedGlyph (0x00FC); // ü
+            case 0x1B -> asciiGlyph ('b', profile); // Cyrillic soft sign approximation
             case 0x1C -> bitmap ("00000", "00000", "00000", "00000", "00000", "10101", "00000", "00000"); // ellipsis
-            case 0x1D -> bitmap ("11111", "11111", "11111", "11111", "11111", "11111", "11111", "11111"); // full block
-            case 0x1E -> bitmap ("00000", "00100", "01000", "11111", "01000", "00100", "00000", "00000"); // left arrow
-            case 0x1F -> bitmap ("00000", "00100", "00010", "11111", "00010", "00100", "00000", "00000"); // right arrow
+            case 0x1D -> extendedGlyph (0x2588); // full block
+            case 0x1E -> extendedGlyph (0x2190); // left arrow
+            case 0x1F -> extendedGlyph (0x2192); // right arrow
             case 0x7F -> bitmap ("00000", "00100", "00110", "00111", "00110", "00100", "00000", "00000"); // selection bullet
             default -> asciiGlyph (characterCode, profile);
         };
@@ -101,9 +122,11 @@ public final class VirtualPush1LcdRasterizer
     public static boolean hasReferenceGlyph (final int characterCode)
     {
         return Push1DisplayGlyphs.isKnownCustomGlyph (characterCode)
-            || characterCode == 0x09 || characterCode == 0x18 || characterCode == 0x1C
-            || characterCode == 0x1D || characterCode == 0x1E || characterCode == 0x1F || characterCode == 0x7F
-            || (characterCode >= 0x20 && characterCode <= 0x7E);
+            || characterCode == 0x08 || characterCode == 0x09 || characterCode == 0x0A
+            || characterCode == 0x0C || characterCode == 0x0D || characterCode == 0x0F
+            || characterCode == 0x10 || characterCode == 0x17 || characterCode == 0x18
+            || characterCode == 0x1A || (characterCode >= 0x1C && characterCode <= 0x1F)
+            || characterCode == 0x7F || (characterCode >= 0x20 && characterCode <= 0x7E);
     }
 
     /** ASCII diagnostic view; '#' is a lit dot and '.' is a dark dot. */
@@ -126,6 +149,61 @@ public final class VirtualPush1LcdRasterizer
         if (code < 0x20 || code > 0x7E)
             return bitmap ("01110", "10001", "00001", "00010", "00100", "00000", "00100", "00000");
         return (profile == RomProfile.HD44780U_A00 ? ROM_A00 : ROM_A02)[code].clone ();
+    }
+
+    private static int [] extendedGlyph (final int codePoint)
+    {
+        final int [] glyph = ROM_EXTENDED.get (codePoint);
+        if (glyph == null)
+            throw new IllegalStateException ("Missing extended HD44780U glyph U+" + Integer.toHexString (codePoint));
+        return glyph.clone ();
+    }
+
+    private static int [] accentedFallback (final char base, final int codePoint)
+    {
+        final int [] glyph = ROM_EXTENDED.get (codePoint);
+        return glyph == null ? asciiGlyph (base, ACTIVE_PROFILE) : glyph.clone ();
+    }
+
+    private static Map<Integer, int []> loadExtendedGlyphs ()
+    {
+        final Map<Integer, int []> glyphs = new HashMap<> ();
+        try (InputStream stream = VirtualPush1LcdRasterizer.class.getResourceAsStream ("/fonts/hd44780u-morechars.txt"))
+        {
+            if (stream == null)
+                throw new IllegalStateException ("Missing extended HD44780U LCD glyph resource");
+            final String source = new String (stream.readAllBytes (), StandardCharsets.UTF_8);
+            final Pattern blockPattern = Pattern.compile (
+                "(?m)^U\\+([0-9A-Fa-f]{4})[^\\r\\n]*\\R([\\s\\S]*?)(?=^U\\+|\\z)");
+            final Pattern rowPattern = Pattern.compile ("(?m)^[|+]([ #]{5})[|+]\\s*$");
+            final Matcher blocks = blockPattern.matcher (source);
+            while (blocks.find ())
+            {
+                final int codePoint = Integer.parseInt (blocks.group (1), 16);
+                final Matcher rows = rowPattern.matcher (blocks.group (2));
+                final int [] bitmap = new int [DOT_ROWS];
+                int y = 0;
+                while (rows.find () && y < DOT_ROWS)
+                {
+                    final String row = rows.group (1);
+                    for (int x = 0; x < DOT_COLUMNS; x++)
+                        if (row.charAt (x) == '#')
+                            bitmap[y] |= 1 << (DOT_COLUMNS - 1 - x);
+                    y++;
+                }
+                if (y == DOT_ROWS)
+                    glyphs.put (codePoint, bitmap);
+            }
+            for (final int required : new int [] { 0x00C4, 0x00D6, 0x00DC, 0x00E0,
+                    0x00E4, 0x00F6, 0x00FC, 0x2190, 0x2192, 0x2588 })
+                if (!glyphs.containsKey (required))
+                    throw new IllegalStateException ("Missing extended HD44780U glyph U+" + Integer.toHexString (required));
+            return glyphs;
+        }
+        catch (final IOException error)
+        {
+            throw new IllegalStateException ("Cannot read extended HD44780U LCD glyph resource", error);
+        }
     }
 
     private static RomProfile resolveProfile ()
