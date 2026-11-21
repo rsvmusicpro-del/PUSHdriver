@@ -74,6 +74,15 @@ jobs:
       - name: Run extended fuzz and delayed-callback interleaving suite
         run: python3 scripts/test_push1_extension.py --fuzz-actions=256 --fuzz-seeds=50
 
+      - name: Upload production LCD snapshots for ergonomic review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: push1-display-snapshots-linux
+          path: target/push1-display-snapshots/
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: Upload generated Push 1 failure traces
         if: failure()
         uses: actions/upload-artifact@v4
@@ -147,6 +156,15 @@ jobs:
 
       - name: Run extended fuzz and delayed-callback interleaving suite on macOS
         run: python3 scripts/test_push1_extension.py --fuzz-actions=256 --fuzz-seeds=50
+
+      - name: Upload production LCD snapshots for ergonomic review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: push1-display-snapshots-macos
+          path: target/push1-display-snapshots/
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Upload generated Push 1 failure traces
         if: failure()
