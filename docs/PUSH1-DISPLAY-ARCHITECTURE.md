@@ -30,6 +30,8 @@ This is deliberately enforced at the display boundary, rather than relying on ea
 - `actionHints` aligns soft-action labels to the same encoder positions.
 - `contextRow` reserves one 17-character module for a stable context label and the remaining 51 columns for the selected object or detail.
 
+The common composer is now used by Note View Select, Session View Select, Scales, Fixed Length, Quantize, Note Repeat and Marker menus. Their selected-state arrows, menu-specific values and action semantics remain intact; each menu chooses its own content while sharing the same row construction rules.
+
 All helpers return exactly 68 seven-bit-safe character positions. They preserve the established glyph pipeline: value bars and custom glyph codes remain available, while the simulator continues to rasterize the actual character codes. Views retain ownership of mode-specific information, live feedback and interactions; the shared composition layer standardizes placement rather than flattening visual identity.
 
 ## Pixel-level virtual LCD

@@ -110,6 +110,13 @@ require('display.setRow (2, Push1DisplayComposition.contextRow ("DEVICE:", cd.ge
         in device_display,
         "Device context row must use the shared semantic composition helper")
 
+# Selection and utility menus share the same semantic LCD row compositor.
+for menu in ("NoteViewSelectMode.java", "SessionViewSelectMode.java", "ScalesMode.java",
+             "FixedMode.java", "QuantizeMode.java", "NoteRepeatMode.java", "MarkerMode.java"):
+    display = method(read(menu), "public void updateDisplay1")
+    require("Push1DisplayComposition." in display,
+            f"{menu} must compose its LCD rows through the shared layout")
+    
 # All upstream mode writers pass through the physical Push 1 geometry.
 display_path = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push1Display.java"
 if not display_path.is_file():
