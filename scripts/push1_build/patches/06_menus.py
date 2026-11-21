@@ -760,6 +760,25 @@ replace_menu_display(marker_mode, """public void updateDisplay1 (final ITextDisp
         display.setRow (3, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.encoderLabels (markers));
     }""", "Marker semantic LCD rows")
 
+# Device parameter names and values use the same eight-cell row composer.
+replace_menu_fragment(device_params_mode,
+    """        for (int i = 0; i < 8; i++)
+        {
+            final IParameter param = parameterBank.getItem (i);
+            display.setCell (0, i, param.doesExist () ? StringUtils.fixASCII (param.getName ()) : "").setCell (1, i, StringUtils.fixASCII (param.getDisplayedValue (8)));
+        }""",
+    """        final String [] parameterLabels = new String [8];
+        final String [] parameterValues = new String [8];
+        for (int i = 0; i < 8; i++)
+        {
+            final IParameter param = parameterBank.getItem (i);
+            parameterLabels[i] = param.doesExist () ? param.getName () : "";
+            parameterValues[i] = param.getDisplayedValue (8);
+        }
+        display.setRow (0, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.encoderLabels (parameterLabels));
+        display.setRow (1, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.encoderValues (parameterValues));""",
+    "Device parameter rows share encoder-aligned composition")
+
 # The device context row is a full-width status line, not a two-module label.
 # Keep a short, stable label in the first 17-character module and let the
 # selected device name use the remaining three modules (51 characters).
