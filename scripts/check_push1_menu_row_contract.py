@@ -108,7 +108,7 @@ require(note.count("this.activateView (VIEWS_TOP[index])") == 1
 # module for the label and the remaining three for the selected device name.
 device_params = read("device/DeviceParamsMode.java")
 device_display = method(device_params, "public void updateDisplay1")
-require('display.setRow (2, Push1DisplayComposition.contextRow ("DEVICE:", cd.getName ()));'
+require('display.setRow (2, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.contextRow ("DEVICE:", cd.getName ()));'
         in device_display,
         "Device context row must use the shared semantic composition helper")
 
