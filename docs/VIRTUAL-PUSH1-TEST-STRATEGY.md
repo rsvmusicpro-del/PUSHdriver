@@ -4,6 +4,11 @@
 
 The test target is the original Ableton Push 1, Bitwig Studio 4.3.10, Bitwig Extension API 17, Java 17 and the pinned DrivenByMoss 19.2.2 source revision. The extension remains MIDI-only. Push 2 HID/display emulation is not a valid substitute for this hardware target.
 
+
+## Pixel-level LCD rendering
+
+The optional Swing simulator paints the four character LCD modules as dot matrices rather than using a desktop text font. It uses the eight extracted Push 1 custom glyphs and a separately licensed HD44780U A00 ROM reference bitmap set. The deterministic rasterizer test covers all 128 seven-bit codes, and the headless Swing smoke test paints the same component used by the interactive simulator. The exact controller ROM fitted to Push 1 production revisions is not yet confirmed; A00 is therefore a documented reference profile, not a claim that every standard glyph is optically identical to every unit.
+
 ## Why a single simulator is not enough
 
 A credible station needs independent evidence at several boundaries. A software model can validate controller-side MIDI and API contracts, but it cannot prove undocumented Bitwig scheduling, USB driver behavior, electrical pressure calibration, firmware timing or the optical appearance of a particular LCD module.
