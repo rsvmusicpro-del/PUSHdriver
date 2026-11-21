@@ -89,8 +89,10 @@ public final class VirtualPush1LcdRasterizer
             case 0x09 -> bitmap ("01100", "10010", "10010", "01100", "00000", "00000", "00000", "00000"); // degree
             case 0x18 -> bitmap ("00000", "00100", "00000", "11111", "00000", "00100", "00000", "00000"); // division
             case 0x1C -> bitmap ("00000", "00000", "00000", "00000", "00000", "10101", "00000", "00000"); // ellipsis
-            case 0x1E -> bitmap ("00100", "00010", "11111", "00010", "00100", "00000", "00000", "00000"); // right arrow
-            case 0x7F -> bitmap ("00100", "00010", "00001", "00010", "00100", "00000", "00000", "00000"); // selection chevron
+            case 0x1D -> bitmap ("11111", "11111", "11111", "11111", "11111", "11111", "11111", "11111"); // full block
+            case 0x1E -> bitmap ("00000", "00100", "01000", "11111", "01000", "00100", "00000", "00000"); // left arrow
+            case 0x1F -> bitmap ("00000", "00100", "00010", "11111", "00010", "00100", "00000", "00000"); // right arrow
+            case 0x7F -> bitmap ("00000", "00100", "00110", "00111", "00110", "00100", "00000", "00000"); // selection bullet
             default -> asciiGlyph (characterCode, profile);
         };
     }
@@ -100,7 +102,7 @@ public final class VirtualPush1LcdRasterizer
     {
         return Push1DisplayGlyphs.isKnownCustomGlyph (characterCode)
             || characterCode == 0x09 || characterCode == 0x18 || characterCode == 0x1C
-            || characterCode == 0x1E || characterCode == 0x7F
+            || characterCode == 0x1D || characterCode == 0x1E || characterCode == 0x1F || characterCode == 0x7F
             || (characterCode >= 0x20 && characterCode <= 0x7E);
     }
 
