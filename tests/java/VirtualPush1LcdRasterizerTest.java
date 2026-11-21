@@ -40,6 +40,17 @@ public final class VirtualPush1LcdRasterizerTest
         checkArray (VirtualPush1LcdRasterizer.glyphRows ('A'), activeA,
             "the active profile property selects the simulator's default glyphs");
 
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x09),
+            new int [] { 0x0C, 0x12, 0x12, 0x0C, 0, 0, 0, 0 }, "Push degree glyph");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x18),
+            new int [] { 0, 0x04, 0, 0x1F, 0, 0x04, 0, 0 }, "Push division glyph");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x1C),
+            new int [] { 0, 0, 0, 0, 0, 0x15, 0, 0 }, "single-cell ellipsis glyph");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x1E),
+            new int [] { 0x04, 0x02, 0x1F, 0x02, 0x04, 0, 0, 0 }, "right-arrow glyph");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x7F),
+            new int [] { 0x10, 0x18, 0x1C, 0x1E, 0x1C, 0x18, 0x10, 0 }, "selection-arrow glyph");
+
         for (int glyph = 0; glyph < 8; glyph++)
         {
             final int [] expected = Push1DisplayGlyphs.bitmapRows (glyph);
