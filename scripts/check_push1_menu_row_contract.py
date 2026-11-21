@@ -130,9 +130,9 @@ row_writer = method(push_display, "public ITextDisplay setRow (final int row, fi
 simulator_writer = method(push_display, "protected String convertCharacterset")
 require("Push1DisplayLayout.fitRow (str)" in row_writer,
         "full-row writes must be normalized before AbstractTextDisplay stores them")
-require("Push1DisplayLayout.fitRow (text)" in simulator_writer
+require("Push1DisplayLayout.separateModulesForSimulator (t)" in simulator_writer
         and 'replace (Character.toString ((char) 0x1C), "…")' in simulator_writer,
-        "simulator rendering must use the same bounded row and one-cell ellipsis mapping")
+        "simulator rendering must segment bounded modules before converting the firmware ellipsis to one visible cell")
 require("overlayRightBlock" not in push_display and "compactNotification" not in push_display
         and "public void flush" not in push_display,
         "Push 1 notifications must not overlay or replace part of persistent display rows")
