@@ -257,7 +257,49 @@ replace_once(push_display,
 # selected call sites. This covers every upstream mode that writes cells or
 # modules, including views that do not know about Push 1 text formatting.
 replace_once(push_display,
+    """    /** {@inheritDoc} */
+    @Override
+    public ITextDisplay clearCell (final int row, final int column)""",
+    """    /** {@inheritDoc} */
+    @Override
+    public ITextDisplay setRow (final int row, final String str)
+    {
+        this.fullRows[row] = Push1DisplayLayout.fitRow (str);
+        return this;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public ITextDisplay clearCell (final int row, final int column)""",
+    "Push 1 full-row writes are normalized to 68 physical columns")
+
+replace_once(push_display,
     """        this.cells[row * 8 + cell] = StringUtils.pad (value, 8, ' ') + (cell % 2 == 0 ? " " : "");""",
+    """        this.cells[row * this.noOfCells + cell] = Push1DisplayLayout.fitCell (value, cell);""",
+    "Push 1 cells are transliterated and fitted to physical 9/8 widths")
+replace_once(push_display,
+    """        final int cell = 2 * block;
+        if (value.length () > 9)
+        {
+            this.cells[row * 8 + cell] = value.substring (0, 9);
+            this.cells[row * 8 + cell + 1] = StringUtils.pad (value.substring (9), 8, ' ');
+        }
+        else
+        {
+            this.cells[row * 8 + cell] = StringUtils.pad (value, 9, ' ');
+            this.clearCell (row, cell + 1);
+        }""",
+    """        final int cell = Push1DisplayLayout.firstCellForBlock (block);
+        final String fitted = Push1DisplayLayout.fitBlock (value);
+        this.cells[row * this.noOfCells + cell] = fitted.substring (0, 9);
+        this.cells[row * this.noOfCells + cell + 1] = fitted.substring (9, 17);""",
+    "Push 1 module writes are bounded to exactly 17 physical characters")
+replace_once(push_display,
+    """final String t = Push1DisplayLayout.fitRow (text).replace (Push1Display.BARS_NON, "-").replace (Push1Display.BARS_ONE, "|").replace (Push1Display.BARS_TWO, "|").replace (Push1Display.BARS_ONE_L, "|").replace (Push1Display.SELECT_ARROW, ">").replace (Push1Display.RIGHT_ARROW, ">").replace (Character.toString ((char) 0x1C), "…");""",
+    """final String t = text.replace (Push1Display.BARS_NON, "-").replace (Push1Display.BARS_ONE, "|").replace (Push1Display.BARS_TWO, "|").replace (Push1Display.BARS_ONE_L, "|").replace (Push1Display.SELECT_ARROW, ">").replace (Push1Display.RIGHT_ARROW, ">").replace (Character.toString ((char) 0x1C), "…");""",
+    "Push 1 simulator renders the firmware ellipsis as one visible cell")
+
     """        this.cells[row * this.noOfCells + cell] = Push1DisplayLayout.fitCell (value, cell);""",
     "Push 1 cells are transliterated and fitted to physical 9/8 widths")
 replace_once(push_display,
