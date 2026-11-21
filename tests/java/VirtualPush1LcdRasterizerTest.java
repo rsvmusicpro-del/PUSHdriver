@@ -24,12 +24,21 @@ public final class VirtualPush1LcdRasterizerTest
             }
         check (litPixels > 0, "visible text must produce lit LCD dots");
 
-        checkArray (VirtualPush1LcdRasterizer.glyphRows ('A'),
-            new int [] { 0x0E, 0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x00 },
-            "printable ASCII uses the sourced HD44780U A00 bitmap, not a host font");
-        checkArray (VirtualPush1LcdRasterizer.glyphRows ('a'),
+        final int [] a00CapitalA = { 0x0E, 0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x00 };
+        final int [] a02CapitalA = { 0x04, 0x0A, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x00 };
+        checkArray (VirtualPush1LcdRasterizer.glyphRows ('A', VirtualPush1LcdRasterizer.RomProfile.HD44780U_A00),
+            a00CapitalA, "A00 profile uses its sourced uppercase A bitmap");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows ('A', VirtualPush1LcdRasterizer.RomProfile.HD44780U_A02),
+            a02CapitalA, "A02 profile uses its distinct sourced uppercase A bitmap");
+        check (!java.util.Arrays.equals (a00CapitalA, a02CapitalA),
+            "the two documented ROM profiles must remain distinguishable");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows ('a', VirtualPush1LcdRasterizer.RomProfile.HD44780U_A00),
             new int [] { 0x00, 0x00, 0x0E, 0x01, 0x0F, 0x11, 0x0F, 0x00 },
-            "lowercase glyphs retain the LCD ROM's actual lowercase form");
+            "lowercase glyphs retain the A00 ROM's actual lowercase form");
+        final int [] activeA = VirtualPush1LcdRasterizer.activeRomProfile ()
+            == VirtualPush1LcdRasterizer.RomProfile.HD44780U_A00 ? a00CapitalA : a02CapitalA;
+        checkArray (VirtualPush1LcdRasterizer.glyphRows ('A'), activeA,
+            "the active profile property selects the simulator's default glyphs");
 
         for (int glyph = 0; glyph < 8; glyph++)
         {
@@ -39,17 +48,19 @@ public final class VirtualPush1LcdRasterizerTest
                 check (actual[y] == expected[y], "firmware custom glyph bitmap " + glyph + "/" + y);
         }
 
-        for (int code = 0; code < 128; code++)
-        {
-            final int [] rows = VirtualPush1LcdRasterizer.glyphRows (code);
-            check (rows.length == 8, "all seven-bit characters have eight raster rows: " + code);
-            for (int y = 0; y < 8; y++)
-                check ((rows[y] & ~0x1F) == 0, "glyph row stays within five dots: " + code + "/" + y);
-            final boolean known = (code >= 0 && code <= 7) || code == 9 || code == 24
-                || code == 28 || code == 30 || code == 127 || (code >= 32 && code <= 126);
-            check (VirtualPush1LcdRasterizer.hasReferenceGlyph (code) == known,
-                "known ROM glyph profile is explicit; other controls use the visible fallback: " + code);
-        }
+        for (VirtualPush1LcdRasterizer.RomProfile profile : VirtualPush1LcdRasterizer.RomProfile.values ())
+            for (int code = 0; code < 128; code++)
+            {
+                final int [] rows = VirtualPush1LcdRasterizer.glyphRows (code, profile);
+                check (rows.length == 8, "all seven-bit characters have eight raster rows: " + profile + "/" + code);
+                for (int y = 0; y < 8; y++)
+                    check ((rows[y] & ~0x1F) == 0,
+                        "glyph row stays within five dots: " + profile + "/" + code + "/" + y);
+                final boolean known = (code >= 0 && code <= 7) || code == 9 || code == 24
+                    || code == 28 || code == 30 || code == 127 || (code >= 32 && code <= 126);
+                check (VirtualPush1LcdRasterizer.hasReferenceGlyph (code) == known,
+                    "known ROM glyph profile is explicit; other controls use the visible fallback: " + code);
+            }
 
         final StringBuilder allCodes = new StringBuilder (Push1DisplayLayout.MODULE_COLUMNS);
         for (int code = 0; code < 128; code++)
