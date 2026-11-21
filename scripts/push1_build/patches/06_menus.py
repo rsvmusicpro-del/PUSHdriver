@@ -534,6 +534,14 @@ replace_menu_fragment(quantize_mode,
 # selected device name use the remaining three modules (51 characters).
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
 replace_menu_fragment(device_params_mode,
+    """import de.mossgrabers.controller.ableton.push.controller.Push1Display;
+""",
+    """import de.mossgrabers.controller.ableton.push.controller.Push1Display;
+import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
+import de.mossgrabers.controller.ableton.push.controller.Push1DisplayText;
+""",
+    "Device context full-width LCD helpers")
+replace_menu_fragment(device_params_mode,
     """        // Row 3
         display.setBlock (2, 0, "Selected Device:").setBlock (2, 1, cd.getName ());""",
     """        // Row 3: dedicate module 0 to the label and modules 1-3 to the device name.
