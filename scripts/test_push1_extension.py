@@ -8,6 +8,7 @@ import sys
 import tempfile
 
 from push1_failure_shrinker import minimal_failing_prefix
+from push1_build.arguments import positive_integer
 
 root = Path(__file__).resolve().parents[1]
 extension = root / "target/PUSHdriver-19.2.2.jar"
@@ -35,6 +36,7 @@ test_sources = (
     root / "tests/java/VirtualPush1DisplayTextTest.java",
     root / "tests/java/VirtualPush1RuntimeTest.java",
     root / "tests/java/SequencerEngineTest.java",
+    root / "tests/java/de/mossgrabers/controller/ableton/push/command/trigger/PushDeviceNavigationFingerprintTest.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/engine/Push1PadGrid.java",
     root / "tests/java/VirtualPush1Simulator.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
@@ -65,19 +67,17 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
         value = next((argument.split("=", 1)[1] for argument in sys.argv[1:]
                       if argument.startswith(option)), None)
         if value is not None:
-            if not value.isdigit():
-                raise SystemExit(f"{option[:-1]} must be a positive integer")
-            command.append(f"-D{property_name}={value}")
+            command.append(f"-D{property_name}={positive_integer(value, option[:-1])}")
     subprocess.run(["java", "-cp", runtime_classpath, "AbstractHwButtonSafetyTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "VirtualPush1MidiConcurrencyTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "SequencerEngineTest"], cwd=root, check=True)
     command.extend(["-cp", runtime_classpath, "VirtualPush1RuntimeTest"])
     if "--gui" in sys.argv:
         command.append("--gui")
-    fuzz_actions = int(next(
+    fuzz_actions = positive_integer(next(
         (argument.split("=", 1)[1] for argument in sys.argv[1:] if argument.startswith("--fuzz-actions=")),
         "256",
-    ))
+    ), "--fuzz-actions")
     completed = subprocess.run(command, cwd=root, capture_output=True, text=True)
     print(completed.stdout, end="")
     print(completed.stderr, end="", file=sys.stderr)

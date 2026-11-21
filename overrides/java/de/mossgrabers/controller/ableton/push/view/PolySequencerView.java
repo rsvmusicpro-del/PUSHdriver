@@ -15,7 +15,6 @@ import de.mossgrabers.framework.daw.clip.INoteClip;
 import de.mossgrabers.framework.daw.clip.NotePosition;
 import de.mossgrabers.framework.daw.clip.StepState;
 import de.mossgrabers.framework.view.sequencer.AbstractPolySequencerView;
-import de.mossgrabers.framework.view.AbstractPlayView;
 import de.mossgrabers.framework.daw.data.ITrack;
 
 
@@ -44,12 +43,6 @@ public class PolySequencerView extends AbstractPolySequencerView<PushControlSurf
         this.engine.deactivate ();
         this.clearInteractionState ();
         super.onDeactivate ();
-    }
-
-    @Override
-    public void drawGrid ()
-    {
-        super.drawGrid ();
     }
 
     /** True only while this exact view owns the Push pad grid. */
