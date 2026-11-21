@@ -93,33 +93,5 @@ public final class Push1DisplayText
         return result.toString ();
     }
 
-    /**
-     * Preserve the left side of an LCD row and place a short notification in
-     * its rightmost 17-character block.
-     *
-     * @param line the current 68-character row
-     * @param value the notification (or empty text to clear the block)
-     * @return one exact 68-character, seven-bit-safe row
-     */
-    public static String overlayRightBlock (final String line, final String value)
-    {
-        final int prefixWidth = Push1DisplayLayout.COLUMNS - Push1DisplayLayout.BLOCK_WIDTH;
-        final StringBuilder prefix = new StringBuilder (prefixWidth);
-        if (line != null)
-        {
-            line.codePoints ().limit (prefixWidth).forEach (codePoint -> {
-                if (codePoint == 0x2026)
-                    prefix.append ((char) ELLIPSIS_CHARACTER_CODE);
-                else if (codePoint == '\n' || codePoint == '\r' || codePoint == '\t')
-                    prefix.append (' ');
-                else
-                    prefix.append (codePoint <= 0x7F ? (char) codePoint : '?');
-            });
-        }
-        while (prefix.length () < prefixWidth)
-            prefix.append (' ');
-        return prefix + Push1DisplayLayout.fitBlock (value);
-    }
-
 
 }
