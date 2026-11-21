@@ -102,6 +102,14 @@ require(note.count("this.activateView (VIEWS_TOP[index])") == 1
         and note.count("this.activateView (VIEWS[index])") == 1,
         "Each Note menu physical row must have exactly one matching selection handler")
 
+# Device context must use the complete 68-column LCD line: one physical
+# module for the label and the remaining three for the selected device name.
+device_params = read("device/DeviceParamsMode.java")
+device_display = method(device_params, "public void updateDisplay1")
+require('display.setRow (2, Push1DisplayText.fitAscii ("DEVICE:" + " ".repeat (10) + cd.getName (), Push1DisplayLayout.COLUMNS));'
+        in device_display,
+        "Device context row must use all four 17-character LCD modules")
+
 session = read("SessionViewSelectMode.java")
 require("display.setCell (0, i" in method(session, "public void updateDisplay1"),
         "Session view choices must be drawn in the upper LCD row")
