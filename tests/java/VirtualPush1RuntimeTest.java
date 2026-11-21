@@ -154,10 +154,10 @@ public final class VirtualPush1RuntimeTest
 
     private VirtualPush1RuntimeTest () { }
 
-        de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigationFingerprintTest.main (new String [0]);
-
     public static void main (final String [] args) throws Exception
     {
+        de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigationFingerprintTest.main (new String [0]);
+
         // Protocol and device-contract checks are subtests of the same virtual
         // Push bench entry point; none opens a separate hardware/test path.
         VirtualPush1MidiBench.main (new String [0]);
