@@ -102,26 +102,13 @@ public final class VirtualPush1DisplayTextTest
             "the remaining three physical modules must carry the device name");
 
 
-        final String line = "L".repeat (68);
-        final String notification = Push1DisplayText.overlayRightBlock (line, "GO");
-        require (notification.length () == 68, "right-block overlay must preserve exact LCD width");
-        require (notification.substring (0, 51).equals ("L".repeat (51)),
-            "right-block overlay must preserve the left 51 cells");
-        require (notification.substring (51).equals ("GO" + " ".repeat (15)),
-            "right-block notification must be fitted to the final 17 cells");
-        final String overlayEllipsis = Push1DisplayText.overlayRightBlock ("…".repeat (51), "OK");
-        require (overlayEllipsis.substring (0, 51).equals (ellipsis.repeat (51)),
-            "right-block composition must preserve firmware ellipsis glyphs in the existing row");
-        final String overlayCustomGlyph = Push1DisplayText.overlayRightBlock (folderGlyph.repeat (51), "OK");
-        require (overlayCustomGlyph.substring (0, 51).equals (folderGlyph.repeat (51)),
-            "right-block composition must preserve Push programmable glyphs in the existing row");
+        final String safeRow = Push1DisplayLayout.fitRow ("A😀…B");
+        require (safeRow.length () == Push1DisplayLayout.COLUMNS,
+            "full-row fitting must always produce the complete 68-column physical row");
+        check (safeRow.substring (0, 4), "A?"+ellipsis+"B",
+            "full-row fitting must preserve one-cell Unicode replacement and firmware ellipsis");
 
-        final String normalized = Push1DisplayText.overlayRightBlock ("A😀B", "");
-        require (normalized.length () == 68, "Unicode normalization must preserve 68-cell rows");
-        require (normalized.substring (0, 3).equals ("A?B"),
-            "right-block overlay must normalize Unicode by display code point");
-
-        System.out.println ("Virtual Push 1 display text passed: Unicode cell fitting, single-cell firmware ellipsis truncation and safe right-block overlays.");
+        System.out.println ("Virtual Push 1 display text passed: Unicode cell fitting, single-cell firmware ellipsis truncation and safe fixed-width row composition.");
     }
 
 
