@@ -110,6 +110,18 @@ require('display.setRow (2, Push1DisplayText.fitAscii ("DEVICE:" + " ".repeat (1
         in device_display,
         "Device context row must use all four 17-character LCD modules")
 
+# All upstream mode writers pass through the physical Push 1 geometry.
+push_display = read("controller/Push1Display.java")
+cell_writer = method(push_display, "public ITextDisplay setCell (final int row, final int cell, final String value)")
+block_writer = method(push_display, "public ITextDisplay setBlock (final int row, final int block, final String value)")
+require("Push1DisplayLayout.fitCell (value, cell)" in cell_writer,
+        "every Push 1 cell write must be transliterated and bounded to its physical 9/8 width")
+require("Push1DisplayLayout.fitBlock (value)" in block_writer
+        and "substring (0, 9)" in block_writer and "substring (9, 17)" in block_writer,
+        "every Push 1 module write must be bounded to exactly 17 characters")
+require("Push1DisplayLayout.fitRow (text)" in method(push_display, "public void writeLine"),
+        "every physical LCD row must use the shared 68-column fitter")
+
 session = read("SessionViewSelectMode.java")
 require("display.setCell (0, i" in method(session, "public void updateDisplay1"),
         "Session view choices must be drawn in the upper LCD row")
