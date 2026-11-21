@@ -50,7 +50,7 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
         ["javac", "-cp", classpath, "-d", output, *(str(source) for source in test_sources)],
         cwd=root, check=True,
     )
-    runtime_classpath = os.pathsep.join((classpath, output))
+    runtime_classpath = os.pathsep.join((classpath, output, str(root / "tests/resources")))
     command = ["java"]
     fuzz_seed = next(
         (argument.split("=", 1)[1] for argument in sys.argv[1:] if argument.startswith("--fuzz-seed=")),
