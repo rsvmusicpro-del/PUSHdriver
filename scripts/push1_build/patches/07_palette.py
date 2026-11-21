@@ -173,8 +173,8 @@ replace_once(session_mode,
 
 marker_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/MarkerMode.java"
 replace_once(marker_mode,
-    "                display.setCell (3, i, StringUtils.shortenAndFixASCII (getMarkerName (marker), 8));",
-    "                display.setCell (3, i, de.mossgrabers.controller.ableton.push.controller.Push1DisplayText.fitAscii (getMarkerName (marker), 8));",
+    "                markers[i] = StringUtils.shortenAndFixASCII (getMarkerName (marker), 8);",
+    "                markers[i] = de.mossgrabers.controller.ableton.push.controller.Push1DisplayText.fitAscii (getMarkerName (marker), 8);",
     "Push 1 marker names use display fitter")
 replace_once(marker_mode,
     "            final String menuBottomName = StringUtils.shortenAndFixASCII (getMarkerName (marker), 12);",
@@ -218,12 +218,12 @@ replace_once(browser_mode,
 
 note_view_select = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteViewSelectMode.java"
 replace_once(note_view_select,
-    "                    value = (viewManager.isActive (VIEWS[i]) ? Push1Display.SELECT_ARROW : \"\") + StringUtils.optimizeName (view.getName (), 8);",
-    "                    value = de.mossgrabers.controller.ableton.push.controller.Push1DisplayText.fit ((viewManager.isActive (VIEWS[i]) ? Push1Display.SELECT_ARROW : \"\") + view.getName (), 8);",
+    "                    sequenceViews[i] = (viewManager.isActive (VIEWS[i]) ? Push1Display.SELECT_ARROW : \"\") + StringUtils.optimizeName (view.getName (), 8);",
+    "                    sequenceViews[i] = de.mossgrabers.controller.ableton.push.controller.Push1DisplayText.fit ((viewManager.isActive (VIEWS[i]) ? Push1Display.SELECT_ARROW : \"\") + view.getName (), 8);",
     "Push 1 note view names use complete cell width")
 replace_once(note_view_select,
-    "                    value = (viewManager.isActive (VIEWS_TOP[i]) ? Push1Display.SELECT_ARROW : \"\") + StringUtils.optimizeName (view.getName (), 8);",
-    "                    value = de.mossgrabers.controller.ableton.push.controller.Push1DisplayText.fit ((viewManager.isActive (VIEWS_TOP[i]) ? Push1Display.SELECT_ARROW : \"\") + view.getName (), 8);",
+    "                    playbackViews[i] = (viewManager.isActive (VIEWS_TOP[i]) ? Push1Display.SELECT_ARROW : \"\") + StringUtils.optimizeName (view.getName (), 8);",
+    "                    playbackViews[i] = de.mossgrabers.controller.ableton.push.controller.Push1DisplayText.fit ((viewManager.isActive (VIEWS_TOP[i]) ? Push1Display.SELECT_ARROW : \"\") + view.getName (), 8);",
     "Push 1 top note view names use complete cell width")
 
 note_repeat = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/NoteRepeatMode.java"
