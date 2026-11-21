@@ -71,6 +71,7 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
         if value is not None:
             command.append(f"-D{property_name}={positive_integer(value, option[:-1])}")
     subprocess.run(["java", "-cp", runtime_classpath, "VirtualPush1LcdRasterizerTest"], cwd=root, check=True)
+    subprocess.run(["java", "-Dpush1.lcd.rom=A02", "-cp", runtime_classpath, "VirtualPush1LcdRasterizerTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "AbstractHwButtonSafetyTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "VirtualPush1MidiConcurrencyTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "SequencerEngineTest"], cwd=root, check=True)
