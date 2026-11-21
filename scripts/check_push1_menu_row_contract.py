@@ -106,9 +106,9 @@ require(note.count("this.activateView (VIEWS_TOP[index])") == 1
 # module for the label and the remaining three for the selected device name.
 device_params = read("device/DeviceParamsMode.java")
 device_display = method(device_params, "public void updateDisplay1")
-require('display.setRow (2, Push1DisplayText.fitAscii ("DEVICE:" + " ".repeat (10) + cd.getName (), Push1DisplayLayout.COLUMNS));'
+require('display.setRow (2, Push1DisplayComposition.contextRow ("DEVICE:", cd.getName ()));'
         in device_display,
-        "Device context row must use all four 17-character LCD modules")
+        "Device context row must use the shared semantic composition helper")
 
 # All upstream mode writers pass through the physical Push 1 geometry.
 display_path = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push1Display.java"

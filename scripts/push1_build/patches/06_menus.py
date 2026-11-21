@@ -535,6 +535,7 @@ replace_menu_fragment(quantize_mode,
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
 replace_menu_fragment(device_params_mode,
     """import de.mossgrabers.controller.ableton.push.controller.Push1Display;
+import de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition;
 """,
     """import de.mossgrabers.controller.ableton.push.controller.Push1Display;
 import de.mossgrabers.controller.ableton.push.controller.Push1DisplayLayout;
@@ -544,8 +545,8 @@ import de.mossgrabers.controller.ableton.push.controller.Push1DisplayText;
 replace_menu_fragment(device_params_mode,
     """        // Row 3
         display.setBlock (2, 0, "Selected Device:").setBlock (2, 1, cd.getName ());""",
-    """        // Row 3: dedicate module 0 to the label and modules 1-3 to the device name.
-        display.setRow (2, Push1DisplayText.fitAscii ("DEVICE:" + " ".repeat (10) + cd.getName (), Push1DisplayLayout.COLUMNS));""",
+    """        // Row 3: one stable context module, followed by three modules of detail.
+        display.setRow (2, Push1DisplayComposition.contextRow ("DEVICE:", cd.getName ()));""",
     "Device context row uses all four LCD modules")
 
 

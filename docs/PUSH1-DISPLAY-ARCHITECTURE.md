@@ -21,6 +21,17 @@ The assembled `Push1Display` enforces the same formatter at each public text-wri
 This is deliberately enforced at the display boundary, rather than relying on each mode to remember to truncate correctly. It covers inherited menu helpers and upstream views as well as the explicitly refined track, scene, clip, marker, browser, note-view, arpeggiator and occurrence labels.
 
 
+## Shared semantic composition
+
+`Push1DisplayComposition` names the common row patterns used by views and menus without forcing every mode into identical content:
+
+- `encoderLabels` aligns parameter names to the eight physical encoder cells.
+- `encoderValues` uses the same 9/8-column geometry for numbers and firmware glyph-based meters.
+- `actionHints` aligns soft-action labels to the same encoder positions.
+- `contextRow` reserves one 17-character module for a stable context label and the remaining 51 columns for the selected object or detail.
+
+All helpers return exactly 68 seven-bit-safe character positions. They preserve the established glyph pipeline: value bars and custom glyph codes remain available, while the simulator continues to rasterize the actual character codes. Views retain ownership of mode-specific information, live feedback and interactions; the shared composition layer standardizes placement rather than flattening visual identity.
+
 ## Pixel-level virtual LCD
 
 The Swing simulator no longer delegates LCD text to the host operating-system font. Each of the four physical modules is painted as 17 independent 5×8 dot-matrix characters at six-dot horizontal pitch. The eight programmable glyphs (codes 0–7) use the Push 1 firmware bitmaps already checked into the project. The known low-code glyph map includes the accented Latin characters available in the extended reference font, degree, division, ellipsis, full block, directional arrows and selection bullet; characters whose exact bitmap is not present are visibly marked as approximate fallbacks in the simulator's per-character diagnostic tooltip. Printable character ROM glyphs are loaded from separately licensed HD44780U A00 and A02 5×7 reference bitmap sets in `tests/resources/fonts/`; their SIL Open Font License is included as `tests/resources/fonts/OFL-1.1.txt`. The eighth dot row is blank for these 5×7 ROM profiles. Select the simulator profile with `python3 scripts/run_virtual_push1.py --gui --lcd-rom=A00` (default) or `--lcd-rom=A02`. Push-specific codes 9, 24, 28, 29, 30, 31 and 127 have explicit virtual glyphs (degree, division, ellipsis, full block, left/right arrows and selection bullet).
