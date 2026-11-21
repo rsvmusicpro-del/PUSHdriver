@@ -2,7 +2,6 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Graphics2D;
 import java.awt.Graphics;
@@ -36,7 +35,6 @@ public final class VirtualPush1Simulator
 {
     private static final Color PANEL = new Color (30, 32, 36);
     private static final Color LCD = new Color (177, 197, 142);
-    private static final Font LCD_FONT = new Font (Font.MONOSPACED, Font.BOLD, 13);
     private static final String [] NAMES = {
         "Tap", "Metro", "Repeat 1", "Repeat 2", "Repeat 3", "Repeat 4", "Repeat 5", "Repeat 6",
         "Repeat 7", "Repeat 8", "Left", "Right", "Up", "Down", "Shift", "Note", "Session",
