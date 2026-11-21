@@ -1,6 +1,5 @@
 import de.mossgrabers.framework.controller.hardware.AbstractHwButton;
 import de.mossgrabers.framework.controller.hardware.BindType;
-import de.mossgrabers.framework.controller.hardware.IHwLight;
 import de.mossgrabers.framework.daw.midi.IMidiInput;
 import de.mossgrabers.framework.daw.IHost;
 import de.mossgrabers.framework.utils.ButtonEvent;
