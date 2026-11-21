@@ -76,7 +76,7 @@ public final class PushDeviceNavigation
         private final WeakReference<IModel> model;
         private final ArrayDeque<Action> actions = new ArrayDeque<> ();
         private Wait wait = Wait.NONE;
-        private String before;
+        private CursorFingerprint before;
         private int expectedIndex;
         private int polls;
         private long waitedMs;
@@ -593,8 +593,18 @@ public final class PushDeviceNavigation
     }
 
 
-    private static String fingerprint (final ICursorDevice cursor)
+    /**
+     * Immutable cursor identity snapshot. Keep fields typed rather than joining
+     * them into a delimiter-separated string: device IDs/names are host data and
+     * may themselves contain delimiters, which could otherwise hide a real move.
+     */
+    private record CursorFingerprint (String id, String name, int position, int index, boolean nested)
     {
-        return cursor.getID () + "|" + cursor.getName () + "|" + cursor.getPosition () + "|" + cursor.getIndex () + "|" + cursor.isNested ();
+    }
+
+
+    private static CursorFingerprint fingerprint (final ICursorDevice cursor)
+    {
+        return new CursorFingerprint (cursor.getID (), cursor.getName (), cursor.getPosition (), cursor.getIndex (), cursor.isNested ());
     }
 }
