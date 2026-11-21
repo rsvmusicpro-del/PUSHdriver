@@ -103,6 +103,24 @@ public final class VirtualPush1Simulator
                 final Graphics2D graphics = image.createGraphics ();
                 try { root.paint (graphics); }
                 finally { graphics.dispose (); }
+
+                // Paint the exact LCD row component used by the interactive simulator.
+                final LcdPixelRow lcdProbe = new LcdPixelRow ();
+                lcdProbe.setModuleRow ("PUSH 1 LCD TEST  ");
+                final Dimension lcdSize = lcdProbe.getPreferredSize ();
+                lcdProbe.setSize (lcdSize);
+                final BufferedImage lcdImage = new BufferedImage (
+                    lcdSize.width, lcdSize.height, BufferedImage.TYPE_INT_ARGB);
+                final Graphics2D lcdGraphics = lcdImage.createGraphics ();
+                try { lcdProbe.paint (lcdGraphics); }
+                finally { lcdGraphics.dispose (); }
+                int renderedDots = 0;
+                for (int y = 0; y < lcdImage.getHeight (); y++)
+                    for (int x = 0; x < lcdImage.getWidth (); x++)
+                        if (lcdImage.getRGB (x, y) == LcdPixelRow.DOT.getRGB ())
+                            renderedDots++;
+                if (renderedDots == 0)
+                    throw new AssertionError ("Pixel-level LCD component painted no lit dots");
                 simulator.releaseAll ();
             });
         }
