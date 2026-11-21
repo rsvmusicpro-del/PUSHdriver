@@ -40,6 +40,15 @@ public final class VirtualPush1LcdRasterizerTest
         checkArray (VirtualPush1LcdRasterizer.glyphRows ('A'), activeA,
             "the active profile property selects the simulator's default glyphs");
 
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x0A),
+            new int [] { 0x0A, 0, 0x0E, 0x11, 0x1F, 0x11, 0x11, 0 }, "Push Ä extended ROM glyph");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x0D),
+            new int [] { 0x0A, 0, 0x11, 0x11, 0x11, 0x11, 0x0E, 0 }, "Push Ü extended ROM glyph");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x1E),
+            new int [] { 0, 0x04, 0x08, 0x1F, 0x08, 0x04, 0, 0 }, "Push left-arrow ROM glyph");
+        checkArray (VirtualPush1LcdRasterizer.glyphRows (0x1F),
+            new int [] { 0, 0x04, 0x02, 0x1F, 0x02, 0x04, 0, 0 }, "Push right-arrow ROM glyph");
+
         checkArray (VirtualPush1LcdRasterizer.glyphRows (0x09),
             new int [] { 0x0C, 0x12, 0x12, 0x0C, 0, 0, 0, 0 }, "Push degree glyph");
         checkArray (VirtualPush1LcdRasterizer.glyphRows (0x18),
@@ -71,8 +80,9 @@ public final class VirtualPush1LcdRasterizerTest
                 for (int y = 0; y < 8; y++)
                     check ((rows[y] & ~0x1F) == 0,
                         "glyph row stays within five dots: " + profile + "/" + code + "/" + y);
-                final boolean known = (code >= 0 && code <= 7) || code == 9 || code == 24
-                    || code == 28 || code == 29 || code == 30 || code == 31 || code == 127 || (code >= 32 && code <= 126);
+                final boolean known = (code >= 0 && code <= 10) || code == 12 || code == 13
+                    || code == 15 || code == 16 || code == 23 || code == 24 || code == 26
+                    || (code >= 28 && code <= 31) || code == 127 || (code >= 32 && code <= 126);
                 check (VirtualPush1LcdRasterizer.hasReferenceGlyph (code) == known,
                     "known ROM glyph profile is explicit; other controls use the visible fallback: " + code);
             }
