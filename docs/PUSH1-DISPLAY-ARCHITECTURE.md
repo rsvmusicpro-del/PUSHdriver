@@ -20,6 +20,15 @@ The assembled `Push1Display` enforces the same formatter at each public text-wri
 
 This is deliberately enforced at the display boundary, rather than relying on each mode to remember to truncate correctly. It covers inherited menu helpers and upstream views as well as the explicitly refined track, scene, clip, marker, browser, note-view, arpeggiator and occurrence labels.
 
+
+## Pixel-level virtual LCD
+
+The Swing simulator no longer delegates LCD text to the host operating-system font. Each of the four physical modules is painted as 17 independent 5×8 dot-matrix characters at six-dot horizontal pitch. The eight programmable glyphs (codes 0–7) use the Push 1 firmware bitmaps already checked into the project. Printable character ROM glyphs are loaded from `tests/resources/fonts/hd44780u-a00.chars.txt`, a 5×7 HD44780U A00 reference font distributed with its SIL Open Font License in `tests/resources/fonts/OFL-1.1.txt`. The eighth dot row is blank for this 5×7 ROM profile. Push-specific codes 9, 24, 28, 30 and 127 have explicit virtual glyphs.
+
+The rasterizer is deterministic and independent of AWT fonts. Its test checks all 128 seven-bit character codes, 5-bit row bounds, the six-dot pitch, the 17-character module width, and byte-for-byte equality of the eight custom glyphs against the firmware bitmap table. The Swing smoke test paints the actual dot-matrix component in headless mode.
+
+The A00 ROM is a documented HD44780U reference, not a confirmed Push 1 BOM identification. HD44780-compatible controllers have A00/A02 and older ROM variants with slightly different characters. Until the Push 1 LCD controller marking or a photographed glyph calibration set is available, differences in standard ROM glyphs remain a declared profile uncertainty. The renderer can select a different profile without changing the MIDI/protocol model.
+
 ## Text and glyph rules
 
 - Text is transliterated before width fitting, so expansions such as `Ü → Ue`, `ß → ss` and `→ → ->` cannot overflow a cell after truncation.
