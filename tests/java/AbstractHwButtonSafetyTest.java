@@ -1,4 +1,7 @@
 import de.mossgrabers.framework.controller.hardware.AbstractHwButton;
+import de.mossgrabers.framework.controller.hardware.BindType;
+import de.mossgrabers.framework.controller.hardware.IHwLight;
+import de.mossgrabers.framework.daw.midi.IMidiInput;
 import de.mossgrabers.framework.daw.IHost;
 import de.mossgrabers.framework.utils.ButtonEvent;
 
@@ -97,6 +100,13 @@ public final class AbstractHwButtonSafetyTest
             super (host, "safety-test");
             this.command = (event, velocity) -> this.events.add (event);
         }
+
+        @Override public void bind (final de.mossgrabers.framework.command.core.TriggerCommand command) { this.command = command; }
+        @Override public void bind (final IMidiInput input, final BindType type, final int channel, final int control) { }
+        @Override public void bind (final IMidiInput input, final BindType type, final int channel, final int control, final int value) { }
+        @Override public void unbind () { }
+        @Override public void rebind () { }
+        @Override public void setBounds (final double x, final double y, final double width, final double height) { }
 
         int count (final ButtonEvent event)
         {
