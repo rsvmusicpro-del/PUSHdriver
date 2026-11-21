@@ -27,6 +27,8 @@ The Swing simulator no longer delegates LCD text to the host operating-system fo
 
 The rasterizer is deterministic and independent of AWT fonts. Its test checks all 128 seven-bit character codes, 5-bit row bounds, the six-dot pitch, the 17-character module width, and byte-for-byte equality of the eight custom glyphs against the firmware bitmap table. The Swing smoke test paints the actual dot-matrix component in headless mode.
 
+Font data attribution: [Darren Embry's display-module-fonts](https://github.com/dse/display-module-fonts), distributed under SIL Open Font License 1.1 (license included beside the font files). The character patterns are based on the HD44780U datasheet's A00/A02 ROM tables: [Hitachi HD44780U datasheet](https://dfimg.dfrobot.com/enshop/image/data/DFR0009/HD44780.pdf).
+
 The A00 and A02 ROMs are documented HD44780U references, not confirmed Push 1 BOM identifications. HD44780-compatible controllers have A00/A02 and older ROM variants with slightly different characters. Both profiles are selectable without changing the MIDI/protocol model. Until the Push 1 LCD controller marking or a photographed glyph calibration set is available, the exact standard ROM profile remains a declared hardware uncertainty.
 
 ## Text and glyph rules
