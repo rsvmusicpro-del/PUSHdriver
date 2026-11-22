@@ -192,25 +192,6 @@ public final class PushDeviceNavigation
             if (!state.running && state.actions.isEmpty () && (!cursor.isNested () || cursor.getIndex () == index))
                 return false;
 
-            // A nested sibling move is already a single, irreversible host
-            // command. Retarget its remaining journey to the newest ROW1 intent
-            // rather than replaying obsolete intermediate targets afterwards.
-            final Action inFlight = state.actions.peekFirst ();
-            boolean exitQueued = false;
-            if (state.running)
-                for (final Action pending: state.actions)
-                    if (pending.type == Type.EXIT)
-                    {
-                        exitQueued = true;
-                        break;
-                    }
-            if (state.running && !exitQueued && state.wait == Wait.MOVE && inFlight != null && inFlight.type == Type.SELECT)
-            {
-                inFlight.index = index;
-                inFlight.onReselect = onReselect;
-                return true;
-            }
-
             enqueueLocked (state, new Action (Type.SELECT, null, index, onReselect));
             startNext (surface, state);
             return true;
