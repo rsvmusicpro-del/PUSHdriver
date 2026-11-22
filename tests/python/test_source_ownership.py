@@ -173,6 +173,8 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertIn("queuedUpCount", command)
         self.assertIn("replayQueuedOut", command)
         self.assertIn("childFingerprint", command)
+        self.assertIn("scheduleParentReturnFallback", command)
+        self.assertIn("completeParentReturnUsingNativeFallback", command)
 
         page_right = (root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PageRightCommand.java").read_text(encoding="utf-8")
         self.assertIn("DeviceLayerMode", page_right)
