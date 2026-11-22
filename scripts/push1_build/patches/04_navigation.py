@@ -237,7 +237,7 @@ replace_once(device_params_mode,
                 deviceParamsMode, this.model, this.surface))
             return;
 """,
-    "Cancel pending ROW1 intent on native ROW2-UP hierarchy return")
+    "Defer native ROW2-UP until the chain cursor is published")
 
 # Preserve DrivenByMoss' native DeviceParamsMode.moveUp() behavior for ROW2-UP.
 # The upstream implementation owns chooser exit, parameter-bank/device-list
