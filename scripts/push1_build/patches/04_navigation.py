@@ -226,6 +226,7 @@ replace_once(device_params_mode,
     """        final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
         if (cd.isNested ())
         {
+            deviceParamsMode.setShowDevices (true);
             cd.selectParent ();
             de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.scheduleParentCompletion (this.model, this.surface);
             return;
