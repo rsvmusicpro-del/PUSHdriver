@@ -166,7 +166,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
     private static void onCursorNameChanged (final IModel model)
     {
-        // Snapshot keys before completion removes entries from the weak map.
+        // There is one latest-wins pending intent for the shared Bitwig model.
         final PendingRow1Selection pending = PENDING_ROW1.get (model);
         if (pending != null)
             completePendingIfReady (model, pending);
