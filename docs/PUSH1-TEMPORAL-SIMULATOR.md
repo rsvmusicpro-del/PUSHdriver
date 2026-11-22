@@ -12,7 +12,7 @@ It is a Monte-Carlo sensitivity model with a monotonic event queue. It is not a 
 python3 scripts/push1_temporal_simulator.py
 python3 scripts/push1_temporal_simulator.py --scenario rapid-chain --samples 10000 --seed 42
 python3 scripts/push1_temporal_simulator.py --profile path/to/measured-profile.json --scenario mode-burst --samples 10000 --json > temporal-report.json
-python3 -m unittest tests/python/test_push1_temporal_simulator.py -v
+python3 -m unittest discover -s tests/python -p 'test_push1_temporal_simulator.py' -v
 ```
 
 Scenarios cover IN → rapid ROW1 changes → ROW2-UP, repeated chain traversal, and fast DEVICE/TRACK/VOLUME/PAN-SEND mode bursts. Each simulated press has an explicit release and hold duration. The model reports command, nested-cursor, LED and LCD latency distributions separately, including P50/P95/P99, maximum, standard deviation and P95−P50 jitter. It also reports loss by stage, command completion and stale feedback reordering.
