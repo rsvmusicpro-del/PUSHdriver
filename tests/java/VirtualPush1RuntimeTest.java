@@ -927,13 +927,19 @@ public final class VirtualPush1RuntimeTest
             VirtualPush1Device.IN, "IN", timedNavigationTrace);
         sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 85,
             VirtualPush1Device.TOP_ROW_FIRST + 1, "ROW1 child 2", timedNavigationTrace);
-        // Walk the native ROW2-UP state machine: leave chain/device selectors,
-        // restore device selectors, then request the asynchronous parent.
+        // Enter the native Chains chooser, leave it with ROW2-UP, then walk
+        // the DeviceParamsMode ROW2-UP steps to the asynchronous parent.
         sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 125,
-            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP banks", timedNavigationTrace);
-        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 145,
-            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP devices", timedNavigationTrace);
-        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 185,
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "ROW2 Chains", timedNavigationTrace);
+        require (modes.isActive (Modes.DEVICE_CHAINS),
+            "Timed ROW2 Chains gesture did not enter the native chain chooser");
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 20,
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP exits Chains", timedNavigationTrace);
+        require (modes.isActive (Modes.DEVICE_PARAMS),
+            "Timed ROW2-UP did not return from the Chains chooser");
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 40,
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP parameter banks", timedNavigationTrace);
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 20,
             VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP parent", timedNavigationTrace);
         requireAction ("cursorDevice.selectParent",
             "Timed ROW2-UP burst did not issue the native asynchronous parent request");
@@ -945,7 +951,7 @@ public final class VirtualPush1RuntimeTest
             VirtualPush1Device.VOLUME, "VOLUME before parent callback", timedNavigationTrace);
         require (modes.isActive (Modes.VOLUME),
             "VOLUME gesture was not applied immediately before the delayed parent callback");
-        require (timedNavigationTrace.size () == 8,
+        require (timedNavigationTrace.size () == 9,
             "Timed navigation burst lost one or more physical gestures: " + timedNavigationTrace);
         advanceNavigationClock (state, state.virtualTimeMillis + 400);
         require (modes.isActive (Modes.VOLUME),
