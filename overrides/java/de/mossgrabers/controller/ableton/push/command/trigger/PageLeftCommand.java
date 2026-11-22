@@ -346,6 +346,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final PendingParentReturn pending = new PendingParentReturn (cursor, cursorFingerprint (model), mode, surface);
         PENDING_PARENT_RETURN.put (model, pending);
         scheduleParentReturnProbe (model, pending);
+        scheduleParentReturnFallback (model, pending);
     }
 
 
@@ -376,7 +377,50 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         // then root transition, then the visible cursor/bank fingerprint.
         if (!cursor.doesExist () || !(idChanged || nameChanged || returnedToRoot || bankChanged))
             return false;
+        return finalizeParentReturn (model, pending, mode, surface, cursor);
+    }
 
+
+    private static void scheduleParentReturnFallback (final IModel model,
+        final PendingParentReturn pending)
+    {
+        // Preserve DrivenByMoss' original 300 ms completion only when API 17
+        // exposes no difference between a nested child and its nested parent.
+        model.getHost ().scheduleTask (() -> completeParentReturnUsingNativeFallback (model, pending), 300);
+    }
+
+
+    private static boolean completeParentReturnUsingNativeFallback (final IModel model,
+        final PendingParentReturn pending)
+    {
+        if (PENDING_PARENT_RETURN.get (model) != pending)
+            return true;
+        if (completeParentReturnIfReady (model, pending))
+            return true;
+        if (PENDING_PARENT_RETURN.get (model) != pending)
+            return true;
+
+        final DeviceParamsMode mode = pending.mode.get ();
+        final PushControlSurface surface = pending.surface.get ();
+        if (mode == null || surface == null || !surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
+        {
+            PENDING_PARENT_RETURN.remove (model);
+            return true;
+        }
+        final ICursorDevice cursor = model.getCursorDevice ();
+        // A still-nested cursor with an identical API-17 fingerprint is the
+        // one case where the upstream timed completion is the only signal.
+        if (!cursor.doesExist () || !pending.childWasNested || !cursor.isNested ())
+            return false;
+        return finalizeParentReturn (model, pending, mode, surface, cursor);
+    }
+
+
+    private static boolean finalizeParentReturn (final IModel model, final PendingParentReturn pending,
+        final DeviceParamsMode mode, final PushControlSurface surface, final ICursorDevice cursor)
+    {
+        if (PENDING_PARENT_RETURN.get (model) != pending)
+            return true;
         final boolean enterFirstChain = pending.enterFirstChain;
         final String chainToEnter = pending.chainToEnter;
         final int queuedUpCount = pending.queuedUpCount;
