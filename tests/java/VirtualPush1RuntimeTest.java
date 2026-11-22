@@ -3514,68 +3514,106 @@ public final class VirtualPush1RuntimeTest
         final DeviceParamsMode deviceParamsMode)
     {
         final long [] callbackDelays = { 0, 12, 24, 36, 73, 150, 300 };
-        final long [] gestureGaps = { 0, 10, 25, 50, 72, 73, 100, 150, 300 };
+        // Include each callback deadline and its immediate neighbours so the
+        // first-safe-gap result is an exact boundary, not a coarse estimate.
+        final long [] gestureGaps = {
+            0, 1, 10, 11, 12, 13, 23, 24, 25, 35, 36, 37,
+            50, 71, 72, 73, 74, 149, 150, 151, 299, 300, 301
+        };
+        final String [] entryPaths = { "IN", "CHAINS chooser" };
         final List<String> results = new java.util.ArrayList<> ();
         int trials = 0;
         int staleSelections = 0;
 
-        for (final long callbackDelay: callbackDelays)
-        {
-            int lostAtDelay = 0;
-            long firstSafeGap = -1;
-            for (final long gap: gestureGaps)
+        for (final String entryPath: entryPaths)
+            for (final long callbackDelay: callbackDelays)
             {
-                state.scheduled.clear ();
-                virtualCursorCallbackDelayMillis = callbackDelay;
-                virtualSlotChains = new String [] { "Sweep Chain 1", "Sweep Chain 2" };
-                virtualCursorDeviceNested = false;
-                virtualCursorDeviceHasLayers = false;
-                virtualCursorDevicePosition = 4;
-                virtualCursorDeviceName = "Sweep Parent";
-                virtualDeviceBankNames = new String [] {
-                    "Parent 0", "Parent 1", "Parent 2", "Parent 3",
-                    "Parent 4", "Parent 5", "Parent 6", "Parent 7"
-                };
-                deviceIndex = 4;
-                deviceParamsMode.setShowDevices (true);
-                surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
-
-                final long start = state.virtualTimeMillis + 1;
-                sendTimedNavigationGesture (state, midi, surface, start,
-                    VirtualPush1Device.IN, "IN", new java.util.ArrayList<> ());
-                sendTimedNavigationGesture (state, midi, surface, start + gap,
-                    VirtualPush1Device.TOP_ROW_FIRST + 2, "ROW1 child 3", new java.util.ArrayList<> ());
-
-                // Let the cursor callback arrive only after both gestures have
-                // been dispatched. Do not insert a synthetic wait between them.
-                advanceNavigationClock (state, start + Math.max (callbackDelay, gap) + 1);
-                final boolean selectedRequestedChild = virtualCursorDeviceNested && deviceIndex == 2;
-                trials++;
-                if (!selectedRequestedChild)
+                int lostAtDelay = 0;
+                long firstSafeGap = -1;
+                for (final long gap: gestureGaps)
                 {
-                    lostAtDelay++;
-                    staleSelections++;
+                    state.scheduled.clear ();
+                    virtualCursorCallbackDelayMillis = callbackDelay;
+                    virtualSlotChains = new String [] { "Sweep Chain 1", "Sweep Chain 2" };
+                    virtualCursorDeviceNested = false;
+                    virtualCursorDeviceHasLayers = false;
+                    virtualCursorDevicePosition = 4;
+                    virtualCursorDeviceName = "Sweep Parent";
+                    virtualDeviceBankNames = new String [] {
+                        "Parent 0", "Parent 1", "Parent 2", "Parent 3",
+                        "Parent 4", "Parent 5", "Parent 6", "Parent 7"
+                    };
+                    deviceIndex = 4;
+                    deviceParamsMode.setShowDevices (true);
+                    surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+
+                    final long start = state.virtualTimeMillis + 1;
+                    if ("IN".equals (entryPath))
+                        sendTimedNavigationGesture (state, midi, surface, start,
+                            VirtualPush1Device.IN, "IN", new java.util.ArrayList<> ());
+                    else
+                    {
+                        sendTimedNavigationGesture (state, midi, surface, start,
+                            VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "ROW2 Chains", new java.util.ArrayList<> ());
+                        require (surface.getModeManager ().isActive (Modes.DEVICE_CHAINS),
+                            "Chains chooser did not open in the responsiveness sweep");
+                        sendTimedNavigationGesture (state, midi, surface, start,
+                            VirtualPush1Device.TOP_ROW_FIRST + 1, "select second chain", new java.util.ArrayList<> ());
+                        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS),
+                            "Selecting a chain did not return to Device Params in the responsiveness sweep");
+                    }
+
+                    sendTimedNavigationGesture (state, midi, surface, start + gap,
+                        VirtualPush1Device.TOP_ROW_FIRST + 2, "ROW1 child 3", new java.util.ArrayList<> ());
+
+                    // Let the cursor callback arrive only after both gestures
+                    // have been dispatched; no artificial drain between them.
+                    advanceNavigationClock (state, start + Math.max (callbackDelay, gap) + 1);
+                    final boolean selectedRequestedChild = virtualCursorDeviceNested && deviceIndex == 2;
+                    trials++;
+                    if (!selectedRequestedChild)
+                    {
+                        lostAtDelay++;
+                        staleSelections++;
+                    }
+                    else if (firstSafeGap < 0)
+                        firstSafeGap = gap;
+                    require (selectedRequestedChild == (gap >= callbackDelay),
+                        "Unexpected " + entryPath + "→ROW1 timing boundary: callbackDelay="
+                            + callbackDelay + "ms gap=" + gap + "ms finalNested=" + virtualCursorDeviceNested
+                            + " finalIndex=" + deviceIndex);
                 }
-                else if (firstSafeGap < 0)
-                    firstSafeGap = gap;
-                require (selectedRequestedChild == (gap >= callbackDelay),
-                    "Unexpected IN/ROW1 timing boundary: callbackDelay=" + callbackDelay
-                        + "ms gap=" + gap + "ms finalNested=" + virtualCursorDeviceNested
-                        + " finalIndex=" + deviceIndex);
+                results.add (entryPath + ", " + callbackDelay + "ms host callback: first safe ROW1 gap="
+                    + firstSafeGap + "ms, stale selections=" + lostAtDelay + "/" + gestureGaps.length);
             }
-            results.add (callbackDelay + "ms host callback: first safe ROW1 gap="
-                + firstSafeGap + "ms, stale selections=" + lostAtDelay + "/" + gestureGaps.length);
-        }
+
+        // A pending chain callback must never block an unrelated mode change.
+        state.scheduled.clear ();
+        virtualCursorCallbackDelayMillis = 150;
+        virtualCursorDeviceNested = false;
+        virtualCursorDevicePosition = 4;
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (true);
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        final long independentStart = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, independentStart,
+            VirtualPush1Device.IN, "IN before independent mode change", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, independentStart + 10,
+            VirtualPush1Device.TRACK, "TRACK while chain callback pending", new java.util.ArrayList<> ());
+        require (surface.getModeManager ().isActive (Modes.TRACK),
+            "Pending chain callback blocked immediate TRACK mode activation");
+        advanceNavigationClock (state, independentStart + 151);
+        require (surface.getModeManager ().isActive (Modes.TRACK),
+            "Late chain cursor publication stole focus from TRACK");
 
         virtualCursorCallbackDelayMillis = 73;
         state.scheduled.clear ();
         surface.getModeManager ().setActive (Modes.TRACK);
-        require (trials == callbackDelays.length * gestureGaps.length,
-            "Navigation responsiveness sweep did not execute its full delay/gap matrix");
-        System.out.println ("Virtual Push 1 IN→ROW1 responsiveness sweep: " + trials
-            + " trials, " + staleSelections + " stale-cursor selections; " + results);
+        require (trials == entryPaths.length * callbackDelays.length * gestureGaps.length,
+            "Navigation responsiveness sweep did not execute its full entry/delay/gap matrix");
+        System.out.println ("Virtual Push 1 IN/CHAINS→ROW1 responsiveness sweep: " + trials
+            + " trials, " + staleSelections + " stale-cursor selections; independent mode switch passed; " + results);
     }
-
 
     /** Drain native host cursor publication and parent-return callbacks; no production polling exists. */
     private static void drainNavigation (final State state)
