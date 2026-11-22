@@ -15,6 +15,8 @@ import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 
 /** Push 1 Out control: return to the parent device in the current chain. */
 public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface, PushConfiguration>
@@ -24,13 +26,13 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
         super (model, surface);
     }
 
-    private static long navigationGeneration;
+    private static final AtomicLong NAVIGATION_GENERATION = new AtomicLong ();
 
 
     /** Cancel a delayed parent completion when the user starts a newer action. */
     public static void invalidatePendingNavigation ()
     {
-        ++navigationGeneration;
+        NAVIGATION_GENERATION.incrementAndGet ();
     }
 
 
@@ -39,9 +41,9 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
     {
         final var modeManager = surface.getModeManager ();
         final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
-        final long generation = ++navigationGeneration;
+        final long generation = NAVIGATION_GENERATION.incrementAndGet ();
         model.getHost ().scheduleTask ( () -> {
-            if (generation != navigationGeneration || !modeManager.isActive (Modes.DEVICE_PARAMS))
+            if (generation != NAVIGATION_GENERATION.get () || !modeManager.isActive (Modes.DEVICE_PARAMS))
                 return;
             final var cursorDevice = model.getCursorDevice ();
             if (!cursorDevice.doesExist ())
