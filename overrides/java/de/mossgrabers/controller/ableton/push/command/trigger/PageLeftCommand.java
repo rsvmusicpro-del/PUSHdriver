@@ -41,6 +41,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         private WeakReference<PushControlSurface> surface;
         private int polls;
         private boolean scheduled;
+        private boolean enterFirstChain;
 
         private PendingParentReturn (final ICursorDevice cursor, final String fingerprint,
             final DeviceParamsMode mode, final PushControlSurface surface)
@@ -106,6 +107,20 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (!cursor.doesExist ())
             return;
         PENDING_ROW1.put (model, new PendingRow1Selection (cursor, cursorFingerprint (model), mode, surface));
+    }
+
+
+    /** Defer IN until an already-issued parent return has published its cursor. */
+    public static boolean deferInUntilParentReturn (final DeviceParamsMode mode, final IModel model,
+        final PushControlSurface surface)
+    {
+        final PendingParentReturn pending = PENDING_PARENT_RETURN.get (model);
+        if (pending == null)
+            return false;
+        pending.enterFirstChain = true;
+        pending.mode = new WeakReference<> (mode);
+        pending.surface = new WeakReference<> (surface);
+        return true;
     }
 
 
@@ -333,13 +348,36 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
         PENDING_PARENT_RETURN.remove (model);
         final var modeManager = surface.getModeManager ();
-        if (cursor.hasLayers ())
+        final boolean hasLayers = cursor.hasLayers ();
+        if (hasLayers)
             modeManager.setActive (surface.getConfiguration ().getCurrentLayerMixMode ());
         else
             modeManager.setActive (Modes.DEVICE_PARAMS);
         mode.setShowDevices (false);
         cursor.selectChannel ();
+
+        // IN received while the parent command was in flight belongs to the
+        // newly published parent, not to the child cursor being left.
+        if (pending.enterFirstChain && !hasLayers && modeManager.isActive (Modes.DEVICE_PARAMS))
+            selectFirstAvailableChain (mode, model, surface);
         return true;
+    }
+
+
+    private static void selectFirstAvailableChain (final DeviceParamsMode mode, final IModel model,
+        final PushControlSurface surface)
+    {
+        if (mode == null || surface == null || !model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+            return;
+        final ICursorDevice cursor = model.getCursorDevice ();
+        if (!cursor.doesExist ())
+            return;
+        final String [] slotChains = cursor.getSlotChains ();
+        if (slotChains == null || slotChains.length == 0)
+            return;
+        mode.setShowDevices (true);
+        prepareSlotChainSelection (mode, model, surface, slotChains[0]);
+        cursor.selectSlotChain (slotChains[0]);
     }
 
 
@@ -414,24 +452,12 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
         if (modeManager.isActive (Modes.DEVICE_PARAMS))
         {
-            if (event == ButtonEvent.DOWN && this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+            if (event == ButtonEvent.DOWN && activeMode instanceof final DeviceParamsMode deviceParamsMode
+                    && this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
             {
-                final var cursorDevice = this.model.getCursorDevice ();
-                if (!cursorDevice.doesExist ())
+                if (deferInUntilParentReturn (deviceParamsMode, this.model, this.surface))
                     return;
-
-                final String [] slotChains = cursorDevice.getSlotChains ();
-                if (slotChains != null && slotChains.length > 0)
-                {
-                    if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
-                    {
-                        deviceParamsMode.setShowDevices (true);
-                        prepareSlotChainSelection (deviceParamsMode, this.model, this.surface, slotChains[0]);
-                    }
-                    // Match DrivenByMoss: issue the chain selection directly.
-                    // Only a dependent ROW1 intent waits for cursor publication.
-                    cursorDevice.selectSlotChain (slotChains[0]);
-                }
+                selectFirstAvailableChain (deviceParamsMode, this.model, this.surface);
             }
             return;
         }
