@@ -131,8 +131,11 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
         final ICursorDevice cursor = model.getCursorDevice ();
         if (isTransitionComplete (cursor, pending))
         {
+            // A newer ROW1 tap wins even if the host changed cursor state just
+            // before its scheduled probe ran.
+            pending.pendingRowIndex = index;
             completeNavigation (surface, model, pending);
-            return false;
+            return true;
         }
 
         if (pending.before.equals (fingerprint (cursor)))
