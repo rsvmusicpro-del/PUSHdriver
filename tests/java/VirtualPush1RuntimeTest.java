@@ -1961,6 +1961,7 @@ public final class VirtualPush1RuntimeTest
         // Exercise the complete Swing simulator in memory on every CI run.
         VirtualPush1Simulator.smoke (midi);
         runLatencyBench (setup, midi, mixerModel);
+        runNavigationModeLatencyBench (setup, midi, surface);
 
         if (args.length > 0 && "--gui".equals (args[0]))
             VirtualPush1Simulator.show (midi, setup::exit);
@@ -3644,6 +3645,52 @@ public final class VirtualPush1RuntimeTest
             + "us p99=" + elapsed[elapsed.length * 99 / 100] / 1000 + "us"
             + " (diagnostic wall-clock values; no CI timing gate).");
     }
+
+    /**
+     * Measure real MIDI mode-button dispatch through the production bindings,
+     * ModeManager transition and controller flush. The sequence deliberately
+     * alternates modes so samples represent transitions rather than no-op taps.
+     */
+    private static void runNavigationModeLatencyBench (final PushControllerSetup setup,
+        final VirtualPush1MidiBench midi, final PushControlSurface surface)
+    {
+        final int [] controls = {
+            VirtualPush1Device.DEVICE, VirtualPush1Device.TRACK,
+            VirtualPush1Device.VOLUME, VirtualPush1Device.PAN_SEND
+        };
+        final Modes [] expected = {
+            Modes.DEVICE_PARAMS, Modes.TRACK, Modes.VOLUME, Modes.PAN
+        };
+        for (int i = 0; i < 100; i++)
+        {
+            final int slot = i % controls.length;
+            midi.device ().tapButton (controls[slot]);
+            setup.flush ();
+            require (surface.getModeManager ().isActive (expected[slot]),
+                "Warm-up mode transition did not activate " + expected[slot]);
+        }
+
+        final long [] elapsed = new long [1000];
+        for (int i = 0; i < elapsed.length; i++)
+        {
+            final int slot = i % controls.length;
+            final long started = System.nanoTime ();
+            midi.device ().tapButton (controls[slot]);
+            setup.flush ();
+            elapsed[i] = System.nanoTime () - started;
+            require (surface.getModeManager ().isActive (expected[slot]),
+                "MIDI mode transition did not activate " + expected[slot]
+                    + " at sample " + i);
+        }
+        Arrays.sort (elapsed);
+        System.out.println ("Virtual Push 1 navigation mode latency (DEVICE/TRACK/VOLUME/PAN-SEND MIDI -> ModeManager -> flush; "
+            + elapsed.length + " alternating transitions): p50=" + elapsed[elapsed.length * 50 / 100] / 1000
+            + "us p95=" + elapsed[elapsed.length * 95 / 100] / 1000
+            + "us p99=" + elapsed[elapsed.length * 99 / 100] / 1000
+            + "us max=" + elapsed[elapsed.length - 1] / 1000
+            + "us (diagnostic wall-clock values; no CI timing gate).");
+    }
+
 
     private static void requireButtonMidiDelivery (final VirtualPush1MidiBench midi,
         final int control, final String label)
