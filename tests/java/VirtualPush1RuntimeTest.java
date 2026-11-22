@@ -3787,10 +3787,22 @@ public final class VirtualPush1RuntimeTest
             + " trials, " + staleSelections + " stale-cursor selections; independent mode switch passed; " + results);
     }
 
-    /** Drain asynchronous host publication and the bounded production fallback. */
+    /** Drain scheduled navigation callbacks in deadline order without advancing button-hold timers. */
     private static void drainNavigation (final State state)
     {
-        advanceNavigationClock (state, state.virtualTimeMillis + 600);
+        for (int steps = 0; steps < 100000; steps++)
+        {
+            ScheduledTask next = null;
+            for (final ScheduledTask candidate: state.scheduled)
+                if (next == null || candidate.dueAtMillis () < next.dueAtMillis ())
+                    next = candidate;
+            if (next == null)
+                return;
+            state.scheduled.remove (next);
+            state.virtualTimeMillis = Math.max (state.virtualTimeMillis, next.dueAtMillis ());
+            next.task ().run ();
+        }
+        throw new AssertionError ("Virtual navigation scheduler exceeded 100000 tasks");
     }
 
 
