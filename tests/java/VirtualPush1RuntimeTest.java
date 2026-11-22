@@ -1058,6 +1058,50 @@ public final class VirtualPush1RuntimeTest
         require (modes.isActive (Modes.TRACK),
             "ROW2 Up did not return to Track after the native hierarchy was unwound");
 
+        // Multiple ROW2-UP presses received while selectParent is in flight
+        // must be replayed in order, not issue repeated parent selections on
+        // the stale child cursor.
+        virtualParentNestedAfterSelect = false;
+        virtualParentHasLayersAfterSelect = false;
+        virtualSameNameParentAfterSelect = false;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceName = "Rapid ROW2 child";
+        virtualDeviceBankNames = new String [] {
+            "Rapid child sibling 0", "Rapid child sibling 1", "Rapid child sibling 2", "Rapid child sibling 3",
+            "Rapid child sibling 4", "Rapid child sibling 5", "Rapid child sibling 6", "Rapid child sibling 7"
+        };
+        virtualCursorDevicePosition = 0;
+        deviceIndex = 0;
+        virtualCursorDeviceHasLayers = false;
+        deviceParamsMode.setShowDevices (true);
+        modes.setActive (Modes.DEVICE_PARAMS);
+        MODEL_ACTIONS.clear ();
+        final long rapidRow2Start = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, rapidRow2Start,
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP rapid parent request", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, rapidRow2Start + 10,
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP queued selector restore", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, rapidRow2Start + 20,
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP queued Track return", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, rapidRow2Start + 100);
+        requireAction ("cursorDevice.selectParent",
+            "Rapid ROW2-UP did not issue the first native parent selection");
+        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectParent")).count () == 1,
+            "Rapid ROW2-UP issued duplicate selectParent calls against a stale cursor");
+        requireAction ("cursorDevice.selectChannel",
+            "Rapid ROW2-UP did not finalize the published parent");
+        require (modes.isActive (Modes.TRACK),
+            "Rapid ROW2-UP presses were not replayed through the native path back to Track");
+
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceName = "Virtual Device";
+        virtualDeviceBankNames = new String [] {
+            "Device 0", "Device 1", "Device 2", "Device 3",
+            "Device 4", "Device 5", "Device 6", "Device 7"
+        };
+        virtualCursorDevicePosition = 4;
+        deviceIndex = 4;
+
         // The dedicated OUT button must use the native layer exit, not page
         // backwards through the layer bank.
         virtualCursorDeviceHasLayers = true;
