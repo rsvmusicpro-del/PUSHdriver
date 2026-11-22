@@ -305,8 +305,6 @@ replace_once(device_params_mode,
     """    public void onFirstRow (final int index, final ButtonEvent event)
     {
         if (event == ButtonEvent.DOWN)
-            return;
-        if (de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.queueRowDuringNavigation (this.surface, this.model, index))
             return;""",
     """    public void onFirstRow (final int index, final ButtonEvent event)
     {
