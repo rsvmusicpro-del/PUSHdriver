@@ -103,6 +103,7 @@ jobs:
           python3 scripts/push1_temporal_simulator.py --scenario chain-entry --samples 5000 --seed 20261122 --json > target/push1-temporal/chain-entry.json
           python3 scripts/push1_temporal_simulator.py --scenario rapid-chain --samples 5000 --seed 20261123 --json > target/push1-temporal/rapid-chain.json
           python3 scripts/push1_temporal_simulator.py --scenario mode-burst --samples 5000 --seed 20261124 --json > target/push1-temporal/mode-burst.json
+          python3 scripts/push1_temporal_simulator.py --scenario button-repeat-hold --samples 5000 --seed 20261125 --json > target/push1-temporal/button-repeat-hold.json
 
       - name: Upload temporal simulation reports
         uses: actions/upload-artifact@v4
