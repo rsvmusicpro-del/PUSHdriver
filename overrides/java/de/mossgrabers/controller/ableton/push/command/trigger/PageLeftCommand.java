@@ -91,6 +91,9 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     public static boolean deferOutUntilChainCursor (final DeviceParamsMode mode, final IModel model,
         final PushControlSurface surface)
     {
+        // The Chains chooser has its own immediate native Up/exit behavior.
+        if (!surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
+            return false;
         final PendingRow1Selection pending = PENDING_ROW1.get (mode);
         if (pending == null)
             return false;
