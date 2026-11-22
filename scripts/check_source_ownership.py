@@ -144,7 +144,7 @@ def validate_in_out_contract(setup, left, right, control, virtual, hardware, run
   (re.search(r"PUSH_BUTTON_DEVICE_RIGHT\s*=\s*63",control) is not None,"Physical right/CC63 must be Out."),
   ('this.addButton (ButtonID.PAGE_LEFT, "In"' in setup,"CC62/Page Left label must be In."),
   ('this.addButton (ButtonID.PAGE_RIGHT, "Out"' in setup,"CC63/Page Right label must be Out."),
-  ("cursorDevice.selectSlotChain (slotChains[0])" in left,"In must enter the first available slot chain directly."),
+  ("selectFirstAvailableChain (deviceParamsMode, this.model, this.surface)" in left and "cursor.selectSlotChain (slotChains[0])" in left,"In must enter the first available slot chain directly through the shared entry path."),
   ("deviceParamsMode.onSecondRow (7, ButtonEvent.DOWN)" in right and "Modes.DEVICE_CHAINS" in right,"Out must reuse the native DrivenByMoss hierarchy action."),
   ("public static final int IN = 62;" in virtual and "public static final int OUT = 63;" in virtual,"Virtual Push button IDs must match hardware CC62/CC63."),
   ("In (CC 62) enters the first available slot chain" in hardware and "Out (CC 63) returns to its parent device" in hardware,"Hardware documentation must define hierarchy navigation."),
