@@ -5,7 +5,6 @@ package de.mossgrabers.controller.ableton.push.command.trigger;
 
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
-import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.framework.command.core.AbstractTriggerCommand;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.featuregroup.IMode;
@@ -33,21 +32,6 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
         final var modeManager = this.surface.getModeManager ();
         final IMode activeMode = modeManager.getActive ();
 
-        // Out is an escape action: a nested cursor takes precedence over page
-        // navigation in the currently displayed view or mode.
-        if (event == ButtonEvent.DOWN)
-        {
-            final var cursorDevice = this.model.getCursorDevice ();
-            if (cursorDevice.doesExist ()
-                && (cursorDevice.isNested () || PushDeviceNavigation.isEntering (this.surface, this.model)))
-            {
-                if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
-                    deviceParamsMode.setShowDevices (true);
-                PushDeviceNavigation.exitParent (this.surface, this.model);
-                return;
-            }
-        }
-
         if (modeManager.isActive (Modes.BROWSER))
         {
             if (event == ButtonEvent.DOWN && activeMode != null)
@@ -55,16 +39,23 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
             return;
         }
 
-        final Modes activeModeId = modeManager.getActiveID ();
-        final boolean deviceNavigationMode = modeManager.isActive (Modes.DEVICE_PARAMS)
-            || modeManager.isActive (Modes.EQ_DEVICE_PARAMS)
-            || modeManager.isActive (Modes.INSTRUMENT_DEVICE_PARAMS)
-            || modeManager.isActive (Modes.DEVICE_CHAINS)
-            || Modes.isDeviceMode (activeModeId);
+        if (modeManager.isActive (Modes.DEVICE_CHAINS))
+            return;
 
-        if (deviceNavigationMode)
+        if (modeManager.isActive (Modes.DEVICE_PARAMS))
         {
-            if (event == ButtonEvent.DOWN && activeMode != null && !modeManager.isActive (Modes.DEVICE_CHAINS))
+            if (event == ButtonEvent.DOWN)
+            {
+                final var cursorDevice = this.model.getCursorDevice ();
+                if (cursorDevice.doesExist () && cursorDevice.isNested ())
+                    cursorDevice.selectParent ();
+            }
+            return;
+        }
+
+        if (Modes.isDeviceMode (modeManager.getActiveID ()))
+        {
+            if (event == ButtonEvent.DOWN && activeMode != null)
                 activeMode.selectPreviousItemPage ();
             return;
         }
