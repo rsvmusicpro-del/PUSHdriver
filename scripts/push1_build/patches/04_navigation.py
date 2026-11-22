@@ -340,6 +340,12 @@ replace_once(device_chains_mode,
 """,
     """            final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS);
             deviceParamsMode.setShowDevices (true);
+            if (de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.deferChainSelectionUntilParentReturn (
+                    deviceParamsMode, this.model, this.surface, slotChains[index]))
+            {
+                this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+                return;
+            }
             de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.prepareSlotChainSelection (
                 deviceParamsMode, this.model, this.surface, slotChains[index]);
             // Match DrivenByMoss: issue the chain selection and mode change
