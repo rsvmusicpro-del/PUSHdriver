@@ -169,6 +169,8 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertIn("parentFingerprint", command)
         self.assertIn("deferInUntilParentReturn", command)
         self.assertIn("selectFirstAvailableChain", command)
+        self.assertIn("queuedUpCount", command)
+        self.assertIn("replayQueuedOut", command)
         self.assertIn("childFingerprint", command)
 
         page_right = (root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PageRightCommand.java").read_text(encoding="utf-8")
