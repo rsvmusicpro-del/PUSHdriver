@@ -208,7 +208,7 @@ def aggregate(profile: dict[str, Any], scenario: str, samples: int, seed: int) -
     sim = TemporalSimulator(profile, seed)
     actions = SCENARIOS[scenario]
     aggregate_values = {"command": [], "cursor": [], "led": [], "lcd": []}
-    stage_values = {stage: [] for stage in TemporalSimulator.INPUT_STAGES}
+    stage_values = {stage: [] for stage in TemporalSimulator.INPUT_STAGES + ("midi_feedback", "usb_feedback", "led_render", "lcd_render")}
     loss_counts: dict[str, int] = {}
     reorder_counts = {"led": 0, "lcd": 0}
     expected = completed = 0
