@@ -46,7 +46,7 @@ replace_once(setup,
             if (modeManager.isActive (Modes.BROWSER) && activeMode != null)
                 return activeMode.hasPreviousItemPage ();
             if (modeManager.isActive (Modes.DEVICE_CHAINS))
-                return false;
+                return true;
             if (modeManager.isActive (Modes.DEVICE_PARAMS))
             {
                 final var cursorDevice = this.model.getCursorDevice ();
@@ -203,6 +203,68 @@ replace_once(browser_mode,
 # Keep DeviceParamsMode upstream-owned. Restore immediate sibling-cursor
 # traversal for nested ROW1 selection; never wait for each individual step.
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
+
+# A single generation counter on DEVICE_PARAMS owns pending parent-return work.
+# It prevents a delayed parent callback from overwriting a newer user action.
+replace_once(device_params_mode,
+    "    protected boolean              showDevices;\\n",
+    "    protected boolean              showDevices;\\n    private long                   navigationGeneration;\\n",
+    "Device navigation generation")
+replace_once(device_params_mode,
+    """    public final void setShowDevices (final boolean enable)
+    {
+        this.showDevices = enable;
+    }
+""",
+    """    public final void setShowDevices (final boolean enable)
+    {
+        this.showDevices = enable;
+    }
+
+
+    /** Invalidate a pending asynchronous parent-return completion. */
+    public void invalidatePendingNavigation ()
+    {
+        ++this.navigationGeneration;
+    }
+
+
+    /**
+     * Return to the parent device. The cursor update is asynchronous in Bitwig;
+     * use a short host task and a generation guard instead of the upstream
+     * fixed 300 ms delay.
+     */
+    public void navigateOut ()
+    {
+        final ModeManager modeManager = this.surface.getModeManager ();
+        final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
+        if (modeManager.isActive (Modes.DEVICE_CHAINS))
+        {
+            modeManager.setActive (Modes.DEVICE_PARAMS);
+            deviceParamsMode.setShowDevices (true);
+        }
+
+        final ICursorDevice cd = this.model.getCursorDevice ();
+        if (!cd.doesExist () || !cd.isNested ())
+            return;
+
+        deviceParamsMode.setShowDevices (true);
+        final long generation = ++deviceParamsMode.navigationGeneration;
+        cd.selectParent ();
+        this.model.getHost ().scheduleTask ( () -> {
+            if (generation != deviceParamsMode.navigationGeneration || !modeManager.isActive (Modes.DEVICE_PARAMS) || !cd.doesExist ())
+                return;
+
+            if (cd.hasLayers ())
+                modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
+            else
+                modeManager.setActive (Modes.DEVICE_PARAMS);
+            deviceParamsMode.setShowDevices (false);
+            cd.selectChannel ();
+        }, 75);
+    }
+""",
+    "Device immediate parent navigation")
 replace_once(device_params_mode,
     """            if (cd.getIndex () != index)
             {
