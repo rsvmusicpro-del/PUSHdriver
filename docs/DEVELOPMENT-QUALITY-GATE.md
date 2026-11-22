@@ -64,6 +64,12 @@ The quality gate also verifies the physical In/Out contract end-to-end: CC62 ent
 Device hierarchy commands follow the pinned DrivenByMoss flow directly: In and Device Chains call `selectSlotChain`; Out reuses the native `DeviceParamsMode.moveUp()` path; nested ROW1 moves dispatch sibling cursor calls immediately. There is no navigation queue, cursor polling loop, deferred ROW1 replay, or input interception between gestures. The native 300 ms parent-return completion is retained, but it is canceled if the user has already switched away from Device Params, so it cannot steal focus from Track, Volume, Pan/Send, or another mode. The virtual runtime verifies direct In/Chains dispatch, native Out/ROW2 hierarchy behavior, nested traversal direction, physical MIDI bindings, and ROW1 bounds. This deterministic host model does not prove Bitwig hardware latency; live Push 1 testing remains the final UX check.
 
 
+## Temporal and hardware-feedback simulation
+
+The standalone `scripts/push1_temporal_simulator.py` complements the API-17 runtime without changing production navigation. It runs seeded Monte-Carlo scenarios for IN → rapid ROW1 → ROW2-UP, repeated chain traversal and mode bursts. Configurable distributions model electrical event detection, USB/MIDI input, Bitwig dispatch, extension navigation, cursor publication, and separate MIDI/USB/LED and MIDI/USB/LCD feedback paths. Reports include P50/P95/P99, jitter, losses and feedback reordering. CI runs 5,000 samples per scenario on Linux and Intel macOS and retains JSON reports as artifacts.
+
+The checked-in profile is explicitly theoretical and configurable; it is not a hardware timing claim. See `docs/PUSH1-TEMPORAL-SIMULATOR.md` for calibration using timestamped USB/MIDI captures, optical LED/LCD sensors and force/displacement instrumentation. The simulator cannot reproduce tactile force, key travel, click feel, actual LED brightness or LCD optical response. A physical Push 1 with live Bitwig remains required to qualify those boundaries.
+
 ## Post-audit extension hardening
 
 - Poly observer registration is shared per track bank, fans note events out to every live active Push Poly view, and retains views only through weak references. This preserves multiple Push surfaces sharing one model while respecting the API-17 limitation that observers cannot be removed.
