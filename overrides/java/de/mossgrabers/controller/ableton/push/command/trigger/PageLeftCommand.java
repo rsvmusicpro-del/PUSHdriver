@@ -17,6 +17,8 @@ import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -27,6 +29,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     private static final int CHAIN_CURSOR_POLL_MS = 8;
     private static final int CHAIN_CURSOR_MAX_POLLS = 75;
     private static final Map<DeviceParamsMode, PendingRow1Selection> PENDING_ROW1 = new WeakHashMap<> ();
+    private static final Map<IModel, Boolean> OBSERVED_MODELS = new WeakHashMap<> ();
 
     private static final class PendingRow1Selection
     {
@@ -34,17 +37,20 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         private final String parentName;
         private final boolean parentWasNested;
         private final IModel model;
+        private final WeakReference<PushControlSurface> surface;
         private int targetIndex = -1;
         private boolean returnToParent;
         private int polls;
         private boolean scheduled;
 
-        private PendingRow1Selection (final ICursorDevice cursor, final IModel model)
+        private PendingRow1Selection (final ICursorDevice cursor, final IModel model,
+            final PushControlSurface surface)
         {
             this.parentId = cursor.getID ();
             this.parentName = cursor.getName ();
             this.parentWasNested = cursor.isNested ();
             this.model = model;
+            this.surface = new WeakReference<> (surface);
         }
     }
 
@@ -65,7 +71,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final ICursorDevice cursor = model.getCursorDevice ();
         if (!cursor.doesExist ())
             return;
-        PENDING_ROW1.put (mode, new PendingRow1Selection (cursor, model));
+        PENDING_ROW1.put (mode, new PendingRow1Selection (cursor, model, surface));
     }
 
 
@@ -86,7 +92,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (!pending.scheduled)
         {
             pending.scheduled = true;
-            scheduleChainCursorProbe (mode, model, surface, pending);
+            scheduleChainCursorProbe (mode, model, pending);
         }
         return true;
     }
@@ -112,7 +118,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (!pending.scheduled)
         {
             pending.scheduled = true;
-            scheduleChainCursorProbe (mode, model, surface, pending);
+            scheduleChainCursorProbe (mode, model, pending);
         }
         return true;
     }
@@ -136,12 +142,30 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     }
 
 
-    private void onCursorNameChanged ()
+    private static void ensureCursorNameObserver (final IModel model)
     {
-        final DeviceParamsMode pendingMode = (DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS);
-        final PendingRow1Selection pending = PENDING_ROW1.get (pendingMode);
-        if (pending != null && pending.model == this.model)
-            completePendingIfReady (pendingMode, pending, this.surface);
+        if (OBSERVED_MODELS.containsKey (model))
+            return;
+
+        OBSERVED_MODELS.put (model, Boolean.TRUE);
+        final WeakReference<IModel> modelReference = new WeakReference<> (model);
+        model.getCursorDevice ().addNameObserver (name -> {
+            final IModel observedModel = modelReference.get ();
+            if (observedModel != null)
+                onCursorNameChanged (observedModel);
+        });
+    }
+
+
+    private static void onCursorNameChanged (final IModel model)
+    {
+        // Snapshot keys before completion removes entries from the weak map.
+        for (final DeviceParamsMode mode: new ArrayList<> (PENDING_ROW1.keySet ()))
+        {
+            final PendingRow1Selection pending = PENDING_ROW1.get (mode);
+            if (pending != null && pending.model == model)
+                completePendingIfReady (mode, pending);
+        }
     }
 
 
@@ -151,11 +175,12 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
      * @return True if the pending intent was completed, invalidated or superseded
      */
     private static boolean completePendingIfReady (final DeviceParamsMode mode,
-        final PendingRow1Selection pending, final PushControlSurface surface)
+        final PendingRow1Selection pending)
     {
         if (PENDING_ROW1.get (mode) != pending)
             return true;
-        if (!surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
+        final PushControlSurface surface = pending.surface.get ();
+        if (surface == null || !surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
         {
             PENDING_ROW1.remove (mode);
             return true;
@@ -175,13 +200,13 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
 
     private static void scheduleChainCursorProbe (final DeviceParamsMode mode, final IModel model,
-        final PushControlSurface surface, final PendingRow1Selection pending)
+        final PendingRow1Selection pending)
     {
         model.getHost ().scheduleTask (() -> {
             if (PENDING_ROW1.get (mode) != pending)
                 return;
             pending.scheduled = false;
-            if (completePendingIfReady (mode, pending, surface))
+            if (completePendingIfReady (mode, pending))
                 return;
             if (++pending.polls >= CHAIN_CURSOR_MAX_POLLS)
             {
@@ -196,9 +221,9 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     public PageLeftCommand (final IModel model, final PushControlSurface surface)
     {
         super (model, surface);
-        // One controller-lifetime observer handles the normal case without
-        // waiting for the bounded fallback probe.
-        this.model.getCursorDevice ().addNameObserver (name -> this.onCursorNameChanged ());
+        // One observer per model serves all Push surfaces. It holds only a
+        // weak model reference; pending surface state is weak as well.
+        ensureCursorNameObserver (this.model);
     }
 
 
