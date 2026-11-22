@@ -204,58 +204,9 @@ replace_once(browser_mode,
 # traversal for nested ROW1 selection; never wait for each individual step.
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
 
-# Keep the ROW2 Up action aligned with the dedicated Out control. Nested
-# cursors return immediately even when parameter banks were displayed.
-replace_once(device_params_mode,
-    """        if (modeManager.isActive (Modes.DEVICE_CHAINS))
-        {
-            modeManager.setActive (Modes.DEVICE_PARAMS);
-            return;
-        }""",
-    """        if (modeManager.isActive (Modes.DEVICE_CHAINS))
-            modeManager.setActive (Modes.DEVICE_PARAMS);""",
-    "ROW2 Up exits chain selector before moving to parent")
-replace_once(device_params_mode,
-    """        // Parameter banks are shown -> show devices
-        final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
-        if (!deviceParamsMode.isShowDevices ())
-        {
-            deviceParamsMode.setShowDevices (true);
-            return;
-        }""",
-    """        final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
-        if (cd.isNested ())
-        {
-            deviceParamsMode.setShowDevices (true);
-            cd.selectParent ();
-            de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.scheduleParentCompletion (this.model, this.surface);
-            return;
-        }
-        if (!deviceParamsMode.isShowDevices ())
-        {
-            deviceParamsMode.setShowDevices (true);
-            return;
-        }""",
-    "ROW2 Up returns from nested devices before switching banks")
-replace_once(device_params_mode,
-    """        // Devices are shown, if nested show the layers otherwise move up to the tracks
-        if (cd.isNested ())
-        {
-            cd.selectParent ();
-            this.model.getHost ().scheduleTask ( () -> {
-                if (cd.hasLayers ())
-                    modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
-                else
-                    modeManager.setActive (Modes.DEVICE_PARAMS);
-                deviceParamsMode.setShowDevices (false);
-                cd.selectChannel ();
-            }, 300);
-            return;
-        }""",
-    """        // The nested case is handled above by the shared parent-navigation path.""",
-    "Remove duplicate fixed-delay parent return from ROW2 Up")
-
-
+# Preserve DrivenByMoss' native DeviceParamsMode.moveUp() behavior for ROW2-UP.
+# The upstream implementation owns chooser exit, parameter-bank/device-list
+# stepping, and the final return to the track.
 replace_once(device_params_mode,
     """            if (cd.getIndex () != index)
             {
