@@ -3485,7 +3485,7 @@ public final class VirtualPush1RuntimeTest
     /** Drain serialized navigation while preserving delayed host callbacks and adaptive poll intervals. */
     private static void drainNavigation (final State state)
     {
-        final long [] delays={4,8,12,20,40,73};
+        final long [] delays={4,8,12,20,36,40,73};
         for(int steps=0;steps<100000;steps++)
         {
             if(runNextScheduled(state,73))
