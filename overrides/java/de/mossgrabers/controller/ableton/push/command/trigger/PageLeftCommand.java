@@ -214,7 +214,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
                 return;
             }
             pending.scheduled = true;
-            scheduleChainCursorProbe (mode, model, surface, pending);
+            scheduleChainCursorProbe (mode, model, pending);
         }, CHAIN_CURSOR_POLL_MS);
     }
 
