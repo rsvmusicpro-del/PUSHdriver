@@ -854,14 +854,18 @@ public final class VirtualPush1RuntimeTest
         require (browserModel.filterCursor (0) == filterBefore,
             "Push 1 bottom row did not select the next Browser filter item");
 
-        // Encoder touch selects a filter column; eight relative detents pass
-        // the production Browser mode's deliberate movement-rate limiter.
+        // The touch gate remains mandatory, but every intentional detent
+        // while touched must navigate. The inherited every-eighth-event
+        // limiter used to discard seven out of eight browser movements.
+        midi.device ().turnEncoderBy (0, 1);
+        require (browserModel.filterCursor (0) == filterBefore,
+            "Untouched Browser encoder must not navigate");
         midi.device ().touchEncoder (0, true);
         for (int i = 0; i < 8; i++)
             midi.device ().turnEncoderBy (0, 1);
         midi.device ().touchEncoder (0, false);
-        require (browserModel.filterCursor (0) > filterBefore,
-            "Touched Browser encoder did not change the selected filter item");
+        require (browserModel.filterCursor (0) == filterBefore + 8,
+            "Touched Browser encoder must deliver all eight navigation detents");
         final List<String> browserDisplayText = new java.util.ArrayList<> ();
         final ITextDisplay browserDisplay = (ITextDisplay) Proxy.newProxyInstance (
             ITextDisplay.class.getClassLoader (), new Class<?> [] { ITextDisplay.class },
