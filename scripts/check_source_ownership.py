@@ -57,6 +57,7 @@ PATCH_TARGET_ALLOWLIST={
 "de/mossgrabers/controller/ableton/push/view/DrumView.java",
 "de/mossgrabers/framework/view/AbstractDrum64View.java",
 "de/mossgrabers/controller/ableton/push/PushControllerSetup.java",
+"de/mossgrabers/controller/ableton/push/command/trigger/PageRightCommand.java",
 "de/mossgrabers/controller/ableton/push/mode/NoteViewSelectMode.java",
 "de/mossgrabers/controller/ableton/push/mode/device/DeviceBrowserMode.java",
 "de/mossgrabers/controller/ableton/push/mode/SessionViewSelectMode.java",
