@@ -52,9 +52,13 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
                 if (!cursorDevice.doesExist ())
                     return;
 
-                if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
-                    deviceParamsMode.setShowDevices (true);
-                PushDeviceNavigation.enterFirstSlotChain (this.surface, this.model);
+                final String [] slotChains = cursorDevice.getSlotChains ();
+                if (slotChains != null && slotChains.length > 0)
+                {
+                    if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
+                        deviceParamsMode.setShowDevices (true);
+                    cursorDevice.selectSlotChain (slotChains[0]);
+                }
             }
             return;
         }
