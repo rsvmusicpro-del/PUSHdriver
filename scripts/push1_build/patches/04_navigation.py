@@ -349,16 +349,16 @@ replace_once(device_chains_mode,
             de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.prepareSlotChainSelection (
                 deviceParamsMode, this.model, this.surface, slotChains[index]);
             // Match DrivenByMoss: issue the chain selection and mode change
-            // immediately; only a dependent ROW1 intent waits for cursor publication.
+            // immediately unless a parent return is already in flight.
             cd.selectSlotChain (slotChains[index]);
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
             return;
 """,
     "Direct Device Chains entry without deferred navigation")
 
-# No general navigation queue or input interception is injected. Only a
-# dependent ROW1/OUT intent waits for cursor publication; unrelated gestures
-# continue to reach the active DrivenByMoss mode immediately.
+# No general navigation queue or input interception is injected. Only
+# model-scoped ROW1, IN/Chains selection and OUT/ROW2-UP hierarchy intents
+# wait for the specific cursor publication they depend on.
 
 # Keep the physical Push 1 New button on its native dedicated binding, while
 # stopping the cursor track's current clip before preparing its next note clip.
