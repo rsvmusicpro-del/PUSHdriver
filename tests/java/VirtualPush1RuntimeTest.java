@@ -821,6 +821,8 @@ public final class VirtualPush1RuntimeTest
         // Two-level hierarchy regression: returning from a child chain may
         // land on another nested parent, not necessarily at the project root.
         virtualParentNestedAfterSelect = true;
+        modes.setActive (Modes.DEVICE_PARAMS);
+        deviceParamsMode.setShowDevices (true);
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return to nested parent device");
         requireAction ("cursorDevice.selectParent", "Out did not request the parent at nested depth two");
@@ -3386,10 +3388,11 @@ public final class VirtualPush1RuntimeTest
         return false;
     }
 
-    /** Drain the host's cursor publication callback; production adds no polling loop. */
+    /** Drain native host cursor publication and parent-return callbacks; no production polling exists. */
     private static void drainNavigation (final State state)
     {
         drainScheduled (state, 73);
+        drainScheduled (state, 300);
     }
 
 
