@@ -716,16 +716,16 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
         requireAction ("device.selectSlotChain:Chain 1", "In (CC 62) must enter the first available slot chain");
-        require (runNextScheduled (state, 12), "Navigation did not schedule its first low-latency cursor probe at 12 ms");
+        require (runNextScheduled (state, 4), "Navigation did not schedule its first low-latency cursor probe at 4 ms");
         require (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
             "Navigation completed before Bitwig delivered its delayed cursor callback");
-        require (runNextScheduled (state, 16), "Navigation did not schedule its second adaptive cursor probe at 16 ms");
+        require (runNextScheduled (state, 8), "Navigation did not schedule its second adaptive cursor probe at 8 ms");
         require (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
             "Navigation completed before Bitwig delivered its delayed cursor callback at the 16 ms probe");
-        require (runNextScheduled (state, 24), "Navigation did not schedule its third adaptive cursor probe at 24 ms");
+        require (runNextScheduled (state, 12), "Navigation did not schedule its third adaptive cursor probe at 12 ms");
         require (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
             "Navigation completed before Bitwig delivered its delayed cursor callback at the 24 ms probe");
-        require (runNextScheduled (state, 36), "Navigation did not schedule its fourth adaptive cursor probe at 36 ms");
+        require (runNextScheduled (state, 20), "Navigation did not schedule its fourth adaptive cursor probe at 20 ms");
         require (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
             "Navigation completed before Bitwig delivered its delayed cursor callback at the 36 ms probe");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2, "Immediate ROW1 selection after In");
@@ -751,7 +751,7 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out before two in-flight root ROW1 selections");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "First queued root ROW1 target");
         require (runNextScheduled (state, 73), "Missing delayed parent-cursor callback");
-        require (runNextScheduled (state, 12), "Missing first low-latency navigation poll after parent-cursor callback");
+        require (runNextScheduled (state, 4), "Missing first low-latency navigation poll after parent-cursor callback");
         require (MODEL_ACTIONS.contains ("device.select:1"), "First root ROW1 selection was not issued after Out");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Second ROW1 target while first root selection is in flight");
         drainNavigation (state);
