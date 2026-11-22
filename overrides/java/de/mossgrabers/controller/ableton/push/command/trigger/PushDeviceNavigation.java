@@ -143,8 +143,20 @@ public final class PushDeviceNavigation
                 }
                 reordered.addLast (inFlight);
             }
+            final ArrayDeque<Action> hierarchy = new ArrayDeque<> ();
+            final ArrayDeque<Action> selections = new ArrayDeque<> ();
+            for (final Action pending: state.actions)
+            {
+                if (pending.type == Type.SELECT)
+                    selections.addLast (pending);
+                else
+                    hierarchy.addLast (pending);
+            }
+            // Preserve the relative order of already-requested ENTER/EXIT
+            // transitions. Only stale ROW1 selections move behind this Out.
+            reordered.addAll (hierarchy);
             reordered.addLast (new Action (Type.EXIT, null, -1));
-            reordered.addAll (state.actions);
+            reordered.addAll (selections);
             while (reordered.size () > MAX_ACTIONS)
                 reordered.removeLast ();
             state.actions.clear ();
