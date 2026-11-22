@@ -465,7 +465,8 @@ replace_once(device_chains_mode,
     "            final boolean isBottomMenuOn = slotChains != null && i < slotChains.length;",
     "Device Chains null slot-bank graphic LED guard")
 replace_once(device_chains_mode,
-    """            cd.selectSlotChain (slotChains[index]);
+    """            this.prepareSlotChainSelection (slotChains[index]);
+            cd.selectSlotChain (slotChains[index]);
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
             return;
 """,
