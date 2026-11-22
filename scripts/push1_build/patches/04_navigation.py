@@ -204,67 +204,6 @@ replace_once(browser_mode,
 # traversal for nested ROW1 selection; never wait for each individual step.
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
 
-# A single generation counter on DEVICE_PARAMS owns pending parent-return work.
-# It prevents a delayed parent callback from overwriting a newer user action.
-replace_once(device_params_mode,
-    "    protected boolean              showDevices;\n",
-    "    protected boolean              showDevices;\n    private long                   navigationGeneration;\n",
-    "Device navigation generation")
-replace_once(device_params_mode,
-    """    public final void setShowDevices (final boolean enable)
-    {
-        this.showDevices = enable;
-    }
-""",
-    """    public final void setShowDevices (final boolean enable)
-    {
-        this.showDevices = enable;
-    }
-
-
-    /** Invalidate a pending asynchronous parent-return completion. */
-    public void invalidatePendingNavigation ()
-    {
-        ++this.navigationGeneration;
-    }
-
-
-    /**
-     * Return to the parent device. The cursor update is asynchronous in Bitwig;
-     * use a short host task and a generation guard instead of the upstream
-     * fixed 300 ms delay.
-     */
-    public void navigateOut ()
-    {
-        final ModeManager modeManager = this.surface.getModeManager ();
-        final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
-        if (modeManager.isActive (Modes.DEVICE_CHAINS))
-        {
-            modeManager.setActive (Modes.DEVICE_PARAMS);
-            deviceParamsMode.setShowDevices (true);
-        }
-
-        final ICursorDevice cd = this.model.getCursorDevice ();
-        if (!cd.doesExist () || !cd.isNested ())
-            return;
-
-        deviceParamsMode.setShowDevices (true);
-        final long generation = ++deviceParamsMode.navigationGeneration;
-        cd.selectParent ();
-        this.model.getHost ().scheduleTask ( () -> {
-            if (generation != deviceParamsMode.navigationGeneration || !modeManager.isActive (Modes.DEVICE_PARAMS) || !cd.doesExist ())
-                return;
-
-            if (cd.hasLayers ())
-                modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
-            else
-                modeManager.setActive (Modes.DEVICE_PARAMS);
-            deviceParamsMode.setShowDevices (false);
-            cd.selectChannel ();
-        }, 75);
-    }
-""",
-    "Device immediate parent navigation")
 # Keep the ROW2 Up action aligned with the dedicated Out control. Nested
 # cursors return immediately even when parameter banks were displayed.
 replace_once(device_params_mode,
@@ -287,7 +226,8 @@ replace_once(device_params_mode,
     """        final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
         if (cd.isNested ())
         {
-            deviceParamsMode.navigateOut ();
+            cd.selectParent ();
+            de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.scheduleParentCompletion (this.model, this.surface);
             return;
         }
         if (!deviceParamsMode.isShowDevices ())
@@ -399,7 +339,7 @@ replace_once(device_chains_mode,
             return;
 """,
     """            final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS);
-            deviceParamsMode.invalidatePendingNavigation ();
+            de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.invalidatePendingNavigation ();
             deviceParamsMode.setShowDevices (true);
             cd.selectSlotChain (slotChains[index]);
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
@@ -415,7 +355,7 @@ replace_once(device_params_mode,
             return;""",
     """    public void onFirstRow (final int index, final ButtonEvent event)
     {
-        ((DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS)).invalidatePendingNavigation ();
+        de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.invalidatePendingNavigation ();
         if (event == ButtonEvent.DOWN)
             return;""",
     "Invalidate stale parent completion on ROW1 action")
@@ -434,7 +374,7 @@ replace_once(device_params_mode,
             return;
         final ICursorDevice device = this.model.getCursorDevice ();
         final ModeManager modeManager = this.surface.getModeManager ();
-        ((DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS)).invalidatePendingNavigation ();""",
+        de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.invalidatePendingNavigation ();""",
     "Invalidate stale parent completion on ROW2 action")
 
 # Keep the physical Push 1 New button on its native dedicated binding, while
