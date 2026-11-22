@@ -132,7 +132,17 @@ public final class PushDeviceNavigation
             // intents so stale ROW1 work cannot delay leaving the current chain.
             final ArrayDeque<Action> reordered = new ArrayDeque<> ();
             if (state.running && !state.actions.isEmpty ())
-                reordered.addLast (state.actions.removeFirst ());
+            {
+                final Action inFlight = state.actions.removeFirst ();
+                // A nested MOVE already sent to Bitwig must be allowed to confirm,
+                // but Out cancels the remaining stale ROW1 journey after that step.
+                if (inFlight.type == Type.SELECT && state.wait == Wait.MOVE)
+                {
+                    inFlight.index = state.expectedIndex;
+                    inFlight.onReselect = null;
+                }
+                reordered.addLast (inFlight);
+            }
             reordered.addLast (new Action (Type.EXIT, null, -1));
             reordered.addAll (state.actions);
             while (reordered.size () > MAX_ACTIONS)
