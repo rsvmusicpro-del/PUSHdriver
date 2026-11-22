@@ -57,9 +57,9 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
                 {
                     if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
                         deviceParamsMode.setShowDevices (true);
-                    final long generation = PageRightCommand.beginNavigation (this.model, this.surface, true);
+                    // Match DrivenByMoss: issue the chain selection directly.
+                    // Do not poll the cursor or hold subsequent controller input.
                     cursorDevice.selectSlotChain (slotChains[0]);
-                    PageRightCommand.scheduleNavigation (this.model, this.surface, generation);
                 }
             }
             return;
