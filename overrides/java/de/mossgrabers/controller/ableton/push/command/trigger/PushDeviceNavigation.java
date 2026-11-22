@@ -27,7 +27,7 @@ public final class PushDeviceNavigation
     private static final String TIMING_SETTING = System.getenv ("PUSHDRIVER_NAV_TIMING");
     private static final boolean TIMING_ENABLED = "1".equals (TIMING_SETTING) || Boolean.parseBoolean (TIMING_SETTING);
     private static final int MAX_ACTIONS = 32;
-    private static final long [] POLL_BACKOFF_MS = { 12, 16, 24, 36, 73 };
+    private static final long [] POLL_BACKOFF_MS = { 4, 8, 12, 20, 40 };
 
     private static final Map<PushControlSurface, State> STATES = new WeakHashMap<> ();
 
@@ -449,8 +449,10 @@ public final class PushDeviceNavigation
             return;
         }
 
-        // Probe aggressively just after a command, then back off for genuinely
-        // slow host transitions. The total confirmation timeout remains 2.92 s.
+        // Probe at sub-10 ms intervals first so ordinary Bitwig cursor callbacks are
+        // observed promptly, then back off for genuinely slow host transitions.
+        // This changes observation latency only: the serialized host operation,
+        // cursor fingerprint checks and 2.92 s safety deadline remain intact.
         final long remainingMs = MAX_WAIT_MS - effectiveWaitedMs (state);
         if (remainingMs <= 0)
         {
