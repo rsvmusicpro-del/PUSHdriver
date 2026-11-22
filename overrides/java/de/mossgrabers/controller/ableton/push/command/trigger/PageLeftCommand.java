@@ -43,6 +43,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         private int polls;
         private boolean scheduled;
         private boolean enterFirstChain;
+        private String chainToEnter;
         private int queuedUpCount;
 
         private PendingParentReturn (final ICursorDevice cursor, final String fingerprint,
@@ -120,6 +121,23 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (pending == null)
             return false;
         pending.enterFirstChain = true;
+        pending.chainToEnter = null;
+        pending.queuedUpCount = 0;
+        pending.mode = new WeakReference<> (mode);
+        pending.surface = new WeakReference<> (surface);
+        return true;
+    }
+
+
+    /** Defer a Chains-chooser selection until an in-flight parent return completes. */
+    public static boolean deferChainSelectionUntilParentReturn (final DeviceParamsMode mode,
+        final IModel model, final PushControlSurface surface, final String chain)
+    {
+        final PendingParentReturn pending = PENDING_PARENT_RETURN.get (model);
+        if (pending == null || chain == null || chain.isBlank ())
+            return false;
+        pending.enterFirstChain = false;
+        pending.chainToEnter = chain;
         pending.queuedUpCount = 0;
         pending.mode = new WeakReference<> (mode);
         pending.surface = new WeakReference<> (surface);
@@ -167,6 +185,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             // Keep rapid OUT/ROW2-UP presses ordered behind the in-flight
             // parent change instead of issuing selectParent on the stale child.
             parentReturn.enterFirstChain = false;
+            parentReturn.chainToEnter = null;
             parentReturn.queuedUpCount++;
             return true;
         }
@@ -359,6 +378,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             return false;
 
         final boolean enterFirstChain = pending.enterFirstChain;
+        final String chainToEnter = pending.chainToEnter;
         final int queuedUpCount = pending.queuedUpCount;
         PENDING_PARENT_RETURN.remove (model);
         final var modeManager = surface.getModeManager ();
@@ -372,10 +392,15 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
         // IN received while the parent command was in flight belongs to the
         // newly published parent, not to the child cursor being left.
-        if (enterFirstChain && !hasLayers && modeManager.isActive (Modes.DEVICE_PARAMS))
-            selectFirstAvailableChain (mode, model, surface);
-        else if (queuedUpCount > 0)
-            replayQueuedOut (model, surface, queuedUpCount);
+        if (!hasLayers && modeManager.isActive (Modes.DEVICE_PARAMS))
+        {
+            if (chainToEnter != null)
+                selectSpecificChain (mode, model, surface, chainToEnter);
+            else if (enterFirstChain)
+                selectFirstAvailableChain (mode, model, surface);
+            else if (queuedUpCount > 0)
+                replayQueuedOut (model, surface, queuedUpCount);
+        }
         return true;
     }
 
@@ -413,9 +438,34 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final String [] slotChains = cursor.getSlotChains ();
         if (slotChains == null || slotChains.length == 0)
             return;
+        selectSpecificChain (mode, model, surface, slotChains[0]);
+    }
+
+
+    private static void selectSpecificChain (final DeviceParamsMode mode, final IModel model,
+        final PushControlSurface surface, final String chain)
+    {
+        if (mode == null || surface == null || chain == null || chain.isBlank ()
+                || !model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
+            return;
+        final ICursorDevice cursor = model.getCursorDevice ();
+        if (!cursor.doesExist ())
+            return;
+        final String [] slotChains = cursor.getSlotChains ();
+        if (slotChains == null)
+            return;
+        boolean available = false;
+        for (final String availableChain: slotChains)
+            if (chain.equals (availableChain))
+            {
+                available = true;
+                break;
+            }
+        if (!available)
+            return;
         mode.setShowDevices (true);
-        prepareSlotChainSelection (mode, model, surface, slotChains[0]);
-        cursor.selectSlotChain (slotChains[0]);
+        prepareSlotChainSelection (mode, model, surface, chain);
+        cursor.selectSlotChain (chain);
     }
 
 
