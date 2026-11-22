@@ -26,6 +26,8 @@ class Push1TemporalSimulatorTests(unittest.TestCase):
         self.assertGreater(result["metrics"]["led"]["count"], 0)
         self.assertGreater(result["metrics"]["lcd"]["count"], 0)
         self.assertNotEqual(result["metrics"]["led"]["p50_ms"], result["metrics"]["lcd"]["p50_ms"])
+        self.assertGreater(result["stage_delay"]["led_render"]["count"], 0)
+        self.assertGreater(result["stage_delay"]["lcd_render"]["count"], 0)
 
     def test_loss_is_counted_without_fabricating_completion(self):
         profile = json.loads(json.dumps(self.profile))
