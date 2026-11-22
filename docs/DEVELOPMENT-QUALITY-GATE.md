@@ -59,7 +59,7 @@ The quality gate also verifies the physical In/Out contract end-to-end: CC62 ent
 
 ## Device navigation latency
 
-Device hierarchy navigation deliberately stays on the direct command path: In calls `selectSlotChain`, Out calls `selectParent`, Device Chains calls `selectSlotChain`, and nested ROW1 issues the required `selectNext`/`selectPrevious` calls immediately in the input handler. No serialized action queue, per-step confirmation polling, or timeout is placed in the normal navigation path. The virtual runtime verifies the physical MIDI bindings, nested traversal direction, and valid ROW1 boundaries. This deterministic host model does not prove Bitwig hardware latency; live Push 1 testing remains the final UX check.
+Device hierarchy commands remain direct: In calls `selectSlotChain`, Out calls `selectParent`, Device Chains calls `selectSlotChain`, and nested ROW1 dispatches its sibling moves immediately. A small non-blocking transition reconciler observes only the single active In/Out/Chains cursor change and retains at most the latest ROW1 target pressed before that change is published; it does not serialize ordinary actions or wait between individual sibling moves. Its bounded 2.92-second expiry discards stale replay intent without blocking later input. The virtual runtime verifies immediate ROW1-after-In/Out replay, nested traversal direction, physical MIDI bindings, and ROW1 bounds. This deterministic host model does not prove Bitwig hardware latency; live Push 1 testing remains the final UX check.
 
 
 ## Post-audit extension hardening
