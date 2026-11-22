@@ -32,6 +32,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     {
         private final String parentId;
         private final String parentName;
+        private final boolean parentWasNested;
         private final IModel model;
         private int targetIndex = -1;
         private boolean returnToParent;
@@ -42,6 +43,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         {
             this.parentId = cursor.getID ();
             this.parentName = cursor.getName ();
+            this.parentWasNested = cursor.isNested ();
             this.model = model;
         }
     }
@@ -121,6 +123,10 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final ICursorDevice cursor = model.getCursorDevice ();
         if (!cursor.doesExist () || !cursor.isNested ())
             return false;
+        // Entering the first nested level is unambiguous even when the parent
+        // and child happen to share a display name.
+        if (!pending.parentWasNested)
+            return true;
         final String id = cursor.getID ();
         if (pending.parentId != null && !pending.parentId.isEmpty () && id != null && !id.isEmpty ()
                 && !pending.parentId.equals (id))
