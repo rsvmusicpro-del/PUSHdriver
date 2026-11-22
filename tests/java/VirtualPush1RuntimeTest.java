@@ -718,6 +718,9 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63)");
         requireAction ("cursorDevice.selectParent", "Out (CC 63) must select the parent device");
         drainScheduled (state, 73);
+        drainScheduled (state, 75);
+        requireAction ("cursorDevice.selectChannel", "Out did not finalize the parent channel after the cursor update");
+        require (!deviceParamsMode.isShowDevices (), "Out did not restore parameter-bank display after parent selection");
         require (!virtualCursorDeviceNested, "Out did not return the Bitwig cursor to its parent device");
         deviceParamsMode.setShowDevices (false);
 
@@ -727,6 +730,10 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Ableton Device Chains action");
         require (modes.isActive (Modes.DEVICE_CHAINS), "Bottom-row Chains action did not activate Device Chains");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Toggle Device Chains action");
+        require (modes.isActive (Modes.DEVICE_PARAMS), "ROW2 Chains action did not exit Device Chains");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Re-enter Device Chains action");
+        require (modes.isActive (Modes.DEVICE_CHAINS), "ROW2 Chains action did not re-enter Device Chains");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Ableton Device Chain selector 8");
         requireAction ("device.selectSlotChain:Chain 8", "Top-row selector did not select chain 8");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Selecting a chain did not return to Device parameters");
@@ -809,6 +816,7 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return to nested parent device");
         requireAction ("cursorDevice.selectParent", "Out did not request the parent at nested depth two");
         drainScheduled (state, 73);
+        drainScheduled (state, 75);
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Out incorrectly left the hierarchy when the parent was itself nested");
         deviceParamsMode.setShowDevices (true);
@@ -824,8 +832,37 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return from nested parent to root");
         drainScheduled (state, 73);
+        drainScheduled (state, 75);
         require (!virtualCursorDeviceNested && deviceIndex == 0,
             "Out did not return to the root after traversing two nested levels");
+
+        // ROW2 Up is the second dedicated route out of a chain hierarchy.
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceName = "ROW2 return child";
+        deviceIndex = 0;
+        virtualCursorDevicePosition = 0;
+        modes.setActive (Modes.DEVICE_CHAINS);
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2 Up returns from Device Chains");
+        requireAction ("cursorDevice.selectParent", "ROW2 Up did not request the parent device");
+        require (modes.isActive (Modes.DEVICE_PARAMS), "ROW2 Up did not leave Device Chains mode");
+        drainScheduled (state, 73);
+        drainScheduled (state, 75);
+        require (!virtualCursorDeviceNested, "ROW2 Up did not return to the parent chain");
+
+        // A new ROW2 action cancels a pending parent completion.
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceName = "Pending return child";
+        modes.setActive (Modes.DEVICE_PARAMS);
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Start parent return before a newer ROW2 action");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Enter Device Chains during pending return");
+        drainScheduled (state, 73);
+        drainScheduled (state, 75);
+        require (modes.isActive (Modes.DEVICE_CHAINS), "Stale parent callback overwrote a newer ROW2 mode action");
+        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.equals ("cursorDevice.selectChannel")),
+            "Stale parent callback finalized after a newer ROW2 action");
+        modes.setActive (Modes.DEVICE_PARAMS);
 
         // Returning to Device mode must keep the real controller bindings active.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Re-enter Device mode");
