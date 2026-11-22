@@ -47,6 +47,12 @@ class Push1TemporalSimulatorTests(unittest.TestCase):
                 self.assertEqual(result["scenario"], scenario)
                 self.assertGreater(result["delivery"]["expected_commands"], 0)
 
+    def test_short_repeated_and_long_holds_are_classified(self):
+        result = MODULE.aggregate(self.profile, "button-repeat-hold", 3, 2026)
+        self.assertEqual(result["button_holds"]["classes"]["short"], 12)
+        self.assertEqual(result["button_holds"]["classes"]["long"], 3)
+        self.assertEqual(result["button_holds"]["long_press_threshold_ms"], 300)
+
     def test_negative_delay_is_clamped_and_unknown_distribution_rejected(self):
         self.assertEqual(MODULE.sample_delay({"distribution":"normal","mean_ms":0,"stddev_ms":100}, __import__("random").Random(1)) >= 0, True)
         with self.assertRaises(ValueError):
