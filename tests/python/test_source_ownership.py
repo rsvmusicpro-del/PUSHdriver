@@ -171,9 +171,9 @@ class SourceOwnershipTests(unittest.TestCase):
 
         page_right = (root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PageRightCommand.java").read_text(encoding="utf-8")
         self.assertIn("DeviceLayerMode", page_right)
-        self.assertIn("moveUpFromOut", page_right)
+        self.assertIn("layerMode.moveUp ()", page_right)
         self.assertIn("device_layer_mode = root", patch)
-        self.assertIn("moveUpFromOut", patch)
+        self.assertIn('"    public void moveUp ()"', patch)
 
         self.assertIn("PageLeftCommand.beginParentReturn", patch)
         parent_return_patch = patch.split('"Replace fixed 300 ms parent return', 1)[1]

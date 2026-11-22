@@ -57,7 +57,7 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
         if (activeMode instanceof final DeviceLayerMode layerMode)
         {
             if (event == ButtonEvent.DOWN)
-                layerMode.moveUpFromOut ();
+                layerMode.moveUp ();
             return;
         }
 

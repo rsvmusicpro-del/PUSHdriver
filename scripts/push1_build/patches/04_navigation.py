@@ -287,43 +287,8 @@ replace_once(device_params_mode,
 # moveUp path without synthesizing a ROW1 long-press event.
 device_layer_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceLayerMode.java"
 replace_once(device_layer_mode,
-    """    protected void moveUp ()
-    {
-        // There is no device on the track move upwards to the track view
-        if (!this.cursorDevice.doesExist ())
-        {
-            this.surface.getButton (ButtonID.TRACK).trigger (ButtonEvent.DOWN);
-            return;
-        }
-
-        this.setMode (Modes.DEVICE_PARAMS);
-        this.cursorDevice.selectChannel ();
-        final ModeManager modeManager = this.surface.getModeManager ();
-        ((DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS)).setShowDevices (true);
-    }
-""",
-    """    protected void moveUp ()
-    {
-        // There is no device on the track move upwards to the track view
-        if (!this.cursorDevice.doesExist ())
-        {
-            this.surface.getButton (ButtonID.TRACK).trigger (ButtonEvent.DOWN);
-            return;
-        }
-
-        this.setMode (Modes.DEVICE_PARAMS);
-        this.cursorDevice.selectChannel ();
-        final ModeManager modeManager = this.surface.getModeManager ();
-        ((DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS)).setShowDevices (true);
-    }
-
-
-    /** Invoke the native layer exit from the dedicated OUT control. */
-    public void moveUpFromOut ()
-    {
-        this.moveUp ();
-    }
-""",
+    "    protected void moveUp ()",
+    "    public void moveUp ()",
     "Expose native layer exit to dedicated OUT")
 
 # Selecting a chain returns to Device mode with the device selector visible,
