@@ -2634,6 +2634,7 @@ public final class VirtualPush1RuntimeTest
                     case "doesExist": return Boolean.valueOf (cursorDeviceExists);
                     case "getIndex": return Integer.valueOf (deviceIndex);
                     case "getPosition": return Integer.valueOf (virtualCursorDevicePosition);
+                    case "getID": return (virtualCursorDeviceNested ? "nested:" : "root:") + virtualCursorDeviceName;
                     case "getName": return virtualCursorDeviceName;
                     case "isNested": return Boolean.valueOf (virtualCursorDeviceNested);
                     case "hasLayers": return Boolean.valueOf (virtualCursorDeviceHasLayers);
@@ -3568,7 +3569,8 @@ public final class VirtualPush1RuntimeTest
 
                     // Let the cursor callback arrive only after both gestures
                     // have been dispatched; no artificial drain between them.
-                    advanceNavigationClock (state, start + Math.max (callbackDelay, gap) + 1);
+                    // Allow the targeted dependent-gesture confirmation to observe the host cursor.
+                    advanceNavigationClock (state, start + Math.max (callbackDelay, gap) + 650);
                     final boolean selectedRequestedChild = virtualCursorDeviceNested && deviceIndex == 2;
                     trials++;
                     if (!selectedRequestedChild)
@@ -3578,14 +3580,59 @@ public final class VirtualPush1RuntimeTest
                     }
                     else if (firstSafeGap < 0)
                         firstSafeGap = gap;
-                    require (selectedRequestedChild == (gap >= callbackDelay),
-                        "Unexpected " + entryPath + "→ROW1 timing boundary: callbackDelay="
+                    require (selectedRequestedChild,
+                        "Dependent ROW1 intent was lost for " + entryPath + ": callbackDelay="
                             + callbackDelay + "ms gap=" + gap + "ms finalNested=" + virtualCursorDeviceNested
                             + " finalIndex=" + deviceIndex);
                 }
                 results.add (entryPath + ", " + callbackDelay + "ms host callback: first safe ROW1 gap="
                     + firstSafeGap + "ms, stale selections=" + lostAtDelay + "/" + gestureGaps.length);
             }
+
+        // Multiple dependent ROW1 taps collapse to the last physical intent.
+        state.scheduled.clear ();
+        virtualCursorCallbackDelayMillis = 150;
+        virtualCursorDeviceNested = false;
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceName = "Rapid Parent";
+        virtualDeviceBankNames = new String [] {
+            "Parent 0", "Parent 1", "Parent 2", "Parent 3",
+            "Parent 4", "Parent 5", "Parent 6", "Parent 7"
+        };
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (true);
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        final long rapidStart = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, rapidStart,
+            VirtualPush1Device.IN, "IN before rapid ROW1 taps", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, rapidStart + 10,
+            VirtualPush1Device.TOP_ROW_FIRST + 1, "ROW1 child 2", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, rapidStart + 20,
+            VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 child 4 (last intent)", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, rapidStart + 700);
+        require (virtualCursorDeviceNested && deviceIndex == 3,
+            "Rapid ROW1 gestures did not preserve the last requested child");
+
+        // A missing host cursor callback must time out without selecting on the parent.
+        state.scheduled.clear ();
+        virtualCursorCallbackDelayMillis = 1000;
+        virtualCursorDeviceNested = false;
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceName = "Timeout Parent";
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (true);
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        final long timeoutStart = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, timeoutStart,
+            VirtualPush1Device.IN, "IN before missing cursor callback", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, timeoutStart + 10,
+            VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 during missing cursor callback", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, timeoutStart + 700);
+        require (deviceIndex == 4 && !virtualCursorDeviceNested,
+            "Timed-out ROW1 intent was applied to the stale parent device");
+        advanceNavigationClock (state, timeoutStart + 1100);
+        require (virtualCursorDeviceNested && deviceIndex == 0,
+            "Late host callback replayed a ROW1 intent after its bounded timeout");
 
         // A pending chain callback must never block an unrelated mode change.
         state.scheduled.clear ();
