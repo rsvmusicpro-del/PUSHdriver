@@ -232,9 +232,9 @@ replace_once(device_params_mode,
     """    protected void moveUp ()
     {
         final ModeManager modeManager = this.surface.getModeManager ();
-        final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
+        final DeviceParamsMode pendingMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
         if (de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.deferOutUntilChainCursor (
-                deviceParamsMode, this.model, this.surface))
+                pendingMode, this.model, this.surface))
             return;
 """,
     "Defer native ROW2-UP until the chain cursor is published")
