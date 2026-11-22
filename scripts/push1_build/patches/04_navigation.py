@@ -361,8 +361,9 @@ replace_once(device_chains_mode,
 """,
     "Direct Device Chains entry without deferred navigation")
 
-# No navigation queue, deferred ROW1 replay, or ROW2 invalidation is injected.
-# Every physical gesture reaches the active DrivenByMoss mode immediately.
+# No general navigation queue or input interception is injected. Only a
+# dependent ROW1/OUT intent waits for cursor publication; unrelated gestures
+# continue to reach the active DrivenByMoss mode immediately.
 
 # Keep the physical Push 1 New button on its native dedicated binding, while
 # stopping the cursor track's current clip before preparing its next note clip.
