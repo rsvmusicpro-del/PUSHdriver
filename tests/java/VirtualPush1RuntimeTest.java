@@ -124,10 +124,7 @@ public final class VirtualPush1RuntimeTest
     private static String [] virtualDeviceBankNames = { "Device 0", "Device 1", "Device 2", "Device 3", "Device 4", "Device 5", "Device 6", "Device 7" };
     private static boolean virtualParentNestedAfterSelect;
     private static boolean virtualParentHasLayersAfterSelect;
-    private static boolean virtualSuppressParentCursorUpdate;
-    private static boolean virtualSuppressChainCursorUpdate;
     private static boolean virtualNullSlotChains;
-    private static boolean virtualUnexpectedNestedCursorUpdate;
     private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
     // Model API capabilities independently; Bitwig hosts may support one feature but not another.
     private static final EnumSet<Capability> SUPPORTED_CAPABILITIES = EnumSet.allOf (Capability.class);
@@ -2512,8 +2509,7 @@ public final class VirtualPush1RuntimeTest
                         return null;
                     case "selectParent":
                         MODEL_ACTIONS.add ("cursorDevice.selectParent");
-                        if (!virtualSuppressParentCursorUpdate)
-                            state.scheduled.add (new ScheduledTask (73, () -> {
+                        state.scheduled.add (new ScheduledTask (73, () -> {
                                 MODEL_ACTIONS.add ("cursorDevice.parentCallback");
                                 virtualCursorDeviceName = virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
                                 virtualCursorDevicePosition = 0;
@@ -2545,38 +2541,21 @@ public final class VirtualPush1RuntimeTest
                         if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
                             throw new AssertionError ("Unsupported slot-chain capability was invoked");
                         MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
-                        if (!virtualSuppressChainCursorUpdate)
-                            state.scheduled.add (new ScheduledTask (73, () -> {
+                        state.scheduled.add (new ScheduledTask (73, () -> {
                                 MODEL_ACTIONS.add ("cursorDevice.chainCallback");
                                 // Simulate a chain child whose name, position and
                                 // nesting flags match the previous cursor. The
                                 // sibling-bank contents still identify the change.
-                                if (virtualUnexpectedNestedCursorUpdate)
-                                {
-                                    // Model an unrelated host cursor move into a different nested
-                                    // chain while the requested slot-chain callback is outstanding.
-                                    virtualCursorDeviceName = "External nested device";
-                                    virtualCursorDevicePosition = 1;
-                                    deviceIndex = 1;
-                                    virtualCursorDeviceNested = true;
-                                    virtualDeviceBankNames = new String [] {
-                                        "External child 0", "External child 1", "External child 2", "External child 3",
-                                        "External child 4", "External child 5", "External child 6", "External child 7"
-                                    };
-                                }
-                                else
-                                {
-                                    virtualCursorDeviceName = "Slot " + args[0] + " child 0";
-                                    virtualCursorDevicePosition = 0;
-                                    deviceIndex = 0;
-                                    virtualCursorDeviceNested = true;
-                                    virtualDeviceBankNames = new String [] {
-                                        "Slot " + args[0] + " child 0", "Slot " + args[0] + " child 1",
-                                        "Slot " + args[0] + " child 2", "Slot " + args[0] + " child 3",
-                                        "Slot " + args[0] + " child 4", "Slot " + args[0] + " child 5",
-                                        "Slot " + args[0] + " child 6", "Slot " + args[0] + " child 7"
-                                    };
-                                }
+                                virtualCursorDeviceName = "Slot " + args[0] + " child 0";
+                                virtualCursorDevicePosition = 0;
+                                deviceIndex = 0;
+                                virtualCursorDeviceNested = true;
+                                virtualDeviceBankNames = new String [] {
+                                    "Slot " + args[0] + " child 0", "Slot " + args[0] + " child 1",
+                                    "Slot " + args[0] + " child 2", "Slot " + args[0] + " child 3",
+                                    "Slot " + args[0] + " child 4", "Slot " + args[0] + " child 5",
+                                    "Slot " + args[0] + " child 6", "Slot " + args[0] + " child 7"
+                                };
                             }));
                         return null;
                     case "toggleEnabledState":
