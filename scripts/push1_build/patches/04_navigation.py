@@ -438,6 +438,19 @@ replace_once(device_chains_mode,
 """,
     "Restore Device selector and invalidate stale parent completion after choosing a chain")
 
+# A new top-row selector press also supersedes a pending parent completion.
+replace_once(device_params_mode,
+    """    public void onFirstRow (final int index, final ButtonEvent event)
+    {
+        if (event == ButtonEvent.DOWN)
+            return;""",
+    """    public void onFirstRow (final int index, final ButtonEvent event)
+    {
+        ((DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS)).invalidatePendingNavigation ();
+        if (event == ButtonEvent.DOWN)
+            return;""",
+    "Invalidate stale parent completion on ROW1 action")
+
 # Any new ROW2 action supersedes a pending parent-return completion.
 replace_once(device_params_mode,
     """    public void onSecondRow (final int index, final ButtonEvent event)
