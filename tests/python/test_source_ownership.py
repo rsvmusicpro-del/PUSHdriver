@@ -123,7 +123,6 @@ class SourceOwnershipTests(unittest.TestCase):
             "public static final int IN = 62; public static final int OUT = 63;",
             "In (CC 62) enters the first available slot chain; Out (CC 63) returns to its parent device",
             'requireAction ("device.selectSlotChain:Chain 1", "In (CC 62)"); requireAction ("cursorDevice.selectParent", "Out (CC 63)"); "cursorDevice.selectNext"; "cursorDevice.selectPrevious"; contentTypeIndex () == inOutContentBefore + 1 contentTypeIndex () == inOutContentBefore',
-            "cursor.selectSlotChain(selected) cursor.selectParent()",
         )
         self.assertEqual(errors, [])
 
@@ -136,34 +135,20 @@ class SourceOwnershipTests(unittest.TestCase):
             "public static final int IN = 62; public static final int OUT = 63;",
             "In (CC 62) selects the next device; Out (CC 63) selects the previous device",
             "",
-            "",
         )
         self.assertTrue(errors)
 
 
 
-    def test_device_navigation_queue_does_not_retain_disposed_surface_or_mode(self):
+    def test_navigation_uses_direct_cursor_calls_without_a_queue(self):
         root = Path(__file__).resolve().parents[2]
-        navigation = (root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PushDeviceNavigation.java").read_text(encoding="utf-8")
+        helper = root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PushDeviceNavigation.java"
+        self.assertFalse(helper.exists())
         patch = (root / "scripts/push1_build/patches/04_navigation.py").read_text(encoding="utf-8")
-        self.assertIn("WeakReference<PushControlSurface> surfaceReference", navigation)
-        self.assertIn("surfaceReference.get ()", navigation)
-        self.assertIn("final WeakReference<IModel> model", navigation)
-        self.assertIn("System.nanoTime () - state.waitStartedAtNanos", navigation)
-        self.assertIn("effectiveWaitedMs (state)", navigation)
-        self.assertIn("state.model.get () != model", navigation)
-        page_right = (root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PageRightCommand.java").read_text(encoding="utf-8")
-        self.assertIn("PushDeviceNavigation.isEntering (this.surface, this.model)", page_right)
-        self.assertIn("WeakReference<DeviceParamsMode>", patch)
-        callback_start = patch.index("final java.lang.ref.WeakReference<DeviceParamsMode>")
-        lambda_start = patch.index("() -> {", callback_start)
-        callback_end = patch.index("}))", lambda_start)
-        callback = patch[lambda_start:callback_end]
-        self.assertIn("modeReference.get ()", callback)
-        self.assertIn("mode.surface.getModeManager ().getActive () != mode", callback)
-        self.assertNotIn("this.surface", callback)
-        self.assertNotIn("this.model", callback)
-
+        self.assertNotIn("PushDeviceNavigation", patch)
+        self.assertIn("for (int i = currentIndex; i < index && cd.canSelectNext (); i++)", patch)
+        self.assertIn("cd.selectNext ();", patch)
+        self.assertIn("cd.selectPrevious ();", patch)
 
     def test_all_build_and_validation_scripts_compile(self):
         root = Path(__file__).resolve().parents[2]
