@@ -291,26 +291,31 @@ replace_once(device_chains_mode,
             return;
 """,
     """            final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS);
-            de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.invalidatePendingNavigation ();
             deviceParamsMode.setShowDevices (true);
+            final long navigationGeneration = de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.beginNavigation (this.model, this.surface, true);
             cd.selectSlotChain (slotChains[index]);
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+            de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.scheduleNavigation (this.model, this.surface, navigationGeneration);
             return;
 """,
-    "Restore Device selector and invalidate stale parent completion after choosing a chain")
+    "Track direct Device Chains entry and replay the latest ROW1 intent")
 
 # A new top-row selector press also supersedes a pending parent completion.
 replace_once(device_params_mode,
     """    public void onFirstRow (final int index, final ButtonEvent event)
     {
         if (event == ButtonEvent.DOWN)
+            return;
+        if (de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.queueRowDuringNavigation (this.surface, this.model, index))
             return;""",
     """    public void onFirstRow (final int index, final ButtonEvent event)
     {
-        de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.invalidatePendingNavigation ();
         if (event == ButtonEvent.DOWN)
-            return;""",
-    "Invalidate stale parent completion on ROW1 action")
+            return;
+        if (de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.queueRowDuringNavigation (this.surface, this.model, index))
+            return;
+        de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.invalidatePendingNavigation ();""",
+    "Retain only the latest ROW1 intent while a direct hierarchy transition settles")
 
 # Any new ROW2 action supersedes a pending parent-return completion.
 replace_once(device_params_mode,
