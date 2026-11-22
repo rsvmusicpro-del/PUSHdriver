@@ -1150,6 +1150,59 @@ public final class VirtualPush1RuntimeTest
             "IN was not serialized after parent publication and channel finalization");
         virtualCursorCallbackDelayMillis = 73;
 
+        // A Chains-chooser selection made during a parent return is also
+        // applied to the published parent, not to the child being left.
+        virtualParentNestedAfterSelect = false;
+        virtualParentHasLayersAfterSelect = false;
+        virtualSameNameParentAfterSelect = false;
+        virtualSameNameChainCursor = false;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceName = "Chooser parent return child";
+        virtualDeviceBankNames = new String [] {
+            "Chooser child sibling 0", "Chooser child sibling 1", "Chooser child sibling 2", "Chooser child sibling 3",
+            "Chooser child sibling 4", "Chooser child sibling 5", "Chooser child sibling 6", "Chooser child sibling 7"
+        };
+        virtualCursorDevicePosition = 0;
+        deviceIndex = 0;
+        virtualCursorDeviceHasLayers = false;
+        deviceParamsMode.setShowDevices (true);
+        modes.setActive (Modes.DEVICE_PARAMS);
+        MODEL_ACTIONS.clear ();
+        final long chooserDuringParentStart = state.virtualTimeMillis + 1;
+        virtualCursorCallbackDelayMillis = 150;
+        sendTimedNavigationGesture (state, midi, surface, chooserDuringParentStart,
+            VirtualPush1Device.OUT, "OUT before Chains chooser selection", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, chooserDuringParentStart + 10,
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Open Chains chooser during parent return", new java.util.ArrayList<> ());
+        virtualCursorCallbackDelayMillis = 73;
+        sendTimedNavigationGesture (state, midi, surface, chooserDuringParentStart + 20,
+            VirtualPush1Device.TOP_ROW_FIRST, "Select chain while parent return is pending", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, chooserDuringParentStart + 250);
+        require (modes.isActive (Modes.DEVICE_PARAMS) && virtualCursorDeviceNested && deviceParamsMode.isShowDevices (),
+            "Chains chooser selection did not complete on the newly published parent");
+        requireAction ("cursorDevice.parentCallback",
+            "Pending parent return did not publish before the queued Chains selection");
+        requireAction ("cursorDevice.selectChannel",
+            "Pending parent return did not finalize before the queued Chains selection");
+        requireAction ("device.selectSlotChain:Chain 1",
+            "Chains chooser selection was lost during the pending parent return");
+        final int chooserParentPublishedAt = MODEL_ACTIONS.indexOf ("cursorDevice.parentCallback");
+        final int chooserChannelFinalizedAt = MODEL_ACTIONS.indexOf ("cursorDevice.selectChannel");
+        final int chooserChainSelectedAt = MODEL_ACTIONS.indexOf ("device.selectSlotChain:Chain 1");
+        require (chooserParentPublishedAt >= 0 && chooserParentPublishedAt < chooserChannelFinalizedAt
+                && chooserChannelFinalizedAt < chooserChainSelectedAt,
+            "Chains chooser selection raced the pending parent cursor");
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceName = "Virtual Device";
+        virtualDeviceBankNames = new String [] {
+            "Device 0", "Device 1", "Device 2", "Device 3",
+            "Device 4", "Device 5", "Device 6", "Device 7"
+        };
+        virtualCursorDevicePosition = 4;
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (false);
+        virtualCursorCallbackDelayMillis = 73;
+
         // A new ROW2 action cancels a pending parent completion.
         virtualCursorDeviceNested = true;
         virtualCursorDeviceName = "Pending return child";
