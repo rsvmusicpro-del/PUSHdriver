@@ -112,7 +112,8 @@ class TemporalSimulator:
         led_latencies: list[float] = []
         lcd_latencies: list[float] = []
         press_to_cursor: list[float] = []
-        stage_totals = {stage: [] for stage in self.INPUT_STAGES}
+        all_stages = self.INPUT_STAGES + ("midi_feedback", "usb_feedback", "led_render", "lcd_render")
+        stage_totals = {stage: [] for stage in all_stages}
         lost = {stage: 0 for stage in self.INPUT_STAGES + self.FEEDBACK_STAGES}
         completed_commands = set()
         hold_durations: list[float] = []
@@ -163,7 +164,9 @@ class TemporalSimulator:
                 if self.dropped(stage):
                     lost[stage] += 1
                     continue
-                self.push(queue, event.at_ms + self.delay(stage), event.kind.replace("_midi", "_usb"), event.version)
+                delay = self.delay(stage)
+                stage_totals[stage].append(delay)
+                self.push(queue, event.at_ms + delay, event.kind.replace("_midi", "_usb"), event.version)
                 continue
             if event.kind in ("led_usb", "lcd_usb"):
                 stage = "usb_feedback"
@@ -172,14 +175,18 @@ class TemporalSimulator:
                     continue
                 target = "led" if event.kind.startswith("led") else "lcd"
                 render_stage = target + "_render"
-                self.push(queue, event.at_ms + self.delay(stage), render_stage, event.version)
+                delay = self.delay(stage)
+                stage_totals[stage].append(delay)
+                self.push(queue, event.at_ms + delay, render_stage, event.version)
                 continue
             if event.kind in ("led_render", "lcd_render"):
                 target = "led" if event.kind.startswith("led") else "lcd"
                 if self.dropped(event.kind):
                     lost[event.kind] += 1
                     continue
-                rendered_at = event.at_ms + self.delay(event.kind)
+                render_delay = self.delay(event.kind)
+                stage_totals[event.kind].append(render_delay)
+                rendered_at = event.at_ms + render_delay
                 feedback_seen[target].append((event.version, rendered_at))
                 if event.version < latest_feedback_version[target]:
                     feedback_reorders[target] += 1
@@ -229,7 +236,7 @@ def aggregate(profile: dict[str, Any], scenario: str, samples: int, seed: int) -
         "scenario": scenario, "samples": samples, "seed": seed,
         "assumptions": profile.get("assumptions", []),
         "metrics": {name: describe(values) for name, values in aggregate_values.items()},
-        "input_stage_delay": {name: describe(values) for name, values in stage_values.items()},
+        "stage_delay": {name: describe(values) for name, values in stage_values.items()},
         "button_holds": {"duration_ms": describe(hold_durations), "classes": hold_classes,
                          "long_press_threshold_ms": float(profile.get("long_press_threshold_ms", 300.0))},
         "delivery": {
