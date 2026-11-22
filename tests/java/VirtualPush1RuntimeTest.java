@@ -3389,7 +3389,7 @@ public final class VirtualPush1RuntimeTest
     /** Drain only the adaptive non-blocking navigation probes and host cursor callbacks. */
     private static void drainNavigation (final State state)
     {
-        final long [] delays = { 12, 16, 24, 36, 73 };
+        final long [] delays = { 12, 16, 24, 36, 58, 73 };
         for (int steps = 0; steps < 100000; steps++)
         {
             boolean ran = false;
