@@ -836,19 +836,20 @@ public final class VirtualPush1RuntimeTest
         require (!virtualCursorDeviceNested && deviceIndex == 0,
             "Out did not return to the root after traversing two nested levels");
 
-        // ROW2 Up is the second dedicated route out of a chain hierarchy.
+        // ROW2 Up preserves DrivenByMoss semantics: from the chain chooser it
+        // exits to Device Params and returns immediately. A subsequent press
+        // follows the native moveUp hierarchy (banks -> devices -> track).
         virtualCursorDeviceNested = true;
         virtualCursorDeviceName = "ROW2 return child";
         deviceIndex = 0;
         virtualCursorDevicePosition = 0;
         modes.setActive (Modes.DEVICE_CHAINS);
         MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2 Up returns from Device Chains");
-        requireAction ("cursorDevice.selectParent", "ROW2 Up did not request the parent device");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2 Up exits Device Chains");
         require (modes.isActive (Modes.DEVICE_PARAMS), "ROW2 Up did not leave Device Chains mode");
-        drainScheduled (state, 73);
-        drainScheduled (state, 75);
-        require (!virtualCursorDeviceNested, "ROW2 Up did not return to the parent chain");
+        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.equals ("cursorDevice.selectParent")),
+            "ROW2 Up incorrectly skipped the native chooser-exit step and selected a parent");
+        require (virtualCursorDeviceNested, "ROW2 Up changed the cursor while leaving Device Chains");
 
         // A new ROW2 action cancels a pending parent completion.
         virtualCursorDeviceNested = true;
