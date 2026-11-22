@@ -110,14 +110,6 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     }
 
 
-    /** Cancel a pending ROW1 intent when the user leaves Device Params. */
-    public static void cancelPendingRow1Selection (final DeviceParamsMode mode)
-    {
-        if (mode != null)
-            PENDING_ROW1.remove (mode);
-    }
-
-
     private static boolean isPublishedChainCursor (final IModel model, final PendingRow1Selection pending)
     {
         final ICursorDevice cursor = model.getCursorDevice ();
