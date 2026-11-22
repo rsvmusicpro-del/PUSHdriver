@@ -243,11 +243,13 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
         final ICursorDevice cursorDevice = model.getCursorDevice ();
         if (!pending.entering)
         {
-            if (cursorDevice.hasLayers ())
+            // A queued ROW1 tap explicitly targets the parent device bank, so
+            // it takes precedence over the normal layer-mix destination.
+            if (pendingRow < 0 && cursorDevice.hasLayers ())
                 modeManager.setActive (surface.getConfiguration ().getCurrentLayerMixMode ());
             else
                 modeManager.setActive (Modes.DEVICE_PARAMS);
-            deviceParamsMode.setShowDevices (false);
+            deviceParamsMode.setShowDevices (pendingRow >= 0);
             cursorDevice.selectChannel ();
         }
         else
