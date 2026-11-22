@@ -2887,8 +2887,9 @@ public final class VirtualPush1RuntimeTest
                                 virtualDeviceBankNames = virtualParentNestedAfterSelect
                                     ? new String [] { "Nested sibling 0", "Nested sibling 1", "Nested sibling 2", "Nested sibling 3", "Nested sibling 4", "Nested sibling 5", "Nested sibling 6", "Nested sibling 7" }
                                     : new String [] { "Outer sibling 0", "Outer sibling 1", "Outer sibling 2", "Outer sibling 3", "Outer sibling 4", "Outer sibling 5", "Outer sibling 6", "Outer sibling 7" };
-                                for (final IValueObserver<String> observer : cursorNameObservers)
-                                    observer.update (virtualCursorDeviceName);
+                                if (!childCursorName.equals (virtualCursorDeviceName))
+                                    for (final IValueObserver<String> observer : cursorNameObservers)
+                                        observer.update (virtualCursorDeviceName);
                             }));
                         return null;
                     case "selectChannel":
