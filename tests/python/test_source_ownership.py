@@ -146,9 +146,15 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertFalse(helper.exists())
         patch = (root / "scripts/push1_build/patches/04_navigation.py").read_text(encoding="utf-8")
         self.assertNotIn("PushDeviceNavigation", patch)
-        self.assertIn("for (int i = currentIndex; i < index && cd.canSelectNext (); i++)", patch)
-        self.assertIn("cd.selectNext ();", patch)
-        self.assertIn("cd.selectPrevious ();", patch)
+        self.assertIn("targetDevice.select ();", patch)
+        self.assertNotIn("cd.selectNext ();", patch)
+        self.assertNotIn("cd.selectPrevious ();", patch)
+
+        command = (root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PageLeftCommand.java").read_text(encoding="utf-8")
+        self.assertIn("addNameObserver", command)
+        self.assertIn("completePendingIfReady", command)
+        self.assertIn("CHAIN_CURSOR_POLL_MS = 8", command)
+        self.assertIn("CHAIN_CURSOR_MAX_POLLS = 75", command)
 
     def test_all_build_and_validation_scripts_compile(self):
         root = Path(__file__).resolve().parents[2]
