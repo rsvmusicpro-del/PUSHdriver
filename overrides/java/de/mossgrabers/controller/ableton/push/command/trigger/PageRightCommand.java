@@ -39,17 +39,10 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
             return;
         }
 
-        if (modeManager.isActive (Modes.DEVICE_CHAINS))
-            return;
-
-        if (modeManager.isActive (Modes.DEVICE_PARAMS))
+        if (modeManager.isActive (Modes.DEVICE_CHAINS) || modeManager.isActive (Modes.DEVICE_PARAMS))
         {
             if (event == ButtonEvent.DOWN)
-            {
-                final var cursorDevice = this.model.getCursorDevice ();
-                if (cursorDevice.doesExist () && cursorDevice.isNested ())
-                    cursorDevice.selectParent ();
-            }
+                ((DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS)).navigateOut ();
             return;
         }
 
