@@ -94,8 +94,23 @@ jobs:
 
       - name: Prove empty-clip regression kills injected Java mutant
         run: python3 scripts/test_push1_mutation.py
-      - name: Validate local and optional live-host diagnostic runners
-        run: python3 -m py_compile scripts/run_virtual_push1.py scripts/live_bitwig_midi_probe.py scripts/test_push1_mutation.py scripts/analyze_navigation_latency.py
+      - name: Validate local, live-host and temporal diagnostic runners
+        run: python3 -m py_compile scripts/run_virtual_push1.py scripts/live_bitwig_midi_probe.py scripts/test_push1_mutation.py scripts/analyze_navigation_latency.py scripts/push1_temporal_simulator.py
+
+      - name: Run deterministic temporal and feedback sensitivity simulation
+        run: |
+          mkdir -p target/push1-temporal
+          python3 scripts/push1_temporal_simulator.py --scenario chain-entry --samples 5000 --seed 20261122 --json > target/push1-temporal/chain-entry.json
+          python3 scripts/push1_temporal_simulator.py --scenario rapid-chain --samples 5000 --seed 20261123 --json > target/push1-temporal/rapid-chain.json
+          python3 scripts/push1_temporal_simulator.py --scenario mode-burst --samples 5000 --seed 20261124 --json > target/push1-temporal/mode-burst.json
+
+      - name: Upload temporal simulation reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: push1-temporal-simulation-linux
+          path: target/push1-temporal/
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Prepare Bitwig extension
         run: |
