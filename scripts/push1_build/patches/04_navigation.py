@@ -300,7 +300,7 @@ replace_java_method(page_right,
     """    public void execute (final ButtonEvent event, final int velocity)
     {
         if (event == ButtonEvent.DOWN
-            && this.surface.getModeManager ().isActive (de.mossgrabers.framework.mode.Modes.DEVICE_PARAMS))
+            && de.mossgrabers.framework.mode.Modes.isDeviceMode (this.surface.getModeManager ().getActiveID ()))
         {
             final var cursorDevice = this.model.getCursorDevice ();
             if (cursorDevice.doesExist ()
