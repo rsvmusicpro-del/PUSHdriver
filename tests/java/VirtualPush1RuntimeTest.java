@@ -709,19 +709,28 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
         requireAction ("device.selectSlotChain:Chain 1", "In (CC 62) must enter the first available slot chain");
-        drainScheduled (state, 73);
-        require (virtualCursorDeviceNested && deviceIndex == 0,
-            "In did not move the Bitwig cursor into the selected slot chain");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
+            "Immediate ROW1 selection after In");
+        drainNavigation (state);
+        require (virtualCursorDeviceNested && deviceIndex == 2,
+            "ROW1 pressed immediately after In was not replayed against the child chain");
+        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 2,
+            "Immediate ROW1 after In did not select the requested child device");
         require (deviceParamsMode.isShowDevices (),
             "In did not restore ROW1 device selectors after entering a chain from Banks mode");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63)");
         requireAction ("cursorDevice.selectParent", "Out (CC 63) must select the parent device");
-        drainScheduled (state, 73);
-        drainScheduled (state, 75);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3,
+            "Immediate ROW1 selection after Out");
+        drainNavigation (state);
         requireAction ("cursorDevice.selectChannel", "Out did not finalize the parent channel after the cursor update");
-        require (!deviceParamsMode.isShowDevices (), "Out did not restore parameter-bank display after parent selection");
-        require (!virtualCursorDeviceNested, "Out did not return the Bitwig cursor to its parent device");
+        require (!virtualCursorDeviceNested && deviceIndex == 3,
+            "ROW1 pressed immediately after Out was not replayed against the parent device");
+        require (MODEL_ACTIONS.contains ("device.select:3"),
+            "Immediate ROW1 after Out did not select the requested parent device");
+        require (deviceParamsMode.isShowDevices (),
+            "Immediate ROW1 after Out did not restore the parent device selector view");
         deviceParamsMode.setShowDevices (false);
 
         // Device Chains is an upstream submode: top row selects a chain and
@@ -737,7 +746,7 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Ableton Device Chain selector 8");
         requireAction ("device.selectSlotChain:Chain 8", "Top-row selector did not select chain 8");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Selecting a chain did not return to Device parameters");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Selecting a Device Chain did not expose its child-device cursor");
         require (deviceParamsMode.isShowDevices (),
@@ -776,7 +785,7 @@ public final class VirtualPush1RuntimeTest
                     MODEL_ACTIONS.clear ();
                     requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + targetIndex,
                         "Chain size " + childCount + ", start " + startIndex + ", ROW1 " + (targetIndex + 1));
-                    drainScheduled (state, 73);
+                    drainNavigation (state);
 
                     if (targetIndex < childCount)
                     {
@@ -815,15 +824,15 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return to nested parent device");
         requireAction ("cursorDevice.selectParent", "Out did not request the parent at nested depth two");
-        drainScheduled (state, 73);
-        drainScheduled (state, 75);
+        drainNavigation (state);
+        drainNavigation (state);
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Out incorrectly left the hierarchy when the parent was itself nested");
         deviceParamsMode.setShowDevices (true);
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
             "Select sibling inside nested parent chain");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         require (deviceIndex == 2,
             "ROW1 did not select a sibling at the second nested hierarchy depth");
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 2,
@@ -831,8 +840,8 @@ public final class VirtualPush1RuntimeTest
         virtualParentNestedAfterSelect = false;
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return from nested parent to root");
-        drainScheduled (state, 73);
-        drainScheduled (state, 75);
+        drainNavigation (state);
+        drainNavigation (state);
         require (!virtualCursorDeviceNested && deviceIndex == 0,
             "Out did not return to the root after traversing two nested levels");
 
@@ -863,7 +872,7 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
             "ROW2 Up leaves the nested child device");
         requireAction ("cursorDevice.selectParent", "ROW2 Up did not use the native parent navigation");
-        drainScheduled (state, 73);
+        drainNavigation (state);
         drainScheduled (state, 300);
         require (!virtualCursorDeviceNested && deviceIndex == 0,
             "ROW2 Up did not return from the nested child to its parent");
@@ -887,8 +896,8 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Start parent return before a newer ROW2 action");
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Enter Device Chains during pending return");
-        drainScheduled (state, 73);
-        drainScheduled (state, 75);
+        drainNavigation (state);
+        drainNavigation (state);
         require (modes.isActive (Modes.DEVICE_CHAINS), "Stale parent callback overwrote a newer ROW2 mode action");
         require (MODEL_ACTIONS.stream ().noneMatch (a -> a.equals ("cursorDevice.selectChannel")),
             "Stale parent callback finalized after a newer ROW2 action");
@@ -1798,7 +1807,7 @@ public final class VirtualPush1RuntimeTest
                             {
                                 case 0 -> drainScheduled (state, 1);
                                 case 1 -> drainScheduled (state, 8);
-                                case 2 -> drainScheduled (state, 73);
+                                case 2 -> drainNavigation (state);
                                 default -> drainScheduled (state, 100);
                             }
                             for (int lcdRow = 0; lcdRow < 4; lcdRow++)
@@ -1818,7 +1827,7 @@ public final class VirtualPush1RuntimeTest
                     hardware.flush ();
                     drainScheduled (state, 1);
                     drainScheduled (state, 8);
-                    drainScheduled (state, 73);
+                    drainNavigation (state);
                     drainScheduled (state, 100);
                     require (state.errors.isEmpty (),
                         "Fuzzer caused Bitwig host errors in " + fuzzView + ": " + state.errors);
@@ -3376,6 +3385,26 @@ public final class VirtualPush1RuntimeTest
         }
         return false;
     }
+
+    /** Drain only the adaptive non-blocking navigation probes and host cursor callbacks. */
+    private static void drainNavigation (final State state)
+    {
+        final long [] delays = { 12, 16, 24, 36, 73 };
+        for (int steps = 0; steps < 100000; steps++)
+        {
+            boolean ran = false;
+            for (final long delay: delays)
+                if (runNextScheduled (state, delay))
+                {
+                    ran = true;
+                    break;
+                }
+            if (!ran)
+                return;
+        }
+        throw new AssertionError ("Direct navigation reconciliation exceeded 100000 scheduled tasks");
+    }
+
 
     private static void drainScheduled (final State state, final long delay)
     {
