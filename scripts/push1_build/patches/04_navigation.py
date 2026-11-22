@@ -207,8 +207,8 @@ device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/pus
 # A single generation counter on DEVICE_PARAMS owns pending parent-return work.
 # It prevents a delayed parent callback from overwriting a newer user action.
 replace_once(device_params_mode,
-    "    protected boolean              showDevices;\\n",
-    "    protected boolean              showDevices;\\n    private long                   navigationGeneration;\\n",
+    "    protected boolean              showDevices;\n",
+    "    protected boolean              showDevices;\n    private long                   navigationGeneration;\n",
     "Device navigation generation")
 replace_once(device_params_mode,
     """    public final void setShowDevices (final boolean enable)
