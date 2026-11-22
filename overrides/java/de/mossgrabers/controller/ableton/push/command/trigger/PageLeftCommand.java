@@ -59,6 +59,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
                         deviceParamsMode.setShowDevices (true);
                     // Match DrivenByMoss: issue the chain selection directly.
                     // Do not poll the cursor or hold subsequent controller input.
+                    deviceParamsMode.prepareSlotChainSelection (slotChains[0]);
                     cursorDevice.selectSlotChain (slotChains[0]);
                 }
             }
