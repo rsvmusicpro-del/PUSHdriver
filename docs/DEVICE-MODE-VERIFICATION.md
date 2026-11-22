@@ -1,6 +1,6 @@
 # Device mode verification (historical record)
 
-> **Navigation architecture correction — 2026-11-22:** The serialized hierarchy action queue and per-step waits have been removed. In/Out and Device Chains dispatch their Bitwig cursor commands immediately; nested ROW1 sibling moves are also dispatched immediately. A bounded, non-blocking transition reconciler exists only to detect the host's completion of one In/Out/Chains transition and replay the latest ROW1 target tapped during that brief cursor-update window. It never serializes ordinary navigation or waits between sibling steps. CI covers immediate ROW1-after-In/Out and the native ROW2-UP return sequence; actual hardware fluidity still requires a live Bitwig/Push 1 test.
+> **Navigation architecture correction — 2026-11-22:** The custom navigation reconciler has been removed. In and Device Chains dispatch `selectSlotChain` directly; Out reuses DrivenByMoss' native `moveUp()` path; nested ROW1 sibling moves dispatch immediately. No polling, deferred ROW1 replay, or input interception is performed. The native parent-return timing is retained, with a guard that cancels its delayed mode completion after the user switches to another mode. CI covers direct chain dispatch, nested ROW1 bounds, and native ROW2-UP return behavior; actual hardware fluidity still requires a live Bitwig/Push 1 test.
 
 
 This document records the original implementation and CI evidence for PR #76. Its recorded head SHA and workflow run are historical and must not be treated as the current branch validation.
