@@ -167,8 +167,9 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertIn("returnedToRoot", command)
 
         self.assertIn("PageLeftCommand.beginParentReturn", patch)
-        self.assertNotIn("}, 300);", patch)
-        self.assertIn("cursor.selectParent ();", patch)
+        parent_return_patch = patch.split('"Replace fixed 300 ms parent return', 1)[1]
+        self.assertNotIn("}, 300);", parent_return_patch)
+        self.assertIn("cursor.selectParent ();", parent_return_patch)
 
     def test_all_build_and_validation_scripts_compile(self):
         root = Path(__file__).resolve().parents[2]
