@@ -3675,8 +3675,10 @@ public final class VirtualPush1RuntimeTest
         final long independentStart = state.virtualTimeMillis + 1;
         sendTimedNavigationGesture (state, midi, surface, independentStart,
             VirtualPush1Device.IN, "IN before independent mode change", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, independentStart + 5,
+            VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 intent before independent mode change", new java.util.ArrayList<> ());
         sendTimedNavigationGesture (state, midi, surface, independentStart + 10,
-            VirtualPush1Device.TRACK, "TRACK while chain callback pending", new java.util.ArrayList<> ());
+            VirtualPush1Device.TRACK, "TRACK while dependent ROW1 intent is pending", new java.util.ArrayList<> ());
         require (surface.getModeManager ().isActive (Modes.TRACK),
             "Pending chain callback blocked immediate TRACK mode activation");
         advanceNavigationClock (state, independentStart + 151);
