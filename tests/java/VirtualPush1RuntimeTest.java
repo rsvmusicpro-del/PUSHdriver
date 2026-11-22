@@ -851,6 +851,30 @@ public final class VirtualPush1RuntimeTest
             "ROW2 Up incorrectly skipped the native chooser-exit step and selected a parent");
         require (virtualCursorDeviceNested, "ROW2 Up changed the cursor while leaving Device Chains");
 
+        // Continue the native DrivenByMoss moveUp hierarchy. The next press
+        // leaves the nested child, waits for the host cursor update, and shows
+        // the parent's parameter banks. The following press restores device
+        // selectors; the final press returns to the track mode.
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
+            "ROW2 Up leaves the nested child device");
+        requireAction ("cursorDevice.selectParent", "ROW2 Up did not use the native parent navigation");
+        drainScheduled (state, 300);
+        require (!virtualCursorDeviceNested && deviceIndex == 0,
+            "ROW2 Up did not return from the nested child to its parent");
+        require (!deviceParamsMode.isShowDevices (),
+            "ROW2 Up did not restore the parent's parameter-bank view");
+        requireAction ("cursorDevice.selectChannel",
+            "ROW2 Up did not finalize the parent channel after the host cursor update");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
+            "ROW2 Up restores device selectors from parameter banks");
+        require (deviceParamsMode.isShowDevices (),
+            "ROW2 Up did not restore device selectors from parameter banks");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
+            "ROW2 Up returns from the root device to Track");
+        require (modes.isActive (Modes.TRACK),
+            "ROW2 Up did not return to Track after the native hierarchy was unwound");
+
         // A new ROW2 action cancels a pending parent completion.
         virtualCursorDeviceNested = true;
         virtualCursorDeviceName = "Pending return child";
