@@ -265,6 +265,87 @@ replace_once(device_params_mode,
     }
 """,
     "Device immediate parent navigation")
+# Keep the ROW2 Up action aligned with the dedicated Out control. Nested
+# cursors return immediately even when parameter banks were displayed.
+replace_once(device_params_mode,
+    """    protected void moveUp ()
+    {
+        final ModeManager modeManager = this.surface.getModeManager ();
+        if (modeManager.isActive (Modes.DEVICE_CHAINS))
+        {
+            modeManager.setActive (Modes.DEVICE_PARAMS);
+            return;
+        }
+
+        // There is no device on the track move upwards to the track
+        final ICursorDevice cd = this.model.getCursorDevice ();
+        if (!cd.doesExist ())
+        {
+            this.surface.getButton (ButtonID.TRACK).trigger (ButtonEvent.DOWN);
+            return;
+        }
+
+        // Parameter banks are shown -> show devices
+        final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
+        if (!deviceParamsMode.isShowDevices ())
+        {
+            deviceParamsMode.setShowDevices (true);
+            return;
+        }
+
+        // Devices are shown, if nested show the layers otherwise move up to the tracks
+        if (cd.isNested ())
+        {
+            cd.selectParent ();
+            this.model.getHost ().scheduleTask ( () -> {
+                if (cd.hasLayers ())
+                    modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
+                else
+                    modeManager.setActive (Modes.DEVICE_PARAMS);
+                deviceParamsMode.setShowDevices (false);
+                cd.selectChannel ();
+            }, 300);
+            return;
+        }
+
+        // Move up to the track
+        if (this.model.isCursorDeviceOnMasterTrack ())
+            this.surface.getButton (ButtonID.MASTERTRACK).trigger (ButtonEvent.DOWN);
+        else
+            this.surface.getButton (ButtonID.TRACK).trigger (ButtonEvent.DOWN);
+    }""",
+    """    protected void moveUp ()
+    {
+        final ModeManager modeManager = this.surface.getModeManager ();
+        if (modeManager.isActive (Modes.DEVICE_CHAINS))
+            modeManager.setActive (Modes.DEVICE_PARAMS);
+
+        final ICursorDevice cd = this.model.getCursorDevice ();
+        if (!cd.doesExist ())
+        {
+            this.surface.getButton (ButtonID.TRACK).trigger (ButtonEvent.DOWN);
+            return;
+        }
+
+        final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
+        if (cd.isNested ())
+        {
+            deviceParamsMode.navigateOut ();
+            return;
+        }
+
+        if (!deviceParamsMode.isShowDevices ())
+        {
+            deviceParamsMode.setShowDevices (true);
+            return;
+        }
+
+        if (this.model.isCursorDeviceOnMasterTrack ())
+            this.surface.getButton (ButtonID.MASTERTRACK).trigger (ButtonEvent.DOWN);
+        else
+            this.surface.getButton (ButtonID.TRACK).trigger (ButtonEvent.DOWN);
+    }""",
+    "Responsive ROW2 and long-press parent navigation")
 replace_once(device_params_mode,
     """            if (cd.getIndex () != index)
             {
