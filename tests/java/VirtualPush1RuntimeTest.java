@@ -720,6 +720,7 @@ public final class VirtualPush1RuntimeTest
             "Immediate ROW1 after In did not select the requested child device");
         require (deviceParamsMode.isShowDevices (),
             "In did not restore ROW1 device selectors after entering a chain from Banks mode");
+        virtualParentHasLayersAfterSelect = true;
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63)");
         requireAction ("cursorDevice.selectParent", "Out (CC 63) must select the parent device");
@@ -733,6 +734,9 @@ public final class VirtualPush1RuntimeTest
             "Immediate ROW1 after Out did not select the requested parent device");
         require (deviceParamsMode.isShowDevices (),
             "Immediate ROW1 after Out did not restore the parent device selector view");
+        require (modes.isActive (Modes.DEVICE_PARAMS),
+            "A queued ROW1 target was lost when the returned parent had layers");
+        virtualParentHasLayersAfterSelect = false;
         deviceParamsMode.setShowDevices (false);
 
         // Device Chains is an upstream submode: top row selects a chain and
