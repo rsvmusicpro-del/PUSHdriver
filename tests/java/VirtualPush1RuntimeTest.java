@@ -124,6 +124,8 @@ public final class VirtualPush1RuntimeTest
     private static String [] virtualDeviceBankNames = { "Device 0", "Device 1", "Device 2", "Device 3", "Device 4", "Device 5", "Device 6", "Device 7" };
     private static boolean virtualParentNestedAfterSelect;
     private static boolean virtualParentHasLayersAfterSelect;
+    // Simulated Bitwig cursor-publication latency for deterministic navigation sweeps.
+    private static long virtualCursorCallbackDelayMillis = 73;
     private static boolean virtualNullSlotChains;
     private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
     // Model API capabilities independently; Bitwig hosts may support one feature but not another.
@@ -959,6 +961,13 @@ public final class VirtualPush1RuntimeTest
         require (timedNavigationTrace.stream ().allMatch (entry -> entry.contains ("ms ")),
             "Timed navigation trace is missing virtual timestamps: " + timedNavigationTrace);
         System.out.println ("Virtual Push 1 timed navigation burst passed: " + timedNavigationTrace);
+
+        // Characterize the asynchronous window between selecting a slot chain
+        // and Bitwig publishing the nested cursor. A ROW1 press inside this
+        // window currently targets the old device bank; the host callback can
+        // then overwrite that selection. Sweep realistic and adverse host
+        // response delays against dense physical button intervals.
+        runNavigationResponsivenessSweep (state, midi, surface, deviceParamsMode);
 
         // Returning to Device mode must keep the real controller bindings active.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Re-enter Device mode");
@@ -2647,7 +2656,8 @@ public final class VirtualPush1RuntimeTest
                         return null;
                     case "selectParent":
                         MODEL_ACTIONS.add ("cursorDevice.selectParent");
-                        state.scheduled.add (new ScheduledTask (73, state.virtualTimeMillis + 73, () -> {
+                        state.scheduled.add (new ScheduledTask (virtualCursorCallbackDelayMillis,
+                            state.virtualTimeMillis + virtualCursorCallbackDelayMillis, () -> {
                                 MODEL_ACTIONS.add ("cursorDevice.parentCallback");
                                 virtualCursorDeviceName = virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
                                 virtualCursorDevicePosition = 0;
@@ -2679,7 +2689,8 @@ public final class VirtualPush1RuntimeTest
                         if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
                             throw new AssertionError ("Unsupported slot-chain capability was invoked");
                         MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
-                        state.scheduled.add (new ScheduledTask (73, state.virtualTimeMillis + 73, () -> {
+                        state.scheduled.add (new ScheduledTask (virtualCursorCallbackDelayMillis,
+                            state.virtualTimeMillis + virtualCursorCallbackDelayMillis, () -> {
                                 MODEL_ACTIONS.add ("cursorDevice.chainCallback");
                                 // Simulate a chain child whose name, position and
                                 // nesting flags match the previous cursor. The
@@ -3490,6 +3501,80 @@ public final class VirtualPush1RuntimeTest
         trace.add (atMillis + "ms " + label + " -> mode=" + surface.getModeManager ().getActiveID ()
             + ", deviceIndex=" + deviceIndex + ", pendingCallbacks=" + state.scheduled.size ());
     }
+
+    /**
+     * Measure the minimum safe gap between IN and dependent ROW1 selection
+     * under different Bitwig cursor-publication delays. This is a behavioral
+     * characterization: it records the stale-cursor window rather than hiding
+     * it by draining callbacks between gestures.
+     */
+    private static void runNavigationResponsivenessSweep (final State state,
+        final VirtualPush1MidiBench midi, final PushControlSurface surface,
+        final DeviceParamsMode deviceParamsMode)
+    {
+        final long [] callbackDelays = { 0, 12, 24, 36, 73, 150, 300 };
+        final long [] gestureGaps = { 0, 10, 25, 50, 72, 73, 100, 150, 300 };
+        final List<String> results = new java.util.ArrayList<> ();
+        int trials = 0;
+        int staleSelections = 0;
+
+        for (final long callbackDelay: callbackDelays)
+        {
+            int lostAtDelay = 0;
+            long firstSafeGap = -1;
+            for (final long gap: gestureGaps)
+            {
+                state.scheduled.clear ();
+                virtualCursorCallbackDelayMillis = callbackDelay;
+                virtualSlotChains = new String [] { "Sweep Chain 1", "Sweep Chain 2" };
+                virtualCursorDeviceNested = false;
+                virtualCursorDeviceHasLayers = false;
+                virtualCursorDevicePosition = 4;
+                virtualCursorDeviceName = "Sweep Parent";
+                virtualDeviceBankNames = new String [] {
+                    "Parent 0", "Parent 1", "Parent 2", "Parent 3",
+                    "Parent 4", "Parent 5", "Parent 6", "Parent 7"
+                };
+                deviceIndex = 4;
+                deviceParamsMode.setShowDevices (true);
+                surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+
+                final long start = state.virtualTimeMillis + 1;
+                sendTimedNavigationGesture (state, midi, surface, start,
+                    VirtualPush1Device.IN, "IN", new java.util.ArrayList<> ());
+                sendTimedNavigationGesture (state, midi, surface, start + gap,
+                    VirtualPush1Device.TOP_ROW_FIRST + 2, "ROW1 child 3", new java.util.ArrayList<> ());
+
+                // Let the cursor callback arrive only after both gestures have
+                // been dispatched. Do not insert a synthetic wait between them.
+                advanceNavigationClock (state, start + Math.max (callbackDelay, gap) + 1);
+                final boolean selectedRequestedChild = virtualCursorDeviceNested && deviceIndex == 2;
+                trials++;
+                if (!selectedRequestedChild)
+                {
+                    lostAtDelay++;
+                    staleSelections++;
+                }
+                else if (firstSafeGap < 0)
+                    firstSafeGap = gap;
+                require (selectedRequestedChild == (gap >= callbackDelay),
+                    "Unexpected IN/ROW1 timing boundary: callbackDelay=" + callbackDelay
+                        + "ms gap=" + gap + "ms finalNested=" + virtualCursorDeviceNested
+                        + " finalIndex=" + deviceIndex);
+            }
+            results.add (callbackDelay + "ms host callback: first safe ROW1 gap="
+                + firstSafeGap + "ms, stale selections=" + lostAtDelay + "/" + gestureGaps.length);
+        }
+
+        virtualCursorCallbackDelayMillis = 73;
+        state.scheduled.clear ();
+        surface.getModeManager ().setActive (Modes.TRACK);
+        require (trials == callbackDelays.length * gestureGaps.length,
+            "Navigation responsiveness sweep did not execute its full delay/gap matrix");
+        System.out.println ("Virtual Push 1 IN→ROW1 responsiveness sweep: " + trials
+            + " trials, " + staleSelections + " stale-cursor selections; " + results);
+    }
+
 
     /** Drain native host cursor publication and parent-return callbacks; no production polling exists. */
     private static void drainNavigation (final State state)
