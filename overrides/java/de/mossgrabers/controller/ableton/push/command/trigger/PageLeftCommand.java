@@ -357,8 +357,18 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             return true;
         final DeviceParamsMode mode = pending.mode.get ();
         final PushControlSurface surface = pending.surface.get ();
-        if (mode == null || surface == null || !surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
+        if (mode == null || surface == null)
         {
+            PENDING_PARENT_RETURN.remove (model);
+            return true;
+        }
+        final var modeManager = surface.getModeManager ();
+        if (!modeManager.isActive (Modes.DEVICE_PARAMS))
+        {
+            // A temporary move into Device Chains may be followed by a
+            // selection that must be applied after the parent is published.
+            if (modeManager.isActive (Modes.DEVICE_CHAINS))
+                return false;
             PENDING_PARENT_RETURN.remove (model);
             return true;
         }
@@ -402,8 +412,16 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
         final DeviceParamsMode mode = pending.mode.get ();
         final PushControlSurface surface = pending.surface.get ();
-        if (mode == null || surface == null || !surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
+        if (mode == null || surface == null)
         {
+            PENDING_PARENT_RETURN.remove (model);
+            return true;
+        }
+        final var modeManager = surface.getModeManager ();
+        if (!modeManager.isActive (Modes.DEVICE_PARAMS))
+        {
+            if (modeManager.isActive (Modes.DEVICE_CHAINS))
+                return false;
             PENDING_PARENT_RETURN.remove (model);
             return true;
         }
