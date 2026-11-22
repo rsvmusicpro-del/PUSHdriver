@@ -2641,7 +2641,7 @@ public final class VirtualPush1RuntimeTest
                         return null;
                     case "selectParent":
                         MODEL_ACTIONS.add ("cursorDevice.selectParent");
-                        state.scheduled.add (new ScheduledTask (73, () -> {
+                        state.scheduled.add (new ScheduledTask (73, state.virtualTimeMillis + 73, () -> {
                                 MODEL_ACTIONS.add ("cursorDevice.parentCallback");
                                 virtualCursorDeviceName = virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
                                 virtualCursorDevicePosition = 0;
@@ -2673,7 +2673,7 @@ public final class VirtualPush1RuntimeTest
                         if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
                             throw new AssertionError ("Unsupported slot-chain capability was invoked");
                         MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
-                        state.scheduled.add (new ScheduledTask (73, () -> {
+                        state.scheduled.add (new ScheduledTask (73, state.virtualTimeMillis + 73, () -> {
                                 MODEL_ACTIONS.add ("cursorDevice.chainCallback");
                                 // Simulate a chain child whose name, position and
                                 // nesting flags match the previous cursor. The
