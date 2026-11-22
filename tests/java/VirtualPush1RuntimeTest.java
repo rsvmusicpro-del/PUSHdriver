@@ -1207,17 +1207,21 @@ public final class VirtualPush1RuntimeTest
         modes.setActive (Modes.DEVICE_PARAMS);
         MODEL_ACTIONS.clear ();
         final long chooserDuringParentStart = state.virtualTimeMillis + 1;
+        final List<String> chooserTrace = new java.util.ArrayList<> ();
         virtualCursorCallbackDelayMillis = 150;
         sendTimedNavigationGesture (state, midi, surface, chooserDuringParentStart,
-            VirtualPush1Device.OUT, "OUT before Chains chooser selection", new java.util.ArrayList<> ());
+            VirtualPush1Device.OUT, "OUT before Chains chooser selection", chooserTrace);
         sendTimedNavigationGesture (state, midi, surface, chooserDuringParentStart + 10,
-            VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Open Chains chooser during parent return", new java.util.ArrayList<> ());
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Open Chains chooser during parent return", chooserTrace);
         virtualCursorCallbackDelayMillis = 73;
         sendTimedNavigationGesture (state, midi, surface, chooserDuringParentStart + 20,
-            VirtualPush1Device.TOP_ROW_FIRST, "Select chain while parent return is pending", new java.util.ArrayList<> ());
+            VirtualPush1Device.TOP_ROW_FIRST, "Select chain while parent return is pending", chooserTrace);
         advanceNavigationClock (state, chooserDuringParentStart + 250);
         require (modes.isActive (Modes.DEVICE_PARAMS) && virtualCursorDeviceNested && deviceParamsMode.isShowDevices (),
-            "Chains chooser selection did not complete on the newly published parent");
+            "Chains chooser selection did not complete on the newly published parent: mode=" + modes.getActiveID ()
+                + ", nested=" + virtualCursorDeviceNested + ", cursor=" + virtualCursorDeviceName
+                + ", showDevices=" + deviceParamsMode.isShowDevices () + ", calls=" + MODEL_ACTIONS
+                + ", gestures=" + chooserTrace);
         requireAction ("cursorDevice.parentCallback",
             "Pending parent return did not publish before the queued Chains selection");
         requireAction ("cursorDevice.selectChannel",
