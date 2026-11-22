@@ -28,7 +28,25 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     private static final int CHAIN_CURSOR_POLL_MS = 8;
     private static final int CHAIN_CURSOR_MAX_POLLS = 75;
     private static final Map<IModel, PendingRow1Selection> PENDING_ROW1 = new WeakHashMap<> ();
+    private static final Map<IModel, PendingParentReturn> PENDING_PARENT_RETURN = new WeakHashMap<> ();
     private static final Map<IModel, Boolean> OBSERVED_MODELS = new WeakHashMap<> ();
+
+    private static final class PendingParentReturn
+    {
+        private final String childName;
+        private WeakReference<DeviceParamsMode> mode;
+        private WeakReference<PushControlSurface> surface;
+        private int polls;
+        private boolean scheduled;
+
+        private PendingParentReturn (final String childName, final DeviceParamsMode mode,
+            final PushControlSurface surface)
+        {
+            this.childName = childName;
+            this.mode = new WeakReference<> (mode);
+            this.surface = new WeakReference<> (surface);
+        }
+    }
 
     private static final class PendingRow1Selection
     {
@@ -170,6 +188,9 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final PendingRow1Selection pending = PENDING_ROW1.get (model);
         if (pending != null)
             completePendingIfReady (model, pending);
+        final PendingParentReturn parentReturn = PENDING_PARENT_RETURN.get (model);
+        if (parentReturn != null)
+            completeParentReturnIfReady (model, parentReturn);
     }
 
 
@@ -201,6 +222,75 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         else if (target >= 0)
             mode.onFirstRow (target, ButtonEvent.UP);
         return true;
+    }
+
+
+    /** Start the native parent return and complete it on cursor publication. */
+    public static void beginParentReturn (final DeviceParamsMode mode, final IModel model,
+        final PushControlSurface surface)
+    {
+        final ICursorDevice cursor = model.getCursorDevice ();
+        if (!cursor.doesExist ())
+            return;
+        final PendingParentReturn pending = new PendingParentReturn (cursor.getName (), mode, surface);
+        PENDING_PARENT_RETURN.put (model, pending);
+        scheduleParentReturnProbe (model, pending);
+    }
+
+
+    private static boolean completeParentReturnIfReady (final IModel model,
+        final PendingParentReturn pending)
+    {
+        if (PENDING_PARENT_RETURN.get (model) != pending)
+            return true;
+        final DeviceParamsMode mode = pending.mode.get ();
+        final PushControlSurface surface = pending.surface.get ();
+        if (mode == null || surface == null || !surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
+        {
+            PENDING_PARENT_RETURN.remove (model);
+            return true;
+        }
+
+        final ICursorDevice cursor = model.getCursorDevice ();
+        final String currentName = cursor.getName ();
+        // The API 17 cursor exposes no parent-change observer or stable cursor
+        // identity when getID() is empty. A changed name is the positive signal;
+        // same-name transitions stay fail-closed and use the bounded fallback.
+        if (!cursor.doesExist () || currentName == null || currentName.equals (pending.childName))
+            return false;
+
+        PENDING_PARENT_RETURN.remove (model);
+        final var modeManager = surface.getModeManager ();
+        if (cursor.hasLayers ())
+            modeManager.setActive (surface.getConfiguration ().getCurrentLayerMixMode ());
+        else
+            modeManager.setActive (Modes.DEVICE_PARAMS);
+        mode.setShowDevices (false);
+        cursor.selectChannel ();
+        return true;
+    }
+
+
+    private static void scheduleParentReturnProbe (final IModel model,
+        final PendingParentReturn pending)
+    {
+        model.getHost ().scheduleTask (() -> {
+            if (PENDING_PARENT_RETURN.get (model) != pending)
+                return;
+            pending.scheduled = false;
+            if (completeParentReturnIfReady (model, pending))
+                return;
+            if (++pending.polls >= CHAIN_CURSOR_MAX_POLLS)
+            {
+                // Never finalize against an unverified cursor. This bounded
+                // fallback avoids a permanent timer if Bitwig publishes no
+                // usable identity (for example, same-name parent and child).
+                PENDING_PARENT_RETURN.remove (model);
+                return;
+            }
+            pending.scheduled = true;
+            scheduleParentReturnProbe (model, pending);
+        }, CHAIN_CURSOR_POLL_MS);
     }
 
 
