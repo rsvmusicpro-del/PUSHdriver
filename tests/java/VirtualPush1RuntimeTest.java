@@ -128,7 +128,6 @@ public final class VirtualPush1RuntimeTest
     private static boolean virtualSuppressChainCursorUpdate;
     private static boolean virtualNullSlotChains;
     private static boolean virtualUnexpectedNestedCursorUpdate;
-    private static boolean virtualDeferCursorUpdates;
     private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
     // Model API capabilities independently; Bitwig hosts may support one feature but not another.
     private static final EnumSet<Capability> SUPPORTED_CAPABILITIES = EnumSet.allOf (Capability.class);
@@ -2435,9 +2434,8 @@ public final class VirtualPush1RuntimeTest
                             case "select" -> {
                                 MODEL_ACTIONS.add ("device.select");
                                 MODEL_ACTIONS.add ("device.select:" + targetIndex);
-                                if (virtualDeferCursorUpdates)
-                                    state.scheduled.add (new ScheduledTask (73, () -> { deviceIndex = targetIndex; virtualCursorDevicePosition = targetIndex; }));
-                                else { deviceIndex = targetIndex; virtualCursorDevicePosition = targetIndex; }
+                                deviceIndex = targetIndex;
+                                virtualCursorDevicePosition = targetIndex;
                                 yield null;
                             }
                             default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
@@ -2500,24 +2498,16 @@ public final class VirtualPush1RuntimeTest
                         if (deviceIndex + 1 < virtualDeviceBankNames.length)
                         {
                             MODEL_ACTIONS.add ("cursorDevice.selectNext");
-                            if (virtualDeferCursorUpdates)
-                            {
-                                final int nextIndex = deviceIndex + 1;
-                                state.scheduled.add (new ScheduledTask (73, () -> { deviceIndex = nextIndex; virtualCursorDevicePosition = nextIndex; }));
-                            }
-                            else { deviceIndex++; virtualCursorDevicePosition = deviceIndex; }
+                            deviceIndex++;
+                            virtualCursorDevicePosition = deviceIndex;
                         }
                         return null;
                     case "selectPrevious":
                         if (deviceIndex > 0)
                         {
                             MODEL_ACTIONS.add ("cursorDevice.selectPrevious");
-                            if (virtualDeferCursorUpdates)
-                            {
-                                final int previousIndex = deviceIndex - 1;
-                                state.scheduled.add (new ScheduledTask (73, () -> { deviceIndex = previousIndex; virtualCursorDevicePosition = previousIndex; }));
-                            }
-                            else { deviceIndex--; virtualCursorDevicePosition = deviceIndex; }
+                            deviceIndex--;
+                            virtualCursorDevicePosition = deviceIndex;
                         }
                         return null;
                     case "selectParent":
