@@ -429,12 +429,31 @@ replace_once(device_chains_mode,
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
             return;
 """,
-    """            ((DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS)).setShowDevices (true);
+    """            final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS);
+            deviceParamsMode.invalidatePendingNavigation ();
+            deviceParamsMode.setShowDevices (true);
             cd.selectSlotChain (slotChains[index]);
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
             return;
 """,
-    "Restore Device selector after choosing a chain")
+    "Restore Device selector and invalidate stale parent completion after choosing a chain")
+
+# Any new ROW2 action supersedes a pending parent-return completion.
+replace_once(device_params_mode,
+    """    public void onSecondRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.DOWN)
+            return;
+        final ICursorDevice device = this.model.getCursorDevice ();
+        final ModeManager modeManager = this.surface.getModeManager ();""",
+    """    public void onSecondRow (final int index, final ButtonEvent event)
+    {
+        if (event != ButtonEvent.DOWN)
+            return;
+        final ICursorDevice device = this.model.getCursorDevice ();
+        final ModeManager modeManager = this.surface.getModeManager ();
+        ((DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS)).invalidatePendingNavigation ();""",
+    "Invalidate stale parent completion on ROW2 action")
 
 # Keep the physical Push 1 New button on its native dedicated binding, while
 # stopping the cursor track's current clip before preparing its next note clip.
