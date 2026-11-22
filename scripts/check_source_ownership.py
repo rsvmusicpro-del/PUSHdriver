@@ -145,7 +145,7 @@ def validate_in_out_contract(setup, left, right, control, virtual, hardware, run
   ('this.addButton (ButtonID.PAGE_LEFT, "In"' in setup,"CC62/Page Left label must be In."),
   ('this.addButton (ButtonID.PAGE_RIGHT, "Out"' in setup,"CC63/Page Right label must be Out."),
   ("cursorDevice.selectSlotChain (slotChains[0])" in left,"In must enter the first available slot chain directly."),
-  ("cursorDevice.selectParent ()" in right and "cursorDevice.isNested ()" in right,"Out must select the parent device directly when nested."),
+  ("deviceParamsMode.onSecondRow (7, ButtonEvent.DOWN)" in right and "Modes.DEVICE_CHAINS" in right,"Out must reuse the native DrivenByMoss hierarchy action."),
   ("public static final int IN = 62;" in virtual and "public static final int OUT = 63;" in virtual,"Virtual Push button IDs must match hardware CC62/CC63."),
   ("In (CC 62) enters the first available slot chain" in hardware and "Out (CC 63) returns to its parent device" in hardware,"Hardware documentation must define hierarchy navigation."),
   ('requireAction ("device.selectSlotChain:Chain 1"' in runtime and 'requireAction ("cursorDevice.selectParent"' in runtime and '"cursorDevice.selectNext"' in runtime and '"cursorDevice.selectPrevious"' in runtime,"Runtime test must verify hierarchy entry/exit and nested ROW1 device selection."),
