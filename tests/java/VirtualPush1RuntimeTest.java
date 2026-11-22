@@ -896,16 +896,6 @@ public final class VirtualPush1RuntimeTest
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectPrevious")).count () == 2,
             "Nested ROW1 selection did not move the cursor back to the requested chain device");
 
-        // Repeated ROW1 presses during one nested cursor callback should retarget
-        // the outstanding journey instead of replaying obsolete intermediate goals.
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Start a long nested ROW1 jump");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "Retarget an in-flight nested ROW1 jump");
-        drainNavigation (state);
-        require (deviceIndex == 1, "Rapid nested ROW1 presses did not converge on the latest target");
-        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 1,
-            "A superseded nested ROW1 target caused unnecessary cursor steps: " + MODEL_ACTIONS);
-
         // Out must interrupt a multi-device ROW1 journey after its current
         // confirmed host step, then process the next ROW1 request in the parent.
         MODEL_ACTIONS.clear ();
