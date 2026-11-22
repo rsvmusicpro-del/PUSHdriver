@@ -705,7 +705,8 @@ public final class VirtualPush1RuntimeTest
         deviceParamsMode.setShowDevices (true);
 
         // In/Out use direct host commands and the native DrivenByMoss mode flow.
-        // No cursor polling or deferred ROW1 replay may sit between gestures.
+        // Only a ROW1/OUT gesture dependent on the unpublished cursor is retained;
+        // no general input queue or polling runs between ordinary gestures.
         deviceIndex = 4;
         virtualCursorDevicePosition = 4;
         virtualCursorDeviceNested = false;
@@ -962,10 +963,9 @@ public final class VirtualPush1RuntimeTest
             "Timed navigation trace is missing virtual timestamps: " + timedNavigationTrace);
         System.out.println ("Virtual Push 1 timed navigation burst passed: " + timedNavigationTrace);
 
-        // Characterize the asynchronous window between selecting a slot chain
-        // and Bitwig publishing the nested cursor. A ROW1 press inside this
-        // window currently targets the old device bank; the host callback can
-        // then overwrite that selection. Sweep realistic and adverse host
+        // Verify the asynchronous window between selecting a slot chain and
+        // Bitwig publishing the nested cursor. Every ROW1 target must survive
+        // this window without selecting on the old device bank. Sweep host
         // response delays against dense physical button intervals.
         runNavigationResponsivenessSweep (state, midi, surface, deviceParamsMode);
 
@@ -3505,10 +3505,9 @@ public final class VirtualPush1RuntimeTest
     }
 
     /**
-     * Measure the minimum safe gap between IN and dependent ROW1 selection
-     * under different Bitwig cursor-publication delays. This is a behavioral
-     * characterization: it records the stale-cursor window rather than hiding
-     * it by draining callbacks between gestures.
+     * Verify dependent ROW1 selection across Bitwig cursor-publication delays.
+     * The test intentionally does not drain callbacks between gestures; the
+     * production command must retain only the latest dependent target.
      */
     private static void runNavigationResponsivenessSweep (final State state,
         final VirtualPush1MidiBench midi, final PushControlSurface surface,
