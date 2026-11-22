@@ -761,11 +761,15 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In from same-name nested parent");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
             "ROW1 during ambiguous same-name nested transition");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
+            "ROW2-UP during fully indistinguishable same-name nested transition");
         drainNavigation (state);
+        advanceNavigationClock (state, state.virtualTimeMillis + 650);
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Fully indistinguishable same-name nested transition changed the parent cursor unexpectedly");
-        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.startsWith ("device.select:")),
-            "Fully indistinguishable same-name nested transition replayed ROW1 against an unidentified cursor");
+        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.startsWith ("device.select:")
+                || a.equals ("cursorDevice.selectParent") || a.equals ("cursorDevice.selectChannel")),
+            "Fully indistinguishable same-name nested transition replayed ROW1/ROW2-UP against an unidentified cursor");
 
         virtualSameNameChainCursor = false;
         virtualCursorDeviceNested = false;
