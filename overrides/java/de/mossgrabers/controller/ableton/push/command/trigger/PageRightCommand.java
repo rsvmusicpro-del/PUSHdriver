@@ -24,6 +24,37 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
         super (model, surface);
     }
 
+    private static long navigationGeneration;
+
+
+    /** Cancel a delayed parent completion when the user starts a newer action. */
+    public static void invalidatePendingNavigation ()
+    {
+        ++navigationGeneration;
+    }
+
+
+    /** Finish the asynchronous cursor update after a direct selectParent call. */
+    public static void scheduleParentCompletion (final IModel model, final PushControlSurface surface)
+    {
+        final var modeManager = surface.getModeManager ();
+        final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
+        final long generation = ++navigationGeneration;
+        model.getHost ().scheduleTask ( () -> {
+            if (generation != navigationGeneration || !modeManager.isActive (Modes.DEVICE_PARAMS))
+                return;
+            final var cursorDevice = model.getCursorDevice ();
+            if (!cursorDevice.doesExist ())
+                return;
+            if (cursorDevice.hasLayers ())
+                modeManager.setActive (surface.getConfiguration ().getCurrentLayerMixMode ());
+            else
+                modeManager.setActive (Modes.DEVICE_PARAMS);
+            deviceParamsMode.setShowDevices (false);
+            cursorDevice.selectChannel ();
+        }, 75);
+    }
+
 
     /** {@inheritDoc} */
     @Override
@@ -43,7 +74,20 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
         if (modeManager.isActive (Modes.DEVICE_CHAINS) || modeManager.isActive (Modes.DEVICE_PARAMS))
         {
             if (event == ButtonEvent.DOWN)
-                ((DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS)).navigateOut ();
+            {
+                final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
+                if (modeManager.isActive (Modes.DEVICE_CHAINS))
+                {
+                    modeManager.setActive (Modes.DEVICE_PARAMS);
+                    deviceParamsMode.setShowDevices (true);
+                }
+                final var cursorDevice = this.model.getCursorDevice ();
+                if (cursorDevice.doesExist () && cursorDevice.isNested ())
+                {
+                    cursorDevice.selectParent ();
+                    scheduleParentCompletion (this.model, this.surface);
+                }
+            }
             return;
         }
 
