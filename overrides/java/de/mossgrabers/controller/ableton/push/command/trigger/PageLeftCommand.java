@@ -18,7 +18,6 @@ import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -28,7 +27,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 {
     private static final int CHAIN_CURSOR_POLL_MS = 8;
     private static final int CHAIN_CURSOR_MAX_POLLS = 75;
-    private static final Map<DeviceParamsMode, PendingRow1Selection> PENDING_ROW1 = new WeakHashMap<> ();
+    private static final Map<IModel, PendingRow1Selection> PENDING_ROW1 = new WeakHashMap<> ();
     private static final Map<IModel, Boolean> OBSERVED_MODELS = new WeakHashMap<> ();
 
     private static final class PendingRow1Selection
@@ -36,20 +35,26 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         private final String parentId;
         private final String parentName;
         private final boolean parentWasNested;
-        private final IModel model;
-        private final WeakReference<PushControlSurface> surface;
+        private WeakReference<DeviceParamsMode> mode;
+        private WeakReference<PushControlSurface> surface;
         private int targetIndex = -1;
         private boolean returnToParent;
         private int polls;
         private boolean scheduled;
 
-        private PendingRow1Selection (final ICursorDevice cursor, final IModel model,
+        private PendingRow1Selection (final ICursorDevice cursor, final DeviceParamsMode mode,
             final PushControlSurface surface)
         {
             this.parentId = cursor.getID ();
             this.parentName = cursor.getName ();
             this.parentWasNested = cursor.isNested ();
-            this.model = model;
+            this.setOwner (mode, surface);
+        }
+
+
+        private void setOwner (final DeviceParamsMode mode, final PushControlSurface surface)
+        {
+            this.mode = new WeakReference<> (mode);
             this.surface = new WeakReference<> (surface);
         }
     }
@@ -65,13 +70,13 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     {
         if (mode == null)
             return;
-        PENDING_ROW1.remove (mode);
+        PENDING_ROW1.remove (model);
         if (chain == null || chain.isBlank ())
             return;
         final ICursorDevice cursor = model.getCursorDevice ();
         if (!cursor.doesExist ())
             return;
-        PENDING_ROW1.put (mode, new PendingRow1Selection (cursor, model, surface));
+        PENDING_ROW1.put (model, new PendingRow1Selection (cursor, mode, surface));
     }
 
 
@@ -79,20 +84,21 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     public static boolean deferRow1Selection (final DeviceParamsMode mode, final IModel model,
         final PushControlSurface surface, final int index)
     {
-        final PendingRow1Selection pending = PENDING_ROW1.get (mode);
+        final PendingRow1Selection pending = PENDING_ROW1.get (model);
         if (pending == null)
             return false;
         if (isPublishedChainCursor (model, pending))
         {
-            PENDING_ROW1.remove (mode);
+            PENDING_ROW1.remove (model);
             return false;
         }
+        pending.setOwner (mode, surface);
         pending.targetIndex = index;
         pending.returnToParent = false;
         if (!pending.scheduled)
         {
             pending.scheduled = true;
-            scheduleChainCursorProbe (mode, model, pending);
+            scheduleChainCursorProbe (model, pending);
         }
         return true;
     }
@@ -105,20 +111,21 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         // The Chains chooser has its own immediate native Up/exit behavior.
         if (!surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
             return false;
-        final PendingRow1Selection pending = PENDING_ROW1.get (mode);
+        final PendingRow1Selection pending = PENDING_ROW1.get (model);
         if (pending == null)
             return false;
         if (isPublishedChainCursor (model, pending))
         {
-            PENDING_ROW1.remove (mode);
+            PENDING_ROW1.remove (model);
             return false;
         }
+        pending.setOwner (mode, surface);
         pending.targetIndex = -1;
         pending.returnToParent = true;
         if (!pending.scheduled)
         {
             pending.scheduled = true;
-            scheduleChainCursorProbe (mode, model, pending);
+            scheduleChainCursorProbe (model, pending);
         }
         return true;
     }
@@ -160,12 +167,9 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     private static void onCursorNameChanged (final IModel model)
     {
         // Snapshot keys before completion removes entries from the weak map.
-        for (final DeviceParamsMode mode: new ArrayList<> (PENDING_ROW1.keySet ()))
-        {
-            final PendingRow1Selection pending = PENDING_ROW1.get (mode);
-            if (pending != null && pending.model == model)
-                completePendingIfReady (mode, pending);
-        }
+        final PendingRow1Selection pending = PENDING_ROW1.get (model);
+        if (pending != null)
+            completePendingIfReady (model, pending);
     }
 
 
@@ -174,23 +178,24 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
      *
      * @return True if the pending intent was completed, invalidated or superseded
      */
-    private static boolean completePendingIfReady (final DeviceParamsMode mode,
+    private static boolean completePendingIfReady (final IModel model,
         final PendingRow1Selection pending)
     {
-        if (PENDING_ROW1.get (mode) != pending)
+        if (PENDING_ROW1.get (model) != pending)
             return true;
+        final DeviceParamsMode mode = pending.mode.get ();
         final PushControlSurface surface = pending.surface.get ();
-        if (surface == null || !surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
+        if (mode == null || surface == null || !surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
         {
-            PENDING_ROW1.remove (mode);
+            PENDING_ROW1.remove (model);
             return true;
         }
-        if (!isPublishedChainCursor (pending.model, pending))
+        if (!isPublishedChainCursor (model, pending))
             return false;
 
         final int target = pending.targetIndex;
         final boolean returnToParent = pending.returnToParent;
-        PENDING_ROW1.remove (mode);
+        PENDING_ROW1.remove (model);
         if (returnToParent)
             mode.onSecondRow (7, ButtonEvent.DOWN);
         else if (target >= 0)
@@ -199,22 +204,22 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     }
 
 
-    private static void scheduleChainCursorProbe (final DeviceParamsMode mode, final IModel model,
+    private static void scheduleChainCursorProbe (final IModel model,
         final PendingRow1Selection pending)
     {
         model.getHost ().scheduleTask (() -> {
-            if (PENDING_ROW1.get (mode) != pending)
+            if (PENDING_ROW1.get (model) != pending)
                 return;
             pending.scheduled = false;
-            if (completePendingIfReady (mode, pending))
+            if (completePendingIfReady (model, pending))
                 return;
             if (++pending.polls >= CHAIN_CURSOR_MAX_POLLS)
             {
-                PENDING_ROW1.remove (mode);
+                PENDING_ROW1.remove (model);
                 return;
             }
             pending.scheduled = true;
-            scheduleChainCursorProbe (mode, model, pending);
+            scheduleChainCursorProbe (model, pending);
         }, CHAIN_CURSOR_POLL_MS);
     }
 
