@@ -1814,7 +1814,7 @@ public final class VirtualPush1RuntimeTest
 
         // Exercise the complete Swing simulator in memory on every CI run.
         VirtualPush1Simulator.smoke (midi);
-        runLatencyBench (setup, midi, mixerModel, modes);
+        runLatencyBench (setup, midi, mixerModel);
 
         if (args.length > 0 && "--gui".equals (args[0]))
             VirtualPush1Simulator.show (midi, setup::exit);
@@ -3339,9 +3339,9 @@ public final class VirtualPush1RuntimeTest
      * host, so correctness is asserted independently of timing thresholds.
      */
     private static void runLatencyBench (final PushControllerSetup setup,
-        final VirtualPush1MidiBench midi, final MixerModel mixerModel, final de.mossgrabers.framework.mode.IModeManager modes)
+        final VirtualPush1MidiBench midi, final MixerModel mixerModel)
     {
-        modes.setActive (Modes.VOLUME);
+        setup.getSurface ().getModeManager ().setActive (Modes.VOLUME);
         final MixerModel.ParameterState volume = mixerModel.volume (0);
         for (int i = 0; i < 100; i++)
         {
