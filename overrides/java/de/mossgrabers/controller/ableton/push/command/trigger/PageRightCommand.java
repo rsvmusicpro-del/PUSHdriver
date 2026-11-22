@@ -40,28 +40,28 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
             return;
         }
 
-        if (modeManager.isActive (Modes.DEVICE_CHAINS))
-            return;
+        final Modes activeModeId = modeManager.getActiveID ();
+        final boolean deviceNavigationMode = modeManager.isActive (Modes.DEVICE_PARAMS)
+            || modeManager.isActive (Modes.EQ_DEVICE_PARAMS)
+            || modeManager.isActive (Modes.INSTRUMENT_DEVICE_PARAMS)
+            || modeManager.isActive (Modes.DEVICE_CHAINS)
+            || Modes.isDeviceMode (activeModeId);
 
-        if (modeManager.isActive (Modes.DEVICE_PARAMS))
+        if (deviceNavigationMode)
         {
             if (event == ButtonEvent.DOWN)
             {
                 final var cursorDevice = this.model.getCursorDevice ();
-                if (cursorDevice.doesExist () && (cursorDevice.isNested () || PushDeviceNavigation.isEntering (this.surface, this.model)))
+                if (cursorDevice.doesExist ()
+                    && (cursorDevice.isNested () || PushDeviceNavigation.isEntering (this.surface, this.model)))
                 {
                     if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
                         deviceParamsMode.setShowDevices (true);
                     PushDeviceNavigation.exitParent (this.surface, this.model);
                 }
+                else if (activeMode != null && !modeManager.isActive (Modes.DEVICE_CHAINS))
+                    activeMode.selectPreviousItemPage ();
             }
-            return;
-        }
-
-        if (Modes.isDeviceMode (modeManager.getActiveID ()))
-        {
-            if (event == ButtonEvent.DOWN && activeMode != null)
-                activeMode.selectPreviousItemPage ();
             return;
         }
 
