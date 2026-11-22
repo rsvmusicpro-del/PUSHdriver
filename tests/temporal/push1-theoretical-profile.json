@@ -58,5 +58,6 @@
       "max_ms": 20
     }
   },
-  "loss_probability": {}
+  "loss_probability": {},
+  "long_press_threshold_ms": 300
 }
