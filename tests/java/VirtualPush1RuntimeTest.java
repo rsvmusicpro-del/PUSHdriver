@@ -1006,6 +1006,32 @@ public final class VirtualPush1RuntimeTest
             "Same-name nested parent return was abandoned instead of completing");
         require (virtualCursorDeviceNested && !deviceParamsMode.isShowDevices (),
             "Same-name nested parent return did not restore the parent parameter view");
+
+        // When even the visible sibling bank is identical, retain the
+        // original DrivenByMoss 300 ms completion as the last-resort signal.
+        virtualSameNameParentAfterSelect = true;
+        virtualParentNestedAfterSelect = true;
+        virtualParentHasLayersAfterSelect = false;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceName = "Indistinguishable nested device";
+        virtualDeviceBankNames = new String [] {
+            "Nested sibling 0", "Nested sibling 1", "Nested sibling 2", "Nested sibling 3",
+            "Nested sibling 4", "Nested sibling 5", "Nested sibling 6", "Nested sibling 7"
+        };
+        virtualCursorDevicePosition = 0;
+        deviceIndex = 0;
+        deviceParamsMode.setShowDevices (true);
+        modes.setActive (Modes.DEVICE_PARAMS);
+        MODEL_ACTIONS.clear ();
+        final long indistinguishableParentStart = state.virtualTimeMillis;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "OUT to indistinguishable nested parent");
+        advanceNavigationClock (state, indistinguishableParentStart + 350);
+        requireAction ("cursorDevice.selectChannel",
+            "Indistinguishable nested parent return did not use the native 300 ms fallback");
+        require (state.virtualTimeMillis - indistinguishableParentStart >= 300
+                && virtualCursorDeviceNested && !deviceParamsMode.isShowDevices (),
+            "Native fallback did not finalize the indistinguishable nested parent after its bounded wait");
+
         virtualSameNameParentAfterSelect = false;
         virtualParentNestedAfterSelect = false;
         virtualCursorDeviceNested = false;
