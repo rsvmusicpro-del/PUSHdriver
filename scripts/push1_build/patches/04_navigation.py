@@ -300,8 +300,7 @@ replace_java_method(page_right,
     """    public void execute (final ButtonEvent event, final int velocity)
     {
         final ViewManager viewManager = this.surface.getViewManager ();
-        if (event == ButtonEvent.DOWN
-            && !this.surface.getModeManager ().isActive (de.mossgrabers.framework.mode.Modes.BROWSER))
+        if (event == ButtonEvent.DOWN)
         {
             final var cursorDevice = this.model.getCursorDevice ();
             if (cursorDevice.doesExist ()
