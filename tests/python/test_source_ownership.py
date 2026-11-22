@@ -152,6 +152,9 @@ class SourceOwnershipTests(unittest.TestCase):
 
         command = (root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PageLeftCommand.java").read_text(encoding="utf-8")
         self.assertIn("addNameObserver", command)
+        self.assertIn("OBSERVED_MODELS", command)
+        self.assertIn("WeakReference<IModel>", command)
+        self.assertIn("WeakReference<> (surface)", command)
         self.assertIn("completePendingIfReady", command)
         self.assertIn("CHAIN_CURSOR_POLL_MS = 8", command)
         self.assertIn("CHAIN_CURSOR_MAX_POLLS = 75", command)
