@@ -924,12 +924,12 @@ public final class VirtualPush1RuntimeTest
         sendTimedNavigationGesture (state, midi, surface, sameNameEntryStart,
             VirtualPush1Device.IN, "IN same-name nested chain", new java.util.ArrayList<> ());
         sendTimedNavigationGesture (state, midi, surface, sameNameEntryStart + 10,
-            VirtualPush1Device.OUT, "OUT during same-name nested chain entry", new java.util.ArrayList<> ());
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP during same-name nested chain entry", new java.util.ArrayList<> ());
         advanceNavigationClock (state, sameNameEntryStart + 250);
         requireAction ("device.selectSlotChain:Chain 1",
             "Same-name nested IN did not select the first slot chain");
         requireAction ("cursorDevice.selectParent",
-            "OUT was lost while waiting for a same-name nested chain cursor");
+            "ROW2-UP was lost while waiting for a same-name nested chain cursor");
         requireAction ("cursorDevice.selectChannel",
             "OUT did not complete after the same-name chain parent was published");
         require (!virtualCursorDeviceNested && !deviceParamsMode.isShowDevices (),
