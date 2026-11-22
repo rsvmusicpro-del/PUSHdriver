@@ -32,6 +32,10 @@ SCENARIOS = {
         ("DEVICE", 0, 70), ("TRACK", 45, 70), ("VOLUME", 90, 70),
         ("PAN-SEND", 135, 70), ("DEVICE", 180, 70),
     ],
+    "button-repeat-hold": [
+        ("ROW1-2", 0, 55), ("ROW1-2", 85, 55), ("ROW1-2", 170, 55),
+        ("IN", 300, 360), ("ROW2-UP", 760, 55),
+    ],
 }
 
 
@@ -111,6 +115,9 @@ class TemporalSimulator:
         stage_totals = {stage: [] for stage in self.INPUT_STAGES}
         lost = {stage: 0 for stage in self.INPUT_STAGES + self.FEEDBACK_STAGES}
         completed_commands = set()
+        hold_durations: list[float] = []
+        hold_classes = {"short": 0, "long": 0}
+        long_press_threshold = float(self.profile.get("long_press_threshold_ms", 300.0))
         feedback_seen = {"led": [], "lcd": []}
         max_version = len(actions)
         for version, (button, start, hold) in enumerate(actions, 1):
@@ -123,6 +130,9 @@ class TemporalSimulator:
         while queue:
             event = heapq.heappop(queue)
             if event.kind == "release":
+                duration = max(0.0, event.at_ms - press_times[event.version])
+                hold_durations.append(duration)
+                hold_classes["long" if duration >= long_press_threshold else "short"] += 1
                 continue
             if event.kind == "press":
                 self.push(queue, event.at_ms, self.INPUT_STAGES[0], event.version, event.payload)
@@ -181,6 +191,7 @@ class TemporalSimulator:
             "led": led_latencies, "lcd": lcd_latencies, "stages": stage_totals,
             "lost": lost, "feedback_reorders": feedback_reorders,
             "expected_commands": max_version, "completed_commands": len(completed_commands),
+            "hold_durations": hold_durations, "hold_classes": hold_classes,
         }
 
 
@@ -194,6 +205,8 @@ def aggregate(profile: dict[str, Any], scenario: str, samples: int, seed: int) -
     loss_counts: dict[str, int] = {}
     reorder_counts = {"led": 0, "lcd": 0}
     expected = completed = 0
+    hold_durations: list[float] = []
+    hold_classes = {"short": 0, "long": 0}
     for _ in range(samples):
         result = sim.run_once(actions)
         for name, key in (("command", "commands"), ("cursor", "cursor"), ("led", "led"), ("lcd", "lcd")):
@@ -206,6 +219,9 @@ def aggregate(profile: dict[str, Any], scenario: str, samples: int, seed: int) -
             reorder_counts[target] += count
         expected += result["expected_commands"]
         completed += result["completed_commands"]
+        hold_durations.extend(result["hold_durations"])
+        for category, count in result["hold_classes"].items():
+            hold_classes[category] += count
     return {
         "schema": "push1-temporal-simulation/v1",
         "evidence_class": profile.get("evidence_class", "theoretical-configurable"),
@@ -214,6 +230,8 @@ def aggregate(profile: dict[str, Any], scenario: str, samples: int, seed: int) -
         "assumptions": profile.get("assumptions", []),
         "metrics": {name: describe(values) for name, values in aggregate_values.items()},
         "input_stage_delay": {name: describe(values) for name, values in stage_values.items()},
+        "button_holds": {"duration_ms": describe(hold_durations), "classes": hold_classes,
+                         "long_press_threshold_ms": float(profile.get("long_press_threshold_ms", 300.0))},
         "delivery": {
             "expected_commands": expected, "completed_commands": completed,
             "command_loss_count": expected - completed, "losses_by_stage": loss_counts,
