@@ -299,12 +299,10 @@ replace_java_method(page_right,
     "public void execute (final ButtonEvent event, final int velocity)",
     """    public void execute (final ButtonEvent event, final int velocity)
     {
-        final var activeModeId = this.surface.getModeManager ().getActiveID ();
+        final ViewManager viewManager = this.surface.getViewManager ();
         if (event == ButtonEvent.DOWN
-            && (de.mossgrabers.framework.mode.Modes.isDeviceMode (activeModeId)
-                || activeModeId == de.mossgrabers.framework.mode.Modes.EQ_DEVICE_PARAMS
-                || activeModeId == de.mossgrabers.framework.mode.Modes.INSTRUMENT_DEVICE_PARAMS
-                || activeModeId == de.mossgrabers.framework.mode.Modes.DEVICE_CHAINS))
+            && !viewManager.isActive (Views.SESSION)
+            && !this.surface.getModeManager ().isActive (de.mossgrabers.framework.mode.Modes.BROWSER))
         {
             final var cursorDevice = this.model.getCursorDevice ();
             if (cursorDevice.doesExist ()
@@ -314,8 +312,6 @@ replace_java_method(page_right,
                 return;
             }
         }
-
-        final ViewManager viewManager = this.surface.getViewManager ();
         if (viewManager.isActive (Views.SESSION))
         {
             if (event == ButtonEvent.DOWN)
