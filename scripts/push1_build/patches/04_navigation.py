@@ -312,7 +312,7 @@ replace_once(device_params_mode,
             return;
         if (de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.queueRowDuringNavigation (this.surface, this.model, index))
             return;
-        de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.invalidatePendingNavigation ();""",
+        de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.invalidatePendingNavigation (this.surface);""",
     "Retain only the latest ROW1 intent while a direct hierarchy transition settles")
 
 # Any new ROW2 action supersedes a pending parent-return completion.
@@ -329,7 +329,7 @@ replace_once(device_params_mode,
             return;
         final ICursorDevice device = this.model.getCursorDevice ();
         final ModeManager modeManager = this.surface.getModeManager ();
-        de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.invalidatePendingNavigation ();""",
+        de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.invalidatePendingNavigation (this.surface);""",
     "Invalidate stale parent completion on ROW2 action")
 
 # Keep the physical Push 1 New button on its native dedicated binding, while
