@@ -15,7 +15,7 @@ python3 scripts/push1_temporal_simulator.py --profile path/to/measured-profile.j
 python3 -m unittest discover -s tests/python -p 'test_push1_temporal_simulator.py' -v
 ```
 
-Scenarios cover IN → rapid ROW1 changes → ROW2-UP, repeated chain traversal, and fast DEVICE/TRACK/VOLUME/PAN-SEND mode bursts. Each simulated press has an explicit release and hold duration. The model reports command, nested-cursor, LED and LCD latency distributions separately, including P50/P95/P99, maximum, standard deviation and P95−P50 jitter. It also reports loss by stage, command completion and stale feedback reordering.
+Scenarios cover IN → rapid ROW1 changes → ROW2-UP, repeated chain traversal, fast DEVICE/TRACK/VOLUME/PAN-SEND mode bursts, and repeated short taps followed by a long hold. Each simulated press has an explicit release and hold duration; hold lengths are classified against the configurable 300 ms default long-press threshold (a framework semantic, not a claim about Push firmware debounce). The model reports command, nested-cursor, LED and LCD latency distributions separately, including P50/P95/P99, maximum, standard deviation and P95−P50 jitter. It also reports loss by stage, command completion and stale feedback reordering.
 
 ## Profile format
 
