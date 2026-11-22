@@ -1,5 +1,8 @@
 # Device mode verification (historical record)
 
+> **Navigation architecture correction — 2026-11-22:** The sections below describing an asynchronous serialized hierarchy queue, cursor-confirmation polling, queue telemetry, and delayed ROW1 replay document an experiment that has been superseded. The active implementation restores the earlier direct Bitwig cursor calls: In/Out and Device Chains dispatch the host operation immediately, while nested ROW1 walks siblings with immediate `selectNext`/`selectPrevious` calls. The queue, polling timers, timeout, and queue-specific tests have been removed. This is intended to restore the original Push response; actual hardware fluidity still requires a live Bitwig/Push 1 test.
+
+
 This document records the original implementation and CI evidence for PR #76. Its recorded head SHA and workflow run are historical and must not be treated as the current branch validation.
 
 Implementation branch: `feature/push1-in-out-device-hierarchy`  
