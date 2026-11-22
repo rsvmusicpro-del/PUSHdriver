@@ -33,19 +33,16 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         private final String parentId;
         private final String parentName;
         private final IModel model;
-        private final PushControlSurface surface;
         private int targetIndex = -1;
         private boolean returnToParent;
         private int polls;
         private boolean scheduled;
 
-        private PendingRow1Selection (final ICursorDevice cursor, final IModel model,
-            final PushControlSurface surface)
+        private PendingRow1Selection (final ICursorDevice cursor, final IModel model)
         {
             this.parentId = cursor.getID ();
             this.parentName = cursor.getName ();
             this.model = model;
-            this.surface = surface;
         }
     }
 
@@ -66,7 +63,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final ICursorDevice cursor = model.getCursorDevice ();
         if (!cursor.doesExist ())
             return;
-        PENDING_ROW1.put (mode, new PendingRow1Selection (cursor, model, surface));
+        PENDING_ROW1.put (mode, new PendingRow1Selection (cursor, model));
     }
 
 
@@ -135,19 +132,10 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
     private void onCursorNameChanged ()
     {
-        DeviceParamsMode pendingMode = null;
-        PendingRow1Selection pending = null;
-        for (final Map.Entry<DeviceParamsMode, PendingRow1Selection> entry: PENDING_ROW1.entrySet ())
-        {
-            if (entry.getValue ().model == this.model)
-            {
-                pendingMode = entry.getKey ();
-                pending = entry.getValue ();
-                break;
-            }
-        }
-        if (pendingMode != null)
-            completePendingIfReady (pendingMode, pending);
+        final DeviceParamsMode pendingMode = (DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS);
+        final PendingRow1Selection pending = PENDING_ROW1.get (pendingMode);
+        if (pending != null && pending.model == this.model)
+            completePendingIfReady (pendingMode, pending, this.surface);
     }
 
 
@@ -157,11 +145,11 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
      * @return True if the pending intent was completed, invalidated or superseded
      */
     private static boolean completePendingIfReady (final DeviceParamsMode mode,
-        final PendingRow1Selection pending)
+        final PendingRow1Selection pending, final PushControlSurface surface)
     {
         if (PENDING_ROW1.get (mode) != pending)
             return true;
-        if (!pending.surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
+        if (!surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
         {
             PENDING_ROW1.remove (mode);
             return true;
@@ -187,7 +175,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             if (PENDING_ROW1.get (mode) != pending)
                 return;
             pending.scheduled = false;
-            if (completePendingIfReady (mode, pending))
+            if (completePendingIfReady (mode, pending, surface))
                 return;
             if (++pending.polls >= CHAIN_CURSOR_MAX_POLLS)
             {
