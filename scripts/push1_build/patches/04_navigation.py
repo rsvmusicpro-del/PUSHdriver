@@ -301,7 +301,6 @@ replace_java_method(page_right,
     {
         final ViewManager viewManager = this.surface.getViewManager ();
         if (event == ButtonEvent.DOWN
-            && !viewManager.isActive (Views.SESSION)
             && !this.surface.getModeManager ().isActive (de.mossgrabers.framework.mode.Modes.BROWSER))
         {
             final var cursorDevice = this.model.getCursorDevice ();
