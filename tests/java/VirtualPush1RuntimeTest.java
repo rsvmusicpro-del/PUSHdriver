@@ -804,8 +804,16 @@ public final class VirtualPush1RuntimeTest
                             "Valid ROW1 target was not selected: chain size " + childCount
                                 + ", start " + startIndex + ", target " + targetIndex
                                 + ", actual " + deviceIndex);
-                        requireAction ("device.select:" + targetIndex,
-                            "Valid nested ROW1 target did not use the absolute sibling selection");
+                        if (targetIndex != startIndex)
+                        {
+                            requireAction ("device.select:" + targetIndex,
+                                "Valid nested ROW1 target did not use the absolute sibling selection");
+                            require (MODEL_ACTIONS.stream ().filter (a -> a.startsWith ("device.select:")).count () == 1,
+                                "Nested ROW1 must issue exactly one absolute sibling selection");
+                        }
+                        else
+                            require (MODEL_ACTIONS.stream ().noneMatch (a -> a.startsWith ("device.select:")),
+                                "Selecting the already-selected ROW1 item must remain a no-op");
                         require (MODEL_ACTIONS.stream ().noneMatch (a ->
                                 a.equals ("cursorDevice.selectNext") || a.equals ("cursorDevice.selectPrevious")),
                             "Nested ROW1 emitted relative cursor steps instead of one direct selection");
