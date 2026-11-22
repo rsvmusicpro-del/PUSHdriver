@@ -55,10 +55,11 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
                 final String [] slotChains = cursorDevice.getSlotChains ();
                 if (slotChains != null && slotChains.length > 0)
                 {
-                    PageRightCommand.invalidatePendingNavigation ();
                     if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
                         deviceParamsMode.setShowDevices (true);
+                    final long generation = PageRightCommand.beginNavigation (this.model, this.surface, true);
                     cursorDevice.selectSlotChain (slotChains[0]);
+                    PageRightCommand.scheduleNavigation (this.model, this.surface, generation);
                 }
             }
             return;
