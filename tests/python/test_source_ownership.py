@@ -168,6 +168,7 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertIn("cursorFingerprint", command)
         self.assertIn("parentFingerprint", command)
         self.assertIn("deferInUntilParentReturn", command)
+        self.assertIn("deferChainSelectionUntilParentReturn", command)
         self.assertIn("selectFirstAvailableChain", command)
         self.assertIn("queuedUpCount", command)
         self.assertIn("replayQueuedOut", command)
