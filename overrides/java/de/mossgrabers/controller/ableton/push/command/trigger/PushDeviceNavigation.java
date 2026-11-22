@@ -174,7 +174,15 @@ public final class PushDeviceNavigation
             // command. Retarget its remaining journey to the newest ROW1 intent
             // rather than replaying obsolete intermediate targets afterwards.
             final Action inFlight = state.actions.peekFirst ();
-            if (state.running && state.wait == Wait.MOVE && inFlight != null && inFlight.type == Type.SELECT)
+            boolean exitQueued = false;
+            if (state.running)
+                for (final Action pending: state.actions)
+                    if (pending.type == Type.EXIT)
+                    {
+                        exitQueued = true;
+                        break;
+                    }
+            if (state.running && !exitQueued && state.wait == Wait.MOVE && inFlight != null && inFlight.type == Type.SELECT)
             {
                 inFlight.index = index;
                 inFlight.onReselect = onReselect;
