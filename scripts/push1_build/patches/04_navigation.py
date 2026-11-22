@@ -282,7 +282,7 @@ replace_once(device_chains_mode,
 # stopping the cursor track's current clip before preparing its next note clip.
 replace_once(setup,
     "import de.mossgrabers.framework.command.trigger.clip.NewCommand;\n",
-    "import de.mossgrabers.controller.ableton.push.command.trigger.PushNewCommand;\nimport de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation;\nimport de.mossgrabers.controller.ableton.push.command.trigger.PushPageRightCommand;\n",
+    "import de.mossgrabers.controller.ableton.push.command.trigger.PushNewCommand;\nimport de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation;\n",
     "Push 1 New command import")
 replace_once(setup,
     "new NewCommand<> (this.model, surface)",
@@ -290,8 +290,3 @@ replace_once(setup,
     "Push 1 New command binding")
 
 
-
-replace_once(setup,
-    "new PageRightCommand (this.model, surface)",
-    "new PushPageRightCommand (this.model, surface)",
-    "Push 1 Out command binding")
