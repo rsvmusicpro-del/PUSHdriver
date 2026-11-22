@@ -745,14 +745,17 @@ public final class VirtualPush1RuntimeTest
         virtualCursorDevicePosition = 4;
         deviceParamsMode.setShowDevices (false);
 
-        // A nested parent and a nested child can share the same name. API 17
-        // exposes no stable cursor ID for this case, so fail closed after the
-        // bounded wait rather than replaying ROW1 against the stale parent.
+        // If a nested parent and child have the same name and every other
+        // API-17-visible cursor/bank field is also identical, fail closed.
         virtualSameNameChainCursor = true;
         virtualCursorDeviceNested = true;
         virtualCursorDeviceName = "Same Nested Parent";
-        deviceIndex = 1;
-        virtualCursorDevicePosition = 1;
+        virtualDeviceBankNames = new String [] {
+            "Slot Chain 1 child 0", "Slot Chain 1 child 1", "Slot Chain 1 child 2", "Slot Chain 1 child 3",
+            "Slot Chain 1 child 4", "Slot Chain 1 child 5", "Slot Chain 1 child 6", "Slot Chain 1 child 7"
+        };
+        deviceIndex = 0;
+        virtualCursorDevicePosition = 0;
         deviceParamsMode.setShowDevices (true);
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In from same-name nested parent");
@@ -760,9 +763,9 @@ public final class VirtualPush1RuntimeTest
             "ROW1 during ambiguous same-name nested transition");
         drainNavigation (state);
         require (virtualCursorDeviceNested && deviceIndex == 0,
-            "Ambiguous same-name nested transition changed the parent cursor unexpectedly");
+            "Fully indistinguishable same-name nested transition changed the parent cursor unexpectedly");
         require (MODEL_ACTIONS.stream ().noneMatch (a -> a.startsWith ("device.select:")),
-            "Ambiguous same-name nested transition replayed ROW1 against an unidentified cursor");
+            "Fully indistinguishable same-name nested transition replayed ROW1 against an unidentified cursor");
 
         virtualSameNameChainCursor = false;
         virtualCursorDeviceNested = false;
