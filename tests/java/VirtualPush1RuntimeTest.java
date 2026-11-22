@@ -772,7 +772,7 @@ public final class VirtualPush1RuntimeTest
                     MODEL_ACTIONS.clear ();
                     requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + targetIndex,
                         "Chain size " + childCount + ", start " + startIndex + ", ROW1 " + (targetIndex + 1));
-                    drainNavigation (state);
+                    drainScheduled (state, 73);
 
                     if (targetIndex < childCount)
                     {
@@ -811,14 +811,14 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return to nested parent device");
         requireAction ("cursorDevice.selectParent", "Out did not request the parent at nested depth two");
-        drainNavigation (state);
+        drainScheduled (state, 73);
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Out incorrectly left the hierarchy when the parent was itself nested");
         deviceParamsMode.setShowDevices (true);
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
             "Select sibling inside nested parent chain");
-        drainNavigation (state);
+        drainScheduled (state, 73);
         require (deviceIndex == 2,
             "ROW1 did not select a sibling at the second nested hierarchy depth");
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 2,
@@ -826,7 +826,7 @@ public final class VirtualPush1RuntimeTest
         virtualParentNestedAfterSelect = false;
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return from nested parent to root");
-        drainNavigation (state);
+        drainScheduled (state, 73);
         require (!virtualCursorDeviceNested && deviceIndex == 0,
             "Out did not return to the root after traversing two nested levels");
 
@@ -3324,24 +3324,6 @@ public final class VirtualPush1RuntimeTest
             }
         }
         return false;
-    }
-
-    /** Drain serialized navigation while preserving delayed host callbacks and adaptive poll intervals. */
-    private static void drainNavigation (final State state)
-    {
-        final long [] delays={4,8,12,20,36,40,73};
-        for(int steps=0;steps<100000;steps++)
-        {
-            if(runNextScheduled(state,73))
-                continue;
-            boolean ran=false;
-            for(final long delay:delays)
-                if(delay!=73&&runNextScheduled(state,delay)){ran=true;break;}
-            if(ran)
-                continue;
-            return;
-        }
-        throw new AssertionError ("Adaptive Device navigation scheduler exceeded 100000 tasks");
     }
 
     private static void drainScheduled (final State state, final long delay)
