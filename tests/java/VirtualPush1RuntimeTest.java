@@ -3659,7 +3659,7 @@ public final class VirtualPush1RuntimeTest
             VirtualPush1Device.VOLUME, VirtualPush1Device.PAN_SEND
         };
         final Modes [] expected = {
-            Modes.DEVICE_PARAMS, Modes.TRACK, Modes.VOLUME, Modes.PAN
+            Modes.DEVICE_PARAMS, Modes.TRACK, Modes.VOLUME, Modes.SEND1
         };
         for (int i = 0; i < 100; i++)
         {
