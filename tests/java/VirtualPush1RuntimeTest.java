@@ -787,10 +787,14 @@ public final class VirtualPush1RuntimeTest
 
         virtualParentHasLayersAfterSelect = false;
         MODEL_ACTIONS.clear ();
+        final long parentReturnStartedAt = state.virtualTimeMillis;
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63)");
         requireAction ("cursorDevice.selectParent", "Out (CC 63) must use the native parent navigation");
-        drainNavigation (state);
-        drainScheduled (state, 300);
+        advanceNavigationClock (state, parentReturnStartedAt + 100);
+        require (MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
+            "OUT must finalize as soon as the parent cursor is published, without waiting 300 ms");
+        require (state.virtualTimeMillis - parentReturnStartedAt < 300,
+            "OUT completion exceeded the removed 300 ms fixed delay");
         require (!virtualCursorDeviceNested && deviceIndex == 0,
             "Native Out did not return to the parent device");
         requireAction ("cursorDevice.selectChannel",
@@ -3783,11 +3787,10 @@ public final class VirtualPush1RuntimeTest
             + " trials, " + staleSelections + " stale-cursor selections; independent mode switch passed; " + results);
     }
 
-    /** Drain native host cursor publication and parent-return callbacks; no production polling exists. */
+    /** Drain asynchronous host publication and the bounded production fallback. */
     private static void drainNavigation (final State state)
     {
-        drainScheduled (state, 73);
-        drainScheduled (state, 300);
+        advanceNavigationClock (state, state.virtualTimeMillis + 600);
     }
 
 
