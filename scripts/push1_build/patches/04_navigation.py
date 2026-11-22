@@ -236,7 +236,6 @@ replace_once(device_params_mode,
         if (de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.deferOutUntilChainCursor (
                 deviceParamsMode, this.model, this.surface))
             return;
-        de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.cancelPendingRow1Selection (deviceParamsMode);
 """,
     "Cancel pending ROW1 intent on native ROW2-UP hierarchy return")
 
