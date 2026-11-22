@@ -899,10 +899,12 @@ public final class VirtualPush1RuntimeTest
         // Out must interrupt a multi-device ROW1 journey after its current
         // confirmed host step, then process the next ROW1 request in the parent.
         MODEL_ACTIONS.clear ();
+        virtualDeferCursorUpdates = true;
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Start nested ROW1 traversal before Out");
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out during nested ROW1 traversal");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "ROW1 target after priority Out");
         drainNavigation (state);
+        virtualDeferCursorUpdates = false;
         require (!virtualCursorDeviceNested && deviceIndex == 1,
             "Out did not interrupt nested traversal before applying the later parent ROW1 target");
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 1,
