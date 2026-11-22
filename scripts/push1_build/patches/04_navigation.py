@@ -204,132 +204,8 @@ replace_once(browser_mode,
 # traversal for nested ROW1 selection; never wait for each individual step.
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
 
-# Keep a single last-wins ROW1 intent only when a chain cursor is still being
-# published by Bitwig. All unrelated controls continue through immediately.
-replace_once(device_params_mode,
-    "    protected boolean              showDevices;\n",
-    """    protected boolean              showDevices;
-    private static final int         CHAIN_CURSOR_POLL_MS = 8;
-    private static final int         CHAIN_CURSOR_MAX_POLLS = 75;
-    private long                     chainSelectionGeneration;
-    private String                   chainParentId = "";
-    private String                   chainParentName = "";
-    private int                      pendingChainRow1Index = -1;
-    private int                      chainCursorPolls;
-    private boolean                  chainSelectionPending;
-    private boolean                  chainCursorPollScheduled;
-""",
-    "Targeted last-wins ROW1 state for asynchronous chain cursor publication")
-
-replace_once(device_params_mode,
-    """    public boolean isShowDevices ()
-    {
-        return this.showDevices;
-    }
-""",
-    """    public boolean isShowDevices ()
-    {
-        return this.showDevices;
-    }
-
-
-    /**
-     * Mark a slot-chain selection as pending before asking Bitwig to change
-     * the cursor. No timer is started until a dependent ROW1 gesture arrives.
-     *
-     * @param chain The selected chain name
-     */
-    public void prepareSlotChainSelection (final String chain)
-    {
-        this.cancelPendingChainSelection ();
-        if (chain == null || chain.isBlank ())
-            return;
-        final ICursorDevice cursor = this.model.getCursorDevice ();
-        if (!cursor.doesExist ())
-            return;
-        this.chainParentId = cursor.getID ();
-        this.chainParentName = cursor.getName ();
-        this.chainSelectionPending = true;
-    }
-
-
-    /** Cancel a pending dependent ROW1 selection. */
-    public void cancelPendingChainSelection ()
-    {
-        this.chainSelectionGeneration++;
-        this.chainSelectionPending = false;
-        this.chainCursorPollScheduled = false;
-        this.pendingChainRow1Index = -1;
-        this.chainCursorPolls = 0;
-        this.chainParentId = "";
-        this.chainParentName = "";
-    }
-
-
-    private boolean isPublishedChainCursor ()
-    {
-        final ICursorDevice cursor = this.model.getCursorDevice ();
-        if (!cursor.doesExist () || !cursor.isNested ())
-            return false;
-        final String id = cursor.getID ();
-        if (!this.chainParentId.isEmpty () && id != null && !id.isEmpty ())
-            return !this.chainParentId.equals (id);
-        final String name = cursor.getName ();
-        return name != null && !name.equals (this.chainParentName);
-    }
-
-
-    private boolean deferRow1UntilChainCursor (final int index)
-    {
-        if (!this.chainSelectionPending)
-            return false;
-        if (this.isPublishedChainCursor ())
-        {
-            this.cancelPendingChainSelection ();
-            return false;
-        }
-        this.pendingChainRow1Index = index;
-        if (!this.chainCursorPollScheduled)
-        {
-            this.chainCursorPollScheduled = true;
-            this.chainSelectionGeneration++;
-            this.scheduleChainCursorProbe (this.chainSelectionGeneration);
-        }
-        return true;
-    }
-
-
-    private void scheduleChainCursorProbe (final long generation)
-    {
-        this.model.getHost ().scheduleTask (() -> {
-            if (generation != this.chainSelectionGeneration || !this.chainSelectionPending)
-                return;
-            this.chainCursorPollScheduled = false;
-            if (!this.surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
-            {
-                this.cancelPendingChainSelection ();
-                return;
-            }
-            if (this.isPublishedChainCursor ())
-            {
-                final int target = this.pendingChainRow1Index;
-                this.cancelPendingChainSelection ();
-                if (target >= 0)
-                    this.onFirstRow (target, ButtonEvent.UP);
-                return;
-            }
-            if (++this.chainCursorPolls >= CHAIN_CURSOR_MAX_POLLS)
-            {
-                this.cancelPendingChainSelection ();
-                return;
-            }
-            this.chainCursorPollScheduled = true;
-            this.scheduleChainCursorProbe (generation);
-        }, CHAIN_CURSOR_POLL_MS);
-    }
-""",
-    "Bounded last-wins ROW1 replay after confirmed chain cursor publication")
-
+# Defer only the dependent ROW1 gesture through the existing command owner.
+# Keep the pinned DeviceParamsMode public/protected method inventory unchanged.
 replace_once(device_params_mode,
     """        if (event == ButtonEvent.UP)
         {
@@ -339,7 +215,8 @@ replace_once(device_params_mode,
 """,
     """        if (event == ButtonEvent.UP)
         {
-            if (this.deferRow1UntilChainCursor (index))
+            if (de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.deferRow1Selection (
+                    this, this.model, this.surface, index))
                 return;
             final ICursorDevice cd = this.model.getCursorDevice ();
             if (!cd.doesExist ())
@@ -354,7 +231,8 @@ replace_once(device_params_mode,
 """,
     """    protected void moveUp ()
     {
-        this.cancelPendingChainSelection ();
+        de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.cancelPendingRow1Selection (
+            (DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS));
         final ModeManager modeManager = this.surface.getModeManager ();
 """,
     "Cancel pending ROW1 intent on native ROW2-UP hierarchy return")
@@ -471,7 +349,8 @@ replace_once(device_chains_mode,
 """,
     """            final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS);
             deviceParamsMode.setShowDevices (true);
-            deviceParamsMode.prepareSlotChainSelection (slotChains[index]);
+            de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.prepareSlotChainSelection (
+                deviceParamsMode, this.model, this.surface, slotChains[index]);
             // Match DrivenByMoss: issue the chain selection and mode change
             // immediately; only a dependent ROW1 intent waits for cursor publication.
             cd.selectSlotChain (slotChains[index]);
