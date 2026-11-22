@@ -125,6 +125,7 @@ public final class VirtualPush1RuntimeTest
     private static String [] virtualDeviceBankNames = { "Device 0", "Device 1", "Device 2", "Device 3", "Device 4", "Device 5", "Device 6", "Device 7" };
     private static boolean virtualParentNestedAfterSelect;
     private static boolean virtualParentHasLayersAfterSelect;
+    private static boolean virtualSameNameParentAfterSelect;
     // Simulated Bitwig cursor-publication latency for deterministic navigation sweeps.
     private static long virtualCursorCallbackDelayMillis = 73;
     private static boolean virtualNullSlotChains;
@@ -900,6 +901,47 @@ public final class VirtualPush1RuntimeTest
         deviceIndex = 1;
         virtualCursorDevicePosition = 1;
 
+        // Same-name nested chain entry followed immediately by OUT must retain
+        // the OUT intent until the new chain bank is published.
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceName = "Same-name nested entry parent";
+        virtualDeviceBankNames = new String [] {
+            "Entry parent sibling 0", "Entry parent sibling 1", "Entry parent sibling 2", "Entry parent sibling 3",
+            "Entry parent sibling 4", "Entry parent sibling 5", "Entry parent sibling 6", "Entry parent sibling 7"
+        };
+        virtualCursorDevicePosition = 1;
+        deviceIndex = 1;
+        virtualSameNameChainCursor = true;
+        virtualParentNestedAfterSelect = false;
+        virtualParentHasLayersAfterSelect = false;
+        deviceParamsMode.setShowDevices (true);
+        modes.setActive (Modes.DEVICE_PARAMS);
+        MODEL_ACTIONS.clear ();
+        final long sameNameEntryStart = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, sameNameEntryStart,
+            VirtualPush1Device.IN, "IN same-name nested chain", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, sameNameEntryStart + 10,
+            VirtualPush1Device.OUT, "OUT during same-name nested chain entry", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, sameNameEntryStart + 250);
+        requireAction ("device.selectSlotChain:Chain 1",
+            "Same-name nested IN did not select the first slot chain");
+        requireAction ("cursorDevice.selectParent",
+            "OUT was lost while waiting for a same-name nested chain cursor");
+        requireAction ("cursorDevice.selectChannel",
+            "OUT did not complete after the same-name chain parent was published");
+        require (!virtualCursorDeviceNested && !deviceParamsMode.isShowDevices (),
+            "Same-name nested IN/OUT did not return to the parent device state");
+        virtualSameNameChainCursor = false;
+        virtualCursorDeviceName = "Virtual Device";
+        virtualCursorDeviceNested = false;
+        virtualDeviceBankNames = new String [] {
+            "Device 0", "Device 1", "Device 2", "Device 3",
+            "Device 4", "Device 5", "Device 6", "Device 7"
+        };
+        virtualCursorDevicePosition = 4;
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (false);
+
         // Two-level hierarchy regression: returning from a child chain may
         // land on another nested parent, not necessarily at the project root.
         virtualParentNestedAfterSelect = true;
@@ -929,6 +971,42 @@ public final class VirtualPush1RuntimeTest
         require (!virtualCursorDeviceNested && deviceIndex == 0,
             "Out did not return to the root after traversing two nested levels");
 
+        // A same-name nested parent and child still need a detectable bank
+        // transition; API 17 supplies no cursor ID and the name observer does
+        // not fire for this transition.
+        virtualSameNameParentAfterSelect = true;
+        virtualParentNestedAfterSelect = true;
+        virtualParentHasLayersAfterSelect = false;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceName = "Same Nested Device";
+        virtualDeviceBankNames = new String [] {
+            "Child sibling 0", "Child sibling 1", "Child sibling 2", "Child sibling 3",
+            "Child sibling 4", "Child sibling 5", "Child sibling 6", "Child sibling 7"
+        };
+        virtualCursorDevicePosition = 0;
+        deviceIndex = 0;
+        deviceParamsMode.setShowDevices (true);
+        modes.setActive (Modes.DEVICE_PARAMS);
+        MODEL_ACTIONS.clear ();
+        final long sameNameParentReturnStartedAt = state.virtualTimeMillis;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "OUT to same-name nested parent");
+        advanceNavigationClock (state, sameNameParentReturnStartedAt + 100);
+        requireAction ("cursorDevice.selectChannel",
+            "Same-name nested parent return was abandoned instead of completing");
+        require (virtualCursorDeviceNested && !deviceParamsMode.isShowDevices (),
+            "Same-name nested parent return did not restore the parent parameter view");
+        virtualSameNameParentAfterSelect = false;
+        virtualParentNestedAfterSelect = false;
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceName = "Virtual Device";
+        virtualDeviceBankNames = new String [] {
+            "Device 0", "Device 1", "Device 2", "Device 3",
+            "Device 4", "Device 5", "Device 6", "Device 7"
+        };
+        virtualCursorDevicePosition = 4;
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (false);
+
         // ROW2 Up preserves DrivenByMoss semantics: from the chain chooser it
         // exits to Device Params and returns immediately. A subsequent press
         // follows the native moveUp hierarchy (banks -> devices -> track).
@@ -956,8 +1034,11 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
             "ROW2 Up leaves the nested child device");
         requireAction ("cursorDevice.selectParent", "ROW2 Up did not use the native parent navigation");
-        drainNavigation (state);
-        drainScheduled (state, 300);
+        advanceNavigationClock (state, row2ParentReturnStartedAt + 100);
+        require (MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
+            "ROW2-UP did not finalize on cursor publication before the former 300 ms delay");
+        require (state.virtualTimeMillis - row2ParentReturnStartedAt < 300,
+            "ROW2-UP completion exceeded the removed 300 ms fixed delay");
         require (!virtualCursorDeviceNested && deviceIndex == 0,
             "ROW2 Up did not return from the nested child to its parent");
         require (!deviceParamsMode.isShowDevices (),
@@ -972,6 +1053,47 @@ public final class VirtualPush1RuntimeTest
             "ROW2 Up returns from the root device to Track");
         require (modes.isActive (Modes.TRACK),
             "ROW2 Up did not return to Track after the native hierarchy was unwound");
+
+        // The dedicated OUT button must use the native layer exit, not page
+        // backwards through the layer bank.
+        virtualCursorDeviceHasLayers = true;
+        deviceParamsMode.setShowDevices (true);
+        modes.setActive (Modes.DEVICE_LAYER);
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "OUT from Device Layer");
+        require (modes.isActive (Modes.DEVICE_PARAMS),
+            "OUT did not leave Device Layer for Device Params");
+        requireAction ("cursorDevice.selectChannel",
+            "OUT from Device Layer did not select the hosting channel");
+        virtualCursorDeviceHasLayers = false;
+
+        // A new IN while a parent return is pending supersedes that completion.
+        virtualParentNestedAfterSelect = false;
+        virtualSameNameParentAfterSelect = false;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceName = "Pending parent child";
+        virtualDeviceBankNames = new String [] {
+            "Pending child sibling 0", "Pending child sibling 1", "Pending child sibling 2", "Pending child sibling 3",
+            "Pending child sibling 4", "Pending child sibling 5", "Pending child sibling 6", "Pending child sibling 7"
+        };
+        virtualCursorDevicePosition = 0;
+        deviceIndex = 0;
+        deviceParamsMode.setShowDevices (true);
+        modes.setActive (Modes.DEVICE_PARAMS);
+        MODEL_ACTIONS.clear ();
+        final long supersededParentStart = state.virtualTimeMillis + 1;
+        virtualCursorCallbackDelayMillis = 73;
+        sendTimedNavigationGesture (state, midi, surface, supersededParentStart,
+            VirtualPush1Device.OUT, "OUT before a newer IN", new java.util.ArrayList<> ());
+        virtualCursorCallbackDelayMillis = 150;
+        sendTimedNavigationGesture (state, midi, surface, supersededParentStart + 10,
+            VirtualPush1Device.IN, "IN supersedes pending parent return", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, supersededParentStart + 250);
+        require (virtualCursorDeviceNested && deviceParamsMode.isShowDevices (),
+            "A stale parent completion overwrote the newer IN navigation");
+        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.equals ("cursorDevice.selectChannel")),
+            "A superseded parent return finalized against the newer IN cursor");
+        virtualCursorCallbackDelayMillis = 73;
 
         // A new ROW2 action cancels a pending parent completion.
         virtualCursorDeviceNested = true;
@@ -2741,10 +2863,12 @@ public final class VirtualPush1RuntimeTest
                         return null;
                     case "selectParent":
                         MODEL_ACTIONS.add ("cursorDevice.selectParent");
+                        final String childCursorName = virtualCursorDeviceName;
                         state.scheduled.add (new ScheduledTask (virtualCursorCallbackDelayMillis,
                             state.virtualTimeMillis + virtualCursorCallbackDelayMillis, () -> {
                                 MODEL_ACTIONS.add ("cursorDevice.parentCallback");
-                                virtualCursorDeviceName = virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
+                                virtualCursorDeviceName = virtualSameNameParentAfterSelect ? childCursorName
+                                    : virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
                                 virtualCursorDevicePosition = 0;
                                 deviceIndex = 0;
                                 virtualCursorDeviceNested = virtualParentNestedAfterSelect;
