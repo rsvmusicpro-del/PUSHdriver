@@ -6,6 +6,7 @@ package de.mossgrabers.controller.ableton.push.command.trigger;
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
+import de.mossgrabers.controller.ableton.push.mode.device.DeviceLayerMode;
 import de.mossgrabers.framework.command.core.AbstractTriggerCommand;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.featuregroup.IMode;
@@ -50,6 +51,13 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
                 final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
                 deviceParamsMode.onSecondRow (7, ButtonEvent.DOWN);
             }
+            return;
+        }
+
+        if (activeMode instanceof final DeviceLayerMode layerMode)
+        {
+            if (event == ButtonEvent.DOWN)
+                layerMode.moveUpFromOut ();
             return;
         }
 

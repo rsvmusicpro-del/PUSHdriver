@@ -35,17 +35,19 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     {
         private final String childId;
         private final String childName;
+        private final String childFingerprint;
         private final boolean childWasNested;
         private WeakReference<DeviceParamsMode> mode;
         private WeakReference<PushControlSurface> surface;
         private int polls;
         private boolean scheduled;
 
-        private PendingParentReturn (final ICursorDevice cursor, final DeviceParamsMode mode,
-            final PushControlSurface surface)
+        private PendingParentReturn (final ICursorDevice cursor, final String fingerprint,
+            final DeviceParamsMode mode, final PushControlSurface surface)
         {
             this.childId = cursor.getID ();
             this.childName = cursor.getName ();
+            this.childFingerprint = fingerprint;
             this.childWasNested = cursor.isNested ();
             this.mode = new WeakReference<> (mode);
             this.surface = new WeakReference<> (surface);
@@ -56,6 +58,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     {
         private final String parentId;
         private final String parentName;
+        private final String parentFingerprint;
         private final boolean parentWasNested;
         private WeakReference<DeviceParamsMode> mode;
         private WeakReference<PushControlSurface> surface;
@@ -64,11 +67,12 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         private int polls;
         private boolean scheduled;
 
-        private PendingRow1Selection (final ICursorDevice cursor, final DeviceParamsMode mode,
-            final PushControlSurface surface)
+        private PendingRow1Selection (final ICursorDevice cursor, final String fingerprint,
+            final DeviceParamsMode mode, final PushControlSurface surface)
         {
             this.parentId = cursor.getID ();
             this.parentName = cursor.getName ();
+            this.parentFingerprint = fingerprint;
             this.parentWasNested = cursor.isNested ();
             this.setOwner (mode, surface);
         }
@@ -93,12 +97,15 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (mode == null)
             return;
         PENDING_ROW1.remove (model);
+        // A new chain selection supersedes any in-flight parent-return
+        // completion. The host cursor request itself is not cancellable.
+        PENDING_PARENT_RETURN.remove (model);
         if (chain == null || chain.isBlank ())
             return;
         final ICursorDevice cursor = model.getCursorDevice ();
         if (!cursor.doesExist ())
             return;
-        PENDING_ROW1.put (model, new PendingRow1Selection (cursor, mode, surface));
+        PENDING_ROW1.put (model, new PendingRow1Selection (cursor, cursorFingerprint (model), mode, surface));
     }
 
 
@@ -106,6 +113,9 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     public static boolean deferRow1Selection (final DeviceParamsMode mode, final IModel model,
         final PushControlSurface surface, final int index)
     {
+        // A fresh sibling gesture supersedes an outstanding parent-return
+        // completion; never let its later cursor notification finalize over it.
+        PENDING_PARENT_RETURN.remove (model);
         final PendingRow1Selection pending = PENDING_ROW1.get (model);
         if (pending == null)
             return false;
@@ -167,7 +177,47 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
                 && !pending.parentId.equals (id))
             return true;
         final String name = cursor.getName ();
-        return name != null && !name.equals (pending.parentName);
+        if (name != null && !name.equals (pending.parentName))
+            return true;
+        // API 17 exposes no cursor ID. The visible sibling-bank fingerprint
+        // distinguishes same-name nested parents from their chain children.
+        final String currentFingerprint = cursorFingerprint (model);
+        return currentFingerprint != null && !currentFingerprint.equals (pending.parentFingerprint);
+    }
+
+
+    private static String cursorFingerprint (final IModel model)
+    {
+        final ICursorDevice cursor = model.getCursorDevice ();
+        if (!cursor.doesExist ())
+            return null;
+
+        final var bank = cursor.getDeviceBank ();
+        final StringBuilder fingerprint = new StringBuilder (256);
+        fingerprint.append (cursor.getName ()).append ('|')
+            .append (cursor.isNested ()).append ('|')
+            .append (cursor.getPosition ()).append ('|')
+            .append (cursor.getIndex ()).append ('|')
+            .append (cursor.hasLayers ()).append ('|')
+            .append (cursor.hasSlots ()).append ('|')
+            .append (cursor.hasDrumPads ()).append ("|bank:")
+            .append (bank.getItemCount ()).append ('|')
+            .append (bank.getScrollPosition ()).append ('|')
+            .append (bank.getPositionOfLastItem ());
+        for (int i = 0; i < bank.getPageSize (); i++)
+        {
+            final var device = bank.getItem (i);
+            fingerprint.append ('|').append (i).append (':');
+            if (device == null)
+            {
+                fingerprint.append ("<null>");
+                continue;
+            }
+            fingerprint.append (device.doesExist ()).append (':')
+                .append (device.getPosition ()).append (':')
+                .append (device.getName ());
+        }
+        return fingerprint.toString ();
     }
 
 
@@ -210,8 +260,18 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             return true;
         final DeviceParamsMode mode = pending.mode.get ();
         final PushControlSurface surface = pending.surface.get ();
-        if (mode == null || surface == null || !surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
+        if (mode == null || surface == null)
         {
+            PENDING_ROW1.remove (model);
+            return true;
+        }
+        final var modeManager = surface.getModeManager ();
+        if (!modeManager.isActive (Modes.DEVICE_PARAMS))
+        {
+            // DeviceChainsMode publishes the new cursor before switching back
+            // to Device Params. Keep the intent through that brief hand-off.
+            if (modeManager.isActive (Modes.DEVICE_CHAINS))
+                return false;
             PENDING_ROW1.remove (model);
             return true;
         }
@@ -236,7 +296,8 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final ICursorDevice cursor = model.getCursorDevice ();
         if (!cursor.doesExist ())
             return;
-        final PendingParentReturn pending = new PendingParentReturn (cursor, mode, surface);
+        PENDING_ROW1.remove (model);
+        final PendingParentReturn pending = new PendingParentReturn (cursor, cursorFingerprint (model), mode, surface);
         PENDING_PARENT_RETURN.put (model, pending);
         scheduleParentReturnProbe (model, pending);
     }
@@ -262,10 +323,12 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             && currentId != null && !currentId.isEmpty () && !pending.childId.equals (currentId);
         final boolean nameChanged = currentName != null && !currentName.equals (pending.childName);
         final boolean returnedToRoot = pending.childWasNested && !cursor.isNested ();
-        // API 17 has no parent-change observer. Prefer stable ID, then name,
-        // then the nested -> root transition; ambiguous nested same-name
-        // transitions remain fail-closed and use the bounded fallback.
-        if (!cursor.doesExist () || !(idChanged || nameChanged || returnedToRoot))
+        final String currentFingerprint = cursorFingerprint (model);
+        final boolean bankChanged = currentFingerprint != null
+            && !currentFingerprint.equals (pending.childFingerprint);
+        // API 17 has no cursor ID or parent-change observer. Prefer ID/name,
+        // then root transition, then the visible cursor/bank fingerprint.
+        if (!cursor.doesExist () || !(idChanged || nameChanged || returnedToRoot || bankChanged))
             return false;
 
         PENDING_PARENT_RETURN.remove (model);
