@@ -25,6 +25,12 @@ def main() -> int:
         help="Open the Swing virtual Push 1 after the automated tests pass.",
     )
     parser.add_argument(
+        "--lcd-rom",
+        choices=("A00", "A02"),
+        default="A00",
+        help="HD44780U character ROM profile used by the simulator (default: A00).",
+    )
+    parser.add_argument(
         "--fuzz-actions",
         type=int,
         help="Number of generated actions per view/seed scenario (default: 256).",
@@ -76,6 +82,7 @@ def main() -> int:
     test_command = [sys.executable, "scripts/test_push1_extension.py"]
     if args.gui:
         test_command.append("--gui")
+    test_command.append(f"--lcd-rom={args.lcd_rom}")
     if args.fuzz_seed is not None:
         test_command.append(f"--fuzz-seed={args.fuzz_seed}")
     if args.fuzz_view is not None:

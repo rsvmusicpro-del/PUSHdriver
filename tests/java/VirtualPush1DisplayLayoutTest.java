@@ -65,6 +65,9 @@ public final class VirtualPush1DisplayLayoutTest
                     "logical block aliases physical module " + row + "/" + module);
                 check (device.getLcdModuleSnapshot (module)[row].equals (moduleRow),
                     "physical module snapshot " + module + "/" + row);
+                final boolean [][] moduleRaster = VirtualPush1LcdRasterizer.rasterize (moduleRow);
+                check (moduleRaster.length == 8 && moduleRaster[0].length == 102,
+                    "physical module pixel raster " + row + "/" + module);
             }
 
             for (int cell = 0; cell < Push1DisplayLayout.CELLS_PER_ROW; cell++)

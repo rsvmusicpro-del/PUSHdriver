@@ -60,10 +60,12 @@ expected_bottom = """    private static final Views [] VIEWS     =
 require(expected_top in note, "Note menu upper-row choices must match the requested eight-button layout")
 require(expected_bottom in note, "Note menu lower row must preserve Play/Chords/Piano/Drum64 and fixed tools")
 note_display = method(note, "public void updateDisplay1")
-require("VIEWS_TOP[i]" in note_display and "display.setCell (0, i" in note_display,
-        "Note menu upper LCD labels must follow the upper-row view mapping")
-require("VIEWS[i]" in note_display and "display.setCell (3, i" in note_display,
-        "Note menu lower LCD labels must preserve the lower-row mapping")
+require("VIEWS_TOP[i]" in note_display and "playbackViews[i]" in note_display
+        and "encoderLabels (playbackViews)" in note_display,
+        "Note menu upper LCD labels must follow the shared upper-row composition")
+require("VIEWS[i]" in note_display and "sequenceViews[i]" in note_display
+        and "encoderLabels (sequenceViews)" in note_display,
+        "Note menu lower LCD labels must follow the shared lower-row composition")
 views_source = (ROOT / "src/main/java/de/mossgrabers/framework/view/Views.java").read_text()
 setup_source = (ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/PushControllerSetup.java").read_text()
 require("RAINDROPS" in views_source and "VIEW_NAMES.put (NAME_RAINDROPS, RAINDROPS)" in views_source,
@@ -102,12 +104,62 @@ require(note.count("this.activateView (VIEWS_TOP[index])") == 1
         and note.count("this.activateView (VIEWS[index])") == 1,
         "Each Note menu physical row must have exactly one matching selection handler")
 
+# Device context must use the complete 68-column LCD line: one physical
+# module for the label and the remaining three for the selected device name.
+device_params = read("device/DeviceParamsMode.java")
+device_display = method(device_params, "public void updateDisplay1")
+require('display.setRow (2, de.mossgrabers.controller.ableton.push.controller.Push1DisplayComposition.contextRow ("DEVICE:", cd.getName ()));'
+        in device_display,
+        "Device context row must use the shared semantic composition helper")
+require("encoderLabels (parameterLabels)" in device_display
+        and "encoderValues (parameterValues)" in device_display,
+        "Device parameter names and values must share encoder-aligned LCD rows")
+
+# Selection and utility menus share the same semantic LCD row compositor.
+for menu in ("NoteViewSelectMode.java", "SessionViewSelectMode.java", "ScalesMode.java",
+             "FixedMode.java", "QuantizeMode.java", "NoteRepeatMode.java", "MarkerMode.java"):
+    display = method(read(menu), "public void updateDisplay1")
+    require("Push1DisplayComposition." in display,
+            f"{menu} must compose its LCD rows through the shared layout")
+    
+# All upstream mode writers pass through the physical Push 1 geometry.
+display_path = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push1Display.java"
+if not display_path.is_file():
+    raise SystemExit(f"Missing assembled Push 1 display: {display_path}")
+push_display = display_path.read_text()
+cell_writer = method(push_display, "public ITextDisplay setCell (final int row, final int cell, final String value)")
+block_writer = method(push_display, "public ITextDisplay setBlock (final int row, final int block, final String value)")
+require("Push1DisplayLayout.fitCell (value, cell)" in cell_writer,
+        "every Push 1 cell write must be transliterated and bounded to its physical 9/8 width")
+require("Push1DisplayLayout.fitBlock (value)" in block_writer
+        and "Push1DisplayLayout.firstCellForBlock (block)" in block_writer
+        and "Push1DisplayLayout.cellWidth (firstCell)" in block_writer
+        and "fitted.substring" in block_writer,
+        "every Push 1 module write must be bounded to exactly 17 characters and split at the physical 9/8 boundary")
+require("Push1DisplayLayout.fitRow (text)" in method(push_display, "public void writeLine"),
+        "every physical LCD row must use the shared 68-column fitter")
+row_writer = method(push_display, "public ITextDisplay setRow (final int row, final String str)")
+simulator_writer = method(push_display, "protected String convertCharacterset")
+require("Push1DisplayLayout.fitRow (str)" in row_writer,
+        "full-row writes must be normalized before AbstractTextDisplay stores them")
+require("Push1DisplayLayout.separateModulesForSimulator (t)" in simulator_writer
+        and 'replace (Character.toString ((char) 0x1C), "…")' in simulator_writer,
+        "simulator rendering must segment bounded modules before converting the firmware ellipsis to one visible cell")
+require("overlayRightBlock" not in push_display and "compactNotification" not in push_display
+        and "public void flush" not in push_display,
+        "Push 1 notifications must not overlay or replace part of persistent display rows")
+display_text_path = ROOT / "src/main/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayText.java"
+require(display_text_path.is_file()
+        and "overlayRightBlock" not in display_text_path.read_text(),
+        "Push 1 text helpers must not expose the removed right-block overlay path")
+
 session = read("SessionViewSelectMode.java")
-require("display.setCell (0, i" in method(session, "public void updateDisplay1"),
-        "Session view choices must be drawn in the upper LCD row")
-require("display.setCell (3, 6, \"Markers\")" in method(session, "public void updateDisplay1")
-        and "display.setCell (3, 7" in method(session, "public void updateDisplay1"),
-        "Markers and Clips must remain in the lower LCD row")
+session_display = method(session, "public void updateDisplay1")
+require("views[i]" in session_display and "encoderLabels (views)" in session_display,
+        "Session view choices must use the shared upper LCD row")
+require('actions[6] = "Markers"' in session_display and 'actions[7] =' in session_display
+        and "actionHints (actions)" in session_display,
+        "Markers and Clips must remain aligned in the shared lower action row")
 require("setActive (Modes.MARKERS)" in method(session, "public void onSecondRow")
         and "toggleScenesClipMode" in method(session, "public void onSecondRow"),
         "Session lower-half actions must be handled by Row 2")

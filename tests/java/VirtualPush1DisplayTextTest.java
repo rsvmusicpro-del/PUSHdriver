@@ -50,6 +50,8 @@ public final class VirtualPush1DisplayTextTest
             "ASCII transliteration must preserve an existing Unicode ellipsis as the firmware glyph");
         check (Push1DisplayText.fitAscii ("Übergrößen", 8), "Uebe" + ellipsis + "sen",
             "long names must retain existing ASCII transliteration before firmware-ellipsis fitting");
+        check (Push1DisplayText.fitAscii ("A😀B", 4), "A?B ",
+            "supplementary Unicode characters must occupy one safe replacement cell after transliteration");
 
         final String cell = Push1DisplayLayout.fitCell ("SuperLongTrackName", 0);
         check (cell, "Supe" + ellipsis + "ame ",
@@ -77,20 +79,36 @@ public final class VirtualPush1DisplayTextTest
         check (Push1DisplayLayout.fitBlock ("Push 1"), "Push 1           ",
             "physical LCD blocks must contain exactly 17 cells");
 
-        final String line = "L".repeat (68);
-        final String notification = Push1DisplayText.overlayRightBlock (line, "GO");
-        require (notification.length () == 68, "right-block overlay must preserve exact LCD width");
-        require (notification.substring (0, 51).equals ("L".repeat (51)),
-            "right-block overlay must preserve the left 51 cells");
-        require (notification.substring (51).equals ("GO" + " ".repeat (15)),
-            "right-block notification must be fitted to the final 17 cells");
+        check (Push1DisplayLayout.fitCell ("Über", 0), "Ueber    ",
+            "logical cells must transliterate accented text before fitting");
+        check (Push1DisplayLayout.fitBlock ("Über"), "Ueber" + " ".repeat (12),
+            "physical modules must transliterate accented text before fitting");
+        check (Push1DisplayLayout.fitRow ("Über"), "Ueber" + " ".repeat (63),
+            "full LCD rows must transliterate accented text before fitting");
+        check (Push1DisplayLayout.fitCell ("A→B", 0), "A->B     ",
+            "unsupported Unicode arrows must use the existing ASCII arrow fallback");
+        final String folderGlyph = String.valueOf ((char) 7);
+        check (Push1DisplayLayout.fitCell (folderGlyph, 0), folderGlyph + " ".repeat (8),
+            "ASCII transliteration must preserve Push 1 programmable glyph codes");
 
-        final String normalized = Push1DisplayText.overlayRightBlock ("A😀B", "");
-        require (normalized.length () == 68, "Unicode normalization must preserve 68-cell rows");
-        require (normalized.substring (0, 3).equals ("A?B"),
-            "right-block overlay must normalize Unicode by display code point");
 
-        System.out.println ("Virtual Push 1 display text passed: Unicode cell fitting, single-cell firmware ellipsis truncation and safe right-block overlays.");
+        final String deviceContext = Push1DisplayText.fitAscii (
+            "DEVICE:" + " ".repeat (10) + "Analog Four - Multi Timbral Synthesizer", Push1DisplayLayout.COLUMNS);
+        require (deviceContext.length () == Push1DisplayLayout.COLUMNS,
+            "full-width device context must fill exactly 68 LCD columns");
+        check (deviceContext.substring (0, Push1DisplayLayout.MODULE_COLUMNS), "DEVICE:" + " ".repeat (10),
+            "the first physical module must retain the device context label");
+        require (deviceContext.substring (Push1DisplayLayout.MODULE_COLUMNS).strip ().startsWith ("Analog Four"),
+            "the remaining three physical modules must carry the device name");
+
+
+        final String safeRow = Push1DisplayLayout.fitRow ("A😀…B");
+        require (safeRow.length () == Push1DisplayLayout.COLUMNS,
+            "full-row fitting must always produce the complete 68-column physical row");
+        check (safeRow.substring (0, 4), "A?"+ellipsis+"B",
+            "full-row fitting must preserve one-cell Unicode replacement and firmware ellipsis");
+
+        System.out.println ("Virtual Push 1 display text passed: Unicode cell fitting, single-cell firmware ellipsis truncation and safe fixed-width row composition.");
     }
 
 

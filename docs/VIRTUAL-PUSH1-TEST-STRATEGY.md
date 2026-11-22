@@ -4,6 +4,11 @@
 
 The test target is the original Ableton Push 1, Bitwig Studio 4.3.10, Bitwig Extension API 17, Java 17 and the pinned DrivenByMoss 19.2.2 source revision. The extension remains MIDI-only. Push 2 HID/display emulation is not a valid substitute for this hardware target.
 
+
+## Pixel-level LCD rendering
+
+The optional Swing simulator paints the four character LCD modules as dot matrices rather than using a desktop text font. It uses the eight extracted Push 1 custom glyphs and separately licensed HD44780U A00/A02 ROM reference bitmap sets. The profile is selectable with `-Dpush1.lcd.rom=A00|A02`; CI exercises both. The deterministic rasterizer test covers all 128 seven-bit codes, and the headless Swing smoke test paints the same component used by the interactive simulator. The exact controller ROM fitted to Push 1 production revisions is not yet confirmed; these are documented reference profiles, not a claim that every standard glyph is optically identical to every unit.
+
 ## Why a single simulator is not enough
 
 A credible station needs independent evidence at several boundaries. A software model can validate controller-side MIDI and API contracts, but it cannot prove undocumented Bitwig scheduling, USB driver behavior, electrical pressure calibration, firmware timing or the optical appearance of a particular LCD module.
@@ -102,3 +107,10 @@ This is a manual transport diagnostic, not a Bitwig automation harness: it does 
 - A physical test is required only for properties with a physical boundary; do not use it as a substitute for repeatable software regression testing.
 - Never report a percentage such as "90% hardware simulated" without a complete inventory, explicit weights and measured coverage.
 - Any newly found defect must have a failing reproduction before the production correction, then a passing regression test on the final integrated branch.
+ 
+
+## Visual review artifacts
+
+Every full CI runtime pass exports a PNG and a hexadecimal row dump for each of the 14 packaged views and every mode registered by `PushControllerSetup`. PNGs use the exact dot-matrix renderer selected for the run; text companions preserve every seven-bit character code across the four 68-column rows. The runtime suite verifies the expected number of completed PNG/text pairs.
+
+Download the `push1-display-snapshots-linux` or `push1-display-snapshots-macos` artifact from the corresponding GitHub Actions run. Compare captures across views and modes for readable hierarchy, meaningful use of all four rows, truncation, selected-state visibility and consistent action placement. The images are simulator renderings, not physical-device photographs, and cannot qualify LCD contrast, viewing angle or the exact ROM fitted to a specific Push 1 revision.

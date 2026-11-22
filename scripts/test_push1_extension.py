@@ -39,17 +39,29 @@ test_sources = (
     root / "tests/java/de/mossgrabers/controller/ableton/push/command/trigger/PushDeviceNavigationFingerprintTest.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/engine/Push1PadGrid.java",
     root / "tests/java/VirtualPush1Simulator.java",
+    root / "tests/java/VirtualPush1DisplaySnapshots.java",
+    root / "tests/java/VirtualPush1LcdRasterizer.java",
+    root / "tests/java/VirtualPush1LcdRasterizerTest.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java",
+    root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayComposition.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayGlyphs.java",
+    root / "tests/java/Push1DisplayCompositionTest.java",
 )
 with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
     subprocess.run(
         ["javac", "-cp", classpath, "-d", output, *(str(source) for source in test_sources)],
         cwd=root, check=True,
     )
-    runtime_classpath = os.pathsep.join((classpath, output))
-    command = ["java"]
+    runtime_classpath = os.pathsep.join((classpath, output, str(root / "tests/resources")))
+    command = ["java", "-Dpush1.display.snapshots=target/push1-display-snapshots"]
+    lcd_rom = next(
+        (argument.split("=", 1)[1] for argument in sys.argv[1:] if argument.startswith("--lcd-rom=")),
+        "A00",
+    )
+    if lcd_rom not in ("A00", "A02"):
+        raise SystemExit("--lcd-rom must be A00 or A02")
+    command.append(f"-Dpush1.lcd.rom={lcd_rom}")
     fuzz_seed = next(
         (argument.split("=", 1)[1] for argument in sys.argv[1:] if argument.startswith("--fuzz-seed=")),
         None,
@@ -68,6 +80,9 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
                       if argument.startswith(option)), None)
         if value is not None:
             command.append(f"-D{property_name}={positive_integer(value, option[:-1])}")
+    subprocess.run(["java", "-cp", runtime_classpath, "VirtualPush1LcdRasterizerTest"], cwd=root, check=True)
+    subprocess.run(["java", "-cp", runtime_classpath, "Push1DisplayCompositionTest"], cwd=root, check=True)
+    subprocess.run(["java", "-Dpush1.lcd.rom=A02", "-cp", runtime_classpath, "VirtualPush1LcdRasterizerTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "AbstractHwButtonSafetyTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "VirtualPush1MidiConcurrencyTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "SequencerEngineTest"], cwd=root, check=True)
@@ -94,9 +109,9 @@ with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
 
             def reproduces(action_count: int) -> bool:
                 replay = [
-                    "java", f"-Dpush1.fuzz.seed={seed}", f"-Dpush1.fuzz.view={view}",
-                    f"-Dpush1.fuzz.actions={action_count}", "-cp", runtime_classpath,
-                    "VirtualPush1RuntimeTest",
+                    "java", f"-Dpush1.lcd.rom={lcd_rom}", f"-Dpush1.fuzz.seed={seed}",
+                    f"-Dpush1.fuzz.view={view}", f"-Dpush1.fuzz.actions={action_count}",
+                    "-cp", runtime_classpath, "VirtualPush1RuntimeTest",
                 ]
                 result = subprocess.run(replay, cwd=root, capture_output=True, text=True)
                 combined = result.stdout + "\n" + result.stderr

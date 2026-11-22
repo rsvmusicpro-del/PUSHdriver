@@ -1611,6 +1611,7 @@ public final class VirtualPush1RuntimeTest
             for (int row = 0; row < 4; row++)
                 require (midi.device ().getLcdRow (row).length () == Push1DisplayLayout.COLUMNS,
                     "View " + viewID + " did not produce a complete Push 1 LCD row " + row);
+            VirtualPush1DisplaySnapshots.capture ("view", viewID.name (), midi.device ());
 
             // Cross every physical pad address with every packaged view. The
             // deterministic velocity/pressure pattern explores distinct input
@@ -1940,9 +1941,13 @@ public final class VirtualPush1RuntimeTest
             for (int row = 0; row < 4; row++)
                 require (midi.device ().getLcdRow (row).length () == Push1DisplayLayout.COLUMNS,
                     "Mode " + modeID + " did not preserve the complete Push 1 LCD row " + row);
+            VirtualPush1DisplaySnapshots.capture ("mode", modeID.name (), midi.device ());
             renderedModes++;
         }
         require (renderedModes > 0, "No registered Push 1 modes were exercised by the display matrix");
+        if (System.getProperty ("push1.display.snapshots") != null)
+            require (VirtualPush1DisplaySnapshots.captureCount () == allPushViews.length + renderedModes,
+                "Production LCD visual snapshot count must match every Push 1 view and registered mode");
         modes.setActive (Modes.TRACK);
 
         // DrivenByMoss' own setup test traverses every registered view/mode

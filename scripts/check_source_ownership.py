@@ -13,6 +13,7 @@ OVERRIDE_ALLOWLIST={
 "de/mossgrabers/controller/ableton/push/command/trigger/PushNewCommand.java",
 "de/mossgrabers/controller/ableton/push/command/trigger/PushDeviceNavigation.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1DisplayGlyphs.java",
+"de/mossgrabers/controller/ableton/push/controller/Push1DisplayComposition.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1DisplayText.java",
