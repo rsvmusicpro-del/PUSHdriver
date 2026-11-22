@@ -465,15 +465,15 @@ replace_once(device_chains_mode,
     "            final boolean isBottomMenuOn = slotChains != null && i < slotChains.length;",
     "Device Chains null slot-bank graphic LED guard")
 replace_once(device_chains_mode,
-    """            this.prepareSlotChainSelection (slotChains[index]);
-            cd.selectSlotChain (slotChains[index]);
+    """            cd.selectSlotChain (slotChains[index]);
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
             return;
 """,
     """            final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS);
             deviceParamsMode.setShowDevices (true);
+            deviceParamsMode.prepareSlotChainSelection (slotChains[index]);
             // Match DrivenByMoss: issue the chain selection and mode change
-            // immediately; never poll or defer the next controller gesture.
+            // immediately; only a dependent ROW1 intent waits for cursor publication.
             cd.selectSlotChain (slotChains[index]);
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
             return;
