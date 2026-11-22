@@ -709,8 +709,10 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
         requireAction ("device.selectSlotChain:Chain 1", "In (CC 62) must enter the first available slot chain");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1,
+            "First ROW1 intent while In is still publishing its cursor change");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
-            "Immediate ROW1 selection after In");
+            "Latest ROW1 intent while In is still publishing its cursor change");
         drainNavigation (state);
         require (virtualCursorDeviceNested && deviceIndex == 2,
             "ROW1 pressed immediately after In was not replayed against the child chain");
