@@ -737,6 +737,7 @@ public final class VirtualPush1RuntimeTest
         require (modes.isActive (Modes.DEVICE_PARAMS),
             "A queued ROW1 target was lost when the returned parent had layers");
         virtualParentHasLayersAfterSelect = false;
+        virtualCursorDeviceHasLayers = false;
         deviceParamsMode.setShowDevices (false);
 
         // Device Chains is an upstream submode: top row selects a chain and
