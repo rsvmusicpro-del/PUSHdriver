@@ -3646,6 +3646,7 @@ public final class VirtualPush1RuntimeTest
         deviceIndex = 4;
         deviceParamsMode.setShowDevices (true);
         surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        MODEL_ACTIONS.clear ();
         final long outCancelStart = state.virtualTimeMillis + 1;
         sendTimedNavigationGesture (state, midi, surface, outCancelStart,
             VirtualPush1Device.IN, "IN before OUT cancellation", new java.util.ArrayList<> ());
