@@ -760,13 +760,17 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Nested chain device selector 4");
         require (deviceIndex == 3, "ROW1 did not select device 4 inside the active chain");
-        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 3,
-            "Nested ROW1 selection did not advance the cursor to the requested chain device");
+        requireAction ("device.select:3",
+            "Nested ROW1 selection did not select the requested child directly");
+        require (MODEL_ACTIONS.stream ().filter (a -> a.startsWith ("device.select:")).count () == 1,
+            "Nested ROW1 selection must issue exactly one absolute sibling selection");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "Nested chain device selector 2");
         require (deviceIndex == 1, "ROW1 did not select device 2 inside the active chain");
-        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectPrevious")).count () == 2,
-            "Nested ROW1 selection did not move the cursor back to the requested chain device");
+        requireAction ("device.select:1",
+            "Nested ROW1 selection did not select the requested previous child directly");
+        require (MODEL_ACTIONS.stream ().filter (a -> a.startsWith ("device.select:")).count () == 1,
+            "Nested ROW1 reverse selection must issue exactly one absolute sibling selection");
 
         // Exhaustive boundary model: every valid start/target pair for chain
         // sizes 1..8, plus every unavailable ROW1 position. This catches the
@@ -799,14 +803,11 @@ public final class VirtualPush1RuntimeTest
                             "Valid ROW1 target was not selected: chain size " + childCount
                                 + ", start " + startIndex + ", target " + targetIndex
                                 + ", actual " + deviceIndex);
-                        final long expectedMoves = Math.abs (targetIndex - startIndex);
-                        final long actualMoves = MODEL_ACTIONS.stream ()
-                            .filter (a -> a.equals ("cursorDevice.selectNext") || a.equals ("cursorDevice.selectPrevious"))
-                            .count ();
-                        require (actualMoves == expectedMoves,
-                            "Nested cursor movement count mismatch for chain size " + childCount
-                                + ", start " + startIndex + ", target " + targetIndex
-                                + ": expected " + expectedMoves + ", got " + actualMoves);
+                        requireAction ("device.select:" + targetIndex,
+                            "Valid nested ROW1 target did not use the absolute sibling selection");
+                        require (MODEL_ACTIONS.stream ().noneMatch (a ->
+                                a.equals ("cursorDevice.selectNext") || a.equals ("cursorDevice.selectPrevious")),
+                            "Nested ROW1 emitted relative cursor steps instead of one direct selection");
                     }
                     else
                     {
@@ -814,8 +815,9 @@ public final class VirtualPush1RuntimeTest
                             "Unavailable ROW1 position moved the cursor: chain size " + childCount
                                 + ", start " + startIndex + ", target " + targetIndex);
                         require (MODEL_ACTIONS.stream ().noneMatch (a ->
-                                a.equals ("cursorDevice.selectNext") || a.equals ("cursorDevice.selectPrevious")),
-                            "Unavailable ROW1 position issued a cursor movement");
+                                a.equals ("cursorDevice.selectNext") || a.equals ("cursorDevice.selectPrevious")
+                                    || a.startsWith ("device.select:")),
+                            "Unavailable ROW1 position issued a cursor movement or sibling selection");
                     }
                 }
             }
@@ -843,8 +845,8 @@ public final class VirtualPush1RuntimeTest
         drainNavigation (state);
         require (deviceIndex == 2,
             "ROW1 did not select a sibling at the second nested hierarchy depth");
-        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 2,
-            "Second-level nested selection did not use cursor sibling navigation");
+        requireAction ("device.select:2",
+            "Second-level nested selection did not select the requested sibling directly");
         virtualParentNestedAfterSelect = false;
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return from nested parent to root");
@@ -2551,6 +2553,7 @@ public final class VirtualPush1RuntimeTest
 
     private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters, final State state)
     {
+        final List<IValueObserver<String>> cursorNameObservers = new ArrayList<> ();
         final IDeviceBank devices = (IDeviceBank) Proxy.newProxyInstance (
             IDeviceBank.class.getClassLoader (), new Class<?> [] { IDeviceBank.class },
             (proxy, method, args) -> {
@@ -2631,6 +2634,12 @@ public final class VirtualPush1RuntimeTest
             new Class<?> [] { ICursorDevice.class }, (proxy, method, args) -> {
                 switch (method.getName ())
                 {
+                    case "addNameObserver":
+                        cursorNameObservers.add ((IValueObserver<String>) args[0]);
+                        return null;
+                    case "removeNameObserver":
+                        cursorNameObservers.remove (args[0]);
+                        return null;
                     case "doesExist": return Boolean.valueOf (cursorDeviceExists);
                     case "getIndex": return Integer.valueOf (deviceIndex);
                     case "getPosition": return Integer.valueOf (virtualCursorDevicePosition);
@@ -2669,6 +2678,8 @@ public final class VirtualPush1RuntimeTest
                                 virtualDeviceBankNames = virtualParentNestedAfterSelect
                                     ? new String [] { "Nested sibling 0", "Nested sibling 1", "Nested sibling 2", "Nested sibling 3", "Nested sibling 4", "Nested sibling 5", "Nested sibling 6", "Nested sibling 7" }
                                     : new String [] { "Outer sibling 0", "Outer sibling 1", "Outer sibling 2", "Outer sibling 3", "Outer sibling 4", "Outer sibling 5", "Outer sibling 6", "Outer sibling 7" };
+                                for (final IValueObserver<String> observer : cursorNameObservers)
+                                    observer.update (virtualCursorDeviceName);
                             }));
                         return null;
                     case "selectChannel":
@@ -2707,6 +2718,8 @@ public final class VirtualPush1RuntimeTest
                                     "Slot " + args[0] + " child 4", "Slot " + args[0] + " child 5",
                                     "Slot " + args[0] + " child 6", "Slot " + args[0] + " child 7"
                                 };
+                                for (final IValueObserver<String> observer : cursorNameObservers)
+                                    observer.update (virtualCursorDeviceName);
                             }));
                         return null;
                     case "toggleEnabledState":
