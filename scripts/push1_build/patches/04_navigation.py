@@ -206,7 +206,31 @@ device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/pus
 
 # Preserve DrivenByMoss' native DeviceParamsMode.moveUp() behavior for ROW2-UP.
 # The upstream implementation owns chooser exit, parameter-bank/device-list
-# stepping, and the final return to the track.
+# stepping, and the final return to the track. Keep its timing, but do not let
+# the delayed completion steal focus after the user has switched to another mode.
+replace_once(device_params_mode,
+    """            cd.selectParent ();
+            this.model.getHost ().scheduleTask ( () -> {
+                if (cd.hasLayers ())
+                    modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
+                else
+                    modeManager.setActive (Modes.DEVICE_PARAMS);
+                deviceParamsMode.setShowDevices (false);
+                cd.selectChannel ();
+            }, 300);""",
+    """            cd.selectParent ();
+            this.model.getHost ().scheduleTask ( () -> {
+                if (!modeManager.isActive (Modes.DEVICE_PARAMS))
+                    return;
+                if (cd.hasLayers ())
+                    modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
+                else
+                    modeManager.setActive (Modes.DEVICE_PARAMS);
+                deviceParamsMode.setShowDevices (false);
+                cd.selectChannel ();
+            }, 300);""",
+    "Cancel native parent completion when the user has switched modes")
+
 replace_once(device_params_mode,
     """            if (cd.getIndex () != index)
             {
