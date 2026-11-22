@@ -64,12 +64,11 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
 
 
     /** Cancel stale navigation reconciliation when a newer ROW2 action takes ownership. */
-    public static void invalidatePendingNavigation ()
+    public static void invalidatePendingNavigation (final PushControlSurface surface)
     {
-        NAVIGATION_GENERATION.incrementAndGet ();
         synchronized (PENDING)
         {
-            PENDING.clear ();
+            PENDING.remove (surface);
         }
     }
 
