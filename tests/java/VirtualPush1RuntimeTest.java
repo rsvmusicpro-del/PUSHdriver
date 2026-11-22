@@ -2643,7 +2643,7 @@ public final class VirtualPush1RuntimeTest
                     case "doesExist": return Boolean.valueOf (cursorDeviceExists);
                     case "getIndex": return Integer.valueOf (deviceIndex);
                     case "getPosition": return Integer.valueOf (virtualCursorDevicePosition);
-                    case "getID": return (virtualCursorDeviceNested ? "nested:" : "root:") + virtualCursorDeviceName;
+                    case "getID": return "";
                     case "getName": return virtualCursorDeviceName;
                     case "isNested": return Boolean.valueOf (virtualCursorDeviceNested);
                     case "hasLayers": return Boolean.valueOf (virtualCursorDeviceHasLayers);
