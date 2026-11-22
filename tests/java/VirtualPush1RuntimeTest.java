@@ -904,8 +904,8 @@ public final class VirtualPush1RuntimeTest
         deviceIndex = 1;
         virtualCursorDevicePosition = 1;
 
-        // Same-name nested chain entry followed immediately by OUT must retain
-        // the OUT intent until the new chain bank is published.
+        // Same-name nested chain entry followed immediately by ROW2-UP must
+        // retain the return intent until the new chain bank is published.
         virtualCursorDeviceNested = true;
         virtualCursorDeviceName = "Same-name nested entry parent";
         virtualDeviceBankNames = new String [] {
@@ -948,6 +948,14 @@ public final class VirtualPush1RuntimeTest
         // Two-level hierarchy regression: returning from a child chain may
         // land on another nested parent, not necessarily at the project root.
         virtualParentNestedAfterSelect = true;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceName = "Two-level child";
+        virtualDeviceBankNames = new String [] {
+            "Two-level child sibling 0", "Two-level child sibling 1", "Two-level child sibling 2", "Two-level child sibling 3",
+            "Two-level child sibling 4", "Two-level child sibling 5", "Two-level child sibling 6", "Two-level child sibling 7"
+        };
+        virtualCursorDevicePosition = 0;
+        deviceIndex = 0;
         modes.setActive (Modes.DEVICE_PARAMS);
         deviceParamsMode.setShowDevices (true);
         MODEL_ACTIONS.clear ();
