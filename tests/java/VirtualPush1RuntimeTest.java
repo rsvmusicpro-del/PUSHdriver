@@ -1086,17 +1086,24 @@ public final class VirtualPush1RuntimeTest
         modes.setActive (Modes.DEVICE_PARAMS);
         MODEL_ACTIONS.clear ();
         final long supersededParentStart = state.virtualTimeMillis + 1;
-        virtualCursorCallbackDelayMillis = 73;
+        virtualCursorCallbackDelayMillis = 150;
         sendTimedNavigationGesture (state, midi, surface, supersededParentStart,
             VirtualPush1Device.OUT, "OUT before a newer IN", new java.util.ArrayList<> ());
-        virtualCursorCallbackDelayMillis = 150;
+        virtualCursorCallbackDelayMillis = 73;
         sendTimedNavigationGesture (state, midi, surface, supersededParentStart + 10,
-            VirtualPush1Device.IN, "IN supersedes pending parent return", new java.util.ArrayList<> ());
+            VirtualPush1Device.IN, "IN waits for the pending parent return", new java.util.ArrayList<> ());
         advanceNavigationClock (state, supersededParentStart + 250);
         require (virtualCursorDeviceNested && deviceParamsMode.isShowDevices (),
-            "A stale parent completion overwrote the newer IN navigation");
-        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.equals ("cursorDevice.selectChannel")),
-            "A superseded parent return finalized against the newer IN cursor");
+            "The queued IN did not enter the new parent after the pending return");
+        requireAction ("cursorDevice.selectChannel",
+            "The parent return did not finalize before the queued IN");
+        requireAction ("device.selectSlotChain:Chain 1",
+            "The queued IN was lost while the parent return was pending");
+        final int parentPublishedAt = MODEL_ACTIONS.indexOf ("cursorDevice.parentCallback");
+        final int channelFinalizedAt = MODEL_ACTIONS.indexOf ("cursorDevice.selectChannel");
+        final int chainSelectedAt = MODEL_ACTIONS.indexOf ("device.selectSlotChain:Chain 1");
+        require (parentPublishedAt >= 0 && parentPublishedAt < channelFinalizedAt && channelFinalizedAt < chainSelectedAt,
+            "IN was not serialized after parent publication and channel finalization");
         virtualCursorCallbackDelayMillis = 73;
 
         // A new ROW2 action cancels a pending parent completion.
