@@ -117,8 +117,8 @@ class SourceOwnershipTests(unittest.TestCase):
     def test_in_out_direction_contract_accepts_physical_mapping(self):
         errors = MODULE.validate_in_out_contract(
             'this.addButton (ButtonID.PAGE_LEFT, "In" this.addButton (ButtonID.PAGE_RIGHT, "Out"',
-            "PushDeviceNavigation.enterFirstSlotChain",
-            "PushDeviceNavigation.exitParent",
+            "Capability.HAS_SLOT_CHAINS cursorDevice.selectSlotChain (slotChains[0])",
+            "cursorDevice.isNested () cursorDevice.selectParent ()",
             "PUSH_BUTTON_DEVICE_LEFT = 62; PUSH_BUTTON_DEVICE_RIGHT = 63;",
             "public static final int IN = 62; public static final int OUT = 63;",
             "In (CC 62) enters the first available slot chain; Out (CC 63) returns to its parent device",
