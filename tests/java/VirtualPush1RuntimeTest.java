@@ -859,6 +859,7 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
             "ROW2 Up leaves the nested child device");
         requireAction ("cursorDevice.selectParent", "ROW2 Up did not use the native parent navigation");
+        drainScheduled (state, 73);
         drainScheduled (state, 300);
         require (!virtualCursorDeviceNested && deviceIndex == 0,
             "ROW2 Up did not return from the nested child to its parent");
