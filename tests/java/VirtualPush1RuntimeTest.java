@@ -745,6 +745,37 @@ public final class VirtualPush1RuntimeTest
         virtualCursorDevicePosition = 4;
         deviceParamsMode.setShowDevices (false);
 
+        // A nested parent and a nested child can share the same name. API 17
+        // exposes no stable cursor ID for this case, so fail closed after the
+        // bounded wait rather than replaying ROW1 against the stale parent.
+        virtualSameNameChainCursor = true;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceName = "Same Nested Parent";
+        deviceIndex = 1;
+        virtualCursorDevicePosition = 1;
+        deviceParamsMode.setShowDevices (true);
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "In from same-name nested parent");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
+            "ROW1 during ambiguous same-name nested transition");
+        drainNavigation (state);
+        drainScheduled (state, 8);
+        require (virtualCursorDeviceNested && deviceIndex == 0,
+            "Ambiguous same-name nested transition changed the parent cursor unexpectedly");
+        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.startsWith ("device.select:")),
+            "Ambiguous same-name nested transition replayed ROW1 against an unidentified cursor");
+
+        virtualSameNameChainCursor = false;
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceName = "Virtual Device";
+        virtualDeviceBankNames = new String [] {
+            "Device 0", "Device 1", "Device 2", "Device 3",
+            "Device 4", "Device 5", "Device 6", "Device 7"
+        };
+        deviceIndex = 4;
+        virtualCursorDevicePosition = 4;
+        deviceParamsMode.setShowDevices (false);
+
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
         requireAction ("device.selectSlotChain:Chain 1", "In (CC 62) must enter the first available slot chain");
