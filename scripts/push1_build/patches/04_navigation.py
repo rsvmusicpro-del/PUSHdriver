@@ -65,6 +65,27 @@ browser_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode
 # Bitwig's Browser banks can temporarily expose fewer than sixteen items while
 # filters/results refresh. The upstream Ableton renderer indexes a fixed 4x4
 # page, so bound every access against the current API bank before reading it.
+# Browser selection is already protected by the physical encoder-touch gate and
+# by the single-touched-encoder rule above. Do not apply BaseMode's coarse
+# every-eighth-detent limiter here: it drops seven deliberate navigation steps.
+replace_once(browser_mode,
+    """    public void onKnobValue (final int index, final int value)
+    {
+        if (!this.isKnobTouched (index))
+            return;
+
+        if (this.increaseKnobMovement ())
+            this.changeValue (index, value);
+    }""",
+    """    public void onKnobValue (final int index, final int value)
+    {
+        if (!this.isKnobTouched (index))
+            return;
+
+        this.changeValue (index, value);
+    }""",
+    "Push 1 Browser preserves every touched encoder navigation detent")
+
 replace_once(browser_mode,
     """                final IBrowserColumnItem [] items = browser.getFilterColumn (this.filterColumn).getItems ();
                 for (int i = 0; i < 16; i++)
