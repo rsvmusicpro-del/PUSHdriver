@@ -32,22 +32,28 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     {
         private final String parentId;
         private final String parentName;
+        private final IModel model;
+        private final PushControlSurface surface;
         private int targetIndex = -1;
         private boolean returnToParent;
         private int polls;
         private boolean scheduled;
 
-        private PendingRow1Selection (final ICursorDevice cursor)
+        private PendingRow1Selection (final ICursorDevice cursor, final IModel model,
+            final PushControlSurface surface)
         {
             this.parentId = cursor.getID ();
             this.parentName = cursor.getName ();
+            this.model = model;
+            this.surface = surface;
         }
     }
 
 
     /**
      * Remember the current cursor before a direct slot-chain selection.
-     * Polling remains dormant unless a dependent ROW1 gesture arrives.
+     * The cursor-name observer completes dependent gestures immediately; the
+     * bounded probe is armed only if a ROW1/OUT gesture arrives before publication.
      */
     public static void prepareSlotChainSelection (final DeviceParamsMode mode, final IModel model,
         final PushControlSurface surface, final String chain)
@@ -60,7 +66,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final ICursorDevice cursor = model.getCursorDevice ();
         if (!cursor.doesExist ())
             return;
-        PENDING_ROW1.put (mode, new PendingRow1Selection (cursor));
+        PENDING_ROW1.put (mode, new PendingRow1Selection (cursor, model, surface));
     }
 
 
@@ -127,6 +133,53 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     }
 
 
+    private void onCursorNameChanged ()
+    {
+        DeviceParamsMode pendingMode = null;
+        PendingRow1Selection pending = null;
+        for (final Map.Entry<DeviceParamsMode, PendingRow1Selection> entry: PENDING_ROW1.entrySet ())
+        {
+            if (entry.getValue ().model == this.model)
+            {
+                pendingMode = entry.getKey ();
+                pending = entry.getValue ();
+                break;
+            }
+        }
+        if (pendingMode != null)
+            completePendingIfReady (pendingMode, pending);
+    }
+
+
+    /**
+     * Complete a dependent hierarchy gesture as soon as Bitwig publishes the nested cursor.
+     *
+     * @return True if the pending intent was completed, invalidated or superseded
+     */
+    private static boolean completePendingIfReady (final DeviceParamsMode mode,
+        final PendingRow1Selection pending)
+    {
+        if (PENDING_ROW1.get (mode) != pending)
+            return true;
+        if (!pending.surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
+        {
+            PENDING_ROW1.remove (mode);
+            return true;
+        }
+        if (!isPublishedChainCursor (pending.model, pending))
+            return false;
+
+        final int target = pending.targetIndex;
+        final boolean returnToParent = pending.returnToParent;
+        PENDING_ROW1.remove (mode);
+        if (returnToParent)
+            mode.onSecondRow (7, ButtonEvent.DOWN);
+        else if (target >= 0)
+            mode.onFirstRow (target, ButtonEvent.UP);
+        return true;
+    }
+
+
     private static void scheduleChainCursorProbe (final DeviceParamsMode mode, final IModel model,
         final PushControlSurface surface, final PendingRow1Selection pending)
     {
@@ -134,22 +187,8 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             if (PENDING_ROW1.get (mode) != pending)
                 return;
             pending.scheduled = false;
-            if (!surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
-            {
-                PENDING_ROW1.remove (mode);
+            if (completePendingIfReady (mode, pending))
                 return;
-            }
-            if (isPublishedChainCursor (model, pending))
-            {
-                final int target = pending.targetIndex;
-                final boolean returnToParent = pending.returnToParent;
-                PENDING_ROW1.remove (mode);
-                if (returnToParent)
-                    mode.onSecondRow (7, ButtonEvent.DOWN);
-                else if (target >= 0)
-                    mode.onFirstRow (target, ButtonEvent.UP);
-                return;
-            }
             if (++pending.polls >= CHAIN_CURSOR_MAX_POLLS)
             {
                 PENDING_ROW1.remove (mode);
@@ -163,6 +202,9 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     public PageLeftCommand (final IModel model, final PushControlSurface surface)
     {
         super (model, surface);
+        // One controller-lifetime observer handles the normal case without
+        // waiting for the bounded fallback probe.
+        this.model.getCursorDevice ().addNameObserver (name -> this.onCursorNameChanged ());
     }
 
 
