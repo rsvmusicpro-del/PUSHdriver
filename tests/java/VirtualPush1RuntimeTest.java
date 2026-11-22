@@ -727,11 +727,10 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
             "ROW1 while same-name chain cursor is pending");
         drainNavigation (state);
-        require (virtualCursorDeviceNested && deviceIndex == 0,
+        require (virtualCursorDeviceNested,
             "Same-name chain entry did not publish its nested cursor");
-        drainScheduled (state, 8);
         require (deviceIndex == 2,
-            "Root-to-nested same-name transition did not replay the pending ROW1 target");
+            "Root-to-nested same-name transition did not replay the pending ROW1 target after publication");
         requireAction ("device.select:2",
             "Same-name root-to-nested transition did not select the requested child");
         virtualSameNameChainCursor = false;
@@ -759,7 +758,6 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
             "ROW1 during ambiguous same-name nested transition");
         drainNavigation (state);
-        drainScheduled (state, 8);
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Ambiguous same-name nested transition changed the parent cursor unexpectedly");
         require (MODEL_ACTIONS.stream ().noneMatch (a -> a.startsWith ("device.select:")),
