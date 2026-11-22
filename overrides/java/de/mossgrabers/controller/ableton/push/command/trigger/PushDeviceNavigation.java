@@ -124,7 +124,23 @@ public final class PushDeviceNavigation
 
     public static void exitParent (final PushControlSurface surface, final IModel model)
     {
-        enqueue (surface, model, new Action (Type.EXIT, null, -1));
+        final State state = stateFor (surface, model);
+        synchronized (state)
+        {
+            // Out is a navigation escape hatch: keep the host operation already
+            // dispatched, but move the parent request ahead of queued ENTER/SELECT
+            // intents so stale ROW1 work cannot delay leaving the current chain.
+            final ArrayDeque<Action> reordered = new ArrayDeque<> ();
+            if (state.running && !state.actions.isEmpty ())
+                reordered.addLast (state.actions.removeFirst ());
+            reordered.addLast (new Action (Type.EXIT, null, -1));
+            reordered.addAll (state.actions);
+            while (reordered.size () > MAX_ACTIONS)
+                reordered.removeLast ();
+            state.actions.clear ();
+            state.actions.addAll (reordered);
+            startNext (surface, state);
+        }
     }
 
 
@@ -153,6 +169,17 @@ public final class PushDeviceNavigation
         {
             if (!state.running && state.actions.isEmpty () && (!cursor.isNested () || cursor.getIndex () == index))
                 return false;
+
+            // A nested sibling move is already a single, irreversible host
+            // command. Retarget its remaining journey to the newest ROW1 intent
+            // rather than replaying obsolete intermediate targets afterwards.
+            final Action inFlight = state.actions.peekFirst ();
+            if (state.running && state.wait == Wait.MOVE && inFlight != null && inFlight.type == Type.SELECT)
+            {
+                inFlight.index = index;
+                inFlight.onReselect = onReselect;
+                return true;
+            }
 
             enqueueLocked (state, new Action (Type.SELECT, null, index, onReselect));
             startNext (surface, state);
