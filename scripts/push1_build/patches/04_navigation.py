@@ -282,7 +282,7 @@ replace_once(device_chains_mode,
 # stopping the cursor track's current clip before preparing its next note clip.
 replace_once(setup,
     "import de.mossgrabers.framework.command.trigger.clip.NewCommand;\n",
-    "import de.mossgrabers.controller.ableton.push.command.trigger.PushNewCommand;\nimport de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation;\n",
+    "import de.mossgrabers.controller.ableton.push.command.trigger.PushNewCommand;\nimport de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation;\nimport de.mossgrabers.controller.ableton.push.command.trigger.PushPageRightCommand;\n",
     "Push 1 New command import")
 replace_once(setup,
     "new NewCommand<> (this.model, surface)",
@@ -290,39 +290,8 @@ replace_once(setup,
     "Push 1 New command binding")
 
 
-# DrivenByMoss' PageRightCommand only handles Session paging and sequencer
-# views. On Push 1, the same physical control is labelled Out; route it to
-# the Bitwig cursor when Device Params is active so a pending ROW1 journey
-# cannot swallow or delay the request to leave a nested chain.
-page_right = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/trigger/PageRightCommand.java"
-replace_java_method(page_right,
-    "public void execute (final ButtonEvent event, final int velocity)",
-    """    public void execute (final ButtonEvent event, final int velocity)
-    {
-        final ViewManager viewManager = this.surface.getViewManager ();
-        if (event == ButtonEvent.DOWN)
-        {
-            final var cursorDevice = this.model.getCursorDevice ();
-            this.model.getHost ().println ("PUSH_OUT_TRACE active=" + this.surface.getModeManager ().getActiveID ()
-                + " exists=" + cursorDevice.doesExist () + " nested=" + cursorDevice.isNested ()
-                + " entering=" + PushDeviceNavigation.isEntering (this.surface)
-                + " busy=" + PushDeviceNavigation.isBusy (this.surface));
-            if (cursorDevice.doesExist ()
-                && (cursorDevice.isNested () || PushDeviceNavigation.isEntering (this.surface)))
-            {
-                PushDeviceNavigation.exitParent (this.surface, this.model);
-                return;
-            }
-        }
-        if (viewManager.isActive (Views.SESSION))
-        {
-            if (event == ButtonEvent.DOWN)
-                this.model.getCurrentTrackBank ().selectNextPage ();
-            return;
-        }
 
-        final var activeView = viewManager.getActive ();
-        if (activeView instanceof final AbstractSequencerView<?, ?> sequencerView)
-            sequencerView.onRight (event);
-    }""",
-    "Push 1 Out button cursor exit routing")
+replace_once(setup,
+    "new PageRightCommand (this.model, surface)",
+    "new PushPageRightCommand (this.model, surface)",
+    "Push 1 Out command binding")
