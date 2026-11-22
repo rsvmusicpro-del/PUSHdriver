@@ -1031,6 +1031,7 @@ public final class VirtualPush1RuntimeTest
         require (deviceParamsMode.isShowDevices (),
             "ROW2 Up did not restore device selectors from parameter banks");
         MODEL_ACTIONS.clear ();
+        final long row2ParentReturnStartedAt = state.virtualTimeMillis;
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
             "ROW2 Up leaves the nested child device");
         requireAction ("cursorDevice.selectParent", "ROW2 Up did not use the native parent navigation");
