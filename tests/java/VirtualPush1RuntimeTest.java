@@ -1814,6 +1814,7 @@ public final class VirtualPush1RuntimeTest
 
         // Exercise the complete Swing simulator in memory on every CI run.
         VirtualPush1Simulator.smoke (midi);
+        runLatencyBench (setup, midi, mixerModel, modes);
 
         if (args.length > 0 && "--gui".equals (args[0]))
             VirtualPush1Simulator.show (midi, setup::exit);
@@ -3330,6 +3331,40 @@ public final class VirtualPush1RuntimeTest
                 label + " row " + row + " mapped to MIDI note " + model.lastToggle ().getNote ()
                     + " instead of " + expected[row]);
         }
+    }
+
+    /**
+     * Measure the production MIDI -> bound command -> model update -> flush path.
+     * Wall-clock figures are diagnostic only: CI machines are not a real-time
+     * host, so correctness is asserted independently of timing thresholds.
+     */
+    private static void runLatencyBench (final PushControllerSetup setup,
+        final VirtualPush1MidiBench midi, final MixerModel mixerModel, final de.mossgrabers.framework.mode.IModeManager modes)
+    {
+        modes.setActive (Modes.VOLUME);
+        final MixerModel.ParameterState volume = mixerModel.volume (0);
+        for (int i = 0; i < 100; i++)
+        {
+            midi.device ().turnEncoderBy (0, 1);
+            setup.flush ();
+        }
+        final long [] elapsed = new long [1000];
+        final int changesBefore = volume.changes;
+        for (int i = 0; i < elapsed.length; i++)
+        {
+            final long started = System.nanoTime ();
+            midi.device ().turnEncoderBy (0, 1);
+            setup.flush ();
+            elapsed[i] = System.nanoTime () - started;
+        }
+        require (volume.changes == changesBefore + elapsed.length,
+            "Latency bench did not deliver all encoder events to the production volume model");
+        Arrays.sort (elapsed);
+        System.out.println ("Virtual Push 1 end-to-end latency bench (encoder MIDI -> production command -> model -> flush; "
+            + elapsed.length + " samples, 100 warmups): p50=" + elapsed[elapsed.length * 50 / 100] / 1000
+            + "us p95=" + elapsed[elapsed.length * 95 / 100] / 1000
+            + "us p99=" + elapsed[elapsed.length * 99 / 100] / 1000 + "us"
+            + " (diagnostic wall-clock values; no CI timing gate).");
     }
 
     private static void requireButtonMidiDelivery (final VirtualPush1MidiBench midi,
