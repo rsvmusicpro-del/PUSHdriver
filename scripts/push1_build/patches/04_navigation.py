@@ -297,8 +297,7 @@ replace_once(setup,
 page_right = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/trigger/PageRightCommand.java"
 replace_java_method(page_right,
     "public void execute (final ButtonEvent event, final int velocity)",
-    """    @Override
-    public void execute (final ButtonEvent event, final int velocity)
+    """    public void execute (final ButtonEvent event, final int velocity)
     {
         if (event == ButtonEvent.DOWN
             && this.surface.getModeManager ().isActive (de.mossgrabers.framework.mode.Modes.DEVICE_PARAMS))
@@ -320,7 +319,7 @@ replace_java_method(page_right,
             return;
         }
 
-        final IView activeView = viewManager.getActive ();
+        final var activeView = viewManager.getActive ();
         if (activeView instanceof final AbstractSequencerView<?, ?> sequencerView)
             sequencerView.onRight (event);
     }""",
