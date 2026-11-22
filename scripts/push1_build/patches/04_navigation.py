@@ -200,8 +200,8 @@ replace_once(browser_mode,
     "items[item] = pos < results.length && results[pos] != null && results[pos].doesExist () ? results[pos].getName (14) : \"\";\n                        selected[item] = pos < results.length && results[pos] != null && results[pos].doesExist () && results[pos].isSelected ();",
     "Push 1 Browser graphic result item guard")
 
-# Keep DeviceParamsMode upstream-owned. Restore immediate sibling-cursor
-# traversal for nested ROW1 selection; never wait for each individual step.
+# Keep DeviceParamsMode upstream-owned. Select the exact nested ROW1 sibling
+# directly through its existing DeviceBank item; avoid repeated relative steps.
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
 
 # Defer only the dependent ROW1 gesture through the existing command owner.
