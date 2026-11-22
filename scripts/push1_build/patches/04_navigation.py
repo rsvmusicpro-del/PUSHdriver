@@ -292,45 +292,16 @@ replace_once(device_chains_mode,
 """,
     """            final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS);
             deviceParamsMode.setShowDevices (true);
-            final long navigationGeneration = de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.beginNavigation (this.model, this.surface, true);
+            // Match DrivenByMoss: issue the chain selection and mode change
+            // immediately; never poll or defer the next controller gesture.
             cd.selectSlotChain (slotChains[index]);
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
-            de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.scheduleNavigation (this.model, this.surface, navigationGeneration);
             return;
 """,
-    "Track direct Device Chains entry and replay the latest ROW1 intent")
+    "Direct Device Chains entry without deferred navigation")
 
-# A new top-row selector press also supersedes a pending parent completion.
-replace_once(device_params_mode,
-    """    public void onFirstRow (final int index, final ButtonEvent event)
-    {
-        if (event == ButtonEvent.DOWN)
-            return;""",
-    """    public void onFirstRow (final int index, final ButtonEvent event)
-    {
-        if (event == ButtonEvent.DOWN)
-            return;
-        if (de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.queueRowDuringNavigation (this.surface, this.model, index))
-            return;
-        de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.invalidatePendingNavigation (this.surface);""",
-    "Retain only the latest ROW1 intent while a direct hierarchy transition settles")
-
-# Any new ROW2 action supersedes a pending parent-return completion.
-replace_once(device_params_mode,
-    """    public void onSecondRow (final int index, final ButtonEvent event)
-    {
-        if (event != ButtonEvent.DOWN)
-            return;
-        final ICursorDevice device = this.model.getCursorDevice ();
-        final ModeManager modeManager = this.surface.getModeManager ();""",
-    """    public void onSecondRow (final int index, final ButtonEvent event)
-    {
-        if (event != ButtonEvent.DOWN)
-            return;
-        final ICursorDevice device = this.model.getCursorDevice ();
-        final ModeManager modeManager = this.surface.getModeManager ();
-        de.mossgrabers.controller.ableton.push.command.trigger.PageRightCommand.invalidatePendingNavigation (this.surface);""",
-    "Invalidate stale parent completion on ROW2 action")
+# No navigation queue, deferred ROW1 replay, or ROW2 invalidation is injected.
+# Every physical gesture reaches the active DrivenByMoss mode immediately.
 
 # Keep the physical Push 1 New button on its native dedicated binding, while
 # stopping the cursor track's current clip before preparing its next note clip.
