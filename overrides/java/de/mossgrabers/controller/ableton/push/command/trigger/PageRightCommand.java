@@ -5,6 +5,7 @@ package de.mossgrabers.controller.ableton.push.command.trigger;
 
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
+import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
 import de.mossgrabers.framework.command.core.AbstractTriggerCommand;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.featuregroup.IMode;
