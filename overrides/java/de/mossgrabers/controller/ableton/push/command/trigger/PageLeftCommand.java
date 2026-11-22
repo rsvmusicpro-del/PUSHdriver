@@ -6,6 +6,7 @@ package de.mossgrabers.controller.ableton.push.command.trigger;
 import de.mossgrabers.controller.ableton.push.PushConfiguration;
 import de.mossgrabers.controller.ableton.push.controller.PushControlSurface;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
+import de.mossgrabers.framework.controller.ButtonID;
 import de.mossgrabers.framework.command.core.AbstractTriggerCommand;
 import de.mossgrabers.framework.daw.IModel;
 import de.mossgrabers.framework.daw.data.ICursorDevice;
@@ -42,6 +43,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         private int polls;
         private boolean scheduled;
         private boolean enterFirstChain;
+        private int queuedUpCount;
 
         private PendingParentReturn (final ICursorDevice cursor, final String fingerprint,
             final DeviceParamsMode mode, final PushControlSurface surface)
@@ -118,6 +120,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (pending == null)
             return false;
         pending.enterFirstChain = true;
+        pending.queuedUpCount = 0;
         pending.mode = new WeakReference<> (mode);
         pending.surface = new WeakReference<> (surface);
         return true;
@@ -158,6 +161,15 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         // The Chains chooser has its own immediate native Up/exit behavior.
         if (!surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
             return false;
+        final PendingParentReturn parentReturn = PENDING_PARENT_RETURN.get (model);
+        if (parentReturn != null)
+        {
+            // Keep rapid OUT/ROW2-UP presses ordered behind the in-flight
+            // parent change instead of issuing selectParent on the stale child.
+            parentReturn.enterFirstChain = false;
+            parentReturn.queuedUpCount++;
+            return true;
+        }
         final PendingRow1Selection pending = PENDING_ROW1.get (model);
         if (pending == null)
             return false;
@@ -346,6 +358,8 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (!cursor.doesExist () || !(idChanged || nameChanged || returnedToRoot || bankChanged))
             return false;
 
+        final boolean enterFirstChain = pending.enterFirstChain;
+        final int queuedUpCount = pending.queuedUpCount;
         PENDING_PARENT_RETURN.remove (model);
         final var modeManager = surface.getModeManager ();
         final boolean hasLayers = cursor.hasLayers ();
@@ -358,9 +372,33 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
         // IN received while the parent command was in flight belongs to the
         // newly published parent, not to the child cursor being left.
-        if (pending.enterFirstChain && !hasLayers && modeManager.isActive (Modes.DEVICE_PARAMS))
+        if (enterFirstChain && !hasLayers && modeManager.isActive (Modes.DEVICE_PARAMS))
             selectFirstAvailableChain (mode, model, surface);
+        else if (queuedUpCount > 0)
+            replayQueuedOut (model, surface, queuedUpCount);
         return true;
+    }
+
+
+    private static void replayQueuedOut (final IModel model, final PushControlSurface surface,
+        final int queuedUpCount)
+    {
+        for (int i = 0; i < queuedUpCount; i++)
+        {
+            final var modeManager = surface.getModeManager ();
+            if (!Modes.isDeviceMode (modeManager.getActiveID ()))
+                return;
+            // Re-enter through the dedicated OUT command so Device Params,
+            // Chains and Layer modes retain their own native exit semantics.
+            surface.getButton (ButtonID.PAGE_RIGHT).trigger (ButtonEvent.DOWN);
+            final PendingParentReturn next = PENDING_PARENT_RETURN.get (model);
+            if (next != null)
+            {
+                next.queuedUpCount += queuedUpCount - i - 1;
+                next.enterFirstChain = false;
+                return;
+            }
+        }
     }
 
 
