@@ -699,8 +699,8 @@ public final class VirtualPush1RuntimeTest
         requireAction ("parameterPage.selectPage:2", "Top-row selector did not select parameter page 3");
         deviceParamsMode.setShowDevices (true);
 
-        // In/Out traverse the device hierarchy instead of duplicating the
-        // arrow/ROW1 device and parameter-page selectors.
+        // In/Out use direct host commands and the native DrivenByMoss mode flow.
+        // No cursor polling or deferred ROW1 replay may sit between gestures.
         deviceIndex = 4;
         virtualCursorDevicePosition = 4;
         virtualCursorDeviceNested = false;
@@ -709,33 +709,26 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
         requireAction ("device.selectSlotChain:Chain 1", "In (CC 62) must enter the first available slot chain");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1,
-            "First ROW1 intent while In is still publishing its cursor change");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
-            "Latest ROW1 intent while In is still publishing its cursor change");
-        drainNavigation (state);
-        require (virtualCursorDeviceNested && deviceIndex == 2,
-            "ROW1 pressed immediately after In was not replayed against the child chain");
-        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 2,
-            "Immediate ROW1 after In did not select the requested child device");
         require (deviceParamsMode.isShowDevices (),
-            "In did not restore ROW1 device selectors after entering a chain from Banks mode");
-        virtualParentHasLayersAfterSelect = true;
+            "In did not restore ROW1 device selectors immediately after entering a chain from Banks mode");
+        drainNavigation (state);
+        require (virtualCursorDeviceNested && deviceIndex == 0,
+            "Direct In command did not expose the child-chain cursor after the host update");
+
+        virtualParentHasLayersAfterSelect = false;
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63)");
-        requireAction ("cursorDevice.selectParent", "Out (CC 63) must select the parent device");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3,
-            "Immediate ROW1 selection after Out");
+        requireAction ("cursorDevice.selectParent", "Out (CC 63) must use the native parent navigation");
         drainNavigation (state);
-        requireAction ("cursorDevice.selectChannel", "Out did not finalize the parent channel after the cursor update");
-        require (!virtualCursorDeviceNested && deviceIndex == 3,
-            "ROW1 pressed immediately after Out was not replayed against the parent device");
-        require (MODEL_ACTIONS.contains ("device.select:3"),
-            "Immediate ROW1 after Out did not select the requested parent device");
-        require (deviceParamsMode.isShowDevices (),
-            "Immediate ROW1 after Out did not restore the parent device selector view");
+        drainScheduled (state, 300);
+        require (!virtualCursorDeviceNested && deviceIndex == 0,
+            "Native Out did not return to the parent device");
+        requireAction ("cursorDevice.selectChannel",
+            "Out did not finalize the parent channel after the native host update");
+        require (!deviceParamsMode.isShowDevices (),
+            "Native Out did not restore the parent's parameter-bank view");
         require (modes.isActive (Modes.DEVICE_PARAMS),
-            "A queued ROW1 target was lost when the returned parent had layers");
+            "Native Out did not remain in Device Params for a parent without layers");
         virtualParentHasLayersAfterSelect = false;
         virtualCursorDeviceHasLayers = false;
         deviceParamsMode.setShowDevices (false);
@@ -832,7 +825,7 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return to nested parent device");
         requireAction ("cursorDevice.selectParent", "Out did not request the parent at nested depth two");
         drainNavigation (state);
-        drainNavigation (state);
+        drainScheduled (state, 300);
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Out incorrectly left the hierarchy when the parent was itself nested");
         deviceParamsMode.setShowDevices (true);
@@ -848,7 +841,7 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return from nested parent to root");
         drainNavigation (state);
-        drainNavigation (state);
+        drainScheduled (state, 300);
         require (!virtualCursorDeviceNested && deviceIndex == 0,
             "Out did not return to the root after traversing two nested levels");
 
@@ -904,8 +897,8 @@ public final class VirtualPush1RuntimeTest
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Start parent return before a newer ROW2 action");
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Enter Device Chains during pending return");
         drainNavigation (state);
-        drainNavigation (state);
-        require (modes.isActive (Modes.DEVICE_CHAINS), "Stale parent callback overwrote a newer ROW2 mode action");
+        drainScheduled (state, 300);
+        require (modes.isActive (Modes.DEVICE_CHAINS), "Stale native parent callback overwrote a newer ROW2 mode action");
         require (MODEL_ACTIONS.stream ().noneMatch (a -> a.equals ("cursorDevice.selectChannel")),
             "Stale parent callback finalized after a newer ROW2 action");
         modes.setActive (Modes.DEVICE_PARAMS);
@@ -3393,23 +3386,10 @@ public final class VirtualPush1RuntimeTest
         return false;
     }
 
-    /** Drain only the adaptive non-blocking navigation probes and host cursor callbacks. */
+    /** Drain the host's cursor publication callback; production adds no polling loop. */
     private static void drainNavigation (final State state)
     {
-        final long [] delays = { 12, 16, 24, 36, 58, 73 };
-        for (int steps = 0; steps < 100000; steps++)
-        {
-            boolean ran = false;
-            for (final long delay: delays)
-                if (runNextScheduled (state, delay))
-                {
-                    ran = true;
-                    break;
-                }
-            if (!ran)
-                return;
-        }
-        throw new AssertionError ("Direct navigation reconciliation exceeded 100000 scheduled tasks");
+        drainScheduled (state, 73);
     }
 
 
