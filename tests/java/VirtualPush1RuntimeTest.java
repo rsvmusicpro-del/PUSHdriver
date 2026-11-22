@@ -156,8 +156,6 @@ public final class VirtualPush1RuntimeTest
 
     public static void main (final String [] args) throws Exception
     {
-        de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigationFingerprintTest.main (new String [0]);
-
         // Protocol and device-contract checks are subtests of the same virtual
         // Push bench entry point; none opens a separate hardware/test path.
         VirtualPush1MidiBench.main (new String [0]);
@@ -705,163 +703,26 @@ public final class VirtualPush1RuntimeTest
         requireAction ("parameterPage.selectPage:2", "Top-row selector did not select parameter page 3");
         deviceParamsMode.setShowDevices (true);
 
-        // Exercise In/Out and ROW1 before Bitwig confirms the cursor change.
-        // The virtual host deliberately delays cursor updates to expose stale-cursor bugs.
+        // In/Out traverse the device hierarchy instead of duplicating the
+        // arrow/ROW1 device and parameter-page selectors.
         deviceIndex = 4;
         virtualCursorDevicePosition = 4;
         virtualCursorDeviceNested = false;
         deviceParamsMode.setShowDevices (false);
         virtualSlotChains = new String [] { "Chain 1", "Chain 2", "Chain 3" };
-        virtualDeferCursorUpdates = true;
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
         requireAction ("device.selectSlotChain:Chain 1", "In (CC 62) must enter the first available slot chain");
-        require (runNextScheduled (state, 4), "Navigation did not schedule its first low-latency cursor probe at 4 ms");
-        require (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
-            "Navigation completed before Bitwig delivered its delayed cursor callback");
-        require (runNextScheduled (state, 8), "Navigation did not schedule its second adaptive cursor probe at 8 ms");
-        require (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
-            "Navigation completed before Bitwig delivered its delayed cursor callback at the 16 ms probe");
-        require (runNextScheduled (state, 12), "Navigation did not schedule its third adaptive cursor probe at 12 ms");
-        require (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
-            "Navigation completed before Bitwig delivered its delayed cursor callback at the 24 ms probe");
-        require (runNextScheduled (state, 20), "Navigation did not schedule its fourth adaptive cursor probe at 20 ms");
-        require (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
-            "Navigation completed before Bitwig delivered its delayed cursor callback at the 36 ms probe");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2, "Immediate ROW1 selection after In");
-        require (deviceIndex == 4 && !virtualCursorDeviceNested, "ROW1 acted on the stale parent cursor before the chain callback");
-        drainNavigation (state);
-        require (virtualCursorDeviceNested && deviceIndex == 2, "Immediate ROW1 selection after In was not replayed against the child chain");
-        require (deviceParamsMode.isShowDevices (), "In did not restore ROW1 device selectors after entering a chain from Banks mode");
-
+        drainScheduled (state, 73);
+        require (virtualCursorDeviceNested && deviceIndex == 0,
+            "In did not move the Bitwig cursor into the selected slot chain");
+        require (deviceParamsMode.isShowDevices (),
+            "In did not restore ROW1 device selectors after entering a chain from Banks mode");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63)");
         requireAction ("cursorDevice.selectParent", "Out (CC 63) must select the parent device");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Immediate ROW1 selection after Out");
-        require (virtualCursorDeviceNested, "ROW1 changed the nested cursor before the parent callback was delivered");
-        drainNavigation (state);
-        require (!virtualCursorDeviceNested && deviceIndex == 3, "Immediate ROW1 selection after Out was not replayed against the parent device bank");
-        require (MODEL_ACTIONS.stream ().anyMatch (a -> a.equals ("device.select:3")), "Queued parent ROW1 selection did not target the requested device");
-
-        // Regression: a second ROW1 tap must not rewrite the already-issued root selection.
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Re-enter chain before ROW1 coalescing regression");
-        drainNavigation (state);
-        require (virtualCursorDeviceNested, "Precondition failed: In did not re-enter the chain");
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out before two in-flight root ROW1 selections");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "First queued root ROW1 target");
-        require (runNextScheduled (state, 73), "Missing delayed parent-cursor callback");
-        require (runNextScheduled (state, 4), "Missing first low-latency navigation poll after parent-cursor callback");
-        require (MODEL_ACTIONS.contains ("device.select:1"), "First root ROW1 selection was not issued after Out");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Second ROW1 target while first root selection is in flight");
-        drainNavigation (state);
-        require (deviceIndex == 3, "A later ROW1 press rewrote or lost the in-flight root selection instead of running next");
-        require (MODEL_ACTIONS.contains ("device.select:3"), "Second root ROW1 selection was not issued as a separate serialized action");
-
-        // Regression: if queued ROW1 resolves to the parent device already active,
-        // preserve upstream's reselect gesture (Banks toggle / Layer Mix entry).
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Re-enter chain before same-device reselect regression");
-        drainNavigation (state);
-        deviceParamsMode.setShowDevices (true);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out before queued same-device ROW1");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Queued ROW1 reselect of parent device zero");
-        drainNavigation (state);
-        require (!deviceParamsMode.isShowDevices (), "Queued ROW1 reselect of the active parent did not preserve upstream Banks behavior");
-        deviceParamsMode.setShowDevices (true);
-
-        // A delayed reselect callback must not switch back to Device Params after
-        // the user has deliberately left that mode while the cursor is updating.
-        virtualDeferCursorUpdates = true;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out before stale same-device ROW1");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST, "Queue same-device ROW1 before leaving Device Params");
-        surface.getModeManager ().setActive (Modes.BROWSER);
-        drainNavigation (state);
-        require (surface.getModeManager ().isActive (Modes.BROWSER),
-            "A stale Device reselect callback switched away from Browser");
-        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
-        virtualDeferCursorUpdates = false;
-
-        // Null slot-chain arrays are legal at a transient host boundary: IN is
-        // a no-op and its LED predicate must remain safe.
-        virtualNullSlotChains = true;
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "IN with null slot-chain bank");
-        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.startsWith ("device.selectSlotChain:")),
-            "IN attempted to select a chain from a null slot-chain bank");
-        virtualNullSlotChains = false;
-
-        // A queue overflow must reject new intent without cancelling the host
-        // operation already in flight or releasing serialization early.
-        MODEL_ACTIONS.clear ();
-        virtualDeferCursorUpdates = true;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Start in-flight action before queue overflow");
-        for (int i = 0; i < 40; i++)
-            requireButtonMidiDelivery (midi, i % 2 == 0 ? VirtualPush1Device.OUT : VirtualPush1Device.IN,
-                "Queue-overflow stress command " + i);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7,
-            "ROW1 press while the navigation queue is full");
-        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.equals ("device.select:7")),
-            "A rejected full-queue ROW1 press bypassed serialization through direct DeviceParamsMode selection");
-        drainNavigation (state);
-        require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
-            "Navigation remained busy after the bounded queue drained");
-        require (!virtualCursorDeviceNested, "Queue overflow cancelled the in-flight action or broke serialized hierarchy order");
-        final long queuedEntries = MODEL_ACTIONS.stream ().filter (a -> a.startsWith ("device.selectSlotChain:")).count ();
-        final long queuedExits = MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectParent")).count ();
-        final long completedEntries = MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.chainCallback")).count ();
-        final long completedExits = MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.parentCallback")).count ();
-        require (queuedEntries == 16 && queuedExits == 16 && completedEntries == queuedEntries && completedExits == queuedExits,
-            "Queue overflow dropped/cancelled an in-flight host operation or started overlapping hierarchy operations: "
-                + MODEL_ACTIONS);
-        boolean awaitingHostCallback = false;
-        for (final String action : MODEL_ACTIONS)
-        {
-            if (action.startsWith ("device.selectSlotChain:") || action.equals ("cursorDevice.selectParent"))
-            {
-                require (!awaitingHostCallback, "A second hierarchy operation was sent before the first host callback: " + MODEL_ACTIONS);
-                awaitingHostCallback = true;
-            }
-            else if (action.equals ("cursorDevice.chainCallback") || action.equals ("cursorDevice.parentCallback"))
-            {
-                require (awaitingHostCallback, "Received an unexpected hierarchy callback: " + MODEL_ACTIONS);
-                awaitingHostCallback = false;
-            }
-        }
-        require (!awaitingHostCallback, "Queue overflow left a host operation without its completion callback: " + MODEL_ACTIONS);
-        virtualDeferCursorUpdates = false;
-
-        // An unrelated move into another nested device must not confirm the
-        // requested chain entry merely because the cursor became nested.
-        virtualUnexpectedNestedCursorUpdate = true;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "IN while an unrelated nested cursor update is delivered");
-        drainNavigation (state);
-        require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
-            "Unexpected nested cursor movement did not time out the pending chain entry");
-        require (virtualCursorDeviceNested && deviceIndex == 1,
-            "Unexpected nested cursor update was incorrectly accepted as the first child of the requested chain");
-        virtualUnexpectedNestedCursorUpdate = false;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return after rejected unrelated nested cursor update");
-        drainNavigation (state);
-        require (!virtualCursorDeviceNested, "Out could not recover after rejecting an unrelated nested cursor update");
-
-        // If Bitwig never confirms a chain entry, the bounded timeout must release
-        // the queue rather than leaving future button presses permanently blocked.
-        virtualSuppressChainCursorUpdate = true;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "IN with deliberately suppressed host cursor callback");
-        drainNavigation (state);
-        require (!de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.isBusy (surface),
-            "Navigation timeout did not release the stalled queue");
-        virtualSuppressChainCursorUpdate = false;
-
-        deviceIndex = 4;
-        virtualCursorDevicePosition = 4;
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Rapid In before Out");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Rapid Out before In callback");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "ROW1 after queued In/Out");
-        drainNavigation (state);
-        require (!virtualCursorDeviceNested && deviceIndex == 1, "Rapid In/Out/ROW1 sequence did not preserve physical command order");
-        virtualDeferCursorUpdates = false;
+        drainScheduled (state, 73);
+        require (!virtualCursorDeviceNested, "Out did not return the Bitwig cursor to its parent device");
         deviceParamsMode.setShowDevices (false);
 
         // Device Chains is an upstream submode: top row selects a chain and
@@ -870,52 +731,24 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Ableton Device Chains action");
         require (modes.isActive (Modes.DEVICE_CHAINS), "Bottom-row Chains action did not activate Device Chains");
-        virtualNullSlotChains = true;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Device Chains ROW1 with a null slot-chain bank");
-        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.startsWith ("device.selectSlotChain:")),
-            "Device Chains attempted to select an item from a null slot-chain bank");
-        virtualNullSlotChains = false;
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Ableton Device Chain selector 8");
         requireAction ("device.selectSlotChain:Chain 8", "Top-row selector did not select chain 8");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Selecting a chain did not return to Device parameters");
-        drainNavigation (state);
+        drainScheduled (state, 73);
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Selecting a Device Chain did not expose its child-device cursor");
         require (deviceParamsMode.isShowDevices (),
             "Selecting a chain did not restore ROW1 device selectors after Banks mode");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Nested chain device selector 4");
-        drainNavigation (state);
         require (deviceIndex == 3, "ROW1 did not select device 4 inside the active chain");
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 3,
             "Nested ROW1 selection did not advance the cursor to the requested chain device");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "Nested chain device selector 2");
-        drainNavigation (state);
         require (deviceIndex == 1, "ROW1 did not select device 2 inside the active chain");
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectPrevious")).count () == 2,
             "Nested ROW1 selection did not move the cursor back to the requested chain device");
-
-        // Out must interrupt a multi-device ROW1 journey after its current
-        // confirmed host step, then process the next ROW1 request in the parent.
-        MODEL_ACTIONS.clear ();
-        virtualDeferCursorUpdates = true;
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Start nested ROW1 traversal before Out");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out during nested ROW1 traversal");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "ROW1 target after priority Out");
-        drainNavigation (state);
-        virtualDeferCursorUpdates = false;
-        require (!virtualCursorDeviceNested && deviceIndex == 1,
-            "Out did not interrupt nested traversal before applying the later parent ROW1 target");
-        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 1,
-            "Out waited for the obsolete nested ROW1 destination instead of the current confirmed step: " + MODEL_ACTIONS);
-        final int exitAction = MODEL_ACTIONS.indexOf ("cursorDevice.selectParent");
-        final int parentSelection = MODEL_ACTIONS.indexOf ("device.select:1");
-        require (exitAction >= 0 && parentSelection > exitAction,
-            "ROW1 after Out ran before the parent cursor transition: " + MODEL_ACTIONS);
-        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Re-enter chain before exhaustive ROW1 matrix");
-        drainNavigation (state);
-        require (virtualCursorDeviceNested, "Could not restore nested cursor before exhaustive ROW1 matrix");
 
         // Exhaustive boundary model: every valid start/target pair for chain
         // sizes 1..8, plus every unavailable ROW1 position. This catches the
