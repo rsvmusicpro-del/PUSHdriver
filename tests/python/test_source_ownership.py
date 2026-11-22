@@ -117,7 +117,7 @@ class SourceOwnershipTests(unittest.TestCase):
     def test_in_out_direction_contract_accepts_physical_mapping(self):
         errors = MODULE.validate_in_out_contract(
             'this.addButton (ButtonID.PAGE_LEFT, "In" this.addButton (ButtonID.PAGE_RIGHT, "Out"',
-            "Capability.HAS_SLOT_CHAINS selectFirstAvailableChain (deviceParamsMode, this.model, this.surface) cursor.selectSlotChain (slotChains[0])",
+            "Capability.HAS_SLOT_CHAINS selectFirstAvailableChain (deviceParamsMode, this.model, this.surface) selectSpecificChain (mode, model, surface, slotChains[0]) cursor.selectSlotChain (chain)",
             "deviceParamsMode.onSecondRow (7, ButtonEvent.DOWN) Modes.DEVICE_CHAINS",
             "PUSH_BUTTON_DEVICE_LEFT = 62; PUSH_BUTTON_DEVICE_RIGHT = 63;",
             "public static final int IN = 62; public static final int OUT = 63;",
