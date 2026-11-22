@@ -896,6 +896,32 @@ public final class VirtualPush1RuntimeTest
         require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectPrevious")).count () == 2,
             "Nested ROW1 selection did not move the cursor back to the requested chain device");
 
+        // Repeated ROW1 presses during one nested cursor callback should retarget
+        // the outstanding journey instead of replaying obsolete intermediate goals.
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Start a long nested ROW1 jump");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "Retarget an in-flight nested ROW1 jump");
+        drainNavigation (state);
+        require (deviceIndex == 1, "Rapid nested ROW1 presses did not converge on the latest target");
+        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 1,
+            "A superseded nested ROW1 target caused unnecessary cursor steps: " + MODEL_ACTIONS);
+
+        // Out must interrupt a multi-device ROW1 journey after its current
+        // confirmed host step, then process the next ROW1 request in the parent.
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 6, "Start nested ROW1 traversal before Out");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Out during nested ROW1 traversal");
+        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "ROW1 target after priority Out");
+        drainNavigation (state);
+        require (!virtualCursorDeviceNested && deviceIndex == 1,
+            "Out did not interrupt nested traversal before applying the later parent ROW1 target");
+        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 1,
+            "Out waited for the obsolete nested ROW1 destination instead of the current confirmed step: " + MODEL_ACTIONS);
+        final int exitAction = MODEL_ACTIONS.indexOf ("cursorDevice.selectParent");
+        final int parentSelection = MODEL_ACTIONS.indexOf ("device.select:1");
+        require (exitAction >= 0 && parentSelection > exitAction,
+            "ROW1 after Out ran before the parent cursor transition: " + MODEL_ACTIONS);
+
         // Exhaustive boundary model: every valid start/target pair for chain
         // sizes 1..8, plus every unavailable ROW1 position. This catches the
         // former fixed-eight mock and proves invalid buttons never clamp to a
