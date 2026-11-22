@@ -231,12 +231,12 @@ replace_once(device_params_mode,
 """,
     """    protected void moveUp ()
     {
+        final ModeManager modeManager = this.surface.getModeManager ();
         final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
         if (de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.deferOutUntilChainCursor (
                 deviceParamsMode, this.model, this.surface))
             return;
         de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.cancelPendingRow1Selection (deviceParamsMode);
-        final ModeManager modeManager = this.surface.getModeManager ();
 """,
     "Cancel pending ROW1 intent on native ROW2-UP hierarchy return")
 
