@@ -289,3 +289,39 @@ replace_once(setup,
     "new PushNewCommand (this.model, surface)",
     "Push 1 New command binding")
 
+
+# DrivenByMoss' PageRightCommand only handles Session paging and sequencer
+# views. On Push 1, the same physical control is labelled Out; route it to
+# the Bitwig cursor when Device Params is active so a pending ROW1 journey
+# cannot swallow or delay the request to leave a nested chain.
+page_right = root / "src/main/java/de/mossgrabers/controller/ableton/push/command/trigger/PageRightCommand.java"
+replace_java_method(page_right,
+    "public void execute (final ButtonEvent event, final int velocity)",
+    """    @Override
+    public void execute (final ButtonEvent event, final int velocity)
+    {
+        if (event == ButtonEvent.DOWN
+            && this.surface.getModeManager ().isActive (de.mossgrabers.framework.mode.Modes.DEVICE_PARAMS))
+        {
+            final var cursorDevice = this.model.getCursorDevice ();
+            if (cursorDevice.doesExist ()
+                && (cursorDevice.isNested () || PushDeviceNavigation.isEntering (this.surface)))
+            {
+                PushDeviceNavigation.exitParent (this.surface, this.model);
+                return;
+            }
+        }
+
+        final ViewManager viewManager = this.surface.getViewManager ();
+        if (viewManager.isActive (Views.SESSION))
+        {
+            if (event == ButtonEvent.DOWN)
+                this.model.getCurrentTrackBank ().selectNextPage ();
+            return;
+        }
+
+        final IView activeView = viewManager.getActive ();
+        if (activeView instanceof final AbstractSequencerView<?, ?> sequencerView)
+            sequencerView.onRight (event);
+    }""",
+    "Push 1 Out button cursor exit routing")
