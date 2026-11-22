@@ -913,6 +913,9 @@ public final class VirtualPush1RuntimeTest
         final int parentSelection = MODEL_ACTIONS.indexOf ("device.select:1");
         require (exitAction >= 0 && parentSelection > exitAction,
             "ROW1 after Out ran before the parent cursor transition: " + MODEL_ACTIONS);
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Re-enter chain before exhaustive ROW1 matrix");
+        drainNavigation (state);
+        require (virtualCursorDeviceNested, "Could not restore nested cursor before exhaustive ROW1 matrix");
 
         // Exhaustive boundary model: every valid start/target pair for chain
         // sizes 1..8, plus every unavailable ROW1 position. This catches the
