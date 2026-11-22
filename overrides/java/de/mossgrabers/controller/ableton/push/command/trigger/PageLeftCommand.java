@@ -99,8 +99,9 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (!cursor.doesExist () || !cursor.isNested ())
             return false;
         final String id = cursor.getID ();
-        if (pending.parentId != null && !pending.parentId.isEmpty () && id != null && !id.isEmpty ())
-            return !pending.parentId.equals (id);
+        if (pending.parentId != null && !pending.parentId.isEmpty () && id != null && !id.isEmpty ()
+                && !pending.parentId.equals (id))
+            return true;
         final String name = cursor.getName ();
         return name != null && !name.equals (pending.parentName);
     }
