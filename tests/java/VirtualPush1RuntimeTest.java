@@ -3634,13 +3634,15 @@ public final class VirtualPush1RuntimeTest
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Late host callback replayed a ROW1 intent after its bounded timeout");
 
-        // Native OUT/ROW2-UP cancels a dependent ROW1 intent before leaving
-        // the hierarchy. The delayed IN callback must not replay that intent.
+        // Native OUT/ROW2-UP supersedes a dependent ROW1 intent and waits for
+        // the entered cursor before unwinding exactly one hierarchy level.
         state.scheduled.clear ();
         virtualCursorCallbackDelayMillis = 150;
         virtualCursorDeviceNested = false;
         virtualCursorDevicePosition = 4;
         virtualCursorDeviceName = "Out Cancellation Parent";
+        virtualParentNestedAfterSelect = false;
+        virtualParentHasLayersAfterSelect = false;
         deviceIndex = 4;
         deviceParamsMode.setShowDevices (true);
         surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
@@ -3651,12 +3653,16 @@ public final class VirtualPush1RuntimeTest
             VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 before OUT cancellation", new java.util.ArrayList<> ());
         sendTimedNavigationGesture (state, midi, surface, outCancelStart + 20,
             VirtualPush1Device.OUT, "OUT cancels pending ROW1", new java.util.ArrayList<> ());
-        require (surface.getModeManager ().isActive (Modes.TRACK),
-            "Native OUT did not immediately leave Device Params during pending chain entry");
+        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS),
+            "OUT should retain Device Params while its dependent chain cursor is unpublished");
+        require (!MODEL_ACTIONS.contains ("cursorDevice.selectParent"),
+            "OUT attempted parent traversal against the stale pre-chain cursor");
         advanceNavigationClock (state, outCancelStart + 700);
-        require (surface.getModeManager ().isActive (Modes.TRACK)
-                && virtualCursorDeviceNested && deviceIndex == 0,
-            "Late chain publication replayed ROW1 after native OUT cancelled the intent");
+        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS)
+                && !virtualCursorDeviceNested && deviceIndex == 0 && !deviceParamsMode.isShowDevices (),
+            "Deferred native OUT did not unwind to the parent after chain publication");
+        requireAction ("cursorDevice.selectParent", "Deferred OUT did not use native parent selection");
+        requireAction ("cursorDevice.selectChannel", "Deferred OUT did not complete native parent return");
 
         // A pending chain callback must never block an unrelated mode change.
         state.scheduled.clear ();
