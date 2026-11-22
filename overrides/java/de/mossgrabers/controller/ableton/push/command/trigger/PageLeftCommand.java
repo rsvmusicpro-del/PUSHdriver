@@ -33,6 +33,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         private final String parentId;
         private final String parentName;
         private int targetIndex = -1;
+        private boolean returnToParent;
         private int polls;
         private boolean scheduled;
 
@@ -76,6 +77,30 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             return false;
         }
         pending.targetIndex = index;
+        pending.returnToParent = false;
+        if (!pending.scheduled)
+        {
+            pending.scheduled = true;
+            scheduleChainCursorProbe (mode, model, surface, pending);
+        }
+        return true;
+    }
+
+
+    /** Defer native OUT/ROW2-UP until the just-requested chain cursor is available. */
+    public static boolean deferOutUntilChainCursor (final DeviceParamsMode mode, final IModel model,
+        final PushControlSurface surface)
+    {
+        final PendingRow1Selection pending = PENDING_ROW1.get (mode);
+        if (pending == null)
+            return false;
+        if (isPublishedChainCursor (model, pending))
+        {
+            PENDING_ROW1.remove (mode);
+            return false;
+        }
+        pending.targetIndex = -1;
+        pending.returnToParent = true;
         if (!pending.scheduled)
         {
             pending.scheduled = true;
@@ -122,8 +147,11 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             if (isPublishedChainCursor (model, pending))
             {
                 final int target = pending.targetIndex;
+                final boolean returnToParent = pending.returnToParent;
                 PENDING_ROW1.remove (mode);
-                if (target >= 0)
+                if (returnToParent)
+                    mode.onSecondRow (7, ButtonEvent.DOWN);
+                else if (target >= 0)
                     mode.onFirstRow (target, ButtonEvent.UP);
                 return;
             }
