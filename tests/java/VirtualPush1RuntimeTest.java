@@ -146,7 +146,7 @@ public final class VirtualPush1RuntimeTest
         final List<Runnable> buttonTimers = new java.util.ArrayList<> ();
     }
 
-    private record ScheduledTask (long delay, Runnable task) { }
+    private record ScheduledTask (long delay, long dueAtMillis, Runnable task) { }
 
     private VirtualPush1RuntimeTest () { }
 
@@ -187,7 +187,10 @@ public final class VirtualPush1RuntimeTest
                         if (callArgs[0] instanceof Capability capability)
                             return Boolean.valueOf (SUPPORTED_CAPABILITIES.contains (capability));
                         throw new AssertionError ("Unknown IHost.supports argument: " + callArgs[0]);
-                    case "scheduleTask": state.scheduled.add (new ScheduledTask (((Number) callArgs[1]).longValue (), (Runnable) callArgs[0])); return null;
+                    case "scheduleTask":
+                        final long delay = ((Number) callArgs[1]).longValue ();
+                        state.scheduled.add (new ScheduledTask (delay, state.virtualTimeMillis + delay, (Runnable) callArgs[0]));
+                        return null;
                     case "error":
                         if (state.errors.size () < 30)
                         {
@@ -904,6 +907,52 @@ public final class VirtualPush1RuntimeTest
         require (MODEL_ACTIONS.stream ().noneMatch (a -> a.equals ("cursorDevice.selectChannel")),
             "Stale parent callback finalized after a newer ROW2 action");
         modes.setActive (Modes.DEVICE_PARAMS);
+
+        // Timed burst regression: real production MIDI gestures arrive while
+        // Bitwig cursor/mode callbacks are still outstanding. No drain occurs
+        // between gestures; callbacks run only when the virtual clock reaches
+        // their absolute deadlines.
+        virtualSlotChains = new String [] { "Burst Chain 1", "Burst Chain 2" };
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceHasLayers = false;
+        virtualParentNestedAfterSelect = false;
+        deviceIndex = 4;
+        virtualCursorDevicePosition = 4;
+        deviceParamsMode.setShowDevices (true);
+        modes.setActive (Modes.TRACK);
+        final List<String> timedNavigationTrace = new java.util.ArrayList<> ();
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis,
+            VirtualPush1Device.DEVICE, "DEVICE", timedNavigationTrace);
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 45,
+            VirtualPush1Device.IN, "IN", timedNavigationTrace);
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 85,
+            VirtualPush1Device.TOP_ROW_FIRST + 1, "ROW1 child 2", timedNavigationTrace);
+        // Walk the native ROW2-UP state machine: leave chain/device selectors,
+        // restore device selectors, then request the asynchronous parent.
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 125,
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP banks", timedNavigationTrace);
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 145,
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP devices", timedNavigationTrace);
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 185,
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP parent", timedNavigationTrace);
+        requireAction ("cursorDevice.selectParent",
+            "Timed ROW2-UP burst did not issue the native asynchronous parent request");
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 20,
+            VirtualPush1Device.TRACK, "TRACK during pending parent callback", timedNavigationTrace);
+        require (modes.isActive (Modes.TRACK),
+            "TRACK gesture was not applied immediately while the parent callback was pending");
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 20,
+            VirtualPush1Device.VOLUME, "VOLUME before parent callback", timedNavigationTrace);
+        require (modes.isActive (Modes.VOLUME),
+            "VOLUME gesture was not applied immediately before the delayed parent callback");
+        require (timedNavigationTrace.size () == 8,
+            "Timed navigation burst lost one or more physical gestures: " + timedNavigationTrace);
+        advanceNavigationClock (state, state.virtualTimeMillis + 400);
+        require (modes.isActive (Modes.VOLUME),
+            "A stale native parent callback stole focus after a newer VOLUME gesture: " + timedNavigationTrace);
+        require (timedNavigationTrace.stream ().allMatch (entry -> entry.contains ("ms ")),
+            "Timed navigation trace is missing virtual timestamps: " + timedNavigationTrace);
+        System.out.println ("Virtual Push 1 timed navigation burst passed: " + timedNavigationTrace);
 
         // Returning to Device mode must keep the real controller bindings active.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Re-enter Device mode");
@@ -3386,6 +3435,54 @@ public final class VirtualPush1RuntimeTest
             }
         }
         return false;
+    }
+
+    /**
+     * Advance the virtual host clock while delivering callbacks by absolute
+     * deadline. Unlike drainNavigation(), this deliberately leaves callbacks
+     * pending when the next physical gesture arrives before their deadline.
+     */
+    private static void advanceNavigationClock (final State state, final long targetMillis)
+    {
+        if (targetMillis < state.virtualTimeMillis)
+            throw new IllegalArgumentException ("Virtual navigation clock cannot move backwards");
+
+        while (true)
+        {
+            ScheduledTask next = null;
+            for (final ScheduledTask candidate: state.scheduled)
+                if (candidate.dueAtMillis () <= targetMillis
+                        && (next == null || candidate.dueAtMillis () < next.dueAtMillis ()))
+                    next = candidate;
+            if (next == null)
+                break;
+
+            state.scheduled.remove (next);
+            state.virtualTimeMillis = Math.max (state.virtualTimeMillis, next.dueAtMillis ());
+            next.task ().run ();
+        }
+
+        state.virtualTimeMillis = targetMillis;
+        for (final Runnable timer: List.copyOf (state.buttonTimers))
+            timer.run ();
+    }
+
+    /**
+     * Send one real virtual Push MIDI gesture at a timestamp and record the
+     * production mode/cursor state immediately after command dispatch.
+     */
+    private static void sendTimedNavigationGesture (final State state,
+        final VirtualPush1MidiBench midi, final PushControlSurface surface,
+        final long atMillis, final int cc, final String label, final List<String> trace)
+    {
+        advanceNavigationClock (state, atMillis);
+        final int before = midi.getDispatchedButtonEvents ();
+        midi.device ().tapButton (cc);
+        final int delivered = midi.getDispatchedButtonEvents () - before;
+        require (delivered == 2, label + " did not deliver DOWN+UP at virtual t=" + atMillis
+            + " ms; delivered=" + delivered);
+        trace.add (atMillis + "ms " + label + " -> mode=" + surface.getModeManager ().getActiveID ()
+            + ", deviceIndex=" + deviceIndex + ", pendingCallbacks=" + state.scheduled.size ());
     }
 
     /** Drain native host cursor publication and parent-return callbacks; no production polling exists. */
