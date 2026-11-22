@@ -239,10 +239,10 @@ replace_once(device_params_mode,
 """,
     "Defer native ROW2-UP until the chain cursor is published")
 
-# Preserve DrivenByMoss' native DeviceParamsMode.moveUp() behavior for ROW2-UP.
-# The upstream implementation owns chooser exit, parameter-bank/device-list
-# stepping, and the final return to the track. Keep its timing, but do not let
-# the delayed completion steal focus after the user has switched to another mode.
+# Preserve the native hierarchy decisions, but finish ROW2-UP on cursor
+# publication rather than imposing DrivenByMoss' fixed 300 ms sleep. The
+# command owner observes the cursor name and keeps an 8 ms bounded fallback
+# for hosts that do not notify observers reliably.
 replace_once(device_params_mode,
     """            cd.selectParent ();
             this.model.getHost ().scheduleTask ( () -> {
@@ -253,18 +253,10 @@ replace_once(device_params_mode,
                 deviceParamsMode.setShowDevices (false);
                 cd.selectChannel ();
             }, 300);""",
-    """            cd.selectParent ();
-            this.model.getHost ().scheduleTask ( () -> {
-                if (!modeManager.isActive (Modes.DEVICE_PARAMS))
-                    return;
-                if (cd.hasLayers ())
-                    modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
-                else
-                    modeManager.setActive (Modes.DEVICE_PARAMS);
-                deviceParamsMode.setShowDevices (false);
-                cd.selectChannel ();
-            }, 300);""",
-    "Cancel native parent completion when the user has switched modes")
+    """            de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.beginParentReturn (
+                deviceParamsMode, this.model, this.surface);
+            cd.selectParent ();""",
+    "Replace fixed 300 ms parent return with cursor-publication completion")
 
 replace_once(device_params_mode,
     """            if (cd.getIndex () != index)
