@@ -33,16 +33,20 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
     private static final class PendingParentReturn
     {
+        private final String childId;
         private final String childName;
+        private final boolean childWasNested;
         private WeakReference<DeviceParamsMode> mode;
         private WeakReference<PushControlSurface> surface;
         private int polls;
         private boolean scheduled;
 
-        private PendingParentReturn (final String childName, final DeviceParamsMode mode,
+        private PendingParentReturn (final ICursorDevice cursor, final DeviceParamsMode mode,
             final PushControlSurface surface)
         {
-            this.childName = childName;
+            this.childId = cursor.getID ();
+            this.childName = cursor.getName ();
+            this.childWasNested = cursor.isNested ();
             this.mode = new WeakReference<> (mode);
             this.surface = new WeakReference<> (surface);
         }
@@ -232,7 +236,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final ICursorDevice cursor = model.getCursorDevice ();
         if (!cursor.doesExist ())
             return;
-        final PendingParentReturn pending = new PendingParentReturn (cursor.getName (), mode, surface);
+        final PendingParentReturn pending = new PendingParentReturn (cursor, mode, surface);
         PENDING_PARENT_RETURN.put (model, pending);
         scheduleParentReturnProbe (model, pending);
     }
@@ -252,11 +256,16 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         }
 
         final ICursorDevice cursor = model.getCursorDevice ();
+        final String currentId = cursor.getID ();
         final String currentName = cursor.getName ();
-        // The API 17 cursor exposes no parent-change observer or stable cursor
-        // identity when getID() is empty. A changed name is the positive signal;
-        // same-name transitions stay fail-closed and use the bounded fallback.
-        if (!cursor.doesExist () || currentName == null || currentName.equals (pending.childName))
+        final boolean idChanged = pending.childId != null && !pending.childId.isEmpty ()
+            && currentId != null && !currentId.isEmpty () && !pending.childId.equals (currentId);
+        final boolean nameChanged = currentName != null && !currentName.equals (pending.childName);
+        final boolean returnedToRoot = pending.childWasNested && !cursor.isNested ();
+        // API 17 has no parent-change observer. Prefer stable ID, then name,
+        // then the nested -> root transition; ambiguous nested same-name
+        // transitions remain fail-closed and use the bounded fallback.
+        if (!cursor.doesExist () || !(idChanged || nameChanged || returnedToRoot))
             return false;
 
         PENDING_PARENT_RETURN.remove (model);
