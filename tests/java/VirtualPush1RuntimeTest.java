@@ -3634,6 +3634,30 @@ public final class VirtualPush1RuntimeTest
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Late host callback replayed a ROW1 intent after its bounded timeout");
 
+        // Native OUT/ROW2-UP cancels a dependent ROW1 intent before leaving
+        // the hierarchy. The delayed IN callback must not replay that intent.
+        state.scheduled.clear ();
+        virtualCursorCallbackDelayMillis = 150;
+        virtualCursorDeviceNested = false;
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceName = "Out Cancellation Parent";
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (true);
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        final long outCancelStart = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, outCancelStart,
+            VirtualPush1Device.IN, "IN before OUT cancellation", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, outCancelStart + 10,
+            VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 before OUT cancellation", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, outCancelStart + 20,
+            VirtualPush1Device.OUT, "OUT cancels pending ROW1", new java.util.ArrayList<> ());
+        require (surface.getModeManager ().isActive (Modes.TRACK),
+            "Native OUT did not immediately leave Device Params during pending chain entry");
+        advanceNavigationClock (state, outCancelStart + 700);
+        require (surface.getModeManager ().isActive (Modes.TRACK)
+                && virtualCursorDeviceNested && deviceIndex == 0,
+            "Late chain publication replayed ROW1 after native OUT cancelled the intent");
+
         // A pending chain callback must never block an unrelated mode change.
         state.scheduled.clear ();
         virtualCursorCallbackDelayMillis = 150;
