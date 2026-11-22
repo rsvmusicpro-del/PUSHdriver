@@ -851,10 +851,14 @@ public final class VirtualPush1RuntimeTest
             "ROW2 Up incorrectly skipped the native chooser-exit step and selected a parent");
         require (virtualCursorDeviceNested, "ROW2 Up changed the cursor while leaving Device Chains");
 
-        // Continue the native DrivenByMoss moveUp hierarchy. The next press
-        // leaves the nested child, waits for the host cursor update, and shows
-        // the parent's parameter banks. The following press restores device
-        // selectors; the final press returns to the track mode.
+        // Continue the native DrivenByMoss moveUp hierarchy. Since the
+        // parent-return action previously exposed parameter banks, first
+        // restore device selectors, then leave the nested child, restore the
+        // selectors again, and finally return to the track mode.
+        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
+            "ROW2 Up restores device selectors before leaving the nested child");
+        require (deviceParamsMode.isShowDevices (),
+            "ROW2 Up did not restore device selectors from parameter banks");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
             "ROW2 Up leaves the nested child device");
