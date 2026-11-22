@@ -160,6 +160,15 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertIn("completePendingIfReady", command)
         self.assertIn("CHAIN_CURSOR_POLL_MS = 8", command)
         self.assertIn("CHAIN_CURSOR_MAX_POLLS = 75", command)
+        self.assertIn("beginParentReturn", command)
+        self.assertIn("PendingParentReturn", command)
+        self.assertIn("completeParentReturnIfReady", command)
+        self.assertIn("scheduleParentReturnProbe", command)
+        self.assertIn("returnedToRoot", command)
+
+        self.assertIn("PageLeftCommand.beginParentReturn", patch)
+        self.assertNotIn("}, 300);", patch)
+        self.assertIn("cursor.selectParent ();", patch)
 
     def test_all_build_and_validation_scripts_compile(self):
         root = Path(__file__).resolve().parents[2]
