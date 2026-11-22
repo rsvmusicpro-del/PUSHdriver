@@ -281,22 +281,10 @@ replace_once(device_params_mode,
                 if (targetDevice == null || !targetDevice.doesExist ())
                     return;
 
-                if (cd.isNested ())
-                {
-                    final int currentIndex = cd.getIndex ();
-                    if (index > currentIndex)
-                    {
-                        for (int i = currentIndex; i < index && cd.canSelectNext (); i++)
-                            cd.selectNext ();
-                    }
-                    else
-                    {
-                        for (int i = currentIndex; i > index && cd.canSelectPrevious (); i--)
-                            cd.selectPrevious ();
-                    }
-                }
-                else
-                    targetDevice.select ();
+                // DeviceBank exposes the exact sibling, including nested chain
+                // children. Select it directly instead of issuing up to seven
+                // relative cursor commands.
+                targetDevice.select ();
                 return;
             }
 """,
