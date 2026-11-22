@@ -12,13 +12,12 @@ class ContractMutationTests(unittest.TestCase):
     def setUp(self):
         self.contract = [
             'this.addButton (ButtonID.PAGE_LEFT, "In" this.addButton (ButtonID.PAGE_RIGHT, "Out"',
-            "PushDeviceNavigation.enterFirstSlotChain",
-            "PushDeviceNavigation.exitParent",
+            "Capability.HAS_SLOT_CHAINS cursorDevice.selectSlotChain (slotChains[0])",
+            "deviceParamsMode.onSecondRow (7, ButtonEvent.DOWN) Modes.DEVICE_CHAINS",
             "PUSH_BUTTON_DEVICE_LEFT = 62; PUSH_BUTTON_DEVICE_RIGHT = 63;",
             "public static final int IN = 62; public static final int OUT = 63;",
             "In (CC 62) enters the first available slot chain; Out (CC 63) returns to its parent device",
             'requireAction ("device.selectSlotChain:Chain 1", "In (CC 62)"); requireAction ("cursorDevice.selectParent", "Out (CC 63)"); "cursorDevice.selectNext"; "cursorDevice.selectPrevious"; contentTypeIndex () == inOutContentBefore + 1 contentTypeIndex () == inOutContentBefore',
-            "cursor.selectSlotChain(selected) cursor.selectParent()",
         ]
 
     def test_each_single_contract_mutation_is_detected(self):
@@ -30,7 +29,6 @@ class ContractMutationTests(unittest.TestCase):
             (4, "public static final int IN = 63; public static final int OUT = 62;"),
             (5, "In (CC 62) selects next; Out (CC 63) selects previous"),
             (6, 'requireAction ("device.selectNextItem", "In (CC 62)")'),
-            (7, "cursor.selectNextItem() cursor.selectPreviousItem()"),
         ]
         for index, mutant in mutations:
             with self.subTest(index=index):

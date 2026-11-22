@@ -16,7 +16,7 @@ import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
 
-/** Push 1 Out control: return to the parent device in the current chain. */
+/** Push 1 Out control: leave the current device hierarchy. */
 public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface, PushConfiguration>
 {
     public PageRightCommand (final IModel model, final PushControlSurface surface)
@@ -40,20 +40,15 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
             return;
         }
 
-        if (modeManager.isActive (Modes.DEVICE_CHAINS))
-            return;
-
-        if (modeManager.isActive (Modes.DEVICE_PARAMS))
+        if (modeManager.isActive (Modes.DEVICE_CHAINS) || modeManager.isActive (Modes.DEVICE_PARAMS))
         {
             if (event == ButtonEvent.DOWN)
             {
-                final var cursorDevice = this.model.getCursorDevice ();
-                if (cursorDevice.doesExist () && (cursorDevice.isNested () || PushDeviceNavigation.isEntering (this.surface, this.model)))
-                {
-                    if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
-                        deviceParamsMode.setShowDevices (true);
-                    PushDeviceNavigation.exitParent (this.surface, this.model);
-                }
+                // Reuse DrivenByMoss' own ROW2-UP state machine. It exits the
+                // Chains chooser, unwinds one hierarchy level, and finally
+                // returns to Track using the upstream timing and mode rules.
+                final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
+                deviceParamsMode.onSecondRow (7, ButtonEvent.DOWN);
             }
             return;
         }

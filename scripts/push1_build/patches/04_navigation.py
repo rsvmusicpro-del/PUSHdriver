@@ -30,7 +30,7 @@ replace_once(setup,
                 if (!cursorDevice.doesExist () || !this.model.getHost ().supports (Capability.HAS_SLOT_CHAINS))
                     return false;
                 final String [] chains = cursorDevice.getSlotChains ();
-                return chains != null && chains.length > 0 && !PushDeviceNavigation.isBusy (surface);
+                return chains != null && chains.length > 0;
             }
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
                 return activeMode.hasNextItemPage ();
@@ -46,11 +46,11 @@ replace_once(setup,
             if (modeManager.isActive (Modes.BROWSER) && activeMode != null)
                 return activeMode.hasPreviousItemPage ();
             if (modeManager.isActive (Modes.DEVICE_CHAINS))
-                return false;
+                return true;
             if (modeManager.isActive (Modes.DEVICE_PARAMS))
             {
                 final var cursorDevice = this.model.getCursorDevice ();
-                return cursorDevice.doesExist () && (cursorDevice.isNested () || PushDeviceNavigation.isEntering (surface));
+                return cursorDevice.doesExist () && cursorDevice.isNested ();
             }
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
                 return activeMode.hasPreviousItemPage ();
@@ -65,6 +65,27 @@ browser_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode
 # Bitwig's Browser banks can temporarily expose fewer than sixteen items while
 # filters/results refresh. The upstream Ableton renderer indexes a fixed 4x4
 # page, so bound every access against the current API bank before reading it.
+# Browser selection is already protected by the physical encoder-touch gate and
+# by the single-touched-encoder rule above. Do not apply BaseMode's coarse
+# every-eighth-detent limiter here: it drops seven deliberate navigation steps.
+replace_once(browser_mode,
+    """    public void onKnobValue (final int index, final int value)
+    {
+        if (!this.isKnobTouched (index))
+            return;
+
+        if (this.increaseKnobMovement ())
+            this.changeValue (index, value);
+    }""",
+    """    public void onKnobValue (final int index, final int value)
+    {
+        if (!this.isKnobTouched (index))
+            return;
+
+        this.changeValue (index, value);
+    }""",
+    "Push 1 Browser preserves every touched encoder navigation detent")
+
 replace_once(browser_mode,
     """                final IBrowserColumnItem [] items = browser.getFilterColumn (this.filterColumn).getItems ();
                 for (int i = 0; i < 16; i++)
@@ -179,9 +200,72 @@ replace_once(browser_mode,
     "items[item] = pos < results.length && results[pos] != null && results[pos].doesExist () ? results[pos].getName (14) : \"\";\n                        selected[item] = pos < results.length && results[pos] != null && results[pos].doesExist () && results[pos].isSelected ();",
     "Push 1 Browser graphic result item guard")
 
-# Keep DeviceParamsMode upstream-owned. Route nested ROW1 through the
-# callback-aware helper; root-device selection remains upstream-owned.
+# Keep DeviceParamsMode upstream-owned. Restore immediate sibling-cursor
+# traversal for nested ROW1 selection; never wait for each individual step.
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
+
+# Defer only the dependent ROW1 gesture through the existing command owner.
+# Keep the pinned DeviceParamsMode public/protected method inventory unchanged.
+replace_once(device_params_mode,
+    """        if (event == ButtonEvent.UP)
+        {
+            final ICursorDevice cd = this.model.getCursorDevice ();
+            if (!cd.doesExist ())
+                return;
+""",
+    """        if (event == ButtonEvent.UP)
+        {
+            if (de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.deferRow1Selection (
+                    this, this.model, this.surface, index))
+                return;
+            final ICursorDevice cd = this.model.getCursorDevice ();
+            if (!cd.doesExist ())
+                return;
+""",
+    "Defer only ROW1 gestures dependent on an unpublished chain cursor")
+
+replace_once(device_params_mode,
+    """    protected void moveUp ()
+    {
+        final ModeManager modeManager = this.surface.getModeManager ();
+""",
+    """    protected void moveUp ()
+    {
+        final ModeManager modeManager = this.surface.getModeManager ();
+        final DeviceParamsMode pendingMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
+        if (de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.deferOutUntilChainCursor (
+                pendingMode, this.model, this.surface))
+            return;
+""",
+    "Defer native ROW2-UP until the chain cursor is published")
+
+# Preserve DrivenByMoss' native DeviceParamsMode.moveUp() behavior for ROW2-UP.
+# The upstream implementation owns chooser exit, parameter-bank/device-list
+# stepping, and the final return to the track. Keep its timing, but do not let
+# the delayed completion steal focus after the user has switched to another mode.
+replace_once(device_params_mode,
+    """            cd.selectParent ();
+            this.model.getHost ().scheduleTask ( () -> {
+                if (cd.hasLayers ())
+                    modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
+                else
+                    modeManager.setActive (Modes.DEVICE_PARAMS);
+                deviceParamsMode.setShowDevices (false);
+                cd.selectChannel ();
+            }, 300);""",
+    """            cd.selectParent ();
+            this.model.getHost ().scheduleTask ( () -> {
+                if (!modeManager.isActive (Modes.DEVICE_PARAMS))
+                    return;
+                if (cd.hasLayers ())
+                    modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
+                else
+                    modeManager.setActive (Modes.DEVICE_PARAMS);
+                deviceParamsMode.setShowDevices (false);
+                cd.selectChannel ();
+            }, 300);""",
+    "Cancel native parent completion when the user has switched modes")
+
 replace_once(device_params_mode,
     """            if (cd.getIndex () != index)
             {
@@ -189,40 +273,34 @@ replace_once(device_params_mode,
                 return;
             }
 """,
-    """            // The navigation queue can outlive this method while Bitwig updates
-            // its cursor asynchronously. Keep the callback from retaining this
-            // mode (and therefore the surface/model) through the queue's weak key.
-            final java.lang.ref.WeakReference<DeviceParamsMode> modeReference =
-                new java.lang.ref.WeakReference<> (this);
-            if (de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.selectRow (this.surface, this.model, index, () -> {
-                final DeviceParamsMode mode = modeReference.get ();
-                if (mode == null || mode.surface.getModeManager ().getActive () != mode)
-                    return;
-                final var currentDevice = mode.model.getCursorDevice ();
-                if (!currentDevice.doesExist ())
-                    return;
-                if (!currentDevice.hasLayers ())
-                {
-                    mode.setShowDevices (false);
-                    return;
-                }
-                final Optional<?> layer = currentDevice.getLayerBank ().getSelectedItem ();
-                if (layer.isEmpty ())
-                    currentDevice.getLayerBank ().getItem (0).select ();
-                mode.surface.getModeManager ().setActive (mode.surface.getConfiguration ().getCurrentLayerMixMode ());
-            }))
-                return;
-
-            if (cd.getIndex () != index)
+    """            if (cd.getIndex () != index)
             {
+                // A ROW1 position is selectable only when the corresponding
+                // sibling exists. Never clamp an unavailable button to another device.
                 final var targetDevice = cd.getDeviceBank ().getItem (index);
                 if (targetDevice == null || !targetDevice.doesExist ())
                     return;
-                targetDevice.select ();
+
+                if (cd.isNested ())
+                {
+                    final int currentIndex = cd.getIndex ();
+                    if (index > currentIndex)
+                    {
+                        for (int i = currentIndex; i < index && cd.canSelectNext (); i++)
+                            cd.selectNext ();
+                    }
+                    else
+                    {
+                        for (int i = currentIndex; i > index && cd.canSelectPrevious (); i--)
+                            cd.selectPrevious ();
+                    }
+                }
+                else
+                    targetDevice.select ();
                 return;
             }
 """,
-    "Push 1 nested Device ROW1 cursor selection")
+    "Push 1 immediate nested Device ROW1 cursor selection")
 
 # Selecting a chain returns to Device mode with the device selector visible,
 # even if the Banks action had previously switched ROW1 to parameter pages.
@@ -271,21 +349,31 @@ replace_once(device_chains_mode,
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
             return;
 """,
-    """            ((DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS)).setShowDevices (true);
-            de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation.selectSlotChain (this.surface, this.model, slotChains[index]);
+    """            final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS);
+            deviceParamsMode.setShowDevices (true);
+            de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.prepareSlotChainSelection (
+                deviceParamsMode, this.model, this.surface, slotChains[index]);
+            // Match DrivenByMoss: issue the chain selection and mode change
+            // immediately; only a dependent ROW1 intent waits for cursor publication.
+            cd.selectSlotChain (slotChains[index]);
             this.surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
             return;
 """,
-    "Restore Device selector after choosing a chain")
+    "Direct Device Chains entry without deferred navigation")
+
+# No general navigation queue or input interception is injected. Only a
+# dependent ROW1/OUT intent waits for cursor publication; unrelated gestures
+# continue to reach the active DrivenByMoss mode immediately.
 
 # Keep the physical Push 1 New button on its native dedicated binding, while
 # stopping the cursor track's current clip before preparing its next note clip.
 replace_once(setup,
     "import de.mossgrabers.framework.command.trigger.clip.NewCommand;\n",
-    "import de.mossgrabers.controller.ableton.push.command.trigger.PushNewCommand;\nimport de.mossgrabers.controller.ableton.push.command.trigger.PushDeviceNavigation;\n",
+    "import de.mossgrabers.controller.ableton.push.command.trigger.PushNewCommand;\n",
     "Push 1 New command import")
 replace_once(setup,
     "new NewCommand<> (this.model, surface)",
     "new PushNewCommand (this.model, surface)",
     "Push 1 New command binding")
+
 

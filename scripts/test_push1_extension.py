@@ -36,7 +36,6 @@ test_sources = (
     root / "tests/java/VirtualPush1DisplayTextTest.java",
     root / "tests/java/VirtualPush1RuntimeTest.java",
     root / "tests/java/SequencerEngineTest.java",
-    root / "tests/java/de/mossgrabers/controller/ableton/push/command/trigger/PushDeviceNavigationFingerprintTest.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/engine/Push1PadGrid.java",
     root / "tests/java/VirtualPush1Simulator.java",
     root / "tests/java/VirtualPush1DisplaySnapshots.java",
