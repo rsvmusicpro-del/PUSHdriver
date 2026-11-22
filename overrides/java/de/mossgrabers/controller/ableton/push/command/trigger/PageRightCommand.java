@@ -33,6 +33,21 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
         final var modeManager = this.surface.getModeManager ();
         final IMode activeMode = modeManager.getActive ();
 
+        // Out is an escape action: a nested cursor takes precedence over page
+        // navigation in the currently displayed view or mode.
+        if (event == ButtonEvent.DOWN)
+        {
+            final var cursorDevice = this.model.getCursorDevice ();
+            if (cursorDevice.doesExist ()
+                && (cursorDevice.isNested () || PushDeviceNavigation.isEntering (this.surface, this.model)))
+            {
+                if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
+                    deviceParamsMode.setShowDevices (true);
+                PushDeviceNavigation.exitParent (this.surface, this.model);
+                return;
+            }
+        }
+
         if (modeManager.isActive (Modes.BROWSER))
         {
             if (event == ButtonEvent.DOWN && activeMode != null)
@@ -49,19 +64,8 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
 
         if (deviceNavigationMode)
         {
-            if (event == ButtonEvent.DOWN)
-            {
-                final var cursorDevice = this.model.getCursorDevice ();
-                if (cursorDevice.doesExist ()
-                    && (cursorDevice.isNested () || PushDeviceNavigation.isEntering (this.surface, this.model)))
-                {
-                    if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
-                        deviceParamsMode.setShowDevices (true);
-                    PushDeviceNavigation.exitParent (this.surface, this.model);
-                }
-                else if (activeMode != null && !modeManager.isActive (Modes.DEVICE_CHAINS))
-                    activeMode.selectPreviousItemPage ();
-            }
+            if (event == ButtonEvent.DOWN && activeMode != null && !modeManager.isActive (Modes.DEVICE_CHAINS))
+                activeMode.selectPreviousItemPage ();
             return;
         }
 
