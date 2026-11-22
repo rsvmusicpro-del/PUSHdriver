@@ -3682,8 +3682,8 @@ public final class VirtualPush1RuntimeTest
         require (surface.getModeManager ().isActive (Modes.TRACK),
             "Pending chain callback blocked immediate TRACK mode activation");
         advanceNavigationClock (state, independentStart + 151);
-        require (surface.getModeManager ().isActive (Modes.TRACK),
-            "Late chain cursor publication stole focus from TRACK");
+        require (surface.getModeManager ().isActive (Modes.TRACK) && deviceIndex == 0,
+            "Late chain cursor publication replayed ROW1 or stole focus from TRACK");
 
         virtualCursorCallbackDelayMillis = 73;
         state.scheduled.clear ();
