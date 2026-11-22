@@ -303,6 +303,10 @@ replace_java_method(page_right,
         if (event == ButtonEvent.DOWN)
         {
             final var cursorDevice = this.model.getCursorDevice ();
+            this.model.getHost ().println ("PUSH_OUT_TRACE active=" + this.surface.getModeManager ().getActiveID ()
+                + " exists=" + cursorDevice.doesExist () + " nested=" + cursorDevice.isNested ()
+                + " entering=" + PushDeviceNavigation.isEntering (this.surface)
+                + " busy=" + PushDeviceNavigation.isBusy (this.surface));
             if (cursorDevice.doesExist ()
                 && (cursorDevice.isNested () || PushDeviceNavigation.isEntering (this.surface)))
             {
