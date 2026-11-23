@@ -1011,8 +1011,8 @@ public final class VirtualPush1RuntimeTest
         require (virtualCursorDeviceNested && !deviceParamsMode.isShowDevices (),
             "Same-name nested parent return did not restore the parent parameter view");
 
-        // When even the visible sibling bank is identical, retain the
-        // original DrivenByMoss 300 ms completion as the last-resort signal.
+        // When the parent and child expose identical nesting, position and
+        // index, API 17 provides no authoritative identity signal. Fail closed.
         virtualSameNameParentAfterSelect = true;
         virtualParentNestedAfterSelect = true;
         virtualParentHasLayersAfterSelect = false;
@@ -1029,12 +1029,11 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         final long indistinguishableParentStart = state.virtualTimeMillis;
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "OUT to indistinguishable nested parent");
-        advanceNavigationClock (state, indistinguishableParentStart + 350);
-        requireAction ("cursorDevice.selectChannel",
-            "Indistinguishable nested parent return did not use the native 300 ms fallback");
-        require (state.virtualTimeMillis - indistinguishableParentStart >= 300
-                && virtualCursorDeviceNested && !deviceParamsMode.isShowDevices (),
-            "Native fallback did not finalize the indistinguishable nested parent after its bounded wait");
+        advanceNavigationClock (state, indistinguishableParentStart + 700);
+        require (!MODEL_ACTIONS.contains ("cursorDevice.selectChannel"),
+            "Indistinguishable nested parent return finalized without cursor identity evidence");
+        require (virtualCursorDeviceNested && deviceParamsMode.isShowDevices (),
+            "Fail-closed parent return changed mode state without cursor identity evidence");
 
         virtualSameNameParentAfterSelect = false;
         virtualParentNestedAfterSelect = false;
@@ -2900,6 +2899,7 @@ public final class VirtualPush1RuntimeTest
     private static ICursorDevice cursorDeviceProxy (final IParameterBank parameters, final State state)
     {
         final List<IValueObserver<String>> cursorNameObservers = new ArrayList<> ();
+        final List<IValueObserver<Integer>> cursorPositionObservers = new ArrayList<> ();
         final IDeviceBank devices = (IDeviceBank) Proxy.newProxyInstance (
             IDeviceBank.class.getClassLoader (), new Class<?> [] { IDeviceBank.class },
             (proxy, method, args) -> {
@@ -2986,6 +2986,9 @@ public final class VirtualPush1RuntimeTest
                     case "removeNameObserver":
                         cursorNameObservers.remove (args[0]);
                         return null;
+                    case "addPositionObserver":
+                        cursorPositionObservers.add ((IValueObserver<Integer>) args[0]);
+                        return null;
                     case "doesExist": return Boolean.valueOf (cursorDeviceExists);
                     case "getIndex": return Integer.valueOf (deviceIndex);
                     case "getPosition": return Integer.valueOf (virtualCursorDevicePosition);
@@ -3019,9 +3022,13 @@ public final class VirtualPush1RuntimeTest
                                 MODEL_ACTIONS.add ("cursorDevice.parentCallback");
                                 virtualCursorDeviceName = virtualSameNameParentAfterSelect ? childCursorName
                                     : virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
-                                virtualCursorDevicePosition = 0;
-                                deviceIndex = 0;
+                                final int previousPosition = virtualCursorDevicePosition;
+                                virtualCursorDevicePosition = virtualSameNameParentAfterSelect && virtualParentNestedAfterSelect ? 1 : 0;
+                                deviceIndex = virtualCursorDevicePosition;
                                 virtualCursorDeviceNested = virtualParentNestedAfterSelect;
+                                if (previousPosition != virtualCursorDevicePosition)
+                                    for (final IValueObserver<Integer> observer : cursorPositionObservers)
+                                        observer.update (Integer.valueOf (virtualCursorDevicePosition));
                                 virtualCursorDeviceHasLayers = virtualParentHasLayersAfterSelect;
                                 virtualDeviceBankNames = virtualParentNestedAfterSelect
                                     ? new String [] { "Nested sibling 0", "Nested sibling 1", "Nested sibling 2", "Nested sibling 3", "Nested sibling 4", "Nested sibling 5", "Nested sibling 6", "Nested sibling 7" }
@@ -3061,9 +3068,13 @@ public final class VirtualPush1RuntimeTest
                                     ? parentCursorName : "Slot " + args[0] + " child 0";
                                 final boolean nameChanged = !nextCursorName.equals (virtualCursorDeviceName);
                                 virtualCursorDeviceName = nextCursorName;
+                                final int previousPosition = virtualCursorDevicePosition;
                                 virtualCursorDevicePosition = 0;
                                 deviceIndex = 0;
                                 virtualCursorDeviceNested = true;
+                                if (previousPosition != virtualCursorDevicePosition)
+                                    for (final IValueObserver<Integer> observer : cursorPositionObservers)
+                                        observer.update (Integer.valueOf (virtualCursorDevicePosition));
                                 virtualDeviceBankNames = new String [] {
                                     "Slot " + args[0] + " child 0", "Slot " + args[0] + " child 1",
                                     "Slot " + args[0] + " child 2", "Slot " + args[0] + " child 3",
