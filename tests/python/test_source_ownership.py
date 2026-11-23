@@ -173,8 +173,11 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertIn("queuedUpCount", command)
         self.assertIn("replayQueuedOut", command)
         self.assertIn("childFingerprint", command)
-        self.assertIn("scheduleParentReturnFallback", command)
-        self.assertIn("completeParentReturnUsingNativeFallback", command)
+        self.assertNotIn("scheduleParentReturnFallback", command)
+        self.assertNotIn("completeParentReturnUsingNativeFallback", command)
+        self.assertIn("prepareLayerEntry", command)
+        self.assertIn("pending.requireNested", command)
+        self.assertNotIn("cursor.getName ()).append", command)
 
         page_right = (root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PageRightCommand.java").read_text(encoding="utf-8")
         self.assertIn("DeviceLayerMode", page_right)
@@ -183,6 +186,7 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertIn('"    public void moveUp ()"', patch)
 
         self.assertIn("PageLeftCommand.beginParentReturn", patch)
+        self.assertIn("PageLeftCommand.prepareLayerEntry", patch)
         parent_return_patch = patch.split('"Replace fixed 300 ms parent return', 1)[1]
         self.assertNotIn("}, 300);", parent_return_patch)
         self.assertIn("cd.selectParent ();", patch)
