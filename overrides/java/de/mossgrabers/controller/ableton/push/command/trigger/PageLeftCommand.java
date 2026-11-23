@@ -92,8 +92,8 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
     /**
      * Remember the current cursor before a direct slot-chain selection.
-     * The cursor-name observer completes dependent gestures immediately; the
-     * bounded probe is armed only if a ROW1/OUT gesture arrives before publication.
+     * Name/position observers complete dependent gestures immediately; the
+     * bounded probe is armed only when a dependent gesture arrives before publication.
      */
     public static void prepareSlotChainSelection (final DeviceParamsMode mode, final IModel model,
         final PushControlSurface surface, final String chain)
@@ -130,7 +130,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     }
 
 
-    /** Defer IN until an already-issued parent return has published its cursor. */
+    /** Defer IN until any already-issued cursor transition has published. */
     public static boolean deferInUntilParentReturn (final DeviceParamsMode mode, final IModel model,
         final PushControlSurface surface)
     {
@@ -167,7 +167,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     }
 
 
-    /** Defer a Chains-chooser selection until an in-flight parent return completes. */
+    /** Defer a Chains-chooser selection until its source cursor is known. */
     public static boolean deferChainSelectionUntilParentReturn (final DeviceParamsMode mode,
         final IModel model, final PushControlSurface surface, final String chain)
     {
@@ -295,8 +295,8 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (pending.parentId != null && !pending.parentId.isEmpty () && id != null && !id.isEmpty ()
                 && !pending.parentId.equals (id))
             return true;
-        // API 17 exposes no cursor ID. The visible sibling-bank fingerprint
-        // distinguishes same-name nested parents from their chain children.
+        // API 17 exposes no cursor ID. Position/index are the remaining
+        // structural signals; ambiguous transitions remain pending and fail closed.
         final String currentFingerprint = cursorFingerprint (model);
         return currentFingerprint != null && !currentFingerprint.equals (pending.parentFingerprint);
     }
@@ -319,7 +319,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     }
 
 
-    private static void ensureCursorNameObserver (final IModel model)
+    private static void ensureCursorIdentityObservers (final IModel model)
     {
         if (OBSERVED_MODELS.containsKey (model))
             return;
@@ -606,7 +606,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         super (model, surface);
         // One observer per model serves all Push surfaces. It holds only a
         // weak model reference; pending surface state is weak as well.
-        ensureCursorNameObserver (this.model);
+        ensureCursorIdentityObservers (this.model);
     }
 
 
