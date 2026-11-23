@@ -278,9 +278,9 @@ replace_once(poly_sequencer,
 source = poly_sequencer.read_text()
 old = """                if (hilite)
                     return COLOR_STEP_HILITE_CONTENT;
-                if (isChordEdit (channel, step, editNotes, stepInfo))
+                if (isChordEdit (channel, step, editNotes))
                     return COLOR_STEP_SELECTED;"""
-new = """                if (isChordEdit (channel, step, editNotes))
+new = """                if (isChordEdit (channel, step, editNotes, stepInfo))
                     return COLOR_STEP_SELECTED;
                 if (hilite)
                     return COLOR_STEP_HILITE_CONTENT;"""
