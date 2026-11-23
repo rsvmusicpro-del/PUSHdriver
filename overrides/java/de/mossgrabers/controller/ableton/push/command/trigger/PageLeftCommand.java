@@ -24,145 +24,34 @@ import java.util.WeakHashMap;
 /** Push 1 In control: enter the first available device slot chain. */
 public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, PushConfiguration>
 {
-    private static final int CHAIN_CURSOR_POLL_MS = 8;
-    private static final int CHAIN_CURSOR_MAX_POLLS = 75;
-    private static final Map<DeviceParamsMode, PendingRow1Selection> PENDING_ROW1 = new WeakHashMap<> ();
+    private static final Map<PushControlSurface, Long> MODE_GENERATIONS = new WeakHashMap<> ();
 
-    private static final class PendingRow1Selection
+
+    /** Return the current activation generation for delayed native UI completions. */
+    public static long getModeGeneration (final PushControlSurface surface)
     {
-        private final String parentId;
-        private final String parentName;
-        private int targetIndex = -1;
-        private boolean returnToParent;
-        private int polls;
-        private boolean scheduled;
-
-        private PendingRow1Selection (final ICursorDevice cursor)
-        {
-            this.parentId = cursor.getID ();
-            this.parentName = cursor.getName ();
-        }
+        return MODE_GENERATIONS.getOrDefault (surface, 0L);
     }
 
 
-    /**
-     * Remember the current cursor before a direct slot-chain selection.
-     * Polling remains dormant unless a dependent ROW1 gesture arrives.
-     */
-    public static void prepareSlotChainSelection (final DeviceParamsMode mode, final IModel model,
-        final PushControlSurface surface, final String chain)
+    /** Register one weak mode observer per surface to invalidate stale UI callbacks. */
+    private static void ensureModeChangeObserver (final PushControlSurface surface)
     {
-        if (mode == null)
+        if (MODE_GENERATIONS.containsKey (surface))
             return;
-        PENDING_ROW1.remove (mode);
-        if (chain == null || chain.isBlank ())
-            return;
-        final ICursorDevice cursor = model.getCursorDevice ();
-        if (!cursor.doesExist ())
-            return;
-        PENDING_ROW1.put (mode, new PendingRow1Selection (cursor));
-    }
-
-
-    /** Return true when ROW1 must wait for the new nested cursor. */
-    public static boolean deferRow1Selection (final DeviceParamsMode mode, final IModel model,
-        final PushControlSurface surface, final int index)
-    {
-        final PendingRow1Selection pending = PENDING_ROW1.get (mode);
-        if (pending == null)
-            return false;
-        if (isPublishedChainCursor (model, pending))
-        {
-            PENDING_ROW1.remove (mode);
-            return false;
-        }
-        pending.targetIndex = index;
-        pending.returnToParent = false;
-        if (!pending.scheduled)
-        {
-            pending.scheduled = true;
-            scheduleChainCursorProbe (mode, model, surface, pending);
-        }
-        return true;
-    }
-
-
-    /** Defer native OUT/ROW2-UP until the just-requested chain cursor is available. */
-    public static boolean deferOutUntilChainCursor (final DeviceParamsMode mode, final IModel model,
-        final PushControlSurface surface)
-    {
-        // The Chains chooser has its own immediate native Up/exit behavior.
-        if (!surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
-            return false;
-        final PendingRow1Selection pending = PENDING_ROW1.get (mode);
-        if (pending == null)
-            return false;
-        if (isPublishedChainCursor (model, pending))
-        {
-            PENDING_ROW1.remove (mode);
-            return false;
-        }
-        pending.targetIndex = -1;
-        pending.returnToParent = true;
-        if (!pending.scheduled)
-        {
-            pending.scheduled = true;
-            scheduleChainCursorProbe (mode, model, surface, pending);
-        }
-        return true;
-    }
-
-
-    private static boolean isPublishedChainCursor (final IModel model, final PendingRow1Selection pending)
-    {
-        final ICursorDevice cursor = model.getCursorDevice ();
-        if (!cursor.doesExist () || !cursor.isNested ())
-            return false;
-        final String id = cursor.getID ();
-        if (pending.parentId != null && !pending.parentId.isEmpty () && id != null && !id.isEmpty ()
-                && !pending.parentId.equals (id))
-            return true;
-        final String name = cursor.getName ();
-        return name != null && !name.equals (pending.parentName);
-    }
-
-
-    private static void scheduleChainCursorProbe (final DeviceParamsMode mode, final IModel model,
-        final PushControlSurface surface, final PendingRow1Selection pending)
-    {
-        model.getHost ().scheduleTask (() -> {
-            if (PENDING_ROW1.get (mode) != pending)
-                return;
-            pending.scheduled = false;
-            if (!surface.getModeManager ().isActive (Modes.DEVICE_PARAMS))
-            {
-                PENDING_ROW1.remove (mode);
-                return;
-            }
-            if (isPublishedChainCursor (model, pending))
-            {
-                final int target = pending.targetIndex;
-                final boolean returnToParent = pending.returnToParent;
-                PENDING_ROW1.remove (mode);
-                if (returnToParent)
-                    mode.onSecondRow (7, ButtonEvent.DOWN);
-                else if (target >= 0)
-                    mode.onFirstRow (target, ButtonEvent.UP);
-                return;
-            }
-            if (++pending.polls >= CHAIN_CURSOR_MAX_POLLS)
-            {
-                PENDING_ROW1.remove (mode);
-                return;
-            }
-            pending.scheduled = true;
-            scheduleChainCursorProbe (mode, model, surface, pending);
-        }, CHAIN_CURSOR_POLL_MS);
+        MODE_GENERATIONS.put (surface, 0L);
+        final java.lang.ref.WeakReference<PushControlSurface> reference = new java.lang.ref.WeakReference<> (surface);
+        surface.getModeManager ().addChangeListener ( (previousID, activeID) -> {
+            final PushControlSurface observed = reference.get ();
+            if (observed != null)
+                MODE_GENERATIONS.put (observed, MODE_GENERATIONS.getOrDefault (observed, 0L) + 1L);
+        });
     }
 
     public PageLeftCommand (final IModel model, final PushControlSurface surface)
     {
         super (model, surface);
+        ensureModeChangeObserver (surface);
     }
 
 
@@ -198,10 +87,9 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
                     if (activeMode instanceof final DeviceParamsMode deviceParamsMode)
                     {
                         deviceParamsMode.setShowDevices (true);
-                        prepareSlotChainSelection (deviceParamsMode, this.model, this.surface, slotChains[0]);
                     }
-                    // Match DrivenByMoss: issue the chain selection directly.
-                    // Only a dependent ROW1 intent waits for cursor publication.
+                    // Native Bitwig cursor navigation is immediate. Never poll or queue
+                    // input events behind a synthetic cursor-publication barrier.
                     cursorDevice.selectSlotChain (slotChains[0]);
                 }
             }
