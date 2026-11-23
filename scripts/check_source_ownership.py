@@ -28,6 +28,8 @@ OVERRIDE_ALLOWLIST={
 "de/mossgrabers/controller/ableton/push/view/SequencerView.java",
 }
 PATCH_TARGET_ALLOWLIST={
+"de/mossgrabers/bitwig/framework/daw/data/DeviceImpl.java",
+"de/mossgrabers/framework/daw/data/IItem.java",
 "de/mossgrabers/framework/daw/midi/DeviceInquiry.java",
 "de/mossgrabers/framework/controller/hardware/AbstractHwButton.java",
 "de/mossgrabers/controller/ableton/push/controller/PushControlSurface.java",
