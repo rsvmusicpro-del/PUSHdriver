@@ -786,8 +786,10 @@ public final class VirtualPush1RuntimeTest
         virtualCursorCallbackDelayMillis = 73;
         sendTimedNavigationGesture (state, midi, surface, chooserEntryStart + 10,
             VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Open Chains chooser before cursor publication", pendingChooserTrace);
-        sendTimedNavigationGesture (state, midi, surface, chooserEntryStart + 20,
-            VirtualPush1Device.TOP_ROW_FIRST + 1, "Choose Chain 2 before cursor publication", pendingChooserTrace);
+        // Let Bitwig publish the first child while the chooser remains open.
+        advanceNavigationClock (state, chooserEntryStart + 180);
+        sendTimedNavigationGesture (state, midi, surface, chooserEntryStart + 190,
+            VirtualPush1Device.TOP_ROW_FIRST + 1, "Choose Chain 2 after cursor publication", pendingChooserTrace);
         advanceNavigationClock (state, chooserEntryStart + 400);
         require (MODEL_ACTIONS.indexOf ("cursorDevice.chainCallback") < MODEL_ACTIONS.indexOf ("cursorDevice.selectParent")
                 && MODEL_ACTIONS.indexOf ("cursorDevice.selectParent") < MODEL_ACTIONS.indexOf ("cursorDevice.selectChannel")
