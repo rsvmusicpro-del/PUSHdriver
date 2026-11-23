@@ -750,12 +750,19 @@ replace_java_method(button_guard, "protected void handleButtonPressed (final dou
     }""", "Deduplicate repeated button DOWN edges")
 replace_java_method(button_guard, "protected void handleButtonRelease ()", """    protected void handleButtonRelease ()
     {
-        // Only a matching release closes an active press. Repeated or orphaned
-        // release edges are harmless and cannot execute a command twice.
-        if (!this.isBound () || !this.isPressed ())
+        // A physical release must always close the press, even if its
+        // command was unbound while the button was held. Otherwise the next
+        // DOWN is mistaken for a duplicate and the button remains stuck.
+        if (!this.isPressed ())
             return;
 
         this.pressGeneration++;
+        if (!this.isBound ())
+        {
+            this.state = null;
+            return;
+        }
+
         this.state = ButtonEvent.UP;
         if (this.command != null && !this.isConsumed)
             this.command.execute (ButtonEvent.UP, 0);

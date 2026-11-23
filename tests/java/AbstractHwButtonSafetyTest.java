@@ -30,6 +30,21 @@ public final class AbstractHwButtonSafetyTest
         require (button.count (ButtonEvent.UP) == 1 && !button.isPressed (),
             "Duplicate UP edges must not execute twice");
 
+        // If a button is unbound while held, its physical release still has
+        // to clear the press state. Rebinding must accept the next real tap.
+        final TestButton rebound = new TestButton (host.host ());
+        rebound.trigger (ButtonEvent.DOWN);
+        rebound.unbind ();
+        rebound.trigger (ButtonEvent.UP);
+        require (!rebound.isPressed (), "An unbound release left the physical button stuck down");
+        final List<ButtonEvent> reboundEvents = new ArrayList<> ();
+        rebound.bind ((event, velocity) -> reboundEvents.add (event));
+        rebound.trigger (ButtonEvent.DOWN);
+        rebound.trigger (ButtonEvent.UP);
+        require (reboundEvents.size () == 2 && reboundEvents.get (0) == ButtonEvent.DOWN
+                && reboundEvents.get (1) == ButtonEvent.UP,
+            "A rebound button did not accept the next complete physical tap");
+
         // No time-based lockout: every complete physical tap is intentional,
         // even when taps are adjacent in the same event-loop turn.
         final int taps = 10000;

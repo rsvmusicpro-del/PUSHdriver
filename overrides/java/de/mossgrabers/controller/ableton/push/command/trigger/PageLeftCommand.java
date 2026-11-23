@@ -166,11 +166,16 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (!cursor.doesExist () || !cursor.isNested ())
             return false;
         final String id = cursor.getID ();
-        if (pending.parentId != null && !pending.parentId.isEmpty () && id != null && !id.isEmpty ()
-                && !pending.parentId.equals (id))
-            return true;
+        // A stable cursor ID is the strongest identity signal exposed by
+        // the pinned API. If it is available on both sides, a name change
+        // alone must never be treated as publication of the requested chain.
+        if (pending.parentId != null && !pending.parentId.isEmpty ())
+            return id != null && !id.isEmpty () && !pending.parentId.equals (id);
+
+        // Older hosts may not expose cursor IDs. Fall back to the name only
+        // when the parent had no usable ID; this is deliberately conservative.
         final String name = cursor.getName ();
-        return name != null && !name.equals (pending.parentName);
+        return name != null && !name.isEmpty () && !name.equals (pending.parentName);
     }
 
 
