@@ -17,6 +17,7 @@ import de.mossgrabers.framework.utils.ButtonEvent;
 import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
+import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -26,7 +27,56 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 {
     private static final int CHAIN_CURSOR_POLL_MS = 8;
     private static final int CHAIN_CURSOR_MAX_POLLS = 75;
+    // A chain-entry marker is valid only briefly; an abandoned entry must not
+    // capture an unrelated ROW1/OUT gesture minutes later.
+    private static final int CHAIN_CURSOR_PENDING_TTL_MS = 2000;
     private static final Map<DeviceParamsMode, PendingRow1Selection> PENDING_ROW1 = new WeakHashMap<> ();
+    private static final Map<PushControlSurface, Long> MODE_GENERATIONS = new WeakHashMap<> ();
+
+
+    /** Return the current mode-activation generation for a Push surface. */
+    public static long getModeGeneration (final PushControlSurface surface)
+    {
+        return MODE_GENERATIONS.getOrDefault (surface, 0L);
+    }
+
+
+    /** Check whether a delayed native callback still belongs to the same mode activation. */
+    public static boolean isModeGenerationCurrent (final PushControlSurface surface, final long generation)
+    {
+        return getModeGeneration (surface) == generation;
+    }
+
+
+    /**
+     * Track every mode transition independently of the current mode ID. A
+     * Device -> Volume -> Device round trip must invalidate callbacks created
+     * by the first Device activation even though DEVICE_PARAMS is active again.
+     */
+    private static void ensureModeChangeObserver (final DeviceParamsMode mode, final PushControlSurface surface)
+    {
+        if (MODE_GENERATIONS.containsKey (surface))
+            return;
+
+        MODE_GENERATIONS.put (surface, 0L);
+        final WeakReference<PushControlSurface> surfaceReference = new WeakReference<> (surface);
+        final WeakReference<DeviceParamsMode> modeReference = new WeakReference<> (mode);
+        surface.getModeManager ().addChangeListener ( (previousID, activeID) -> {
+            final PushControlSurface observedSurface = surfaceReference.get ();
+            if (observedSurface != null)
+                MODE_GENERATIONS.put (observedSurface, MODE_GENERATIONS.getOrDefault (observedSurface, 0L) + 1L);
+
+            // A pending hierarchy gesture belongs only to the Device surface
+            // that received it. Leaving the Device family invalidates it even
+            // if the user returns before Bitwig publishes the new cursor.
+            if (activeID != Modes.DEVICE_PARAMS && activeID != Modes.DEVICE_CHAINS)
+            {
+                final DeviceParamsMode observedMode = modeReference.get ();
+                if (observedMode != null)
+                    PENDING_ROW1.remove (observedMode);
+            }
+        });
+    }
 
     private static final class PendingRow1Selection
     {
@@ -60,7 +110,15 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final ICursorDevice cursor = model.getCursorDevice ();
         if (!cursor.doesExist ())
             return;
-        PENDING_ROW1.put (mode, new PendingRow1Selection (cursor));
+        final PendingRow1Selection pending = new PendingRow1Selection (cursor);
+        PENDING_ROW1.put (mode, pending);
+        // Expire even when the user never presses ROW1 or OUT. Without this
+        // one-shot cleanup, a failed chain entry can leave a stale intent alive
+        // indefinitely and intercept a later, unrelated hierarchy gesture.
+        model.getHost ().scheduleTask ( () -> {
+            if (PENDING_ROW1.get (mode) == pending)
+                PENDING_ROW1.remove (mode);
+        }, CHAIN_CURSOR_PENDING_TTL_MS);
     }
 
 
@@ -119,11 +177,16 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (!cursor.doesExist () || !cursor.isNested ())
             return false;
         final String id = cursor.getID ();
-        if (pending.parentId != null && !pending.parentId.isEmpty () && id != null && !id.isEmpty ()
-                && !pending.parentId.equals (id))
-            return true;
+        // A stable cursor ID is the strongest identity signal exposed by
+        // the pinned API. If it is available on both sides, a name change
+        // alone must never be treated as publication of the requested chain.
+        if (pending.parentId != null && !pending.parentId.isEmpty ())
+            return id != null && !id.isEmpty () && !pending.parentId.equals (id);
+
+        // Older hosts may not expose cursor IDs. Fall back to the name only
+        // when the parent had no usable ID; this is deliberately conservative.
         final String name = cursor.getName ();
-        return name != null && !name.equals (pending.parentName);
+        return name != null && !name.isEmpty () && !name.equals (pending.parentName);
     }
 
 
@@ -163,6 +226,9 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     public PageLeftCommand (final IModel model, final PushControlSurface surface)
     {
         super (model, surface);
+        final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) surface.getModeManager ().get (Modes.DEVICE_PARAMS);
+        if (deviceParamsMode != null)
+            ensureModeChangeObserver (deviceParamsMode, surface);
     }
 
 

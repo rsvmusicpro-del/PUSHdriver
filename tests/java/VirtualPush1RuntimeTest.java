@@ -923,6 +923,7 @@ public final class VirtualPush1RuntimeTest
         virtualCursorDevicePosition = 4;
         deviceParamsMode.setShowDevices (true);
         modes.setActive (Modes.TRACK);
+        MODEL_ACTIONS.clear ();
         final List<String> timedNavigationTrace = new java.util.ArrayList<> ();
         sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis,
             VirtualPush1Device.DEVICE, "DEVICE", timedNavigationTrace);
@@ -954,11 +955,17 @@ public final class VirtualPush1RuntimeTest
             VirtualPush1Device.VOLUME, "VOLUME before parent callback", timedNavigationTrace);
         require (modes.isActive (Modes.VOLUME),
             "VOLUME gesture was not applied immediately before the delayed parent callback");
-        require (timedNavigationTrace.size () == 9,
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 20,
+            VirtualPush1Device.DEVICE, "DEVICE re-entry before parent callback", timedNavigationTrace);
+        require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
+            "DEVICE re-entry did not retain the user's current Device selector state");
+        require (timedNavigationTrace.size () == 10,
             "Timed navigation burst lost one or more physical gestures: " + timedNavigationTrace);
         advanceNavigationClock (state, state.virtualTimeMillis + 400);
-        require (modes.isActive (Modes.VOLUME),
-            "A stale native parent callback stole focus after a newer VOLUME gesture: " + timedNavigationTrace);
+        require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
+            "A stale parent callback overrode the newer Volume -> Device activation: " + timedNavigationTrace);
+        requireAction ("cursorDevice.selectChannel",
+            "Parent cursor completion was skipped after focus changed to a newer mode");
         require (timedNavigationTrace.stream ().allMatch (entry -> entry.contains ("ms ")),
             "Timed navigation trace is missing virtual timestamps: " + timedNavigationTrace);
         System.out.println ("Virtual Push 1 timed navigation burst passed: " + timedNavigationTrace);
@@ -1252,8 +1259,11 @@ public final class VirtualPush1RuntimeTest
             "de.mossgrabers.framework.view.sequencer.AbstractSequencerView").getDeclaredMethod (
                 "getStepColor", IStepInfo.class, boolean.class, int.class, int.class, int.class, int.class, List.class);
         classicStepColor.setAccessible (true);
+        final int classicReadsBeforeHighlight = musicalModel.stepReadCount ();
         final String classicSelectedColor = (String) classicStepColor.invoke (
             sequencerView, classicContinuation, true, 0, 1, 1, durationNote, List.of (durationPosition));
+        require (musicalModel.stepReadCount () - classicReadsBeforeHighlight == 1,
+            "Classic selected-note continuation feedback performed more than one host step read");
         require ("COLOR_STEP_SELECTED".equals (classicSelectedColor),
             "Classic Sequencer playhead hid the selected long-note continuation color; state="
                 + classicContinuation.getState () + ", color=" + classicSelectedColor);
@@ -1370,8 +1380,11 @@ public final class VirtualPush1RuntimeTest
         final java.lang.reflect.Method polyStepColor = AbstractPolySequencerView.class.getDeclaredMethod (
             "getStepColor", IStepInfo.class, boolean.class, int.class, List.class);
         polyStepColor.setAccessible (true);
+        final int polyReadsBeforeHighlight = musicalModel.stepReadCount ();
         final String polySelectedColor = (String) polyStepColor.invoke (
             polySequencerView, polyContinuation, true, 1, List.of (polyLongPosition));
+        require (musicalModel.stepReadCount () - polyReadsBeforeHighlight == 1,
+            "Poly selected-note continuation feedback performed more than one host step read");
         require ("COLOR_STEP_SELECTED".equals (polySelectedColor),
             "Poly Sequencer playhead hid the selected long-note continuation color");
 
@@ -3633,6 +3646,25 @@ public final class VirtualPush1RuntimeTest
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Late host callback replayed a ROW1 intent after its bounded timeout");
 
+        // An abandoned chain-entry marker expires even if the cursor callback
+        // never arrives and no dependent gesture was initially pressed.
+        state.scheduled.clear ();
+        virtualCursorCallbackDelayMillis = 5000;
+        virtualCursorDeviceNested = false;
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceName = "Abandoned chain parent";
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (true);
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        final long abandonedStart = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, abandonedStart,
+            VirtualPush1Device.IN, "IN without dependent ROW1", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, abandonedStart + 2200);
+        sendTimedNavigationGesture (state, midi, surface, abandonedStart + 2201,
+            VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 after abandoned-entry expiry", new java.util.ArrayList<> ());
+        require (deviceIndex == 3 && !virtualCursorDeviceNested,
+            "An expired chain-entry marker intercepted a later independent ROW1 gesture");
+
         // Native OUT/ROW2-UP supersedes a dependent ROW1 intent and waits for
         // the entered cursor before unwinding exactly one hierarchy level.
         state.scheduled.clear ();
@@ -3685,6 +3717,88 @@ public final class VirtualPush1RuntimeTest
         require (surface.getModeManager ().isActive (Modes.TRACK) && deviceIndex == 0,
             "Late chain cursor publication replayed ROW1 or stole focus from TRACK");
 
+        // Returning to Device before a pending chain callback fires must not
+        // revive the old ROW1 target merely because DEVICE_PARAMS is active again.
+        state.scheduled.clear ();
+        virtualCursorCallbackDelayMillis = 150;
+        virtualCursorDeviceNested = false;
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceName = "Device re-entry parent";
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (true);
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        final long reentryStart = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, reentryStart,
+            VirtualPush1Device.IN, "IN before Volume -> Device re-entry", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, reentryStart + 5,
+            VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 before Volume -> Device re-entry", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, reentryStart + 10,
+            VirtualPush1Device.VOLUME, "VOLUME during pending chain entry", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, reentryStart + 15,
+            VirtualPush1Device.DEVICE, "DEVICE re-entry during pending chain entry", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, reentryStart + 700);
+        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS)
+                && virtualCursorDeviceNested && deviceIndex == 0,
+            "A stale ROW1 target was replayed after Volume -> Device re-entry");
+
+        // A deferred dedicated OUT must also be discarded across a rapid
+        // Volume -> Device round trip; it must not unwind the newly entered chain.
+        state.scheduled.clear ();
+        virtualCursorCallbackDelayMillis = 150;
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceHasLayers = false;
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceName = "OUT re-entry parent";
+        virtualParentNestedAfterSelect = false;
+        virtualParentHasLayersAfterSelect = false;
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (true);
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        MODEL_ACTIONS.clear ();
+        final long outReentryStart = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, outReentryStart,
+            VirtualPush1Device.IN, "IN before OUT Volume -> Device re-entry", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, outReentryStart + 10,
+            VirtualPush1Device.OUT, "OUT before Volume -> Device re-entry", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, outReentryStart + 20,
+            VirtualPush1Device.VOLUME, "VOLUME during deferred OUT", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, outReentryStart + 25,
+            VirtualPush1Device.DEVICE, "DEVICE re-entry during deferred OUT", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, outReentryStart + 700);
+        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS)
+                && virtualCursorDeviceNested && deviceIndex == 0
+                && !MODEL_ACTIONS.contains ("cursorDevice.selectParent"),
+            "A deferred OUT was replayed after Volume -> Device re-entry: " + MODEL_ACTIONS);
+
+        // The ROW2-UP route shares the native moveUp guard and must have the
+        // same cancellation semantics as the dedicated OUT button.
+        state.scheduled.clear ();
+        virtualCursorCallbackDelayMillis = 150;
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceHasLayers = false;
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceName = "ROW2-UP re-entry parent";
+        virtualParentNestedAfterSelect = false;
+        virtualParentHasLayersAfterSelect = false;
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (true);
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        MODEL_ACTIONS.clear ();
+        final long row2ReentryStart = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, row2ReentryStart,
+            VirtualPush1Device.IN, "IN before ROW2-UP Volume -> Device re-entry", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, row2ReentryStart + 10,
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP before Volume -> Device re-entry", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, row2ReentryStart + 20,
+            VirtualPush1Device.VOLUME, "VOLUME during deferred ROW2-UP", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, row2ReentryStart + 25,
+            VirtualPush1Device.DEVICE, "DEVICE re-entry during deferred ROW2-UP", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, row2ReentryStart + 700);
+        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS)
+                && virtualCursorDeviceNested && deviceIndex == 0
+                && !MODEL_ACTIONS.contains ("cursorDevice.selectParent"),
+            "A deferred ROW2-UP was replayed after Volume -> Device re-entry: " + MODEL_ACTIONS);
+
         virtualCursorCallbackDelayMillis = 73;
         state.scheduled.clear ();
         surface.getModeManager ().setActive (Modes.TRACK);
@@ -3694,7 +3808,7 @@ public final class VirtualPush1RuntimeTest
             + " trials, " + staleSelections + " stale-cursor selections; independent mode switch passed; " + results);
     }
 
-    /** Drain native host cursor publication and parent-return callbacks; no production polling exists. */
+    /** Drain scheduled host cursor publication, targeted confirmation probes and native parent-return callbacks. */
     private static void drainNavigation (final State state)
     {
         drainScheduled (state, 73);

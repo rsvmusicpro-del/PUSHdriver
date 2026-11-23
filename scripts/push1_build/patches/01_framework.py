@@ -182,7 +182,7 @@ old = """                if (highlight)
                     return this.model.hasRecordingState () ? COLOR_STEP_HILITE_RECORD : COLOR_STEP_HILITE_CONTENT;
                 if (isEdit (channel, step, note, editNotes))
                     return COLOR_STEP_SELECTED;"""
-new = """                if (isEditOrContinuation (channel, step, note, editNotes))
+new = """                if (isEditOrContinuation (channel, step, note, editNotes, stepInfo))
                     return COLOR_STEP_SELECTED;
                 if (highlight)
                     return this.model.hasRecordingState () ? COLOR_STEP_HILITE_RECORD : COLOR_STEP_HILITE_CONTENT;"""
@@ -280,7 +280,7 @@ old = """                if (hilite)
                     return COLOR_STEP_HILITE_CONTENT;
                 if (isChordEdit (channel, step, editNotes))
                     return COLOR_STEP_SELECTED;"""
-new = """                if (isChordEdit (channel, step, editNotes))
+new = """                if (isChordEdit (channel, step, editNotes, stepInfo))
                     return COLOR_STEP_SELECTED;
                 if (hilite)
                     return COLOR_STEP_HILITE_CONTENT;"""
@@ -298,28 +298,31 @@ replace_once(poly_sequencer,
         }
         return false;
     }""",
-    """    protected boolean isChordEdit (final int channel, final int step, final List<NotePosition> editNotes)
+    """    protected boolean isChordEdit (final int channel, final int step, final List<NotePosition> editNotes,
+        final IStepInfo currentStepInfo)
     {
+        for (final NotePosition editNote: editNotes)
+            if (editNote.getChannel () == channel && editNote.getStep () == step)
+                return true;
+
+        if (currentStepInfo == null || currentStepInfo.getState () != StepState.CONTINUE)
+            return false;
+
         final INoteClip clip = this.getClip ();
+        final double stepLength = clip.getStepLength ();
+        if (stepLength <= 0)
+            return false;
+
         for (final NotePosition editNote: editNotes)
         {
-            if (editNote.getChannel () != channel || editNote.getStep () > step)
+            if (editNote.getChannel () != channel || editNote.getStep () >= step)
                 continue;
-
-            final NotePosition position = new NotePosition (channel, step, editNote.getNote ());
-            for (int sourceStep = step; sourceStep >= editNote.getStep (); sourceStep--)
-            {
-                position.setStep (sourceStep);
-                final StepState state = clip.getStep (position).getState ();
-                if (state == StepState.START)
-                {
-                    if (sourceStep == editNote.getStep ())
-                        return true;
-                    break;
-                }
-                if (state == StepState.OFF)
-                    break;
-            }
+            final IStepInfo startInfo = clip.getStep (editNote);
+            if (startInfo.getState () != StepState.START)
+                continue;
+            final double elapsed = (step - editNote.getStep ()) * stepLength;
+            if (elapsed < startInfo.getDuration () - 0.000001)
+                return true;
         }
         return false;
     }""",
@@ -355,31 +358,32 @@ replace_once(sequencer_colors,
      * @param editNotes The currently edited notes
      * @return True if the step belongs to an edited note
      */
-    protected boolean isEditOrContinuation (final int channel, final int step, final int note, final List<NotePosition> editNotes)
+    protected boolean isEditOrContinuation (final int channel, final int step, final int note,
+        final List<NotePosition> editNotes, final IStepInfo currentStepInfo)
     {
         if (isEdit (channel, step, note, editNotes))
             return true;
+        if (currentStepInfo == null || currentStepInfo.getState () != StepState.CONTINUE)
+            return false;
 
         final INoteClip clip = this.getClip ();
-        final NotePosition position = new NotePosition (channel, step, note);
+        final double stepLength = clip.getStepLength ();
+        if (stepLength <= 0)
+            return false;
+
+        // Read each selected note's start once. Walking every intermediate
+        // step caused repeated host reads; adapters may themselves scan back
+        // through the note when resolving each continuation.
         for (final NotePosition editNote: editNotes)
         {
             if (editNote.getChannel () != channel || editNote.getNote () != note || editNote.getStep () >= step)
                 continue;
-
-            for (int sourceStep = step; sourceStep >= editNote.getStep (); sourceStep--)
-            {
-                position.setStep (sourceStep);
-                final StepState state = clip.getStep (position).getState ();
-                if (state == StepState.START)
-                {
-                    if (sourceStep == editNote.getStep ())
-                        return true;
-                    break;
-                }
-                if (state == StepState.OFF)
-                    break;
-            }
+            final IStepInfo startInfo = clip.getStep (editNote);
+            if (startInfo.getState () != StepState.START)
+                continue;
+            final double elapsed = (step - editNote.getStep ()) * stepLength;
+            if (elapsed < startInfo.getDuration () - 0.000001)
+                return true;
         }
         return false;
     }""",
@@ -750,12 +754,19 @@ replace_java_method(button_guard, "protected void handleButtonPressed (final dou
     }""", "Deduplicate repeated button DOWN edges")
 replace_java_method(button_guard, "protected void handleButtonRelease ()", """    protected void handleButtonRelease ()
     {
-        // Only a matching release closes an active press. Repeated or orphaned
-        // release edges are harmless and cannot execute a command twice.
-        if (!this.isBound () || !this.isPressed ())
+        // A physical release must always close the press, even if its
+        // command was unbound while the button was held. Otherwise the next
+        // DOWN is mistaken for a duplicate and the button remains stuck.
+        if (!this.isPressed ())
             return;
 
         this.pressGeneration++;
+        if (!this.isBound ())
+        {
+            this.state = null;
+            return;
+        }
+
         this.state = ButtonEvent.UP;
         if (this.command != null && !this.isConsumed)
             this.command.execute (ButtonEvent.UP, 0);

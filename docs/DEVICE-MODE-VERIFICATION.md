@@ -1,6 +1,6 @@
 # Device mode verification (historical record)
 
-> **Navigation architecture — 2026-11-22:** IN and Device Chains dispatch `selectSlotChain` immediately. If a ROW1 or OUT/ROW2-UP gesture arrives before Bitwig publishes the nested cursor, only that dependent intent is retained (last ROW1 tap wins; OUT/ROW2-UP supersedes it) and a bounded 8 ms confirmation probe waits up to 600 ms for the cursor ID to change. A timeout drops the intent rather than acting on the stale parent; unrelated controls remain immediate. Once confirmed, ROW1 selects the requested child or OUT/ROW2-UP delegates the parent return to DrivenByMoss' native state machine, with a guard preventing delayed completion from stealing focus after a newer mode change. CI requires zero stale-parent ROW1 selections across the 322-case matrix and covers OUT during pending entry. Live Bitwig + physical Push 1 testing remains necessary to qualify actual UX latency.
+> **Current navigation architecture — 2026-11-23:** IN and Device Chains dispatch `selectSlotChain` immediately. If a dependent ROW1 or OUT/ROW2-UP gesture arrives before Bitwig publishes the nested cursor, only that intent is retained (latest ROW1 wins; OUT supersedes ROW1) and a bounded 8 ms confirmation probe waits up to 600 ms. Leaving the Device family invalidates that pending intent, even if the user re-enters Device before the cursor callback. The native 300 ms parent-return behavior remains in DrivenByMoss. Its delayed UI restoration is bound to a monotonic ModeManager activation generation, not merely the current mode ID; a rapid Volume/Track -> Device re-entry cannot be mistaken for the original activation. If Device Params is active again, cursor/channel finalization still runs without overwriting the new Device UI state. The runtime regression exercises both pending ROW1 and pending parent-return re-entry through physical MIDI bindings. Live Bitwig + physical Push 1 testing remains necessary to qualify actual UX latency.
 
 
 This document records the original implementation and CI evidence for PR #76. Its recorded head SHA and workflow run are historical and must not be treated as the current branch validation.
@@ -33,6 +33,10 @@ CI validates compilation, packaging, deterministic API-17 host models, productio
 
 The remaining acceptance step is a live test in Bitwig with the controller attached. In particular, verify ROW1 presses immediately after entering or leaving a chain, rapid repeated ROW1 presses, nested chains with fewer than eight Devices, and the In/Out LEDs against the actual host cursor state.
 
+
+## Historical PR #76 implementation (superseded)
+
+The following asynchronous-queue and adaptive-polling sections document earlier PR #76 experiments. They are not the current `custom` implementation and must not be used as its behavioral specification. The current implementation is summarized in the navigation architecture note above and enforced by the current runtime suite.
 
 ## Asynchronous hierarchy regression coverage
 

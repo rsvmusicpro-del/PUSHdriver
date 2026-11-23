@@ -253,15 +253,23 @@ replace_once(device_params_mode,
                 deviceParamsMode.setShowDevices (false);
                 cd.selectChannel ();
             }, 300);""",
-    """            cd.selectParent ();
+    """            final long navigationGeneration = de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.getModeGeneration (this.surface);
+            cd.selectParent ();
             this.model.getHost ().scheduleTask ( () -> {
+                // A different active mode cancels this native completion. If
+                // Device was explicitly re-entered, finish the host cursor
+                // return but preserve the new Device activation's UI state.
                 if (!modeManager.isActive (Modes.DEVICE_PARAMS))
                     return;
-                if (cd.hasLayers ())
-                    modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
-                else
-                    modeManager.setActive (Modes.DEVICE_PARAMS);
-                deviceParamsMode.setShowDevices (false);
+                if (de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.isModeGenerationCurrent (
+                        this.surface, navigationGeneration))
+                {
+                    if (cd.hasLayers ())
+                        modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
+                    else
+                        modeManager.setActive (Modes.DEVICE_PARAMS);
+                    deviceParamsMode.setShowDevices (false);
+                }
                 cd.selectChannel ();
             }, 300);""",
     "Cancel native parent completion when the user has switched modes")

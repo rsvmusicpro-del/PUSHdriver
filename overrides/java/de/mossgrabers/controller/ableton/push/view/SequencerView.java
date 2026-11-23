@@ -120,7 +120,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             final int mappedNote = this.keyManager.map (row);
             notePosition.setNote (mappedNote);
             final IStepInfo stepInfo = mappedNote < 0 ? null : clip.getStep (notePosition);
-            final boolean isSelected = mappedNote >= 0 && this.isEditOrContinuation (channel, playheadColumn, mappedNote, editNotes);
+            final boolean isSelected = mappedNote >= 0 && this.isEditOrContinuation (channel, playheadColumn, mappedNote, editNotes, stepInfo);
             final String color;
             if (isSelected)
                 color = AbstractSequencerView.COLOR_STEP_SELECTED;
