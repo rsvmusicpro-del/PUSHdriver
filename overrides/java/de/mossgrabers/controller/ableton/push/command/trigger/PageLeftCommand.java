@@ -44,6 +44,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         private boolean enterFirstChain;
         private String chainToEnter;
         private int queuedUpCount;
+        private int queuedRow1Target = -1;
 
         private PendingParentReturn (final ICursorDevice cursor, final String fingerprint,
             final DeviceParamsMode mode, final PushControlSurface surface)
@@ -139,6 +140,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             parentReturn.enterFirstChain = true;
             parentReturn.chainToEnter = null;
             parentReturn.queuedUpCount = 0;
+            parentReturn.queuedRow1Target = -1;
             parentReturn.mode = new WeakReference<> (mode);
             parentReturn.surface = new WeakReference<> (surface);
             return true;
@@ -177,6 +179,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             parentReturn.enterFirstChain = false;
             parentReturn.chainToEnter = chain;
             parentReturn.queuedUpCount = 0;
+            parentReturn.queuedRow1Target = -1;
             parentReturn.mode = new WeakReference<> (mode);
             parentReturn.surface = new WeakReference<> (surface);
             return true;
@@ -207,9 +210,17 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     public static boolean deferRow1Selection (final DeviceParamsMode mode, final IModel model,
         final PushControlSurface surface, final int index)
     {
-        // A fresh sibling gesture supersedes an outstanding parent-return
-        // completion; never let its later cursor notification finalize over it.
-        PENDING_PARENT_RETURN.remove (model);
+        final PendingParentReturn parentReturn = PENDING_PARENT_RETURN.get (model);
+        if (parentReturn != null)
+        {
+            parentReturn.enterFirstChain = false;
+            parentReturn.chainToEnter = null;
+            parentReturn.queuedUpCount = 0;
+            parentReturn.queuedRow1Target = index;
+            parentReturn.mode = new WeakReference<> (mode);
+            parentReturn.surface = new WeakReference<> (surface);
+            return true;
+        }
         final PendingRow1Selection pending = PENDING_ROW1.get (model);
         if (pending == null)
             return false;
@@ -246,6 +257,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             // parent change instead of issuing selectParent on the stale child.
             parentReturn.enterFirstChain = false;
             parentReturn.chainToEnter = null;
+            parentReturn.queuedRow1Target = -1;
             parentReturn.queuedUpCount++;
             return true;
         }
@@ -455,6 +467,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final boolean enterFirstChain = pending.enterFirstChain;
         final String chainToEnter = pending.chainToEnter;
         final int queuedUpCount = pending.queuedUpCount;
+        final int queuedRow1Target = pending.queuedRow1Target;
         PENDING_PARENT_RETURN.remove (model);
         final var modeManager = surface.getModeManager ();
         final boolean hasLayers = cursor.hasLayers ();
@@ -473,6 +486,8 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
                 selectSpecificChain (mode, model, surface, chainToEnter);
             else if (enterFirstChain)
                 selectFirstAvailableChain (mode, model, surface);
+            else if (queuedRow1Target >= 0)
+                mode.onFirstRow (queuedRow1Target, ButtonEvent.UP);
             else if (queuedUpCount > 0)
                 replayQueuedOut (model, surface, queuedUpCount);
         }
