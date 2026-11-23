@@ -66,6 +66,8 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         private WeakReference<PushControlSurface> surface;
         private int targetIndex = -1;
         private boolean returnToParent;
+        private boolean enterFirstChain;
+        private String chainToEnter;
         private int polls;
         private boolean scheduled;
 
