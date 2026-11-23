@@ -20,7 +20,9 @@ import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
 import java.lang.ref.WeakReference;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /** Push 1 In control: enter the first available device slot chain. */
@@ -31,6 +33,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     private static final Map<IModel, PendingRow1Selection> PENDING_ROW1 = new WeakHashMap<> ();
     private static final Map<IModel, PendingParentReturn> PENDING_PARENT_RETURN = new WeakHashMap<> ();
     private static final Map<IModel, Boolean> OBSERVED_MODELS = new WeakHashMap<> ();
+    private static final Set<IModel> OBSERVER_COMPLETION_QUEUED = ConcurrentHashMap.newKeySet ();
 
     private static final class PendingParentReturn
     {
@@ -339,13 +342,30 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
     private static void onCursorIdentityChanged (final IModel model)
     {
-        // There is one latest-wins pending intent for the shared Bitwig model.
-        final PendingRow1Selection pending = PENDING_ROW1.get (model);
-        if (pending != null)
-            completePendingIfReady (model, pending);
-        final PendingParentReturn parentReturn = PENDING_PARENT_RETURN.get (model);
-        if (parentReturn != null)
-            completeParentReturnIfReady (model, parentReturn);
+        // Bitwig model observers are not the controller's input-dispatch
+        // boundary. Never change ModeManager state from an observer callback:
+        // marshal completion onto the host task queue so a physical mode-button
+        // gesture already in flight is processed before any stale navigation
+        // completion can restore Device Params or a layer mode.
+        if (!OBSERVER_COMPLETION_QUEUED.add (model))
+            return;
+
+        final WeakReference<IModel> modelReference = new WeakReference<> (model);
+        model.getHost ().scheduleTask ( () -> {
+            final IModel observedModel = modelReference.get ();
+            if (observedModel == null)
+                return;
+
+            OBSERVER_COMPLETION_QUEUED.remove (observedModel);
+
+            // There is one latest-wins pending intent for the shared Bitwig model.
+            final PendingRow1Selection pending = PENDING_ROW1.get (observedModel);
+            if (pending != null)
+                completePendingIfReady (observedModel, pending);
+            final PendingParentReturn parentReturn = PENDING_PARENT_RETURN.get (observedModel);
+            if (parentReturn != null)
+                completeParentReturnIfReady (observedModel, parentReturn);
+        }, 1);
     }
 
 
