@@ -59,7 +59,6 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     private static final class PendingRow1Selection
     {
         private final String parentId;
-        private final String parentName;
         private final String parentFingerprint;
         private final boolean parentWasNested;
         private boolean requireNested = true;
@@ -74,7 +73,6 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             final DeviceParamsMode mode, final PushControlSurface surface)
         {
             this.parentId = cursor.getID ();
-            this.parentName = cursor.getName ();
             this.parentFingerprint = fingerprint;
             this.parentWasNested = cursor.isNested ();
             this.setOwner (mode, surface);
@@ -133,14 +131,34 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     public static boolean deferInUntilParentReturn (final DeviceParamsMode mode, final IModel model,
         final PushControlSurface surface)
     {
-        final PendingParentReturn pending = PENDING_PARENT_RETURN.get (model);
+        final PendingParentReturn parentReturn = PENDING_PARENT_RETURN.get (model);
+        if (parentReturn != null)
+        {
+            parentReturn.enterFirstChain = true;
+            parentReturn.chainToEnter = null;
+            parentReturn.queuedUpCount = 0;
+            parentReturn.mode = new WeakReference<> (mode);
+            parentReturn.surface = new WeakReference<> (surface);
+            return true;
+        }
+        final PendingRow1Selection pending = PENDING_ROW1.get (model);
         if (pending == null)
             return false;
+        if (isPublishedChainCursor (model, pending))
+        {
+            PENDING_ROW1.remove (model);
+            return false;
+        }
+        pending.setOwner (mode, surface);
         pending.enterFirstChain = true;
         pending.chainToEnter = null;
-        pending.queuedUpCount = 0;
-        pending.mode = new WeakReference<> (mode);
-        pending.surface = new WeakReference<> (surface);
+        pending.targetIndex = -1;
+        pending.returnToParent = false;
+        if (!pending.scheduled)
+        {
+            pending.scheduled = true;
+            scheduleChainCursorProbe (model, pending);
+        }
         return true;
     }
 
@@ -149,14 +167,36 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     public static boolean deferChainSelectionUntilParentReturn (final DeviceParamsMode mode,
         final IModel model, final PushControlSurface surface, final String chain)
     {
-        final PendingParentReturn pending = PENDING_PARENT_RETURN.get (model);
-        if (pending == null || chain == null || chain.isBlank ())
+        if (chain == null || chain.isBlank ())
             return false;
+        final PendingParentReturn parentReturn = PENDING_PARENT_RETURN.get (model);
+        if (parentReturn != null)
+        {
+            parentReturn.enterFirstChain = false;
+            parentReturn.chainToEnter = chain;
+            parentReturn.queuedUpCount = 0;
+            parentReturn.mode = new WeakReference<> (mode);
+            parentReturn.surface = new WeakReference<> (surface);
+            return true;
+        }
+        final PendingRow1Selection pending = PENDING_ROW1.get (model);
+        if (pending == null)
+            return false;
+        if (isPublishedChainCursor (model, pending))
+        {
+            PENDING_ROW1.remove (model);
+            return false;
+        }
+        pending.setOwner (mode, surface);
         pending.enterFirstChain = false;
         pending.chainToEnter = chain;
-        pending.queuedUpCount = 0;
-        pending.mode = new WeakReference<> (mode);
-        pending.surface = new WeakReference<> (surface);
+        pending.targetIndex = -1;
+        pending.returnToParent = false;
+        if (!pending.scheduled)
+        {
+            pending.scheduled = true;
+            scheduleChainCursorProbe (model, pending);
+        }
         return true;
     }
 
@@ -179,6 +219,8 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         pending.setOwner (mode, surface);
         pending.targetIndex = index;
         pending.returnToParent = false;
+        pending.enterFirstChain = false;
+        pending.chainToEnter = null;
         if (!pending.scheduled)
         {
             pending.scheduled = true;
@@ -216,6 +258,8 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         pending.setOwner (mode, surface);
         pending.targetIndex = -1;
         pending.returnToParent = true;
+        pending.enterFirstChain = false;
+        pending.chainToEnter = null;
         if (!pending.scheduled)
         {
             pending.scheduled = true;
@@ -236,9 +280,6 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final String id = cursor.getID ();
         if (pending.parentId != null && !pending.parentId.isEmpty () && id != null && !id.isEmpty ()
                 && !pending.parentId.equals (id))
-            return true;
-        final String name = cursor.getName ();
-        if (name != null && !name.equals (pending.parentName))
             return true;
         // API 17 exposes no cursor ID. The visible sibling-bank fingerprint
         // distinguishes same-name nested parents from their chain children.
@@ -328,9 +369,23 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
         final int target = pending.targetIndex;
         final boolean returnToParent = pending.returnToParent;
+        final boolean enterFirstChain = pending.enterFirstChain;
+        final String chainToEnter = pending.chainToEnter;
         PENDING_ROW1.remove (model);
         if (returnToParent)
             mode.onSecondRow (7, ButtonEvent.DOWN);
+        else if (enterFirstChain)
+            selectFirstAvailableChain (mode, model, surface);
+        else if (chainToEnter != null)
+        {
+            // The chooser selection was made against the pre-entry parent.
+            // Return there first, then apply the selected chain to that parent.
+            beginParentReturn (mode, model, surface);
+            final PendingParentReturn parentReturn = PENDING_PARENT_RETURN.get (model);
+            if (parentReturn != null)
+                parentReturn.chainToEnter = chainToEnter;
+            model.getCursorDevice ().selectParent ();
+        }
         else if (target >= 0)
             mode.onFirstRow (target, ButtonEvent.UP);
         return true;
