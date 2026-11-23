@@ -3716,6 +3716,64 @@ public final class VirtualPush1RuntimeTest
                 && virtualCursorDeviceNested && deviceIndex == 0,
             "A stale ROW1 target was replayed after Volume -> Device re-entry");
 
+        // A deferred dedicated OUT must also be discarded across a rapid
+        // Volume -> Device round trip; it must not unwind the newly entered chain.
+        state.scheduled.clear ();
+        virtualCursorCallbackDelayMillis = 150;
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceHasLayers = false;
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceName = "OUT re-entry parent";
+        virtualParentNestedAfterSelect = false;
+        virtualParentHasLayersAfterSelect = false;
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (true);
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        MODEL_ACTIONS.clear ();
+        final long outReentryStart = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, outReentryStart,
+            VirtualPush1Device.IN, "IN before OUT Volume -> Device re-entry", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, outReentryStart + 10,
+            VirtualPush1Device.OUT, "OUT before Volume -> Device re-entry", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, outReentryStart + 20,
+            VirtualPush1Device.VOLUME, "VOLUME during deferred OUT", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, outReentryStart + 25,
+            VirtualPush1Device.DEVICE, "DEVICE re-entry during deferred OUT", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, outReentryStart + 700);
+        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS)
+                && virtualCursorDeviceNested && deviceIndex == 0
+                && !MODEL_ACTIONS.contains ("cursorDevice.selectParent"),
+            "A deferred OUT was replayed after Volume -> Device re-entry: " + MODEL_ACTIONS);
+
+        // The ROW2-UP route shares the native moveUp guard and must have the
+        // same cancellation semantics as the dedicated OUT button.
+        state.scheduled.clear ();
+        virtualCursorCallbackDelayMillis = 150;
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceHasLayers = false;
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceName = "ROW2-UP re-entry parent";
+        virtualParentNestedAfterSelect = false;
+        virtualParentHasLayersAfterSelect = false;
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (true);
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        MODEL_ACTIONS.clear ();
+        final long row2ReentryStart = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, row2ReentryStart,
+            VirtualPush1Device.IN, "IN before ROW2-UP Volume -> Device re-entry", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, row2ReentryStart + 10,
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP before Volume -> Device re-entry", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, row2ReentryStart + 20,
+            VirtualPush1Device.VOLUME, "VOLUME during deferred ROW2-UP", new java.util.ArrayList<> ());
+        sendTimedNavigationGesture (state, midi, surface, row2ReentryStart + 25,
+            VirtualPush1Device.DEVICE, "DEVICE re-entry during deferred ROW2-UP", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, row2ReentryStart + 700);
+        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS)
+                && virtualCursorDeviceNested && deviceIndex == 0
+                && !MODEL_ACTIONS.contains ("cursorDevice.selectParent"),
+            "A deferred ROW2-UP was replayed after Volume -> Device re-entry: " + MODEL_ACTIONS);
+
         virtualCursorCallbackDelayMillis = 73;
         state.scheduled.clear ();
         surface.getModeManager ().setActive (Modes.TRACK);
@@ -3725,7 +3783,7 @@ public final class VirtualPush1RuntimeTest
             + " trials, " + staleSelections + " stale-cursor selections; independent mode switch passed; " + results);
     }
 
-    /** Drain native host cursor publication and parent-return callbacks; no production polling exists. */
+    /** Drain scheduled host cursor publication, targeted confirmation probes and native parent-return callbacks. */
     private static void drainNavigation (final State state)
     {
         drainScheduled (state, 73);
