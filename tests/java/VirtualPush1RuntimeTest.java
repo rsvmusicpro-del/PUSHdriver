@@ -923,6 +923,7 @@ public final class VirtualPush1RuntimeTest
         virtualCursorDevicePosition = 4;
         deviceParamsMode.setShowDevices (true);
         modes.setActive (Modes.TRACK);
+        MODEL_ACTIONS.clear ();
         final List<String> timedNavigationTrace = new java.util.ArrayList<> ();
         sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis,
             VirtualPush1Device.DEVICE, "DEVICE", timedNavigationTrace);
