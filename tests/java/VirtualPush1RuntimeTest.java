@@ -1259,8 +1259,11 @@ public final class VirtualPush1RuntimeTest
             "de.mossgrabers.framework.view.sequencer.AbstractSequencerView").getDeclaredMethod (
                 "getStepColor", IStepInfo.class, boolean.class, int.class, int.class, int.class, int.class, List.class);
         classicStepColor.setAccessible (true);
+        final int classicReadsBeforeHighlight = musicalModel.stepReadCount ();
         final String classicSelectedColor = (String) classicStepColor.invoke (
             sequencerView, classicContinuation, true, 0, 1, 1, durationNote, List.of (durationPosition));
+        require (musicalModel.stepReadCount () - classicReadsBeforeHighlight == 1,
+            "Classic selected-note continuation feedback performed more than one host step read");
         require ("COLOR_STEP_SELECTED".equals (classicSelectedColor),
             "Classic Sequencer playhead hid the selected long-note continuation color; state="
                 + classicContinuation.getState () + ", color=" + classicSelectedColor);
@@ -1377,8 +1380,11 @@ public final class VirtualPush1RuntimeTest
         final java.lang.reflect.Method polyStepColor = AbstractPolySequencerView.class.getDeclaredMethod (
             "getStepColor", IStepInfo.class, boolean.class, int.class, List.class);
         polyStepColor.setAccessible (true);
+        final int polyReadsBeforeHighlight = musicalModel.stepReadCount ();
         final String polySelectedColor = (String) polyStepColor.invoke (
             polySequencerView, polyContinuation, true, 1, List.of (polyLongPosition));
+        require (musicalModel.stepReadCount () - polyReadsBeforeHighlight == 1,
+            "Poly selected-note continuation feedback performed more than one host step read");
         require ("COLOR_STEP_SELECTED".equals (polySelectedColor),
             "Poly Sequencer playhead hid the selected long-note continuation color");
 
