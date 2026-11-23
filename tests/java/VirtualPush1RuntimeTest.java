@@ -3640,6 +3640,25 @@ public final class VirtualPush1RuntimeTest
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Late host callback replayed a ROW1 intent after its bounded timeout");
 
+        // An abandoned chain-entry marker expires even if the cursor callback
+        // never arrives and no dependent gesture was initially pressed.
+        state.scheduled.clear ();
+        virtualCursorCallbackDelayMillis = 5000;
+        virtualCursorDeviceNested = false;
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceName = "Abandoned chain parent";
+        deviceIndex = 4;
+        deviceParamsMode.setShowDevices (true);
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        final long abandonedStart = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, abandonedStart,
+            VirtualPush1Device.IN, "IN without dependent ROW1", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, abandonedStart + 2200);
+        sendTimedNavigationGesture (state, midi, surface, abandonedStart + 2201,
+            VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 after abandoned-entry expiry", new java.util.ArrayList<> ());
+        require (deviceIndex == 3 && !virtualCursorDeviceNested,
+            "An expired chain-entry marker intercepted a later independent ROW1 gesture");
+
         // Native OUT/ROW2-UP supersedes a dependent ROW1 intent and waits for
         // the entered cursor before unwinding exactly one hierarchy level.
         state.scheduled.clear ();
