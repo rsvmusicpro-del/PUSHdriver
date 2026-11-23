@@ -152,6 +152,11 @@ class SourceOwnershipTests(unittest.TestCase):
 
         command = (root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PageLeftCommand.java").read_text(encoding="utf-8")
         self.assertIn("addNameObserver", command)
+        self.assertIn("addPositionObserver", command)
+        self.assertIn("onCursorIdentityChanged", command)
+        self.assertIn("cursor.getPosition ()", command)
+        self.assertIn("device.position ().addValueObserver", patch)
+        self.assertIn("default void addPositionObserver", patch)
         self.assertIn("Map<IModel, PendingRow1Selection>", command)
         self.assertIn("OBSERVED_MODELS", command)
         self.assertIn("WeakReference<IModel>", command)
@@ -178,6 +183,8 @@ class SourceOwnershipTests(unittest.TestCase):
         self.assertIn("prepareLayerEntry", command)
         self.assertIn("pending.requireNested", command)
         self.assertNotIn("cursor.getName ()).append", command)
+        self.assertNotIn("device.getName ()", command)
+        self.assertNotIn("getScrollPosition ()", command)
 
         page_right = (root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PageRightCommand.java").read_text(encoding="utf-8")
         self.assertIn("DeviceLayerMode", page_right)
