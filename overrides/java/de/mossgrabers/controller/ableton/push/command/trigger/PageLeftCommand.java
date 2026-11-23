@@ -187,11 +187,9 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final PendingRow1Selection pending = PENDING_ROW1.get (model);
         if (pending == null)
             return false;
-        if (isPublishedChainCursor (model, pending))
-        {
-            PENDING_ROW1.remove (model);
-            return false;
-        }
+        // If the cursor has already published while the Chains chooser was
+        // open, the chooser still represents its original parent. Keep the
+        // intent pending so it can return to that parent before applying it.
         pending.setOwner (mode, surface);
         pending.enterFirstChain = false;
         pending.chainToEnter = chain;
