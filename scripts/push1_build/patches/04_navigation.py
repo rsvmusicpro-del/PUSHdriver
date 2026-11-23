@@ -212,7 +212,7 @@ device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/pus
 # finalization from UI restoration. selectChannel() must run even when the user
 # leaves Device mode during the delay; only stale UI work is generation-guarded.
 replace_once(device_params_mode,
-    ```            cd.selectParent ();
+    """            cd.selectParent ();
             this.model.getHost ().scheduleTask ( () -> {
                 if (cd.hasLayers ())
                     modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
@@ -220,8 +220,8 @@ replace_once(device_params_mode,
                     modeManager.setActive (Modes.DEVICE_PARAMS);
                 deviceParamsMode.setShowDevices (false);
                 cd.selectChannel ();
-            }, 300);```,
-    ```            final long navigationGeneration = de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.getModeGeneration (this.surface);
+            }, 300);""",
+    """            final long navigationGeneration = de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.getModeGeneration (this.surface);
             cd.selectParent ();
             this.model.getHost ().scheduleTask ( () -> {
                 // Finish the native cursor/channel transition unconditionally.
@@ -237,7 +237,7 @@ replace_once(device_params_mode,
                 else
                     modeManager.setActive (Modes.DEVICE_PARAMS);
                 deviceParamsMode.setShowDevices (false);
-            }, 300);```,
+            }, 300);""",
     "Always finalize native parent return; guard only stale UI restoration")
 
 replace_once(device_params_mode,
