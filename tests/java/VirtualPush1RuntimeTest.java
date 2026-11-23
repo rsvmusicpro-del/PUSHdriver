@@ -4103,6 +4103,42 @@ public final class VirtualPush1RuntimeTest
         require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS),
             "DEVICE mode could not be re-entered after Chains timeout recovery");
 
+        // A parent-return timeout must also recover Device Params. Queue
+        // IN behind the unresolved parent request, then prove that timeout
+        // drops the dependent intent and that a late host callback cannot
+        // replay it or strand navigation in the stale child context.
+        state.scheduled.clear ();
+        virtualCursorCallbackDelayMillis = 1000;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceHasLayers = false;
+        virtualCursorDevicePosition = 0;
+        virtualCursorDeviceName = "Parent Return Timeout Child";
+        virtualParentNestedAfterSelect = false;
+        virtualParentHasLayersAfterSelect = false;
+        virtualSameNameParentAfterSelect = false;
+        deviceIndex = 0;
+        deviceParamsMode.setShowDevices (false);
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        MODEL_ACTIONS.clear ();
+        final long parentTimeoutStart = state.virtualTimeMillis + 1;
+        sendTimedNavigationGesture (state, midi, surface, parentTimeoutStart,
+            VirtualPush1Device.OUT, "OUT before missing parent callback", new java.util.ArrayList<> ());
+        requireAction ("cursorDevice.selectParent",
+            "Parent-return timeout scenario did not issue the native parent request");
+        sendTimedNavigationGesture (state, midi, surface, parentTimeoutStart + 10,
+            VirtualPush1Device.IN, "IN queued behind missing parent callback", new java.util.ArrayList<> ());
+        advanceNavigationClock (state, parentTimeoutStart + 700);
+        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
+            "Timed-out parent return did not restore a retryable Device Params selector state");
+        require (!MODEL_ACTIONS.contains ("device.selectSlotChain:Chain 1"),
+            "Queued IN was replayed against an unverified parent after parent-return timeout");
+        advanceNavigationClock (state, parentTimeoutStart + 1100);
+        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
+            "Late parent callback stole the recovered navigation mode");
+        require (!MODEL_ACTIONS.contains ("device.selectSlotChain:Chain 1"),
+            "Late parent callback replayed the discarded IN intent after timeout");
+        virtualCursorCallbackDelayMillis = 73;
+
         // Native OUT/ROW2-UP supersedes a dependent ROW1 intent and waits for
         // the entered cursor before unwinding exactly one hierarchy level.
         state.scheduled.clear ();

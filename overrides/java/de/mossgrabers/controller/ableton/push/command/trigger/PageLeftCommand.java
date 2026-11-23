@@ -614,7 +614,12 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (mode == null || surface == null)
             return;
         final var modeManager = surface.getModeManager ();
-        if (!modeManager.isActive (Modes.DEVICE_CHAINS))
+        // A timed-out parent return normally leaves Device Params active; a
+        // timed-out chooser selection leaves Device Chains active. Recover
+        // both states to the same safe, retryable device-selector view, but
+        // never steal focus after the user has deliberately changed modes.
+        if (!modeManager.isActive (Modes.DEVICE_CHAINS)
+                && !modeManager.isActive (Modes.DEVICE_PARAMS))
             return;
         mode.setShowDevices (true);
         modeManager.setActive (Modes.DEVICE_PARAMS);
