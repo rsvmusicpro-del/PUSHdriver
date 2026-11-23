@@ -64,6 +64,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         private final String parentName;
         private final String parentFingerprint;
         private final boolean parentWasNested;
+        private boolean requireNested = true;
         private WeakReference<DeviceParamsMode> mode;
         private WeakReference<PushControlSurface> surface;
         private int targetIndex = -1;
@@ -110,6 +111,23 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (!cursor.doesExist ())
             return;
         PENDING_ROW1.put (model, new PendingRow1Selection (cursor, cursorFingerprint (model), mode, surface));
+    }
+
+
+    /** Track a Device Layer entry before Bitwig publishes the layer's first device. */
+    public static void prepareLayerEntry (final DeviceParamsMode mode, final IModel model,
+        final PushControlSurface surface)
+    {
+        if (mode == null)
+            return;
+        PENDING_ROW1.remove (model);
+        PENDING_PARENT_RETURN.remove (model);
+        final ICursorDevice cursor = model.getCursorDevice ();
+        if (!cursor.doesExist ())
+            return;
+        final PendingRow1Selection pending = new PendingRow1Selection (cursor, cursorFingerprint (model), mode, surface);
+        pending.requireNested = false;
+        PENDING_ROW1.put (model, pending);
     }
 
 
@@ -212,11 +230,10 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     private static boolean isPublishedChainCursor (final IModel model, final PendingRow1Selection pending)
     {
         final ICursorDevice cursor = model.getCursorDevice ();
-        if (!cursor.doesExist () || !cursor.isNested ())
+        if (!cursor.doesExist () || pending.requireNested && !cursor.isNested ())
             return false;
-        // Entering the first nested level is unambiguous even when the parent
-        // and child happen to share a display name.
-        if (!pending.parentWasNested)
+        // A nesting-state transition is authoritative even when names match.
+        if (pending.parentWasNested != cursor.isNested ())
             return true;
         final String id = cursor.getID ();
         if (pending.parentId != null && !pending.parentId.isEmpty () && id != null && !id.isEmpty ()
@@ -240,15 +257,15 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
         final var bank = cursor.getDeviceBank ();
         final StringBuilder fingerprint = new StringBuilder (256);
-        fingerprint.append (cursor.getName ()).append ('|')
-            .append (cursor.isNested ()).append ('|')
+        // Mutable labels and bank scrolling are not cursor identity. Excluding
+        // them prevents rename/scroll events from finalizing against a stale cursor.
+        fingerprint.append (cursor.isNested ()).append ('|')
             .append (cursor.getPosition ()).append ('|')
             .append (cursor.getIndex ()).append ('|')
             .append (cursor.hasLayers ()).append ('|')
             .append (cursor.hasSlots ()).append ('|')
             .append (cursor.hasDrumPads ()).append ("|bank:")
             .append (bank.getItemCount ()).append ('|')
-            .append (bank.getScrollPosition ()).append ('|')
             .append (bank.getPositionOfLastItem ());
         for (int i = 0; i < bank.getPageSize (); i++)
         {
@@ -260,8 +277,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
                 continue;
             }
             fingerprint.append (device.doesExist ()).append (':')
-                .append (device.getPosition ()).append (':')
-                .append (device.getName ());
+                .append (device.getPosition ());
         }
         return fingerprint.toString ();
     }
@@ -346,7 +362,6 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final PendingParentReturn pending = new PendingParentReturn (cursor, cursorFingerprint (model), mode, surface);
         PENDING_PARENT_RETURN.put (model, pending);
         scheduleParentReturnProbe (model, pending);
-        scheduleParentReturnFallback (model, pending);
     }
 
 
@@ -378,57 +393,13 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final String currentName = cursor.getName ();
         final boolean idChanged = pending.childId != null && !pending.childId.isEmpty ()
             && currentId != null && !currentId.isEmpty () && !pending.childId.equals (currentId);
-        final boolean nameChanged = currentName != null && !currentName.equals (pending.childName);
         final boolean returnedToRoot = pending.childWasNested && !cursor.isNested ();
         final String currentFingerprint = cursorFingerprint (model);
         final boolean bankChanged = currentFingerprint != null
             && !currentFingerprint.equals (pending.childFingerprint);
-        // API 17 has no cursor ID or parent-change observer. Prefer ID/name,
-        // then root transition, then the visible cursor/bank fingerprint.
-        if (!cursor.doesExist () || !(idChanged || nameChanged || returnedToRoot || bankChanged))
-            return false;
-        return finalizeParentReturn (model, pending, mode, surface, cursor);
-    }
-
-
-    private static void scheduleParentReturnFallback (final IModel model,
-        final PendingParentReturn pending)
-    {
-        // Preserve DrivenByMoss' original 300 ms completion only when API 17
-        // exposes no difference between a nested child and its nested parent.
-        model.getHost ().scheduleTask (() -> completeParentReturnUsingNativeFallback (model, pending), 300);
-    }
-
-
-    private static boolean completeParentReturnUsingNativeFallback (final IModel model,
-        final PendingParentReturn pending)
-    {
-        if (PENDING_PARENT_RETURN.get (model) != pending)
-            return true;
-        if (completeParentReturnIfReady (model, pending))
-            return true;
-        if (PENDING_PARENT_RETURN.get (model) != pending)
-            return true;
-
-        final DeviceParamsMode mode = pending.mode.get ();
-        final PushControlSurface surface = pending.surface.get ();
-        if (mode == null || surface == null)
-        {
-            PENDING_PARENT_RETURN.remove (model);
-            return true;
-        }
-        final var modeManager = surface.getModeManager ();
-        if (!modeManager.isActive (Modes.DEVICE_PARAMS))
-        {
-            if (modeManager.isActive (Modes.DEVICE_CHAINS))
-                return false;
-            PENDING_PARENT_RETURN.remove (model);
-            return true;
-        }
-        final ICursorDevice cursor = model.getCursorDevice ();
-        // A still-nested cursor with an identical API-17 fingerprint is the
-        // one case where the upstream timed completion is the only signal.
-        if (!cursor.doesExist () || !pending.childWasNested || !cursor.isNested ())
+        // A name observer can also report a rename of the still-selected child.
+        // Only stable cursor structure may complete a parent-return intent.
+        if (!cursor.doesExist () || !(idChanged || returnedToRoot || bankChanged))
             return false;
         return finalizeParentReturn (model, pending, mode, surface, cursor);
     }
