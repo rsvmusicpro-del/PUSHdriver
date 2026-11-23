@@ -717,8 +717,8 @@ public final class VirtualPush1RuntimeTest
         virtualSlotChains = new String [] { "Chain 1", "Chain 2", "Chain 3" };
 
         // A root device and its first chain child may share a display name.
-        // API 17 exposes no stable cursor ID, so the bounded fallback must
-        // recognize the root -> nested transition without replaying on the parent.
+        // API 17 exposes no stable cursor ID, so the nesting/position observers
+        // must recognize the root -> nested transition without stale replay.
         virtualSameNameChainCursor = true;
         virtualCursorDeviceName = "Same Name Parent";
         deviceIndex = 4;
