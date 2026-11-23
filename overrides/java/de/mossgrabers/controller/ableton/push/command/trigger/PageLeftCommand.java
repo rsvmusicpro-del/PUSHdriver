@@ -35,7 +35,6 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
     private static final class PendingParentReturn
     {
         private final String childId;
-        private final String childName;
         private final String childFingerprint;
         private final boolean childWasNested;
         private WeakReference<DeviceParamsMode> mode;
@@ -50,7 +49,6 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             final DeviceParamsMode mode, final PushControlSurface surface)
         {
             this.childId = cursor.getID ();
-            this.childName = cursor.getName ();
             this.childFingerprint = fingerprint;
             this.childWasNested = cursor.isNested ();
             this.mode = new WeakReference<> (mode);
@@ -255,7 +253,6 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         if (!cursor.doesExist ())
             return null;
 
-        final var bank = cursor.getDeviceBank ();
         final StringBuilder fingerprint = new StringBuilder (256);
         // Cursor position/index and nesting are the only exposed structural
         // identity signals here. Names, capabilities and bank contents can
@@ -379,7 +376,6 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
         final ICursorDevice cursor = model.getCursorDevice ();
         final String currentId = cursor.getID ();
-        final String currentName = cursor.getName ();
         final boolean idChanged = pending.childId != null && !pending.childId.isEmpty ()
             && currentId != null && !currentId.isEmpty () && !pending.childId.equals (currentId);
         final boolean returnedToRoot = pending.childWasNested && !cursor.isNested ();
