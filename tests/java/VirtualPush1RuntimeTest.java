@@ -1160,6 +1160,35 @@ public final class VirtualPush1RuntimeTest
         require (modes.isActive (Modes.TRACK),
             "ROW2 Up did not return to Track after the native hierarchy was unwound");
 
+        // A cursor observer may arrive on Bitwig's model callback path.
+        // Its completion must be marshalled so a mode button pressed between
+        // cursor publication and completion cannot lose focus to stale work.
+        virtualParentNestedAfterSelect = false;
+        virtualParentHasLayersAfterSelect = false;
+        virtualSameNameParentAfterSelect = false;
+        virtualCursorCallbackDelayMillis = 73;
+        virtualCursorDeviceNested = true;
+        virtualCursorDeviceName = "Observer race child";
+        virtualCursorDevicePosition = 0;
+        deviceIndex = 0;
+        deviceParamsMode.setShowDevices (true);
+        modes.setActive (Modes.DEVICE_PARAMS);
+        state.scheduled.clear ();
+        final long observerRaceStartedAt = state.virtualTimeMillis;
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT,
+            "Start parent return for observer/mode-button race");
+        advanceNavigationClock (state, observerRaceStartedAt + 73);
+        require (!virtualCursorDeviceNested,
+            "Observer race setup did not publish the parent cursor");
+        // The observer completion is now queued for the next host tick. A
+        // physical TRACK press must run first and remain authoritative.
+        midi.device ().tapButton (VirtualPush1Device.TRACK);
+        require (modes.isActive (Modes.TRACK),
+            "TRACK press did not activate before queued cursor completion");
+        advanceNavigationClock (state, observerRaceStartedAt + 74);
+        require (modes.isActive (Modes.TRACK),
+            "Queued cursor observer completion stole focus from a newer TRACK press");
+
         // Multiple ROW2-UP presses received while selectParent is in flight
         // must be replayed in order, not issue repeated parent selections on
         // the stale child cursor.
