@@ -1083,7 +1083,8 @@ public final class VirtualPush1RuntimeTest
             "Nested sibling 0", "Nested sibling 1", "Nested sibling 2", "Nested sibling 3",
             "Nested sibling 4", "Nested sibling 5", "Nested sibling 6", "Nested sibling 7"
         };
-        virtualCursorDevicePosition = 0;
+        // The selected nested child and its parent share position/index here.
+        virtualCursorDevicePosition = 1;
         deviceIndex = 0;
         deviceParamsMode.setShowDevices (true);
         modes.setActive (Modes.DEVICE_PARAMS);
@@ -3085,7 +3086,7 @@ public final class VirtualPush1RuntimeTest
                                     : virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
                                 final int previousPosition = virtualCursorDevicePosition;
                                 virtualCursorDevicePosition = virtualSameNameParentAfterSelect && virtualParentNestedAfterSelect ? 1 : 0;
-                                deviceIndex = virtualCursorDevicePosition;
+                                deviceIndex = 0;
                                 virtualCursorDeviceNested = virtualParentNestedAfterSelect;
                                 if (previousPosition != virtualCursorDevicePosition)
                                     for (final IValueObserver<Integer> observer : cursorPositionObservers)
