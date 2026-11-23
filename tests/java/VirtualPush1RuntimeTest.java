@@ -4117,7 +4117,7 @@ public final class VirtualPush1RuntimeTest
         virtualParentHasLayersAfterSelect = false;
         virtualSameNameParentAfterSelect = false;
         deviceIndex = 0;
-        deviceParamsMode.setShowDevices (false);
+        deviceParamsMode.setShowDevices (true);
         surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
         MODEL_ACTIONS.clear ();
         final long parentTimeoutStart = state.virtualTimeMillis + 1;
