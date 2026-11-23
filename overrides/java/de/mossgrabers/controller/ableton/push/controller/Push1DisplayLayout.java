@@ -88,17 +88,17 @@ public final class Push1DisplayLayout
 
     public static String fitCell (final String value, final int cell)
     {
-        return Push1DisplayText.fitAscii (value, CELL_TEXT_WIDTH) + (cellWidth (cell) == 9 ? " " : "");
+        return Push1DisplayText.fit (value, CELL_TEXT_WIDTH) + (cellWidth (cell) == 9 ? " " : "");
     }
 
     public static String fitBlock (final String value)
     {
-        return Push1DisplayText.fitAscii (value, BLOCK_WIDTH);
+        return Push1DisplayText.fit (value, BLOCK_WIDTH);
     }
 
     public static String fitRow (final String value)
     {
-        return Push1DisplayText.fitAscii (value, COLUMNS);
+        return Push1DisplayText.fit (value, COLUMNS);
     }
 
     /**

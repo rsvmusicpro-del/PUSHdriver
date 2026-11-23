@@ -2,7 +2,7 @@
 
 This is the durable project hand-off for future work. It summarizes the intent,
 compatibility constraints, current architecture and verification boundaries
-for the `custom` target branch and its feature pull requests.
+established on branch `custom`.
 
 ## Project objective
 
@@ -28,7 +28,8 @@ excluded from the packaged extension.
 
 ## Working rules
 
-- Target `custom`, but implement changes on an isolated feature branch and submit a pull request; inspect both branch histories before editing. Do not push directly to `custom`.
+- Work only on the Git branch `custom`; inspect its history before making
+  changes.
 - Preserve the upstream source pin and API 17 compatibility.
 - Keep production behavior changes separate from test infrastructure.
 - Prefer small, regression-backed changes to production commands and modes.
@@ -138,12 +139,9 @@ the API-17 extension and enforces a combined `quality-gate` job. The detailed
 coverage inventory and explicit gaps are tracked in
 `docs/VIRTUAL-PUSH1-COVERAGE.md`. Protocol regressions cover every valid pad
 velocity and pressure value on all 64 pads, all signed relative-step values on
-all 11 encoders, and all 16,384 ribbon positions.
-
-As verified on 2026-11-19, the active `protection` ruleset on `custom` requires
-pull requests and the strict `quality-gate` status check, blocks deletion and
-non-fast-forward updates, and has no bypass actor. Required human approvals are
-currently zero. See https://github.com/rsvmusicpro-del/PUSHdriver/rules/27227660.
+all 11 encoders, and all 16,384 ribbon positions. The
+`quality-gate` must be configured as a required status check in GitHub branch
+protection; workflow presence alone does not prevent direct pushes or merges.
 
 A successful CI run does not itself launch Bitwig Studio 4.3.10, emulate the
 Bitwig scheduler/model in full, test native MIDI port discovery on every
@@ -176,11 +174,10 @@ USB-MIDI discovery, analog pressure calibration, firmware timing or LCD glass
 appearance.
 
 The GitHub Actions workflow's Linux build, Intel macOS validation and
-`quality-gate` must all pass on the final `custom` head. GitHub's active `protection` ruleset (ID `27227660`) requires pull requests and
-the strict `quality-gate` status check, blocks branch deletion and
-non-fast-forward updates, and configures no bypass actor. Required human
-approvals are zero. The ruleset is visible at
-https://github.com/rsvmusicpro-del/PUSHdriver/rules/27227660.
+`quality-gate` must all pass on the final `custom` head. The branch metadata
+currently reports `protected: false`; the repository owner still needs to
+configure `quality-gate` as a required branch-protection status check for
+server-enforced merge protection.
 
 
 ## Extended virtual hardware and DAW model (2026-11-13)
@@ -217,13 +214,10 @@ job is the aggregate result and requires both Linux build/virtual simulation and
 Intel macOS build/virtual simulation to succeed. The local equivalent is
 `python3 scripts/run_virtual_push1.py`. See
 `docs/DEVELOPMENT-QUALITY-GATE.md` for the required repository settings and
-verification procedure. As verified on 2026-11-19, active ruleset
-`protection` (ID `27227660`) requires pull requests and the strict
-`quality-gate` status check, blocks branch deletion and non-fast-forward
-updates, and has no bypass actor; required human approvals are zero. This
-verified state supersedes the earlier note that the detailed protection
-endpoint was unreadable. Recheck the live ruleset if repository governance
-changes.
+verification procedure. Important: GitHub still reports `custom` as unprotected;
+the connected integration cannot modify branch protection (HTTP 403). A
+repository administrator must require `quality-gate` and PRs in GitHub Settings
+before the server enforces the rule against bypasses or direct pushes.
 
 
 ## Device mode source-of-truth reset (2026-11-14)
@@ -246,5 +240,5 @@ controller was unusable.
 Do not recreate a second DeviceParamsMode or DeviceChainsMode under
 `overrides/java`. Any Bitwig 4.3.10 adaptation must remain a narrow,
 explicit source-assembly patch with a corresponding MIDI-level regression
-test. The implementation is part of the current `custom` integration history;
-the original Device hierarchy change was delivered in [PR #76](https://github.com/rsvmusicpro-del/PUSHdriver/pull/76). A live Bitwig 4.3.10 + physical Push 1 qualification is still required.
+test. The candidate implementation and CI status are tracked in PR #38;
+a live Bitwig 4.3.10 + physical Push 1 qualification is still required.

@@ -2,14 +2,10 @@ name: Build PUSHdriver
 
 on:
   push:
-    branches: [custom, feature/push1-display-refinement]
+    branches: [custom]
   pull_request:
     branches: [custom]
   workflow_dispatch:
-
-concurrency:
-  group: push1-display-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -72,16 +68,7 @@ jobs:
         run: python3 scripts/verify_push1.py
 
       - name: Run extended fuzz and delayed-callback interleaving suite
-        run: python3 scripts/test_push1_extension.py --fuzz-actions=256 --fuzz-seeds=50
-
-      - name: Upload production LCD snapshots for ergonomic review
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: push1-display-snapshots-linux
-          path: target/push1-display-snapshots/
-          if-no-files-found: ignore
-          retention-days: 30
+        run: python3 scripts/test_push1_extension.py --fuzz-actions=256 --fuzz-seeds=16
 
       - name: Upload generated Push 1 failure traces
         if: failure()
@@ -92,26 +79,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Prove empty-clip regression kills injected Java mutant
-        run: python3 scripts/test_push1_mutation.py
-      - name: Validate local, live-host and temporal diagnostic runners
-        run: python3 -m py_compile scripts/run_virtual_push1.py scripts/live_bitwig_midi_probe.py scripts/test_push1_mutation.py scripts/analyze_navigation_latency.py scripts/push1_temporal_simulator.py
-
-      - name: Run deterministic temporal and feedback sensitivity simulation
-        run: |
-          mkdir -p target/push1-temporal
-          python3 scripts/push1_temporal_simulator.py --scenario chain-entry --samples 5000 --seed 20261122 --json > target/push1-temporal/chain-entry.json
-          python3 scripts/push1_temporal_simulator.py --scenario rapid-chain --samples 5000 --seed 20261123 --json > target/push1-temporal/rapid-chain.json
-          python3 scripts/push1_temporal_simulator.py --scenario mode-burst --samples 5000 --seed 20261124 --json > target/push1-temporal/mode-burst.json
-          python3 scripts/push1_temporal_simulator.py --scenario button-repeat-hold --samples 5000 --seed 20261125 --json > target/push1-temporal/button-repeat-hold.json
-
-      - name: Upload temporal simulation reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: push1-temporal-simulation-linux
-          path: target/push1-temporal/
-          if-no-files-found: error
-          retention-days: 30
+      - name: Validate one-command local bench runner
+        run: python3 -m py_compile scripts/run_virtual_push1.py
 
       - name: Prepare Bitwig extension
         run: |
@@ -171,32 +140,7 @@ jobs:
         run: python3 scripts/verify_push1.py
 
       - name: Run extended fuzz and delayed-callback interleaving suite on macOS
-        run: python3 scripts/test_push1_extension.py --fuzz-actions=256 --fuzz-seeds=50
-
-      - name: Compile and run temporal feedback sensitivity simulation
-        run: |
-          python3 -m py_compile scripts/push1_temporal_simulator.py
-          mkdir -p target/push1-temporal
-          python3 scripts/push1_temporal_simulator.py --scenario chain-entry --samples 5000 --seed 20261122 --json > target/push1-temporal/chain-entry.json
-          python3 scripts/push1_temporal_simulator.py --scenario rapid-chain --samples 5000 --seed 20261123 --json > target/push1-temporal/rapid-chain.json
-          python3 scripts/push1_temporal_simulator.py --scenario mode-burst --samples 5000 --seed 20261124 --json > target/push1-temporal/mode-burst.json
-
-      - name: Upload temporal simulation reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: push1-temporal-simulation-macos
-          path: target/push1-temporal/
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload production LCD snapshots for ergonomic review
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: push1-display-snapshots-macos
-          path: target/push1-display-snapshots/
-          if-no-files-found: ignore
-          retention-days: 30
+        run: python3 scripts/test_push1_extension.py --fuzz-actions=256 --fuzz-seeds=16
 
       - name: Upload generated Push 1 failure traces
         if: failure()

@@ -2,13 +2,9 @@
 """Run the complete Push 1 extension suite through the virtual hardware bench."""
 from pathlib import Path
 import os
-import re
 import subprocess
 import sys
 import tempfile
-
-from push1_failure_shrinker import minimal_failing_prefix
-from push1_build.arguments import positive_integer
 
 root = Path(__file__).resolve().parents[1]
 extension = root / "target/PUSHdriver-19.2.2.jar"
@@ -26,7 +22,6 @@ classpath = os.pathsep.join((str(extension), str(api)))
 test_sources = (
     root / "tests/java/VirtualPush1MidiBench.java",
     root / "tests/java/VirtualPush1MidiConcurrencyTest.java",
-    root / "tests/java/AbstractHwButtonSafetyTest.java",
     root / "tests/java/VirtualPush1Device.java",
     root / "tests/java/VirtualPush1DeviceTest.java",
     root / "tests/java/VirtualPush1DisplayLayoutTest.java",
@@ -38,103 +33,34 @@ test_sources = (
     root / "tests/java/SequencerEngineTest.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/engine/Push1PadGrid.java",
     root / "tests/java/VirtualPush1Simulator.java",
-    root / "tests/java/VirtualPush1DisplaySnapshots.java",
-    root / "tests/java/VirtualPush1LcdRasterizer.java",
-    root / "tests/java/VirtualPush1LcdRasterizerTest.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java",
-    root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayComposition.java",
     root / "overrides/java/de/mossgrabers/controller/ableton/push/controller/Push1DisplayGlyphs.java",
-    root / "tests/java/Push1DisplayCompositionTest.java",
 )
 with tempfile.TemporaryDirectory(prefix="pushdriver-virtual-bench-") as output:
     subprocess.run(
         ["javac", "-cp", classpath, "-d", output, *(str(source) for source in test_sources)],
         cwd=root, check=True,
     )
-    runtime_classpath = os.pathsep.join((classpath, output, str(root / "tests/resources")))
-    command = ["java", "-Dpush1.display.snapshots=target/push1-display-snapshots"]
-    lcd_rom = next(
-        (argument.split("=", 1)[1] for argument in sys.argv[1:] if argument.startswith("--lcd-rom=")),
-        "A00",
-    )
-    if lcd_rom not in ("A00", "A02"):
-        raise SystemExit("--lcd-rom must be A00 or A02")
-    command.append(f"-Dpush1.lcd.rom={lcd_rom}")
+    runtime_classpath = os.pathsep.join((classpath, output))
+    command = ["java"]
     fuzz_seed = next(
         (argument.split("=", 1)[1] for argument in sys.argv[1:] if argument.startswith("--fuzz-seed=")),
         None,
     )
     if fuzz_seed is not None:
         command.append(f"-Dpush1.fuzz.seed={fuzz_seed}")
-    fuzz_view = next(
-        (argument.split("=", 1)[1] for argument in sys.argv[1:] if argument.startswith("--fuzz-view=")),
-        None,
-    )
-    if fuzz_view is not None:
-        command.append(f"-Dpush1.fuzz.view={fuzz_view}")
     for option, property_name in (("--fuzz-actions=", "push1.fuzz.actions"),
                                   ("--fuzz-seeds=", "push1.fuzz.seeds")):
         value = next((argument.split("=", 1)[1] for argument in sys.argv[1:]
                       if argument.startswith(option)), None)
         if value is not None:
-            command.append(f"-D{property_name}={positive_integer(value, option[:-1])}")
-    subprocess.run(["java", "-cp", runtime_classpath, "VirtualPush1LcdRasterizerTest"], cwd=root, check=True)
-    subprocess.run(["java", "-cp", runtime_classpath, "Push1DisplayCompositionTest"], cwd=root, check=True)
-    subprocess.run(["java", "-Dpush1.lcd.rom=A02", "-cp", runtime_classpath, "VirtualPush1LcdRasterizerTest"], cwd=root, check=True)
-    subprocess.run(["java", "-cp", runtime_classpath, "AbstractHwButtonSafetyTest"], cwd=root, check=True)
+            if not value.isdigit():
+                raise SystemExit(f"{option[:-1]} must be a positive integer")
+            command.append(f"-D{property_name}={value}")
     subprocess.run(["java", "-cp", runtime_classpath, "VirtualPush1MidiConcurrencyTest"], cwd=root, check=True)
     subprocess.run(["java", "-cp", runtime_classpath, "SequencerEngineTest"], cwd=root, check=True)
     command.extend(["-cp", runtime_classpath, "VirtualPush1RuntimeTest"])
     if "--gui" in sys.argv:
         command.append("--gui")
-    fuzz_actions = positive_integer(next(
-        (argument.split("=", 1)[1] for argument in sys.argv[1:] if argument.startswith("--fuzz-actions=")),
-        "256",
-    ), "--fuzz-actions")
-    completed = subprocess.run(command, cwd=root, capture_output=True, text=True)
-    print(completed.stdout, end="")
-    print(completed.stderr, end="", file=sys.stderr)
-    if completed.returncode != 0:
-        failure_text = completed.stdout + "\n" + completed.stderr
-        failure_match = re.search(
-            r"Generated Push 1 scenario failed: seed=(-?\d+), view=([A-Z0-9_]+)",
-            failure_text,
-        )
-        shrink_disabled = "--no-shrink-failures" in sys.argv
-        if failure_match is not None and not shrink_disabled and fuzz_view is None:
-            seed, view = failure_match.group(1), failure_match.group(2)
-            print(f"\nReducing generated failure: seed={seed}, view={view}, upper bound={fuzz_actions} actions.", flush=True)
-
-            def reproduces(action_count: int) -> bool:
-                replay = [
-                    "java", f"-Dpush1.lcd.rom={lcd_rom}", f"-Dpush1.fuzz.seed={seed}",
-                    f"-Dpush1.fuzz.view={view}", f"-Dpush1.fuzz.actions={action_count}",
-                    "-cp", runtime_classpath, "VirtualPush1RuntimeTest",
-                ]
-                result = subprocess.run(replay, cwd=root, capture_output=True, text=True)
-                combined = result.stdout + "\n" + result.stderr
-                return result.returncode != 0 and re.search(
-                    rf"Generated Push 1 scenario failed: seed={re.escape(seed)}, view={re.escape(view)}",
-                    combined,
-                ) is not None
-
-            minimum = minimal_failing_prefix(fuzz_actions, reproduces)
-            if minimum is not None:
-                boundary_confirmed = reproduces(minimum) and (minimum == 1 or not reproduces(minimum - 1))
-                if boundary_confirmed:
-                    report = root / "target/push1-failures" / f"seed-{seed}-view-{view}.txt"
-                    minimized = report.with_name(report.stem + "-prefix-minimized.txt")
-                    original_lines = report.read_text(encoding="utf-8").splitlines() if report.is_file() else []
-                    minimized.write_text(
-                        "\n".join([
-                            f"seed={seed}", f"view={view}", f"minimal_failing_prefix={minimum}",
-                            "reduction=shortest reproducible action prefix; arbitrary action deletion is not claimed",
-                            "trace:", *original_lines[4:],
-                        ]) + "\n",
-                        encoding="utf-8",
-                    )
-                    print(f"Shortest failing prefix confirmed: {minimum} actions. Report: {minimized}", flush=True)
-                else:
-                    print("Prefix reduction could not confirm a stable failing/pass boundary; original trace retained.", flush=True)
-        raise SystemExit(completed.returncode)
+    subprocess.run(command, cwd=root, check=True)

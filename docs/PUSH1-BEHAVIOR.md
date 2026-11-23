@@ -15,7 +15,7 @@ This document describes the behavior implemented on branch `custom` at the time 
 |---|---|---|
 | 8×8 pads | Notes 36–99, velocity 1–127; polyphonic aftertouch while held | Active Push view (note, drum, sequencer, session, etc.) |
 | Main buttons | Momentary CC, pressed 127 / released 0; IDs match the independent Push 1 CC map | Setup command bindings and active mode/view |
-| In/Out | CC 62 (In) / CC 63 (Out) | In enters the first available device slot chain; Out selects the parent device; Browser content-type paging remains available |
+| In/Out | CC 62 (In) / CC 63 (Out) | Device next/previous and parameter-page next/previous in Device mode; Browser filter columns use row buttons/encoders, while Shift+Left/Right page Browser content types |
 | Four arrows | CC 44–47 | Previous/next item horizontally; previous/next scene vertically; Shift changes to page navigation; does not launch clips/scenes |
 | Encoders | Relative two's-complement CC 71–79; touch notes 0–8, release as Note On velocity 0 | Active mode's continuous controls and touch handling |
 | Small encoders | Relative two's-complement CC 14–15; touch notes 9–10, release as Note On velocity 0 | Existing Push command mappings |
@@ -35,7 +35,7 @@ The full physical ID declarations live in the pinned upstream `PushControlSurfac
 ## Characterized mode-specific adaptations
 
 - **Navigation:** Left/Right use active-mode item selection, or item pages with Shift. Up/Down scroll scenes, or scene pages with Shift. Scene Play uses a 64-scene bank; ordinary Session navigation uses the track bank's scene bank. Arrow LED availability follows the same granularity as execution.
-- **In/Out:** in Device mode, CC 62 enters the first available slot chain and CC 63 returns to the parent device. In Browser mode they retain content-type paging. Session track-bank and sequencer left/right behavior remains unchanged. ROW1 selects devices within a nested chain through the cursor-device sibling navigation API.
+- **In/Out:** CC 62/63 navigate device/parameter pages in Device mode and filter columns in Browser mode. Rack-chain mode remains inactive because API 17 does not provide a safe selected-chain cursor. Existing Session/sequencer fallbacks are retained.
 - **New:** the selected cursor track is checked for an available slot before playback is changed. If the track is playing, that track is stopped and a note clip is created with the inherited clip length and overdub rules. Other tracks are not stopped.
 - **Note Repeat:** optional MIDI note-repeat services may be absent. Configuration knobs and Groove controls remain usable; only operations requiring the missing service are guarded.
 - **Second row:** defaults to Mute.
@@ -72,7 +72,7 @@ All of these tests run without a physical Push, native MIDI driver or running Bi
 
 ## Regression protection
 
-The workflow runs on pushes to `custom` and pull requests targeting `custom`. Its `quality-gate` job fails unless both Linux and Intel macOS validations succeed. As verified on 2026-11-19, GitHub ruleset `protection` (ID `27227660`) actively protects the default branch `custom`: pull requests are required, the `quality-gate` check is required in strict mode, branch deletion and non-fast-forward updates are blocked, and no bypass actor is configured. Required human approvals are set to zero. See [the active repository ruleset](https://github.com/rsvmusicpro-del/PUSHdriver/rules/27227660).
+The workflow runs on pushes to `custom` and pull requests targeting `custom`. Its `quality-gate` job fails unless both Linux and Intel macOS validations succeed. For server-side enforcement, configure the `quality-gate` status check as required on the `custom` branch and disallow direct pushes/force pushes. The integration can update workflow files, but GitHub denied access to the legacy branch-protection endpoint; no repository rulesets are currently exposed, so I cannot truthfully claim that required-check enforcement has been enabled.
 
 Local test sequence after assembling the extension:
 

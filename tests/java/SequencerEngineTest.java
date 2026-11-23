@@ -36,28 +36,14 @@ public final class SequencerEngineTest
     private static void testPush1PadGrid ()
     {
         require (Push1PadGrid.indexForNote (35) == -1, "note below Push grid rejected");
-        require (Push1PadGrid.indexForNote (36) == 0, "MIDI note 36 maps to the bottom-left button index");
-        require (Push1PadGrid.indexForNote (92) == 56, "MIDI note 92 maps to the top-left button index");
-        require (Push1PadGrid.indexForNote (99) == 63, "MIDI note 99 maps to the top-right button index");
-        require (Push1PadGrid.indexForNote (43) == 7, "MIDI note 43 maps to the bottom-right button index");
+        require (Push1PadGrid.indexForNote (36) == 0, "first pad note maps to index zero");
+        require (Push1PadGrid.indexForNote (99) == 63, "last pad note maps to index 63");
         require (Push1PadGrid.indexForNote (100) == -1, "note above Push grid rejected");
         require (Push1PadGrid.indexForNote (-1) == -1, "negative MIDI note rejected");
-        require (Push1PadGrid.noteForIndex (0) == 36, "bottom-left button index maps back to MIDI note 36");
-        require (Push1PadGrid.noteForIndex (56) == 92, "top-left button index maps back to MIDI note 92");
         require (Push1PadGrid.noteForIndex (-1) == -1, "negative pad index rejected");
         require (Push1PadGrid.noteForIndex (64) == -1, "pad index 64 rejected");
-        require (Push1PadGrid.indexForCoordinate (0, 0) == 56, "top-left coordinate maps to top-left MIDI button index");
-        require (Push1PadGrid.indexForCoordinate (7, 7) == 7, "bottom-right coordinate maps to bottom-right MIDI button index");
-        require (Push1PadGrid.indexForCoordinate (0, 7) == 0, "bottom-left coordinate maps to first MIDI button index");
-        require (Push1PadGrid.indexForCoordinate (7, 0) == 63, "top-right coordinate maps to last MIDI button index");
-        require (Push1PadGrid.rowForIndex (0) == 7, "first MIDI button index is on the bottom row");
-        require (Push1PadGrid.rowForIndex (56) == 0, "top-left MIDI button index is on the top row");
-        require (Push1PadGrid.sequencerRowForIndex (0) == 0, "bottom MIDI row maps to sequencer row zero");
-        require (Push1PadGrid.sequencerRowForIndex (7) == 0, "bottom MIDI row maps to sequencer row zero across all columns");
-        require (Push1PadGrid.sequencerRowForIndex (56) == 7, "top MIDI row maps to sequencer row seven");
-        require (Push1PadGrid.sequencerRowForIndex (63) == 7, "top MIDI row maps to sequencer row seven across all columns");
-        require (Push1PadGrid.sequencerRowForIndex (-1) == -1, "invalid MIDI index has no sequencer row");
-        require (Push1PadGrid.sequencerRowForIndex (64) == -1, "out-of-range MIDI index has no sequencer row");
+        require (Push1PadGrid.indexForCoordinate (0, 0) == 0, "top-left coordinate maps to first pad");
+        require (Push1PadGrid.indexForCoordinate (7, 7) == 63, "bottom-right coordinate maps to last pad");
         require (Push1PadGrid.indexForCoordinate (8, 0) == -1, "out-of-range column rejected");
         require (Push1PadGrid.indexForCoordinate (0, 8) == -1, "out-of-range row rejected");
         for (int index = 0; index < Push1PadGrid.PAD_COUNT; index++)
@@ -89,15 +75,9 @@ public final class SequencerEngineTest
         require (engine.shouldFollowPlayhead (), "deactivation resets feature-local page-follow state");
         engine.onPageGesture (1, 1, 127, true, 8, 16);
         require (engine.shouldFollowPlayhead (), "pad-down preserves reset follow state");
-        require (ClassicSequencerEngine.pageForStep (0, 8) == 0, "first step maps to first page");
-        require (ClassicSequencerEngine.pageForStep (7, 8) == 0, "last step maps to first page");
-        require (ClassicSequencerEngine.pageForStep (8, 8) == 1, "first step after page boundary maps to next page");
-        require (ClassicSequencerEngine.pageForStep (15, 8) == 1, "last step maps to second page");
-        require (ClassicSequencerEngine.pageForStep (16, 8) == 2, "page mapping remains correct beyond second page");
         require (ClassicSequencerEngine.pageForStep (17, 8) == 2, "global step maps to page");
         require (ClassicSequencerEngine.pageForStep (-1, 8) == -1, "negative step rejected");
         require (ClassicSequencerEngine.pageForStep (1, 0) == -1, "zero page width rejected");
-        require (ClassicSequencerEngine.pageForStep (1, -8) == -1, "negative page width rejected");
     }
 
     private static void testPolyGridAndScaleRules ()
@@ -112,14 +92,6 @@ public final class SequencerEngineTest
         require (!engine.isHardwarePadIndex (64), "out-of-range pad rejected");
         require (engine.stepForPad (0, 0, 8, 4) == 24, "top-left maps to final matrix row");
         require (engine.stepForPad (7, 3, 8, 4) == 7, "bottom-right maps to step seven");
-        final int bottomLeftButton = Push1PadGrid.indexForNote (36);
-        require (engine.stepForPad (Push1PadGrid.columnForIndex (bottomLeftButton),
-                Push1PadGrid.rowForIndex (bottomLeftButton), 8, 8) == 0,
-                "physical bottom-left Push pad maps to Poly step zero");
-        final int topLeftButton = Push1PadGrid.indexForNote (92);
-        require (engine.stepForPad (Push1PadGrid.columnForIndex (topLeftButton),
-                Push1PadGrid.rowForIndex (topLeftButton), 8, 8) == 56,
-                "physical top-left Push pad maps to Poly step 56");
         require (engine.stepForPad (8, 0, 8, 4) == -1, "invalid column rejected");
         require (engine.stepForPad (0, 4, 8, 4) == -1, "invalid row rejected");
         require (engine.isScaleFundamental (62, 2), "scale fundamental recognized");

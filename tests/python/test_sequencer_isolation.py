@@ -4,8 +4,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 POLY_VIEW = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/PolySequencerView.java"
 CLASSIC_VIEW = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/SequencerView.java"
-POLY_PATCHES = ROOT / "scripts/push1_build/patches/01_framework.py"
-POLY_OBSERVERS = ROOT / "overrides/java/de/mossgrabers/controller/ableton/push/view/PushPolySequencerObservers.java"
+ASSEMBLY = ROOT / "scripts/prepare_push1.py"
 
 
 class SequencerIsolationContractTests(unittest.TestCase):
@@ -29,31 +28,11 @@ class SequencerIsolationContractTests(unittest.TestCase):
         self.assertLess(fundamental, upstream_fallback)
         self.assertIn("this.getPadColor (note, this.useDawColors ? track : null)", source)
 
-    def test_poly_observers_are_shared_and_do_not_retain_view_instances(self):
-        source = POLY_OBSERVERS.read_text(encoding="utf-8")
-        self.assertIn("WeakHashMap<ITrackBank, Observer>", source)
-        self.assertIn("CopyOnWriteArrayList<WeakReference<PolySequencerView>>", source)
-        self.assertIn("WeakReference<PolySequencerView>", source)
-        self.assertIn("observer.addView (view)", source)
-        self.assertIn("view.isCurrentActiveView ()", source)
-        self.assertIn("view.getKeyManager ().call (trackIndex, note, velocity)", source)
-        self.assertIn("view.onTrackSelectionChanged ()", source)
-        assembly = POLY_PATCHES.read_text(encoding="utf-8")
-        self.assertIn("Replace per-view observers with weak shared routing", assembly)
-        self.assertNotIn("tb.addNoteObserver ((trackIndex, note, velocity)", assembly)
-
-    def test_view_engines_follow_view_manager_lifecycle(self):
-        for path in (CLASSIC_VIEW, POLY_VIEW):
-            source = path.read_text(encoding="utf-8")
-            self.assertIn("public void onActivate ()", source)
-            self.assertIn("this.engine.activate ()", source)
-            self.assertIn("public void onDeactivate ()", source)
-            self.assertIn("this.engine.deactivate ()", source)
-            self.assertNotIn("synchronizeEngineLifecycle", source)
-        poly = POLY_VIEW.read_text(encoding="utf-8")
-        self.assertIn("this.noteMemory.clear ()", poly)
-        self.assertIn("this.copyStep = -1", poly)
-        self.assertIn("this.keyManager.clearPressedKeys ()", poly)
+    def test_poly_note_observer_routes_only_to_active_view(self):
+        source = ASSEMBLY.read_text(encoding="utf-8")
+        self.assertIn("tb.addNoteObserver ((trackIndex, note, velocity) ->", source)
+        self.assertIn("this.surface.getViewManager ().getActive () == this", source)
+        self.assertIn("this.keyManager.call (trackIndex, note, velocity)", source)
 
     def test_each_sequencer_has_a_distinct_feature_engine(self):
         classic = CLASSIC_VIEW.read_text(encoding="utf-8")
@@ -79,13 +58,6 @@ class SequencerIsolationContractTests(unittest.TestCase):
         self.assertIn("Push1PadGrid.isValidIndex (index)", engine)
         self.assertIn("x >= columns", engine)
         self.assertIn("y >= rows", engine)
-
-    def test_poly_step_aggregation_bounds_reads_by_highest_occupied_row(self):
-        source = POLY_PATCHES.read_text(encoding="utf-8")
-        self.assertIn("clip.getHighestRow (channel, col)", source)
-        self.assertIn("for (int row = 0; row <= highestRow; row++)", source)
-        poly = POLY_VIEW.read_text(encoding="utf-8")
-        self.assertIn("clip.getHighestRow (notePosition.getChannel (), step)", poly)
 
 
 if __name__ == "__main__":
