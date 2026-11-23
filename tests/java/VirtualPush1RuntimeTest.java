@@ -745,6 +745,67 @@ public final class VirtualPush1RuntimeTest
         virtualCursorDevicePosition = 4;
         deviceParamsMode.setShowDevices (false);
 
+        // Repeated IN is serialized behind the first chain cursor publication.
+        virtualSlotChains = new String [] { "Chain 1", "Chain 2", "Chain 3" };
+        virtualCursorCallbackDelayMillis = 73;
+        MODEL_ACTIONS.clear ();
+        final long repeatedInStart = state.virtualTimeMillis + 1;
+        final List<String> repeatedInTrace = new java.util.ArrayList<> ();
+        sendTimedNavigationGesture (state, midi, surface, repeatedInStart,
+            VirtualPush1Device.IN, "First IN starts chain entry", repeatedInTrace);
+        sendTimedNavigationGesture (state, midi, surface, repeatedInStart + 10,
+            VirtualPush1Device.IN, "Second IN waits for first cursor", repeatedInTrace);
+        advanceNavigationClock (state, repeatedInStart + 250);
+        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("device.selectSlotChain:Chain 1")).count () == 2,
+            "Repeated IN was not replayed on the newly published child cursor: " + MODEL_ACTIONS);
+        require (MODEL_ACTIONS.indexOf ("cursorDevice.chainCallback") >= 0
+                && MODEL_ACTIONS.lastIndexOf ("cursorDevice.chainCallback") > MODEL_ACTIONS.indexOf ("cursorDevice.chainCallback"),
+            "Repeated IN did not complete both serialized chain cursor transitions");
+        require (virtualCursorDeviceNested,
+            "Repeated IN did not leave the cursor in the second nested chain");
+
+        // A chooser selection made during chain entry belongs to the original
+        // parent. Wait for the first entry, return to that parent, then apply it.
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceName = "Chooser pending-entry parent";
+        virtualDeviceBankNames = new String [] {
+            "Chooser parent 0", "Chooser parent 1", "Chooser parent 2", "Chooser parent 3",
+            "Chooser parent 4", "Chooser parent 5", "Chooser parent 6", "Chooser parent 7"
+        };
+        deviceIndex = 4;
+        virtualCursorDevicePosition = 4;
+        deviceParamsMode.setShowDevices (false);
+        virtualParentNestedAfterSelect = false;
+        virtualSameNameParentAfterSelect = false;
+        virtualCursorCallbackDelayMillis = 150;
+        MODEL_ACTIONS.clear ();
+        final long chooserEntryStart = state.virtualTimeMillis + 1;
+        final List<String> pendingChooserTrace = new java.util.ArrayList<> ();
+        sendTimedNavigationGesture (state, midi, surface, chooserEntryStart,
+            VirtualPush1Device.IN, "IN before opening Chains chooser", pendingChooserTrace);
+        virtualCursorCallbackDelayMillis = 73;
+        sendTimedNavigationGesture (state, midi, surface, chooserEntryStart + 10,
+            VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Open Chains chooser before cursor publication", pendingChooserTrace);
+        sendTimedNavigationGesture (state, midi, surface, chooserEntryStart + 20,
+            VirtualPush1Device.TOP_ROW_FIRST + 1, "Choose Chain 2 before cursor publication", pendingChooserTrace);
+        advanceNavigationClock (state, chooserEntryStart + 400);
+        require (MODEL_ACTIONS.indexOf ("cursorDevice.chainCallback") < MODEL_ACTIONS.indexOf ("cursorDevice.selectParent")
+                && MODEL_ACTIONS.indexOf ("cursorDevice.selectParent") < MODEL_ACTIONS.indexOf ("cursorDevice.selectChannel")
+                && MODEL_ACTIONS.indexOf ("cursorDevice.selectChannel") < MODEL_ACTIONS.indexOf ("device.selectSlotChain:Chain 2"),
+            "Pending Chains chooser selection did not return to its source parent before selecting Chain 2: " + MODEL_ACTIONS);
+        require (virtualCursorDeviceNested && modes.isActive (Modes.DEVICE_PARAMS),
+            "Pending Chains chooser selection did not finish in the selected child chain");
+        virtualCursorDeviceNested = false;
+        virtualCursorDeviceName = "Virtual Device";
+        virtualDeviceBankNames = new String [] {
+            "Device 0", "Device 1", "Device 2", "Device 3",
+            "Device 4", "Device 5", "Device 6", "Device 7"
+        };
+        deviceIndex = 4;
+        virtualCursorDevicePosition = 4;
+        deviceParamsMode.setShowDevices (false);
+        virtualCursorCallbackDelayMillis = 73;
+
         // If a nested parent and child have the same name and every other
         // API-17-visible cursor/bank field is also identical, fail closed.
         virtualSameNameChainCursor = true;
@@ -3068,8 +3129,10 @@ public final class VirtualPush1RuntimeTest
                                     ? parentCursorName : "Slot " + args[0] + " child 0";
                                 final boolean nameChanged = !nextCursorName.equals (virtualCursorDeviceName);
                                 virtualCursorDeviceName = nextCursorName;
+                                final boolean wasNested = virtualCursorDeviceNested;
                                 final int previousPosition = virtualCursorDevicePosition;
-                                virtualCursorDevicePosition = 0;
+                                virtualCursorDevicePosition = virtualSameNameChainCursor && wasNested
+                                    ? previousPosition : wasNested ? previousPosition + 1 : 0;
                                 deviceIndex = 0;
                                 virtualCursorDeviceNested = true;
                                 if (previousPosition != virtualCursorDevicePosition)
