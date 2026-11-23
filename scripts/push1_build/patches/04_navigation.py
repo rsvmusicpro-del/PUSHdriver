@@ -204,47 +204,15 @@ replace_once(browser_mode,
 # traversal for nested ROW1 selection; never wait for each individual step.
 device_params_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java"
 
-# Defer only the dependent ROW1 gesture through the existing command owner.
-# Keep the pinned DeviceParamsMode public/protected method inventory unchanged.
-replace_once(device_params_mode,
-    """        if (event == ButtonEvent.UP)
-        {
-            final ICursorDevice cd = this.model.getCursorDevice ();
-            if (!cd.doesExist ())
-                return;
-""",
-    """        if (event == ButtonEvent.UP)
-        {
-            if (de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.deferRow1Selection (
-                    this, this.model, this.surface, index))
-                return;
-            final ICursorDevice cd = this.model.getCursorDevice ();
-            if (!cd.doesExist ())
-                return;
-""",
-    "Defer only ROW1 gestures dependent on an unpublished chain cursor")
+# Keep ROW1 and OUT/ROW2-UP on the native DrivenByMoss path. No cursor polling,
+# deferred input replay or synthetic navigation barrier is permitted.
+# The user gesture is dispatched immediately against the current host cursor.
 
+# Preserve the native 300 ms parent-return completion, but separate host/model
+# finalization from UI restoration. selectChannel() must run even when the user
+# leaves Device mode during the delay; only stale UI work is generation-guarded.
 replace_once(device_params_mode,
-    """    protected void moveUp ()
-    {
-        final ModeManager modeManager = this.surface.getModeManager ();
-""",
-    """    protected void moveUp ()
-    {
-        final ModeManager modeManager = this.surface.getModeManager ();
-        final DeviceParamsMode pendingMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
-        if (de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.deferOutUntilChainCursor (
-                pendingMode, this.model, this.surface))
-            return;
-""",
-    "Defer native ROW2-UP until the chain cursor is published")
-
-# Preserve DrivenByMoss' native DeviceParamsMode.moveUp() behavior for ROW2-UP.
-# The upstream implementation owns chooser exit, parameter-bank/device-list
-# stepping, and the final return to the track. Keep its timing, but do not let
-# the delayed completion steal focus after the user has switched to another mode.
-replace_once(device_params_mode,
-    """            cd.selectParent ();
+    ```            cd.selectParent ();
             this.model.getHost ().scheduleTask ( () -> {
                 if (cd.hasLayers ())
                     modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
@@ -252,19 +220,25 @@ replace_once(device_params_mode,
                     modeManager.setActive (Modes.DEVICE_PARAMS);
                 deviceParamsMode.setShowDevices (false);
                 cd.selectChannel ();
-            }, 300);""",
-    """            cd.selectParent ();
+            }, 300);```,
+    ```            final long navigationGeneration = de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.getModeGeneration (this.surface);
+            cd.selectParent ();
             this.model.getHost ().scheduleTask ( () -> {
-                if (!modeManager.isActive (Modes.DEVICE_PARAMS))
+                // Finish the native cursor/channel transition unconditionally.
+                cd.selectChannel ();
+
+                // A mode round-trip invalidates only the old UI completion.
+                if (!modeManager.isActive (Modes.DEVICE_PARAMS)
+                        || de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.getModeGeneration (this.surface) != navigationGeneration)
                     return;
+
                 if (cd.hasLayers ())
                     modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
                 else
                     modeManager.setActive (Modes.DEVICE_PARAMS);
                 deviceParamsMode.setShowDevices (false);
-                cd.selectChannel ();
-            }, 300);""",
-    "Cancel native parent completion when the user has switched modes")
+            }, 300);```,
+    "Always finalize native parent return; guard only stale UI restoration")
 
 replace_once(device_params_mode,
     """            if (cd.getIndex () != index)
