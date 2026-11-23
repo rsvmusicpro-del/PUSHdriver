@@ -574,6 +574,7 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
                 // fallback avoids a permanent timer if Bitwig publishes no
                 // usable identity (for example, same-name parent and child).
                 PENDING_PARENT_RETURN.remove (model);
+                recoverFromUnpublishedCursor (pending.mode.get (), pending.surface.get ());
                 return;
             }
             pending.scheduled = true;
@@ -594,12 +595,31 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             if (++pending.polls >= CHAIN_CURSOR_MAX_POLLS)
             {
                 PENDING_ROW1.remove (model);
+                recoverFromUnpublishedCursor (pending.mode.get (), pending.surface.get ());
                 return;
             }
             pending.scheduled = true;
             scheduleChainCursorProbe (model, pending);
         }, CHAIN_CURSOR_POLL_MS);
     }
+
+    /**
+     * A cursor timeout must not strand the controller in the modal Chains chooser.
+     * Return to the owning Device Params mode without selecting a cursor whose
+     * identity was never verified. The user can safely retry IN/OUT afterwards.
+     */
+    private static void recoverFromUnpublishedCursor (final DeviceParamsMode mode,
+        final PushControlSurface surface)
+    {
+        if (mode == null || surface == null)
+            return;
+        final var modeManager = surface.getModeManager ();
+        if (!modeManager.isActive (Modes.DEVICE_CHAINS))
+            return;
+        mode.setShowDevices (true);
+        modeManager.setActive (Modes.DEVICE_PARAMS);
+    }
+
 
     public PageLeftCommand (final IModel model, final PushControlSurface surface)
     {

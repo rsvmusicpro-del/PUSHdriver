@@ -65,6 +65,7 @@ import de.mossgrabers.framework.command.core.PitchbendCommand;
 import de.mossgrabers.framework.command.core.TriggerCommand;
 import de.mossgrabers.framework.mode.Modes;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceParamsMode;
+import de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand;
 import de.mossgrabers.controller.ableton.push.mode.device.DeviceBrowserMode;
 import de.mossgrabers.controller.ableton.push.controller.Push1Display;
 import de.mossgrabers.controller.ableton.push.controller.PushColorManager;
@@ -1378,7 +1379,7 @@ public final class VirtualPush1RuntimeTest
         // Bitwig publishing the nested cursor. Every ROW1 target must survive
         // this window without selecting on the old device bank. Sweep host
         // response delays against dense physical button intervals.
-        runNavigationResponsivenessSweep (state, midi, surface, deviceParamsMode);
+        runNavigationResponsivenessSweep (state, midi, surface, deviceParamsMode, modelReference[0]);
 
         // Returning to Device mode must keep the real controller bindings active.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Re-enter Device mode");
@@ -3954,7 +3955,7 @@ public final class VirtualPush1RuntimeTest
      */
     private static void runNavigationResponsivenessSweep (final State state,
         final VirtualPush1MidiBench midi, final PushControlSurface surface,
-        final DeviceParamsMode deviceParamsMode)
+        final DeviceParamsMode deviceParamsMode, final IModel model)
     {
         final long [] callbackDelays = { 0, 12, 24, 36, 73, 150, 300 };
         // Include each callback deadline and its immediate neighbours so the
@@ -4075,6 +4076,32 @@ public final class VirtualPush1RuntimeTest
         advanceNavigationClock (state, timeoutStart + 1100);
         require (virtualCursorDeviceNested && deviceIndex == 0,
             "Late host callback replayed a ROW1 intent after its bounded timeout");
+
+        // If a dependent cursor transition times out while the Chains chooser
+        // is active, recover the mode without guessing at the unpublished cursor.
+        state.scheduled.clear ();
+        virtualCursorCallbackDelayMillis = 1000;
+        virtualCursorDeviceNested = false;
+        virtualCursorDevicePosition = 4;
+        virtualCursorDeviceName = "Chooser Recovery Parent";
+        deviceParamsMode.setShowDevices (true);
+        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
+        PageLeftCommand.prepareSlotChainSelection (deviceParamsMode, model, surface, "Recovery Chain");
+        require (PageLeftCommand.deferChainSelectionUntilParentReturn (
+                deviceParamsMode, model, surface, "Recovery Chain"),
+            "Could not arm the pending Chains chooser selection for timeout recovery");
+        surface.getModeManager ().setActive (Modes.DEVICE_CHAINS);
+        advanceNavigationClock (state, state.virtualTimeMillis + 700);
+        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
+            "Timed-out cursor transition stranded Push 1 in the modal Chains chooser");
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 1,
+            VirtualPush1Device.TRACK, "TRACK after Chains timeout recovery", new java.util.ArrayList<> ());
+        require (surface.getModeManager ().isActive (Modes.TRACK),
+            "TRACK mode remained unavailable after Chains timeout recovery");
+        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 1,
+            VirtualPush1Device.DEVICE, "DEVICE after Chains timeout recovery", new java.util.ArrayList<> ());
+        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS),
+            "DEVICE mode could not be re-entered after Chains timeout recovery");
 
         // Native OUT/ROW2-UP supersedes a dependent ROW1 intent and waits for
         // the entered cursor before unwinding exactly one hierarchy level.
