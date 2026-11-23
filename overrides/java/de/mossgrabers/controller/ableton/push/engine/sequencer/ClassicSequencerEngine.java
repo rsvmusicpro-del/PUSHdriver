@@ -34,7 +34,7 @@ public final class ClassicSequencerEngine extends AbstractSequencerEngine
             return;
         }
         this.followPlayhead = clipExists && stepsPerPage > 0 && currentStep >= 0
-                && pageForStep (currentStep, stepsPerPage) == releasedPage;
+                && currentStep / stepsPerPage == releasedPage;
     }
 
     public static int pageForStep (final int currentStep, final int stepsPerPage)

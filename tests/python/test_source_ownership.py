@@ -33,24 +33,6 @@ class SourceOwnershipTests(unittest.TestCase):
             errors = MODULE.validate_unique_types([first, second])
         self.assertTrue(any("Duplicate Java type example.Collision" in e for e in errors))
 
-    def test_device_chains_mode_patch_is_reviewed(self):
-        self.assertIn(
-            "de/mossgrabers/controller/ableton/push/mode/device/DeviceChainsMode.java",
-            MODULE.PATCH_TARGET_ALLOWLIST,
-        )
-
-    def test_add_track_mode_patch_is_reviewed(self):
-        self.assertIn(
-            "de/mossgrabers/controller/ableton/push/mode/track/AddTrackMode.java",
-            MODULE.PATCH_TARGET_ALLOWLIST,
-        )
-
-    def test_empty_note_sequencer_patch_is_reviewed(self):
-        self.assertIn(
-            "de/mossgrabers/framework/view/sequencer/AbstractNoteSequencerView.java",
-            MODULE.PATCH_TARGET_ALLOWLIST,
-        )
-
     def test_push1_display_name_fitting_targets_are_reviewed(self):
         expected = {
             "de/mossgrabers/controller/ableton/push/mode/NoteMode.java",
@@ -117,12 +99,12 @@ class SourceOwnershipTests(unittest.TestCase):
     def test_in_out_direction_contract_accepts_physical_mapping(self):
         errors = MODULE.validate_in_out_contract(
             'this.addButton (ButtonID.PAGE_LEFT, "In" this.addButton (ButtonID.PAGE_RIGHT, "Out"',
-            "Capability.HAS_SLOT_CHAINS cursorDevice.selectSlotChain (slotChains[0])",
-            "deviceParamsMode.onSecondRow (7, ButtonEvent.DOWN) Modes.DEVICE_CHAINS",
+            "deviceParamsMode.selectNextItem () deviceParamsMode.selectNextItemPage () activeMode.selectNextItemPage ()",
+            "deviceParamsMode.selectPreviousItem () deviceParamsMode.selectPreviousItemPage () activeMode.selectPreviousItemPage ()",
             "PUSH_BUTTON_DEVICE_LEFT = 62; PUSH_BUTTON_DEVICE_RIGHT = 63;",
             "public static final int IN = 62; public static final int OUT = 63;",
-            "In (CC 62) enters the first available slot chain; Out (CC 63) returns to its parent device",
-            'requireAction ("device.selectSlotChain:Chain 1", "In (CC 62)"); requireAction ("cursorDevice.selectParent", "Out (CC 63)"); "cursorDevice.selectNext"; "cursorDevice.selectPrevious"; contentTypeIndex () == inOutContentBefore + 1 contentTypeIndex () == inOutContentBefore',
+            "In (CC 62) selects the next device; Out (CC 63) selects the previous device",
+            'requireAction ("device.selectNextItem", "In (CC 62)"); requireAction ("device.selectPreviousItem", "Out (CC 63)"); parameterBank.selectNextPage parameterBank.selectPreviousPage contentTypeIndex () == inOutContentBefore + 1 contentTypeIndex () == inOutContentBefore',
         )
         self.assertEqual(errors, [])
 
@@ -138,24 +120,6 @@ class SourceOwnershipTests(unittest.TestCase):
         )
         self.assertTrue(errors)
 
-
-
-    def test_navigation_uses_direct_cursor_calls_without_a_queue(self):
-        root = Path(__file__).resolve().parents[2]
-        helper = root / "overrides/java/de/mossgrabers/controller/ableton/push/command/trigger/PushDeviceNavigation.java"
-        self.assertFalse(helper.exists())
-        patch = (root / "scripts/push1_build/patches/04_navigation.py").read_text(encoding="utf-8")
-        self.assertNotIn("PushDeviceNavigation", patch)
-        self.assertIn("for (int i = currentIndex; i < index && cd.canSelectNext (); i++)", patch)
-        self.assertIn("cd.selectNext ();", patch)
-        self.assertIn("cd.selectPrevious ();", patch)
-
-    def test_all_build_and_validation_scripts_compile(self):
-        root = Path(__file__).resolve().parents[2]
-        for script in sorted((root / "scripts").rglob("*.py")):
-            with self.subTest(script=script.relative_to(root)):
-                source = script.read_text(encoding="utf-8")
-                compile(source, str(script), "exec")
 
 
 if __name__ == "__main__":

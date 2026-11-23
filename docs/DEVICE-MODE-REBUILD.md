@@ -1,6 +1,6 @@
 # Push 1 Device mode — restored Ableton workflow
 
-Status: implementation on `feature/push1-in-out-device-hierarchy`  
+Status: candidate implementation on `rebuild/device-mode-ableton`  
 Target: Akai Push 1 / Bitwig Studio 4.3.10 / Extension API 17 / Java 17  
 Upstream implementation: DrivenByMoss 19.2.2, pinned at `013620c1330cdcf896e96ef8fdc8a2123e4fce6a`
 
@@ -25,9 +25,9 @@ ROW1 must use only the Push 1 static CC palette. ROW2 uses the RGB-capable palet
 
 ## Bitwig-specific integration
 
-The complete upstream modes remain authoritative. No project-owned DeviceParamsMode, DeviceChainsMode or DeviceBrowserMode class is allowed. DeviceParamsMode is assembled from pinned upstream source with one narrow patch to its existing ROW1 handler: nested-chain device selection uses ICursorDevice.selectNext/selectPrevious so the Bitwig cursor follows the selected child. Both In and Device Chains entry explicitly restore DeviceParamsMode's device-selector state before returning from a chain. Out returns to the parent; Browser In/Out retain upstream content-type paging. No PUSHdriver filter-column state or second mode implementation is introduced.
+The complete upstream modes remain authoritative. No project-owned DeviceParamsMode, DeviceChainsMode or DeviceBrowserMode class is allowed. DeviceParamsMode is assembled from pinned upstream source without injected navigation methods. Push 1 In/Out is only a command adapter: it dispatches to the existing upstream item/page methods according to the upstream selector state. Browser In/Out likewise delegates to the upstream content-type page methods. No PUSHdriver filter-column state or navigation methods are injected into DeviceBrowserMode; only defensive guards for transient/empty Bitwig browser banks remain.
 
-The existing Push 1 setup routes In/Out into device hierarchy navigation: In enters the first available slot chain, Out selects the parent device, and their LEDs reflect whether those actions are available. Browser content-type paging and the established Session/sequencer fallbacks remain intact. Optional Bitwig API capabilities are checked before invoking slot-chain operations.
+The existing Push 1 setup continues to route the physical In/Out controls into the active Device/Browser context while preserving their established behavior in Session and sequencer contexts. Optional Bitwig API capabilities must be checked before invoking parameter-section, pinning or slot-chain operations.
 
 ## Verification requirements
 
@@ -36,7 +36,7 @@ The virtual bench must exercise the actual registered PushControllerSetup MIDI b
 2. ROW1 selects a device; its LED values never overlap Push 1 blink opcodes.
 3. ROW2 performs the native Ableton Device actions.
 4. ROW1 selects parameter pages; Shift+Left/Right retains Ableton's device-swap gesture.
-5. In (CC62) enters the first available slot chain; Out (CC63) returns to its parent device. Both direct In entry and Device Chains selection restore ROW1 device selectors even if Banks mode was active. The LEDs reflect chain-entry and parent-availability states.
+5. In/Out navigate device and parameter-page banks at their boundaries.
 6. ROW2 Chains enters Device Chains; ROW1 selects a chain.
 7. Browser retains the upstream Ableton row mapping and filter/result navigation.
 8. Cross-mode tests continue to pass.
@@ -50,4 +50,4 @@ CI builds the extension and runs the virtual API-17 host tests on Linux and Inte
 - Reworked the LED guard so it checks the pinned upstream implementation instead of expecting a project override to exist.
 
 
-Physical direction is fixed by the Push 1 contract: In (CC62 / left) enters the first available slot chain; Out (CC63 / right) selects the parent device. In Browser mode they retain content-type paging. The In/Out adapter maintains no independent cursor state.
+Physical direction is fixed by the Push 1 contract: In (CC62 / left) advances to the next device or parameter page; Out (CC63 / right) moves to the previous device or page. The In/Out command adapter delegates to the upstream DeviceParamsMode methods and maintains no independent navigation state.

@@ -124,9 +124,8 @@ public final class VirtualPush1RuntimeTest
     private static String [] virtualDeviceBankNames = { "Device 0", "Device 1", "Device 2", "Device 3", "Device 4", "Device 5", "Device 6", "Device 7" };
     private static boolean virtualParentNestedAfterSelect;
     private static boolean virtualParentHasLayersAfterSelect;
-    // Simulated Bitwig cursor-publication latency for deterministic navigation sweeps.
-    private static long virtualCursorCallbackDelayMillis = 73;
-    private static boolean virtualNullSlotChains;
+    private static boolean virtualSuppressParentCursorUpdate;
+    private static boolean virtualSuppressChainCursorUpdate;
     private static String [] virtualParameterPages = { "Page 0", "Page 1", "Page 2", "Page 3", "Page 4", "Page 5", "Page 6", "Page 7" };
     // Model API capabilities independently; Bitwig hosts may support one feature but not another.
     private static final EnumSet<Capability> SUPPORTED_CAPABILITIES = EnumSet.allOf (Capability.class);
@@ -148,7 +147,7 @@ public final class VirtualPush1RuntimeTest
         final List<Runnable> buttonTimers = new java.util.ArrayList<> ();
     }
 
-    private record ScheduledTask (long delay, long dueAtMillis, Runnable task) { }
+    private record ScheduledTask (long delay, Runnable task) { }
 
     private VirtualPush1RuntimeTest () { }
 
@@ -189,10 +188,7 @@ public final class VirtualPush1RuntimeTest
                         if (callArgs[0] instanceof Capability capability)
                             return Boolean.valueOf (SUPPORTED_CAPABILITIES.contains (capability));
                         throw new AssertionError ("Unknown IHost.supports argument: " + callArgs[0]);
-                    case "scheduleTask":
-                        final long delay = ((Number) callArgs[1]).longValue ();
-                        state.scheduled.add (new ScheduledTask (delay, state.virtualTimeMillis + delay, (Runnable) callArgs[0]));
-                        return null;
+                    case "scheduleTask": state.scheduled.add (new ScheduledTask (((Number) callArgs[1]).longValue (), (Runnable) callArgs[0])); return null;
                     case "error":
                         if (state.errors.size () < 30)
                         {
@@ -236,7 +232,6 @@ public final class VirtualPush1RuntimeTest
                 }
             });
 
-        final IModel [] modelReference = new IModel [1];
         final ISetupFactory factory = (ISetupFactory) Proxy.newProxyInstance (ISetupFactory.class.getClassLoader (),
             new Class<?> [] { ISetupFactory.class }, (proxy, method, callArgs) -> {
                 switch (method.getName ())
@@ -259,7 +254,7 @@ public final class VirtualPush1RuntimeTest
                         final ISceneBank sceneBank = mixerModel.sceneBank ();
                         final IParameterBank parameterBank = parameterBankProxy ();
                         final ICursorDevice cursorDevice = cursorDeviceProxy (parameterBank, state);
-                        final IModel createdModel = (IModel) Proxy.newProxyInstance (IModel.class.getClassLoader (),
+                        return Proxy.newProxyInstance (IModel.class.getClassLoader (),
                             new Class<?> [] { IModel.class }, (p, m, a) -> switch (m.getName ())
                             {
                                 case "getHost" -> host;
@@ -280,8 +275,6 @@ public final class VirtualPush1RuntimeTest
                                 case "createNoteClip" -> { newClipModel.createNoteClip (a); yield null; }
                                 default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
                             });
-                        modelReference[0] = createdModel;
-                        return createdModel;
                     default: return defaultValue (method.getReturnType (), method.getGenericReturnType ());
                 }
             });
@@ -704,40 +697,25 @@ public final class VirtualPush1RuntimeTest
         requireAction ("parameterPage.selectPage:2", "Top-row selector did not select parameter page 3");
         deviceParamsMode.setShowDevices (true);
 
-        // In/Out use direct host commands and the native DrivenByMoss mode flow.
-        // Only a ROW1/OUT gesture dependent on the unpublished cursor is retained;
-        // no general input queue or polling runs between ordinary gestures.
+        // In/Out retains the upstream device-bank and parameter-page navigation.
         deviceIndex = 4;
-        virtualCursorDevicePosition = 4;
-        virtualCursorDeviceNested = false;
-        deviceParamsMode.setShowDevices (false);
-        virtualSlotChains = new String [] { "Chain 1", "Chain 2", "Chain 3" };
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Device In (CC 62)");
-        requireAction ("device.selectSlotChain:Chain 1", "In (CC 62) must enter the first available slot chain");
-        require (deviceParamsMode.isShowDevices (),
-            "In did not restore ROW1 device selectors immediately after entering a chain from Banks mode");
-        drainNavigation (state);
-        require (virtualCursorDeviceNested && deviceIndex == 0,
-            "Direct In command did not expose the child-chain cursor after the host update");
-
-        virtualParentHasLayersAfterSelect = false;
+        requireAction ("device.selectNextItem", "In (CC 62) must select the next device");
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Device Out (CC 63)");
-        requireAction ("cursorDevice.selectParent", "Out (CC 63) must use the native parent navigation");
-        drainNavigation (state);
-        drainScheduled (state, 300);
-        require (!virtualCursorDeviceNested && deviceIndex == 0,
-            "Native Out did not return to the parent device");
-        requireAction ("cursorDevice.selectChannel",
-            "Out did not finalize the parent channel after the native host update");
-        require (!deviceParamsMode.isShowDevices (),
-            "Native Out did not restore the parent's parameter-bank view");
-        require (modes.isActive (Modes.DEVICE_PARAMS),
-            "Native Out did not remain in Device Params for a parent without layers");
-        virtualParentHasLayersAfterSelect = false;
-        virtualCursorDeviceHasLayers = false;
+        requireAction ("device.selectPreviousItem", "Out (CC 63) must select the previous device");
+
+        // Parameter-page In/Out delegates to the upstream page-bank methods.
         deviceParamsMode.setShowDevices (false);
+        parameterPageIndex = 2;
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.IN, "Parameter page In");
+        requireAction ("parameterBank.selectNextPage", "In (CC 62) must use upstream next-page navigation");
+        MODEL_ACTIONS.clear ();
+        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Parameter page Out");
+        requireAction ("parameterBank.selectPreviousPage", "Out (CC 63) must use upstream previous-page navigation");
+        deviceParamsMode.setShowDevices (true);
 
         // Device Chains is an upstream submode: top row selects a chain and
         // bottom row remains the Device action row.
@@ -745,236 +723,9 @@ public final class VirtualPush1RuntimeTest
         MODEL_ACTIONS.clear ();
         requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Ableton Device Chains action");
         require (modes.isActive (Modes.DEVICE_CHAINS), "Bottom-row Chains action did not activate Device Chains");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Toggle Device Chains action");
-        require (modes.isActive (Modes.DEVICE_PARAMS), "ROW2 Chains action did not exit Device Chains");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Re-enter Device Chains action");
-        require (modes.isActive (Modes.DEVICE_CHAINS), "ROW2 Chains action did not re-enter Device Chains");
         requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 7, "Ableton Device Chain selector 8");
         requireAction ("device.selectSlotChain:Chain 8", "Top-row selector did not select chain 8");
         require (modes.isActive (Modes.DEVICE_PARAMS), "Selecting a chain did not return to Device parameters");
-        drainNavigation (state);
-        require (virtualCursorDeviceNested && deviceIndex == 0,
-            "Selecting a Device Chain did not expose its child-device cursor");
-        require (deviceParamsMode.isShowDevices (),
-            "Selecting a chain did not restore ROW1 device selectors after Banks mode");
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 3, "Nested chain device selector 4");
-        require (deviceIndex == 3, "ROW1 did not select device 4 inside the active chain");
-        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 3,
-            "Nested ROW1 selection did not advance the cursor to the requested chain device");
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 1, "Nested chain device selector 2");
-        require (deviceIndex == 1, "ROW1 did not select device 2 inside the active chain");
-        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectPrevious")).count () == 2,
-            "Nested ROW1 selection did not move the cursor back to the requested chain device");
-
-        // Exhaustive boundary model: every valid start/target pair for chain
-        // sizes 1..8, plus every unavailable ROW1 position. This catches the
-        // former fixed-eight mock and proves invalid buttons never clamp to a
-        // different child. Each action still travels through production MIDI.
-        final String [] fullNestedBank = virtualDeviceBankNames;
-        for (int childCount = 1; childCount <= 8; childCount++)
-        {
-            virtualDeviceBankNames = new String [childCount];
-            for (int child = 0; child < childCount; child++)
-                virtualDeviceBankNames[child] = "Chain child " + child;
-
-            for (int startIndex = 0; startIndex < childCount; startIndex++)
-            {
-                for (int targetIndex = 0; targetIndex < 8; targetIndex++)
-                {
-                    deviceIndex = startIndex;
-                    virtualCursorDevicePosition = startIndex;
-                    deviceParamsMode.setShowDevices (true);
-                    require (virtualCursorDeviceNested,
-                        "Exhaustive ROW1 matrix lost nested cursor state for chain size " + childCount);
-                    MODEL_ACTIONS.clear ();
-                    requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + targetIndex,
-                        "Chain size " + childCount + ", start " + startIndex + ", ROW1 " + (targetIndex + 1));
-                    drainNavigation (state);
-
-                    if (targetIndex < childCount)
-                    {
-                        require (deviceIndex == targetIndex,
-                            "Valid ROW1 target was not selected: chain size " + childCount
-                                + ", start " + startIndex + ", target " + targetIndex
-                                + ", actual " + deviceIndex);
-                        final long expectedMoves = Math.abs (targetIndex - startIndex);
-                        final long actualMoves = MODEL_ACTIONS.stream ()
-                            .filter (a -> a.equals ("cursorDevice.selectNext") || a.equals ("cursorDevice.selectPrevious"))
-                            .count ();
-                        require (actualMoves == expectedMoves,
-                            "Nested cursor movement count mismatch for chain size " + childCount
-                                + ", start " + startIndex + ", target " + targetIndex
-                                + ": expected " + expectedMoves + ", got " + actualMoves);
-                    }
-                    else
-                    {
-                        require (deviceIndex == startIndex,
-                            "Unavailable ROW1 position moved the cursor: chain size " + childCount
-                                + ", start " + startIndex + ", target " + targetIndex);
-                        require (MODEL_ACTIONS.stream ().noneMatch (a ->
-                                a.equals ("cursorDevice.selectNext") || a.equals ("cursorDevice.selectPrevious")),
-                            "Unavailable ROW1 position issued a cursor movement");
-                    }
-                }
-            }
-        }
-        virtualDeviceBankNames = fullNestedBank;
-        deviceIndex = 1;
-        virtualCursorDevicePosition = 1;
-
-        // Two-level hierarchy regression: returning from a child chain may
-        // land on another nested parent, not necessarily at the project root.
-        virtualParentNestedAfterSelect = true;
-        modes.setActive (Modes.DEVICE_PARAMS);
-        deviceParamsMode.setShowDevices (true);
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return to nested parent device");
-        requireAction ("cursorDevice.selectParent", "Out did not request the parent at nested depth two");
-        drainNavigation (state);
-        drainScheduled (state, 300);
-        require (virtualCursorDeviceNested && deviceIndex == 0,
-            "Out incorrectly left the hierarchy when the parent was itself nested");
-        deviceParamsMode.setShowDevices (true);
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.TOP_ROW_FIRST + 2,
-            "Select sibling inside nested parent chain");
-        drainNavigation (state);
-        require (deviceIndex == 2,
-            "ROW1 did not select a sibling at the second nested hierarchy depth");
-        require (MODEL_ACTIONS.stream ().filter (a -> a.equals ("cursorDevice.selectNext")).count () == 2,
-            "Second-level nested selection did not use cursor sibling navigation");
-        virtualParentNestedAfterSelect = false;
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Return from nested parent to root");
-        drainNavigation (state);
-        drainScheduled (state, 300);
-        require (!virtualCursorDeviceNested && deviceIndex == 0,
-            "Out did not return to the root after traversing two nested levels");
-
-        // ROW2 Up preserves DrivenByMoss semantics: from the chain chooser it
-        // exits to Device Params and returns immediately. A subsequent press
-        // follows the native moveUp hierarchy (banks -> devices -> track).
-        virtualCursorDeviceNested = true;
-        virtualCursorDeviceName = "ROW2 return child";
-        deviceIndex = 0;
-        virtualCursorDevicePosition = 0;
-        modes.setActive (Modes.DEVICE_CHAINS);
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2 Up exits Device Chains");
-        require (modes.isActive (Modes.DEVICE_PARAMS), "ROW2 Up did not leave Device Chains mode");
-        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.equals ("cursorDevice.selectParent")),
-            "ROW2 Up incorrectly skipped the native chooser-exit step and selected a parent");
-        require (virtualCursorDeviceNested, "ROW2 Up changed the cursor while leaving Device Chains");
-
-        // Continue the native DrivenByMoss moveUp hierarchy. Since the
-        // parent-return action previously exposed parameter banks, first
-        // restore device selectors, then leave the nested child, restore the
-        // selectors again, and finally return to the track mode.
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
-            "ROW2 Up restores device selectors before leaving the nested child");
-        require (deviceParamsMode.isShowDevices (),
-            "ROW2 Up did not restore device selectors from parameter banks");
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
-            "ROW2 Up leaves the nested child device");
-        requireAction ("cursorDevice.selectParent", "ROW2 Up did not use the native parent navigation");
-        drainNavigation (state);
-        drainScheduled (state, 300);
-        require (!virtualCursorDeviceNested && deviceIndex == 0,
-            "ROW2 Up did not return from the nested child to its parent");
-        require (!deviceParamsMode.isShowDevices (),
-            "ROW2 Up did not restore the parent's parameter-bank view");
-        requireAction ("cursorDevice.selectChannel",
-            "ROW2 Up did not finalize the parent channel after the host cursor update");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
-            "ROW2 Up restores device selectors from parameter banks");
-        require (deviceParamsMode.isShowDevices (),
-            "ROW2 Up did not restore device selectors from parameter banks");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 7,
-            "ROW2 Up returns from the root device to Track");
-        require (modes.isActive (Modes.TRACK),
-            "ROW2 Up did not return to Track after the native hierarchy was unwound");
-
-        // A new ROW2 action cancels a pending parent completion.
-        virtualCursorDeviceNested = true;
-        virtualCursorDeviceName = "Pending return child";
-        modes.setActive (Modes.DEVICE_PARAMS);
-        MODEL_ACTIONS.clear ();
-        requireButtonMidiDelivery (midi, VirtualPush1Device.OUT, "Start parent return before a newer ROW2 action");
-        requireButtonMidiDelivery (midi, VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "Enter Device Chains during pending return");
-        drainNavigation (state);
-        drainScheduled (state, 300);
-        require (modes.isActive (Modes.DEVICE_CHAINS), "Stale native parent callback overwrote a newer ROW2 mode action");
-        require (MODEL_ACTIONS.stream ().noneMatch (a -> a.equals ("cursorDevice.selectChannel")),
-            "Stale parent callback finalized after a newer ROW2 action");
-        modes.setActive (Modes.DEVICE_PARAMS);
-
-        // Timed burst regression: real production MIDI gestures arrive while
-        // Bitwig cursor/mode callbacks are still outstanding. No drain occurs
-        // between gestures; callbacks run only when the virtual clock reaches
-        // their absolute deadlines.
-        virtualSlotChains = new String [] { "Burst Chain 1", "Burst Chain 2" };
-        virtualCursorDeviceNested = false;
-        virtualCursorDeviceHasLayers = false;
-        virtualParentNestedAfterSelect = false;
-        deviceIndex = 4;
-        virtualCursorDevicePosition = 4;
-        deviceParamsMode.setShowDevices (true);
-        modes.setActive (Modes.TRACK);
-        MODEL_ACTIONS.clear ();
-        final List<String> timedNavigationTrace = new java.util.ArrayList<> ();
-        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis,
-            VirtualPush1Device.DEVICE, "DEVICE", timedNavigationTrace);
-        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 45,
-            VirtualPush1Device.IN, "IN", timedNavigationTrace);
-        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 85,
-            VirtualPush1Device.TOP_ROW_FIRST + 1, "ROW1 child 2", timedNavigationTrace);
-        // Enter the native Chains chooser, leave it with ROW2-UP, then walk
-        // the DeviceParamsMode ROW2-UP steps to the asynchronous parent.
-        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 125,
-            VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "ROW2 Chains", timedNavigationTrace);
-        require (modes.isActive (Modes.DEVICE_CHAINS),
-            "Timed ROW2 Chains gesture did not enter the native chain chooser");
-        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 20,
-            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP exits Chains", timedNavigationTrace);
-        require (modes.isActive (Modes.DEVICE_PARAMS),
-            "Timed ROW2-UP did not return from the Chains chooser");
-        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 40,
-            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP parameter banks", timedNavigationTrace);
-        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 20,
-            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP parent", timedNavigationTrace);
-        requireAction ("cursorDevice.selectParent",
-            "Timed ROW2-UP burst did not issue the native asynchronous parent request");
-        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 20,
-            VirtualPush1Device.TRACK, "TRACK during pending parent callback", timedNavigationTrace);
-        require (modes.isActive (Modes.TRACK),
-            "TRACK gesture was not applied immediately while the parent callback was pending");
-        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 20,
-            VirtualPush1Device.VOLUME, "VOLUME before parent callback", timedNavigationTrace);
-        require (modes.isActive (Modes.VOLUME),
-            "VOLUME gesture was not applied immediately before the delayed parent callback");
-        sendTimedNavigationGesture (state, midi, surface, state.virtualTimeMillis + 20,
-            VirtualPush1Device.DEVICE, "DEVICE re-entry before parent callback", timedNavigationTrace);
-        require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
-            "DEVICE re-entry did not retain the user's current Device selector state");
-        require (timedNavigationTrace.size () == 10,
-            "Timed navigation burst lost one or more physical gestures: " + timedNavigationTrace);
-        advanceNavigationClock (state, state.virtualTimeMillis + 400);
-        require (modes.isActive (Modes.DEVICE_PARAMS) && deviceParamsMode.isShowDevices (),
-            "A stale parent callback overrode the newer Volume -> Device activation: " + timedNavigationTrace);
-        requireAction ("cursorDevice.selectChannel",
-            "Parent cursor completion was skipped after focus changed to a newer mode");
-        require (timedNavigationTrace.stream ().allMatch (entry -> entry.contains ("ms ")),
-            "Timed navigation trace is missing virtual timestamps: " + timedNavigationTrace);
-        System.out.println ("Virtual Push 1 timed navigation burst passed: " + timedNavigationTrace);
-
-        // Verify the asynchronous window between selecting a slot chain and
-        // Bitwig publishing the nested cursor. Every ROW1 target must survive
-        // this window without selecting on the old device bank. Sweep host
-        // response delays against dense physical button intervals.
-        runNavigationResponsivenessSweep (state, midi, surface, deviceParamsMode);
 
         // Returning to Device mode must keep the real controller bindings active.
         requireButtonMidiDelivery (midi, VirtualPush1Device.DEVICE, "Re-enter Device mode");
@@ -1003,18 +754,14 @@ public final class VirtualPush1RuntimeTest
         require (browserModel.filterCursor (0) == filterBefore,
             "Push 1 bottom row did not select the next Browser filter item");
 
-        // The touch gate remains mandatory, but every intentional detent
-        // while touched must navigate. The inherited every-eighth-event
-        // limiter used to discard seven out of eight browser movements.
-        midi.device ().turnEncoderBy (0, 1);
-        require (browserModel.filterCursor (0) == filterBefore,
-            "Untouched Browser encoder must not navigate");
+        // Encoder touch selects a filter column; eight relative detents pass
+        // the production Browser mode's deliberate movement-rate limiter.
         midi.device ().touchEncoder (0, true);
         for (int i = 0; i < 8; i++)
             midi.device ().turnEncoderBy (0, 1);
         midi.device ().touchEncoder (0, false);
-        require (browserModel.filterCursor (0) == filterBefore + 8,
-            "Touched Browser encoder must deliver all eight navigation detents");
+        require (browserModel.filterCursor (0) > filterBefore,
+            "Touched Browser encoder did not change the selected filter item");
         final List<String> browserDisplayText = new java.util.ArrayList<> ();
         final ITextDisplay browserDisplay = (ITextDisplay) Proxy.newProxyInstance (
             ITextDisplay.class.getClassLoader (), new Class<?> [] { ITextDisplay.class },
@@ -1188,33 +935,9 @@ public final class VirtualPush1RuntimeTest
         final var viewManager = surface.getViewManager ();
         viewManager.setActive (Views.SEQUENCER);
         final SequencerView sequencerView = (SequencerView) viewManager.get (Views.SEQUENCER);
-        final java.lang.reflect.Field classicEngineField = SequencerView.class.getDeclaredField ("engine");
-        classicEngineField.setAccessible (true);
-        final de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine classicEngine =
-            (de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine) classicEngineField.get (sequencerView);
-        require (classicEngine.isActive (), "Classic Sequencer engine did not activate with its ViewManager view");
         sequencerView.updateNoteMapping ();
         drainScheduled (state, 6);
         sequencerView.updateControlSurface ();
-
-        // Empty slots are a first-class Bitwig state. The shared renderer, the
-        // Push playhead overlay, pad editing and loop-page gestures must never
-        // query a playhead or mutate note data when no clip exists.
-        musicalModel.setNoteClipExists (false);
-        state.playing = true;
-        final int emptyClipStepReads = musicalModel.currentStepReadCount ();
-        final int emptyClipToggles = musicalModel.toggleCount ();
-        sequencerView.drawGrid ();
-        midi.device ().pressPad (0, 0, 100);
-        midi.device ().releasePad (0, 0);
-        midi.device ().pressPad (7, 0, 100);
-        midi.device ().releasePad (7, 0);
-        require (musicalModel.currentStepReadCount () == emptyClipStepReads,
-            "Classic Sequencer queried the playhead while the selected slot had no clip");
-        require (musicalModel.toggleCount () == emptyClipToggles,
-            "Classic Sequencer edited note data while the selected slot had no clip");
-        state.playing = false;
-        musicalModel.setNoteClipExists (true);
 
         // Physical MIDI pad taps must still create and remove a classic sequencer note.
         final int classicPadNote = sequencerView.getKeyManager ().map (3);
@@ -1259,11 +982,8 @@ public final class VirtualPush1RuntimeTest
             "de.mossgrabers.framework.view.sequencer.AbstractSequencerView").getDeclaredMethod (
                 "getStepColor", IStepInfo.class, boolean.class, int.class, int.class, int.class, int.class, List.class);
         classicStepColor.setAccessible (true);
-        final int classicReadsBeforeHighlight = musicalModel.stepReadCount ();
         final String classicSelectedColor = (String) classicStepColor.invoke (
             sequencerView, classicContinuation, true, 0, 1, 1, durationNote, List.of (durationPosition));
-        require (musicalModel.stepReadCount () - classicReadsBeforeHighlight == 1,
-            "Classic selected-note continuation feedback performed more than one host step read");
         require ("COLOR_STEP_SELECTED".equals (classicSelectedColor),
             "Classic Sequencer playhead hid the selected long-note continuation color; state="
                 + classicContinuation.getState () + ", color=" + classicSelectedColor);
@@ -1286,31 +1006,12 @@ public final class VirtualPush1RuntimeTest
         // lower pads select/perform notes, upper pads toggle complete steps,
         // and the Push long-note continuation feedback remains intact.
         viewManager.setActive (Views.POLY_SEQUENCER);
-        require (!classicEngine.isActive (), "Classic Sequencer engine remained active after the view switch");
         final PolySequencerView polySequencerView = (PolySequencerView) viewManager.get (Views.POLY_SEQUENCER);
-        final java.lang.reflect.Field polyEngineField = PolySequencerView.class.getDeclaredField ("engine");
-        polyEngineField.setAccessible (true);
-        final de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine polyEngine =
-            (de.mossgrabers.controller.ableton.push.engine.sequencer.SequencerEngine) polyEngineField.get (polySequencerView);
-        require (polyEngine.isActive (), "Poly Sequencer engine did not activate with its ViewManager view");
         scaleModel[0].setChromatic (true);
         scaleModel[0].setScaleOffsetByName ("C");
         polySequencerView.updateNoteMapping ();
         drainScheduled (state, 6);
         polySequencerView.updateControlSurface ();
-
-        // The Poly Sequencer must keep its keyboard rendering path safe while
-        // skipping playhead and note reads for an empty selected slot.
-        musicalModel.setNoteClipExists (false);
-        final int emptyPolyStepReads = musicalModel.stepReadCount ();
-        final int emptyPolyPlayheadReads = musicalModel.currentStepReadCount ();
-        polySequencerView.drawGrid ();
-        polySequencerView.onGridNoteLongPress (68);
-        require (musicalModel.stepReadCount () == emptyPolyStepReads,
-            "Poly Sequencer queried note steps while the selected slot had no clip");
-        require (musicalModel.currentStepReadCount () == emptyPolyPlayheadReads,
-            "Poly Sequencer queried the playhead while the selected slot had no clip");
-        musicalModel.setNoteClipExists (true);
 
         final ITrack rootTrack = newClipModel.cursorTrack ();
         final int mappedRoot = polySequencerView.getKeyManager ().map (36);
@@ -1355,14 +1056,6 @@ public final class VirtualPush1RuntimeTest
             require (musicalModel.noteClip ().getStep (new NotePosition (0, 0, note)).getState () == StepState.START,
                 "DrivenByMoss Poly Sequencer did not program selected MIDI note " + note + " in the first step");
 
-        // Sparse Poly rendering must not read all 128 pitches for every step cell.
-        final int polyReadsBeforeSparseRender = musicalModel.stepReadCount ();
-        polySequencerView.drawGrid ();
-        final int sparseRenderStepReads = musicalModel.stepReadCount () - polyReadsBeforeSparseRender;
-        require (sparseRenderStepReads <= 40,
-            "Poly sparse-step rendering performed " + sparseRenderStepReads
-                + " note-step reads; expected at most 40 for a four-note chord");
-
         // The upstream Poly gesture toggles an occupied step off as a unit.
         midi.device ().pressPad (7, 0, 100);
         midi.device ().releasePad (7, 0);
@@ -1380,11 +1073,8 @@ public final class VirtualPush1RuntimeTest
         final java.lang.reflect.Method polyStepColor = AbstractPolySequencerView.class.getDeclaredMethod (
             "getStepColor", IStepInfo.class, boolean.class, int.class, List.class);
         polyStepColor.setAccessible (true);
-        final int polyReadsBeforeHighlight = musicalModel.stepReadCount ();
         final String polySelectedColor = (String) polyStepColor.invoke (
             polySequencerView, polyContinuation, true, 1, List.of (polyLongPosition));
-        require (musicalModel.stepReadCount () - polyReadsBeforeHighlight == 1,
-            "Poly selected-note continuation feedback performed more than one host step read");
         require ("COLOR_STEP_SELECTED".equals (polySelectedColor),
             "Poly Sequencer playhead hid the selected long-note continuation color");
 
@@ -1530,7 +1220,6 @@ public final class VirtualPush1RuntimeTest
 
         final int togglesBeforeDrum = musicalModel.toggleCount ();
         viewManager.setActive (Views.DRUM);
-        require (!polyEngine.isActive (), "Poly Sequencer engine remained active after leaving its view");
         final DrumView drumView = (DrumView) viewManager.get (Views.DRUM);
         drumView.updateNoteMapping ();
         drainScheduled (state, 6);
@@ -1590,13 +1279,6 @@ public final class VirtualPush1RuntimeTest
             Views.SCENE_PLAY,
             Views.DRUM64
         };
-        final String requestedFuzzView = System.getProperty ("push1.fuzz.view");
-        final List<Views> fuzzViews = new java.util.ArrayList<> ();
-        for (final Views candidate: allPushViews)
-            if (requestedFuzzView == null || candidate.name ().equalsIgnoreCase (requestedFuzzView))
-                fuzzViews.add (candidate);
-        if (fuzzViews.isEmpty ())
-            throw new IllegalArgumentException ("Unknown Push 1 fuzz view: " + requestedFuzzView);
         final int [][] padModifierCombinations =
         {
             { VirtualPush1Device.SHIFT },
@@ -1620,7 +1302,6 @@ public final class VirtualPush1RuntimeTest
             for (int row = 0; row < 4; row++)
                 require (midi.device ().getLcdRow (row).length () == Push1DisplayLayout.COLUMNS,
                     "View " + viewID + " did not produce a complete Push 1 LCD row " + row);
-            VirtualPush1DisplaySnapshots.capture ("view", viewID.name (), midi.device ());
 
             // Cross every physical pad address with every packaged view. The
             // deterministic velocity/pressure pattern explores distinct input
@@ -1725,16 +1406,14 @@ public final class VirtualPush1RuntimeTest
             }
         }
         final int fuzzActionCount = Integer.getInteger ("push1.fuzz.actions", 256);
-        final int minimumFuzzActions = requestedFuzzView == null ? 64 : 1;
-        if (fuzzActionCount < minimumFuzzActions || fuzzActionCount > 100000)
-            throw new IllegalArgumentException ("push1.fuzz.actions must be between "
-                + minimumFuzzActions + " and 100000 for this run");
+        if (fuzzActionCount < 64 || fuzzActionCount > 100000)
+            throw new IllegalArgumentException ("push1.fuzz.actions must be between 64 and 100000");
         int fuzzedScenarios = 0;
         int fuzzedActions = 0;
         for (final long seed: fuzzSeeds)
         {
             final long [] randomState = { seed };
-            for (final Views fuzzView: fuzzViews)
+            for (final Views fuzzView: allPushViews)
             {
                 final List<String> trace = new java.util.ArrayList<> ();
                 try
@@ -1886,7 +1565,7 @@ public final class VirtualPush1RuntimeTest
                             {
                                 case 0 -> drainScheduled (state, 1);
                                 case 1 -> drainScheduled (state, 8);
-                                case 2 -> drainNavigation (state);
+                                case 2 -> drainScheduled (state, 73);
                                 default -> drainScheduled (state, 100);
                             }
                             for (int lcdRow = 0; lcdRow < 4; lcdRow++)
@@ -1906,7 +1585,7 @@ public final class VirtualPush1RuntimeTest
                     hardware.flush ();
                     drainScheduled (state, 1);
                     drainScheduled (state, 8);
-                    drainNavigation (state);
+                    drainScheduled (state, 73);
                     drainScheduled (state, 100);
                     require (state.errors.isEmpty (),
                         "Fuzzer caused Bitwig host errors in " + fuzzView + ": " + state.errors);
@@ -1923,8 +1602,8 @@ public final class VirtualPush1RuntimeTest
                 }
             }
         }
-        require (fuzzedScenarios == fuzzSeeds.size () * fuzzViews.size (),
-            "Generated scenario matrix did not cover every selected view and seed");
+        require (fuzzedScenarios == fuzzSeeds.size () * allPushViews.length,
+            "Generated scenario matrix did not cover every view and seed");
         require (fuzzedActions == fuzzedScenarios * fuzzActionCount,
             "Generated scenario matrix did not execute the configured action count per view/seed scenario");
         System.out.println ("Generated Push 1 interaction scenarios passed: " + fuzzedScenarios
@@ -1950,13 +1629,9 @@ public final class VirtualPush1RuntimeTest
             for (int row = 0; row < 4; row++)
                 require (midi.device ().getLcdRow (row).length () == Push1DisplayLayout.COLUMNS,
                     "Mode " + modeID + " did not preserve the complete Push 1 LCD row " + row);
-            VirtualPush1DisplaySnapshots.capture ("mode", modeID.name (), midi.device ());
             renderedModes++;
         }
         require (renderedModes > 0, "No registered Push 1 modes were exercised by the display matrix");
-        if (System.getProperty ("push1.display.snapshots") != null)
-            require (VirtualPush1DisplaySnapshots.captureCount () == allPushViews.length + renderedModes,
-                "Production LCD visual snapshot count must match every Push 1 view and registered mode");
         modes.setActive (Modes.TRACK);
 
         // DrivenByMoss' own setup test traverses every registered view/mode
@@ -1973,8 +1648,6 @@ public final class VirtualPush1RuntimeTest
 
         // Exercise the complete Swing simulator in memory on every CI run.
         VirtualPush1Simulator.smoke (midi);
-        runLatencyBench (setup, midi, mixerModel);
-        runNavigationModeLatencyBench (setup, midi, surface);
 
         if (args.length > 0 && "--gui".equals (args[0]))
             VirtualPush1Simulator.show (midi, setup::exit);
@@ -2079,9 +1752,6 @@ public final class VirtualPush1RuntimeTest
         private final Map<String, Double> durations = new java.util.HashMap<> ();
         private final boolean [] canHold = { false };
         private final int [] currentStep = { 5 };
-        private final int [] currentStepReads = { 0 };
-        private final int [] stepReads = { 0 };
-        private final boolean [] noteClipExists = { true };
         private final int [] editPage = { 0 };
         private final int [] pageBack = { 0 };
         private final int [] pageForward = { 0 };
@@ -2106,11 +1776,11 @@ public final class VirtualPush1RuntimeTest
                 (proxy, method, args) -> {
                     switch (method.getName ())
                     {
-                        case "doesExist": return this.noteClipExists[0];
+                        case "doesExist": return true;
                         case "getName": return "Virtual Push note clip";
                         case "getColor": return ColorEx.BLUE;
                         case "getNumRows", "getNumSteps": return 128;
-                        case "getCurrentStep": this.currentStepReads[0]++; return this.currentStep[0];
+                        case "getCurrentStep": return this.currentStep[0];
                         case "getStepLength": return this.stepLength[0];
                         case "setStepLength": this.stepLength[0] = ((Number) args[0]).doubleValue (); return null;
                         case "getLoopStart": return this.loopStart[0];
@@ -2121,16 +1791,7 @@ public final class VirtualPush1RuntimeTest
                         case "scrollToPage": this.editPage[0] = (int) args[0]; return null;
                         case "scrollStepsPageBackwards": this.pageBack[0]++; this.editPage[0] = Math.max (0, this.editPage[0] - 1); return null;
                         case "scrollStepsPageForward": this.pageForward[0]++; this.editPage[0] = Math.min (7, this.editPage[0] + 1); return null;
-                        case "getHighestRow":
-                        {
-                            final int channel = (int) args[0];
-                            final int step = (int) args[1];
-                            for (int note = 127; note >= 0; note--)
-                                if (this.stepState (new NotePosition (channel, step, note)) != StepState.OFF)
-                                    return note;
-                            return -1;
-                        }
-                        case "getStep": this.stepReads[0]++; return this.stepInfo ((NotePosition) args[0]);
+                        case "getStep": return this.stepInfo ((NotePosition) args[0]);
                         case "toggleStep":
                         {
                             final NotePosition position = (NotePosition) args[0];
@@ -2286,9 +1947,6 @@ public final class VirtualPush1RuntimeTest
         IDrumDevice drumDevice () { return this.drumDevice; }
         void setCanHoldNotes (final boolean value) { this.canHold[0] = value; }
         boolean canHoldNotes () { return this.canHold[0]; }
-        void setNoteClipExists (final boolean exists) { this.noteClipExists[0] = exists; }
-        int currentStepReadCount () { return this.currentStepReads[0]; }
-        int stepReadCount () { return this.stepReads[0]; }
         int toggleCount () { return this.toggleCount[0]; }
         NotePosition lastToggle () { return this.lastToggle == null ? new NotePosition () : new NotePosition (this.lastToggle); }
         int pageBackCount () { return this.pageBack[0]; }
@@ -2584,16 +2242,12 @@ public final class VirtualPush1RuntimeTest
                         new Class<?> [] { de.mossgrabers.framework.daw.data.IDevice.class },
                         (p, m, a) -> switch (m.getName ())
                         {
-                            case "doesExist" -> Boolean.valueOf (
-                                targetIndex >= 0 && targetIndex < virtualDeviceBankNames.length);
-                            case "getName" -> targetIndex >= 0 && targetIndex < virtualDeviceBankNames.length
-                                ? virtualDeviceBankNames[targetIndex] : "";
+                            case "doesExist" -> Boolean.valueOf (deviceSlotExists);
+                            case "getName" -> virtualDeviceBankNames[targetIndex % virtualDeviceBankNames.length];
                             case "getPosition" -> Integer.valueOf (targetIndex);
                             case "select" -> {
                                 MODEL_ACTIONS.add ("device.select");
                                 MODEL_ACTIONS.add ("device.select:" + targetIndex);
-                                deviceIndex = targetIndex;
-                                virtualCursorDevicePosition = targetIndex;
                                 yield null;
                             }
                             default -> defaultValue (m.getReturnType (), m.getGenericReturnType ());
@@ -2647,36 +2301,15 @@ public final class VirtualPush1RuntimeTest
                     case "doesExist": return Boolean.valueOf (cursorDeviceExists);
                     case "getIndex": return Integer.valueOf (deviceIndex);
                     case "getPosition": return Integer.valueOf (virtualCursorDevicePosition);
-                    case "getID": return (virtualCursorDeviceNested ? "nested:" : "root:") + virtualCursorDeviceName;
                     case "getName": return virtualCursorDeviceName;
                     case "isNested": return Boolean.valueOf (virtualCursorDeviceNested);
                     case "hasLayers": return Boolean.valueOf (virtualCursorDeviceHasLayers);
-                    case "canSelectNext": return Boolean.valueOf (deviceIndex + 1 < virtualDeviceBankNames.length);
-                    case "canSelectPrevious": return Boolean.valueOf (deviceIndex > 0);
-                    case "selectNext":
-                        if (deviceIndex + 1 < virtualDeviceBankNames.length)
-                        {
-                            MODEL_ACTIONS.add ("cursorDevice.selectNext");
-                            deviceIndex++;
-                            virtualCursorDevicePosition = deviceIndex;
-                        }
-                        return null;
-                    case "selectPrevious":
-                        if (deviceIndex > 0)
-                        {
-                            MODEL_ACTIONS.add ("cursorDevice.selectPrevious");
-                            deviceIndex--;
-                            virtualCursorDevicePosition = deviceIndex;
-                        }
-                        return null;
                     case "selectParent":
                         MODEL_ACTIONS.add ("cursorDevice.selectParent");
-                        state.scheduled.add (new ScheduledTask (virtualCursorCallbackDelayMillis,
-                            state.virtualTimeMillis + virtualCursorCallbackDelayMillis, () -> {
-                                MODEL_ACTIONS.add ("cursorDevice.parentCallback");
+                        if (!virtualSuppressParentCursorUpdate)
+                            state.scheduled.add (new ScheduledTask (73, () -> {
                                 virtualCursorDeviceName = virtualParentNestedAfterSelect ? "Nested Parent" : "Outer Parent";
-                                virtualCursorDevicePosition = 0;
-                                deviceIndex = 0;
+                                virtualCursorDevicePosition = Math.max (0, virtualCursorDevicePosition - 1);
                                 virtualCursorDeviceNested = virtualParentNestedAfterSelect;
                                 virtualCursorDeviceHasLayers = virtualParentHasLayersAfterSelect;
                                 virtualDeviceBankNames = virtualParentNestedAfterSelect
@@ -2699,21 +2332,16 @@ public final class VirtualPush1RuntimeTest
                     case "getSlotChains":
                         if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
                             throw new AssertionError ("Unsupported slot-chain capability was queried");
-                        return virtualNullSlotChains ? null : virtualSlotChains.clone ();
+                        return virtualSlotChains.clone ();
                     case "selectSlotChain":
                         if (!SUPPORTED_CAPABILITIES.contains (Capability.HAS_SLOT_CHAINS))
                             throw new AssertionError ("Unsupported slot-chain capability was invoked");
                         MODEL_ACTIONS.add ("device.selectSlotChain:" + args[0]);
-                        state.scheduled.add (new ScheduledTask (virtualCursorCallbackDelayMillis,
-                            state.virtualTimeMillis + virtualCursorCallbackDelayMillis, () -> {
-                                MODEL_ACTIONS.add ("cursorDevice.chainCallback");
+                        if (!virtualSuppressChainCursorUpdate)
+                            state.scheduled.add (new ScheduledTask (73, () -> {
                                 // Simulate a chain child whose name, position and
                                 // nesting flags match the previous cursor. The
                                 // sibling-bank contents still identify the change.
-                                virtualCursorDeviceName = "Slot " + args[0] + " child 0";
-                                virtualCursorDevicePosition = 0;
-                                deviceIndex = 0;
-                                virtualCursorDeviceNested = true;
                                 virtualDeviceBankNames = new String [] {
                                     "Slot " + args[0] + " child 0", "Slot " + args[0] + " child 1",
                                     "Slot " + args[0] + " child 2", "Slot " + args[0] + " child 3",
@@ -3453,374 +3081,27 @@ public final class VirtualPush1RuntimeTest
     }
 
     /** Run only tasks for the requested virtual delay (1 ms flush or 100 ms test tick). */
-    private static boolean runNextScheduled (final State state, final long delay)
-    {
-        final Iterator<ScheduledTask> iterator = state.scheduled.iterator ();
-        while (iterator.hasNext ())
-        {
-            final ScheduledTask candidate = iterator.next ();
-            if (candidate.delay () == delay)
-            {
-                iterator.remove ();
-                candidate.task ().run ();
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Advance the virtual host clock while delivering callbacks by absolute
-     * deadline. Unlike drainNavigation(), this deliberately leaves callbacks
-     * pending when the next physical gesture arrives before their deadline.
-     */
-    private static void advanceNavigationClock (final State state, final long targetMillis)
-    {
-        if (targetMillis < state.virtualTimeMillis)
-            throw new IllegalArgumentException ("Virtual navigation clock cannot move backwards");
-
-        while (true)
-        {
-            ScheduledTask next = null;
-            for (final ScheduledTask candidate: state.scheduled)
-                if (candidate.dueAtMillis () <= targetMillis
-                        && (next == null || candidate.dueAtMillis () < next.dueAtMillis ()))
-                    next = candidate;
-            if (next == null)
-                break;
-
-            state.scheduled.remove (next);
-            state.virtualTimeMillis = Math.max (state.virtualTimeMillis, next.dueAtMillis ());
-            next.task ().run ();
-        }
-
-        state.virtualTimeMillis = targetMillis;
-        for (final Runnable timer: List.copyOf (state.buttonTimers))
-            timer.run ();
-    }
-
-    /**
-     * Send one real virtual Push MIDI gesture at a timestamp and record the
-     * production mode/cursor state immediately after command dispatch.
-     */
-    private static void sendTimedNavigationGesture (final State state,
-        final VirtualPush1MidiBench midi, final PushControlSurface surface,
-        final long atMillis, final int cc, final String label, final List<String> trace)
-    {
-        advanceNavigationClock (state, atMillis);
-        final int before = midi.getDispatchedButtonEvents ();
-        midi.device ().tapButton (cc);
-        final int delivered = midi.getDispatchedButtonEvents () - before;
-        require (delivered == 2, label + " did not deliver DOWN+UP at virtual t=" + atMillis
-            + " ms; delivered=" + delivered);
-        trace.add (atMillis + "ms " + label + " -> mode=" + surface.getModeManager ().getActiveID ()
-            + ", deviceIndex=" + deviceIndex + ", pendingCallbacks=" + state.scheduled.size ());
-    }
-
-    /**
-     * Verify dependent ROW1 selection across Bitwig cursor-publication delays.
-     * The test intentionally does not drain callbacks between gestures; the
-     * production command must retain only the latest dependent target.
-     */
-    private static void runNavigationResponsivenessSweep (final State state,
-        final VirtualPush1MidiBench midi, final PushControlSurface surface,
-        final DeviceParamsMode deviceParamsMode)
-    {
-        final long [] callbackDelays = { 0, 12, 24, 36, 73, 150, 300 };
-        // Include each callback deadline and its immediate neighbours so the
-        // first-safe-gap result is an exact boundary, not a coarse estimate.
-        final long [] gestureGaps = {
-            0, 1, 10, 11, 12, 13, 23, 24, 25, 35, 36, 37,
-            50, 71, 72, 73, 74, 149, 150, 151, 299, 300, 301
-        };
-        final String [] entryPaths = { "IN", "CHAINS chooser" };
-        final List<String> results = new java.util.ArrayList<> ();
-        int trials = 0;
-        int staleSelections = 0;
-
-        for (final String entryPath: entryPaths)
-            for (final long callbackDelay: callbackDelays)
-            {
-                int lostAtDelay = 0;
-                long firstSafeGap = -1;
-                for (final long gap: gestureGaps)
-                {
-                    state.scheduled.clear ();
-                    virtualCursorCallbackDelayMillis = callbackDelay;
-                    virtualSlotChains = new String [] { "Sweep Chain 1", "Sweep Chain 2" };
-                    virtualCursorDeviceNested = false;
-                    virtualCursorDeviceHasLayers = false;
-                    virtualCursorDevicePosition = 4;
-                    virtualCursorDeviceName = "Sweep Parent";
-                    virtualDeviceBankNames = new String [] {
-                        "Parent 0", "Parent 1", "Parent 2", "Parent 3",
-                        "Parent 4", "Parent 5", "Parent 6", "Parent 7"
-                    };
-                    deviceIndex = 4;
-                    deviceParamsMode.setShowDevices (true);
-                    surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
-
-                    final long start = state.virtualTimeMillis + 1;
-                    if ("IN".equals (entryPath))
-                        sendTimedNavigationGesture (state, midi, surface, start,
-                            VirtualPush1Device.IN, "IN", new java.util.ArrayList<> ());
-                    else
-                    {
-                        sendTimedNavigationGesture (state, midi, surface, start,
-                            VirtualPush1Device.BOTTOM_ROW_FIRST + 3, "ROW2 Chains", new java.util.ArrayList<> ());
-                        require (surface.getModeManager ().isActive (Modes.DEVICE_CHAINS),
-                            "Chains chooser did not open in the responsiveness sweep");
-                        sendTimedNavigationGesture (state, midi, surface, start,
-                            VirtualPush1Device.TOP_ROW_FIRST + 1, "select second chain", new java.util.ArrayList<> ());
-                        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS),
-                            "Selecting a chain did not return to Device Params in the responsiveness sweep");
-                    }
-
-                    sendTimedNavigationGesture (state, midi, surface, start + gap,
-                        VirtualPush1Device.TOP_ROW_FIRST + 2, "ROW1 child 3", new java.util.ArrayList<> ());
-
-                    // Let the cursor callback arrive only after both gestures
-                    // have been dispatched; no artificial drain between them.
-                    // Allow the targeted dependent-gesture confirmation to observe the host cursor.
-                    advanceNavigationClock (state, start + Math.max (callbackDelay, gap) + 650);
-                    final boolean selectedRequestedChild = virtualCursorDeviceNested && deviceIndex == 2;
-                    trials++;
-                    if (!selectedRequestedChild)
-                    {
-                        lostAtDelay++;
-                        staleSelections++;
-                    }
-                    else if (firstSafeGap < 0)
-                        firstSafeGap = gap;
-                    require (selectedRequestedChild,
-                        "Dependent ROW1 intent was lost for " + entryPath + ": callbackDelay="
-                            + callbackDelay + "ms gap=" + gap + "ms finalNested=" + virtualCursorDeviceNested
-                            + " finalIndex=" + deviceIndex);
-                }
-                results.add (entryPath + ", " + callbackDelay + "ms host callback: first safe ROW1 gap="
-                    + firstSafeGap + "ms, stale selections=" + lostAtDelay + "/" + gestureGaps.length);
-            }
-
-        // Multiple dependent ROW1 taps collapse to the last physical intent.
-        state.scheduled.clear ();
-        virtualCursorCallbackDelayMillis = 150;
-        virtualCursorDeviceNested = false;
-        virtualCursorDevicePosition = 4;
-        virtualCursorDeviceName = "Rapid Parent";
-        virtualDeviceBankNames = new String [] {
-            "Parent 0", "Parent 1", "Parent 2", "Parent 3",
-            "Parent 4", "Parent 5", "Parent 6", "Parent 7"
-        };
-        deviceIndex = 4;
-        deviceParamsMode.setShowDevices (true);
-        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
-        final long rapidStart = state.virtualTimeMillis + 1;
-        sendTimedNavigationGesture (state, midi, surface, rapidStart,
-            VirtualPush1Device.IN, "IN before rapid ROW1 taps", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, rapidStart + 10,
-            VirtualPush1Device.TOP_ROW_FIRST + 1, "ROW1 child 2", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, rapidStart + 20,
-            VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 child 4 (last intent)", new java.util.ArrayList<> ());
-        advanceNavigationClock (state, rapidStart + 700);
-        require (virtualCursorDeviceNested && deviceIndex == 3,
-            "Rapid ROW1 gestures did not preserve the last requested child");
-
-        // A missing host cursor callback must time out without selecting on the parent.
-        state.scheduled.clear ();
-        virtualCursorCallbackDelayMillis = 1000;
-        virtualCursorDeviceNested = false;
-        virtualCursorDevicePosition = 4;
-        virtualCursorDeviceName = "Timeout Parent";
-        deviceIndex = 4;
-        deviceParamsMode.setShowDevices (true);
-        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
-        final long timeoutStart = state.virtualTimeMillis + 1;
-        sendTimedNavigationGesture (state, midi, surface, timeoutStart,
-            VirtualPush1Device.IN, "IN before missing cursor callback", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, timeoutStart + 10,
-            VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 during missing cursor callback", new java.util.ArrayList<> ());
-        advanceNavigationClock (state, timeoutStart + 700);
-        require (deviceIndex == 4 && !virtualCursorDeviceNested,
-            "Timed-out ROW1 intent was applied to the stale parent device");
-        advanceNavigationClock (state, timeoutStart + 1100);
-        require (virtualCursorDeviceNested && deviceIndex == 0,
-            "Late host callback replayed a ROW1 intent after its bounded timeout");
-
-        // An abandoned chain-entry marker expires even if the cursor callback
-        // never arrives and no dependent gesture was initially pressed.
-        state.scheduled.clear ();
-        virtualCursorCallbackDelayMillis = 5000;
-        virtualCursorDeviceNested = false;
-        virtualCursorDevicePosition = 4;
-        virtualCursorDeviceName = "Abandoned chain parent";
-        deviceIndex = 4;
-        deviceParamsMode.setShowDevices (true);
-        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
-        final long abandonedStart = state.virtualTimeMillis + 1;
-        sendTimedNavigationGesture (state, midi, surface, abandonedStart,
-            VirtualPush1Device.IN, "IN without dependent ROW1", new java.util.ArrayList<> ());
-        advanceNavigationClock (state, abandonedStart + 2200);
-        sendTimedNavigationGesture (state, midi, surface, abandonedStart + 2201,
-            VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 after abandoned-entry expiry", new java.util.ArrayList<> ());
-        require (deviceIndex == 3 && !virtualCursorDeviceNested,
-            "An expired chain-entry marker intercepted a later independent ROW1 gesture");
-
-        // Native OUT/ROW2-UP supersedes a dependent ROW1 intent and waits for
-        // the entered cursor before unwinding exactly one hierarchy level.
-        state.scheduled.clear ();
-        virtualCursorCallbackDelayMillis = 150;
-        virtualCursorDeviceNested = false;
-        virtualCursorDevicePosition = 4;
-        virtualCursorDeviceName = "Out Cancellation Parent";
-        virtualParentNestedAfterSelect = false;
-        virtualParentHasLayersAfterSelect = false;
-        deviceIndex = 4;
-        deviceParamsMode.setShowDevices (true);
-        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
-        MODEL_ACTIONS.clear ();
-        final long outCancelStart = state.virtualTimeMillis + 1;
-        sendTimedNavigationGesture (state, midi, surface, outCancelStart,
-            VirtualPush1Device.IN, "IN before OUT cancellation", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, outCancelStart + 10,
-            VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 before OUT cancellation", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, outCancelStart + 20,
-            VirtualPush1Device.OUT, "OUT cancels pending ROW1", new java.util.ArrayList<> ());
-        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS),
-            "OUT should retain Device Params while its dependent chain cursor is unpublished");
-        require (!MODEL_ACTIONS.contains ("cursorDevice.selectParent"),
-            "OUT attempted parent traversal against the stale pre-chain cursor");
-        advanceNavigationClock (state, outCancelStart + 700);
-        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS)
-                && !virtualCursorDeviceNested && deviceIndex == 0 && !deviceParamsMode.isShowDevices (),
-            "Deferred native OUT did not unwind to the parent after chain publication");
-        requireAction ("cursorDevice.selectParent", "Deferred OUT did not use native parent selection");
-        requireAction ("cursorDevice.selectChannel", "Deferred OUT did not complete native parent return");
-
-        // A pending chain callback must never block an unrelated mode change.
-        state.scheduled.clear ();
-        virtualCursorCallbackDelayMillis = 150;
-        virtualCursorDeviceNested = false;
-        virtualCursorDevicePosition = 4;
-        deviceIndex = 4;
-        deviceParamsMode.setShowDevices (true);
-        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
-        final long independentStart = state.virtualTimeMillis + 1;
-        sendTimedNavigationGesture (state, midi, surface, independentStart,
-            VirtualPush1Device.IN, "IN before independent mode change", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, independentStart + 5,
-            VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 intent before independent mode change", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, independentStart + 10,
-            VirtualPush1Device.TRACK, "TRACK while dependent ROW1 intent is pending", new java.util.ArrayList<> ());
-        require (surface.getModeManager ().isActive (Modes.TRACK),
-            "Pending chain callback blocked immediate TRACK mode activation");
-        advanceNavigationClock (state, independentStart + 151);
-        require (surface.getModeManager ().isActive (Modes.TRACK) && deviceIndex == 0,
-            "Late chain cursor publication replayed ROW1 or stole focus from TRACK");
-
-        // Returning to Device before a pending chain callback fires must not
-        // revive the old ROW1 target merely because DEVICE_PARAMS is active again.
-        state.scheduled.clear ();
-        virtualCursorCallbackDelayMillis = 150;
-        virtualCursorDeviceNested = false;
-        virtualCursorDevicePosition = 4;
-        virtualCursorDeviceName = "Device re-entry parent";
-        deviceIndex = 4;
-        deviceParamsMode.setShowDevices (true);
-        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
-        final long reentryStart = state.virtualTimeMillis + 1;
-        sendTimedNavigationGesture (state, midi, surface, reentryStart,
-            VirtualPush1Device.IN, "IN before Volume -> Device re-entry", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, reentryStart + 5,
-            VirtualPush1Device.TOP_ROW_FIRST + 3, "ROW1 before Volume -> Device re-entry", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, reentryStart + 10,
-            VirtualPush1Device.VOLUME, "VOLUME during pending chain entry", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, reentryStart + 15,
-            VirtualPush1Device.DEVICE, "DEVICE re-entry during pending chain entry", new java.util.ArrayList<> ());
-        advanceNavigationClock (state, reentryStart + 700);
-        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS)
-                && virtualCursorDeviceNested && deviceIndex == 0,
-            "A stale ROW1 target was replayed after Volume -> Device re-entry");
-
-        // A deferred dedicated OUT must also be discarded across a rapid
-        // Volume -> Device round trip; it must not unwind the newly entered chain.
-        state.scheduled.clear ();
-        virtualCursorCallbackDelayMillis = 150;
-        virtualCursorDeviceNested = false;
-        virtualCursorDeviceHasLayers = false;
-        virtualCursorDevicePosition = 4;
-        virtualCursorDeviceName = "OUT re-entry parent";
-        virtualParentNestedAfterSelect = false;
-        virtualParentHasLayersAfterSelect = false;
-        deviceIndex = 4;
-        deviceParamsMode.setShowDevices (true);
-        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
-        MODEL_ACTIONS.clear ();
-        final long outReentryStart = state.virtualTimeMillis + 1;
-        sendTimedNavigationGesture (state, midi, surface, outReentryStart,
-            VirtualPush1Device.IN, "IN before OUT Volume -> Device re-entry", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, outReentryStart + 10,
-            VirtualPush1Device.OUT, "OUT before Volume -> Device re-entry", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, outReentryStart + 20,
-            VirtualPush1Device.VOLUME, "VOLUME during deferred OUT", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, outReentryStart + 25,
-            VirtualPush1Device.DEVICE, "DEVICE re-entry during deferred OUT", new java.util.ArrayList<> ());
-        advanceNavigationClock (state, outReentryStart + 700);
-        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS)
-                && virtualCursorDeviceNested && deviceIndex == 0
-                && !MODEL_ACTIONS.contains ("cursorDevice.selectParent"),
-            "A deferred OUT was replayed after Volume -> Device re-entry: " + MODEL_ACTIONS);
-
-        // The ROW2-UP route shares the native moveUp guard and must have the
-        // same cancellation semantics as the dedicated OUT button.
-        state.scheduled.clear ();
-        virtualCursorCallbackDelayMillis = 150;
-        virtualCursorDeviceNested = false;
-        virtualCursorDeviceHasLayers = false;
-        virtualCursorDevicePosition = 4;
-        virtualCursorDeviceName = "ROW2-UP re-entry parent";
-        virtualParentNestedAfterSelect = false;
-        virtualParentHasLayersAfterSelect = false;
-        deviceIndex = 4;
-        deviceParamsMode.setShowDevices (true);
-        surface.getModeManager ().setActive (Modes.DEVICE_PARAMS);
-        MODEL_ACTIONS.clear ();
-        final long row2ReentryStart = state.virtualTimeMillis + 1;
-        sendTimedNavigationGesture (state, midi, surface, row2ReentryStart,
-            VirtualPush1Device.IN, "IN before ROW2-UP Volume -> Device re-entry", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, row2ReentryStart + 10,
-            VirtualPush1Device.BOTTOM_ROW_FIRST + 7, "ROW2-UP before Volume -> Device re-entry", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, row2ReentryStart + 20,
-            VirtualPush1Device.VOLUME, "VOLUME during deferred ROW2-UP", new java.util.ArrayList<> ());
-        sendTimedNavigationGesture (state, midi, surface, row2ReentryStart + 25,
-            VirtualPush1Device.DEVICE, "DEVICE re-entry during deferred ROW2-UP", new java.util.ArrayList<> ());
-        advanceNavigationClock (state, row2ReentryStart + 700);
-        require (surface.getModeManager ().isActive (Modes.DEVICE_PARAMS)
-                && virtualCursorDeviceNested && deviceIndex == 0
-                && !MODEL_ACTIONS.contains ("cursorDevice.selectParent"),
-            "A deferred ROW2-UP was replayed after Volume -> Device re-entry: " + MODEL_ACTIONS);
-
-        virtualCursorCallbackDelayMillis = 73;
-        state.scheduled.clear ();
-        surface.getModeManager ().setActive (Modes.TRACK);
-        require (trials == entryPaths.length * callbackDelays.length * gestureGaps.length,
-            "Navigation responsiveness sweep did not execute its full entry/delay/gap matrix");
-        System.out.println ("Virtual Push 1 IN/CHAINS→ROW1 responsiveness sweep: " + trials
-            + " trials, " + staleSelections + " stale-cursor selections; independent mode switch passed; " + results);
-    }
-
-    /** Drain scheduled host cursor publication, targeted confirmation probes and native parent-return callbacks. */
-    private static void drainNavigation (final State state)
-    {
-        drainScheduled (state, 73);
-        drainScheduled (state, 300);
-    }
-
-
     private static void drainScheduled (final State state, final long delay)
     {
-        for (int steps = 0; steps < 100000; steps++)
-            if (!runNextScheduled (state, delay))
+        int steps = 0;
+        while (steps++ < 100000)
+        {
+            ScheduledTask next = null;
+            final Iterator<ScheduledTask> iterator = state.scheduled.iterator ();
+            while (iterator.hasNext ())
+            {
+                final ScheduledTask candidate = iterator.next ();
+                if (candidate.delay () == delay)
+                {
+                    next = candidate;
+                    iterator.remove ();
+                    break;
+                }
+            }
+            if (next == null)
                 return;
+            next.task ().run ();
+        }
         throw new AssertionError ("Virtual Bitwig scheduler exceeded 100000 tasks at delay " + delay);
     }
 
@@ -3842,86 +3123,6 @@ public final class VirtualPush1RuntimeTest
                     + " instead of " + expected[row]);
         }
     }
-
-    /**
-     * Measure the production MIDI -> bound command -> model update -> flush path.
-     * Wall-clock figures are diagnostic only: CI machines are not a real-time
-     * host, so correctness is asserted independently of timing thresholds.
-     */
-    private static void runLatencyBench (final PushControllerSetup setup,
-        final VirtualPush1MidiBench midi, final MixerModel mixerModel)
-    {
-        setup.getSurface ().getModeManager ().setActive (Modes.VOLUME);
-        final MixerModel.ParameterState volume = mixerModel.volume (0);
-        for (int i = 0; i < 100; i++)
-        {
-            midi.device ().turnEncoderBy (0, 1);
-            setup.flush ();
-        }
-        final long [] elapsed = new long [1000];
-        final int changesBefore = volume.changes;
-        for (int i = 0; i < elapsed.length; i++)
-        {
-            final long started = System.nanoTime ();
-            midi.device ().turnEncoderBy (0, 1);
-            setup.flush ();
-            elapsed[i] = System.nanoTime () - started;
-        }
-        require (volume.changes == changesBefore + elapsed.length,
-            "Latency bench did not deliver all encoder events to the production volume model");
-        Arrays.sort (elapsed);
-        System.out.println ("Virtual Push 1 end-to-end latency bench (encoder MIDI -> production command -> model -> flush; "
-            + elapsed.length + " samples, 100 warmups): p50=" + elapsed[elapsed.length * 50 / 100] / 1000
-            + "us p95=" + elapsed[elapsed.length * 95 / 100] / 1000
-            + "us p99=" + elapsed[elapsed.length * 99 / 100] / 1000 + "us"
-            + " (diagnostic wall-clock values; no CI timing gate).");
-    }
-
-    /**
-     * Measure real MIDI mode-button dispatch through the production bindings,
-     * ModeManager transition and controller flush. The sequence deliberately
-     * alternates modes so samples represent transitions rather than no-op taps.
-     */
-    private static void runNavigationModeLatencyBench (final PushControllerSetup setup,
-        final VirtualPush1MidiBench midi, final PushControlSurface surface)
-    {
-        final int [] controls = {
-            VirtualPush1Device.DEVICE, VirtualPush1Device.TRACK,
-            VirtualPush1Device.VOLUME, VirtualPush1Device.PAN_SEND
-        };
-        final Modes [] expected = {
-            Modes.DEVICE_PARAMS, Modes.TRACK, Modes.VOLUME, Modes.SEND1
-        };
-        for (int i = 0; i < 100; i++)
-        {
-            final int slot = i % controls.length;
-            midi.device ().tapButton (controls[slot]);
-            setup.flush ();
-            require (surface.getModeManager ().isActive (expected[slot]),
-                "Warm-up mode transition did not activate " + expected[slot]);
-        }
-
-        final long [] elapsed = new long [1000];
-        for (int i = 0; i < elapsed.length; i++)
-        {
-            final int slot = i % controls.length;
-            final long started = System.nanoTime ();
-            midi.device ().tapButton (controls[slot]);
-            setup.flush ();
-            elapsed[i] = System.nanoTime () - started;
-            require (surface.getModeManager ().isActive (expected[slot]),
-                "MIDI mode transition did not activate " + expected[slot]
-                    + " at sample " + i);
-        }
-        Arrays.sort (elapsed);
-        System.out.println ("Virtual Push 1 navigation mode latency (DEVICE/TRACK/VOLUME/PAN-SEND MIDI -> ModeManager -> flush; "
-            + elapsed.length + " alternating transitions): p50=" + elapsed[elapsed.length * 50 / 100] / 1000
-            + "us p95=" + elapsed[elapsed.length * 95 / 100] / 1000
-            + "us p99=" + elapsed[elapsed.length * 99 / 100] / 1000
-            + "us max=" + elapsed[elapsed.length - 1] / 1000
-            + "us (diagnostic wall-clock values; no CI timing gate).");
-    }
-
 
     private static void requireButtonMidiDelivery (final VirtualPush1MidiBench midi,
         final int control, final String label)

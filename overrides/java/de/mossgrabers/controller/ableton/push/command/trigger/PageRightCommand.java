@@ -16,7 +16,7 @@ import de.mossgrabers.framework.view.Views;
 import de.mossgrabers.framework.view.sequencer.AbstractSequencerView;
 
 
-/** Push 1 Out control: leave the current device hierarchy. */
+/** Push 1 Out control: delegate navigation to the active upstream mode. */
 public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface, PushConfiguration>
 {
     public PageRightCommand (final IModel model, final PushControlSurface surface)
@@ -40,15 +40,17 @@ public class PageRightCommand extends AbstractTriggerCommand<PushControlSurface,
             return;
         }
 
-        if (modeManager.isActive (Modes.DEVICE_CHAINS) || modeManager.isActive (Modes.DEVICE_PARAMS))
+        if (modeManager.isActive (Modes.DEVICE_CHAINS))
+            return;
+
+        if (modeManager.isActive (Modes.DEVICE_PARAMS) && activeMode instanceof final DeviceParamsMode deviceParamsMode)
         {
             if (event == ButtonEvent.DOWN)
             {
-                // Reuse DrivenByMoss' own ROW2-UP state machine. It exits the
-                // Chains chooser, unwinds one hierarchy level, and finally
-                // returns to Track using the upstream timing and mode rules.
-                final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) modeManager.get (Modes.DEVICE_PARAMS);
-                deviceParamsMode.onSecondRow (7, ButtonEvent.DOWN);
+                if (deviceParamsMode.isShowDevices ())
+                    deviceParamsMode.selectPreviousItem ();
+                else
+                    deviceParamsMode.selectPreviousItemPage ();
             }
             return;
         }

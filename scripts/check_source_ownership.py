@@ -12,7 +12,6 @@ OVERRIDE_ALLOWLIST={
 "de/mossgrabers/controller/ableton/push/command/trigger/PushCursorCommand.java",
 "de/mossgrabers/controller/ableton/push/command/trigger/PushNewCommand.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1DisplayGlyphs.java",
-"de/mossgrabers/controller/ableton/push/controller/Push1DisplayComposition.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1DisplayLayout.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1DisplayProtocol.java",
 "de/mossgrabers/controller/ableton/push/controller/Push1DisplayText.java",
@@ -24,21 +23,17 @@ OVERRIDE_ALLOWLIST={
 "de/mossgrabers/controller/ableton/push/engine/sequencer/ClassicSequencerEngine.java",
 "de/mossgrabers/controller/ableton/push/engine/sequencer/PolySequencerEngine.java",
 "de/mossgrabers/controller/ableton/push/view/PolySequencerView.java",
-"de/mossgrabers/controller/ableton/push/view/PushPolySequencerObservers.java",
 "de/mossgrabers/controller/ableton/push/view/SequencerView.java",
 }
 PATCH_TARGET_ALLOWLIST={
 "de/mossgrabers/framework/daw/midi/DeviceInquiry.java",
-"de/mossgrabers/framework/controller/hardware/AbstractHwButton.java",
 "de/mossgrabers/controller/ableton/push/controller/PushControlSurface.java",
 "de/mossgrabers/controller/ableton/push/mode/device/DeviceLayerMode.java",
 "de/mossgrabers/controller/ableton/push/mode/NoteMode.java",
 "de/mossgrabers/controller/ableton/push/mode/track/AbstractTrackMode.java",
 "de/mossgrabers/controller/ableton/push/mode/device/DeviceParamsMode.java",
-"de/mossgrabers/controller/ableton/push/mode/device/DeviceChainsMode.java",
 "de/mossgrabers/controller/ableton/push/mode/ConfigurationMode.java",
 "de/mossgrabers/framework/view/sequencer/AbstractSequencerView.java",
-"de/mossgrabers/framework/view/sequencer/AbstractNoteSequencerView.java",
 "de/mossgrabers/framework/view/sequencer/AbstractPolySequencerView.java",
 "de/mossgrabers/framework/view/sequencer/AbstractDrumView.java",
 "de/mossgrabers/controller/ableton/push/controller/PushColorManager.java",
@@ -52,7 +47,6 @@ PATCH_TARGET_ALLOWLIST={
 "de/mossgrabers/controller/ableton/push/mode/SessionMode.java",
 "de/mossgrabers/controller/ableton/push/mode/MarkerMode.java",
 "de/mossgrabers/controller/ableton/push/mode/track/MasterMode.java",
-"de/mossgrabers/controller/ableton/push/mode/track/AddTrackMode.java",
 "de/mossgrabers/controller/ableton/push/view/DrumView.java",
 "de/mossgrabers/framework/view/AbstractDrum64View.java",
 "de/mossgrabers/controller/ableton/push/PushControllerSetup.java",
@@ -85,7 +79,7 @@ def patch_targets(source):
   string_assignment=re.match(r'^\s*(\w+)\s*=\s*"src/main/java/([^"]+)"',line)
   if string_assignment:
    current[string_assignment.group(1)]=string_assignment.group(2)
-  call=re.search(r"(?:replace_once|replace_menu_fragment|replace_java_method)\s*\(\s*(\w+)",line)
+  call=re.search(r"(?:replace_once|replace_menu_fragment)\s*\(\s*(\w+)",line)
   if call and call.group(1) in current:
    targets.add(current[call.group(1)])
   for name,path in current.items():
@@ -144,16 +138,17 @@ def validate_in_out_contract(setup, left, right, control, virtual, hardware, run
   (re.search(r"PUSH_BUTTON_DEVICE_RIGHT\s*=\s*63",control) is not None,"Physical right/CC63 must be Out."),
   ('this.addButton (ButtonID.PAGE_LEFT, "In"' in setup,"CC62/Page Left label must be In."),
   ('this.addButton (ButtonID.PAGE_RIGHT, "Out"' in setup,"CC63/Page Right label must be Out."),
-  ("cursorDevice.selectSlotChain (slotChains[0])" in left,"In must enter the first available slot chain directly."),
-  ("deviceParamsMode.onSecondRow (7, ButtonEvent.DOWN)" in right and "Modes.DEVICE_CHAINS" in right,"Out must reuse the native DrivenByMoss hierarchy action."),
+  ("deviceParamsMode.selectNextItem ()" in left and "deviceParamsMode.selectNextItemPage ()" in left and "activeMode.selectNextItemPage ()" in left,"In command must delegate to upstream next-item/page methods."),
+  ("deviceParamsMode.selectPreviousItem ()" in right and "deviceParamsMode.selectPreviousItemPage ()" in right and "activeMode.selectPreviousItemPage ()" in right,"Out command must delegate to upstream previous-item/page methods."),
   ("public static final int IN = 62;" in virtual and "public static final int OUT = 63;" in virtual,"Virtual Push button IDs must match hardware CC62/CC63."),
-  ("In (CC 62) enters the first available slot chain" in hardware and "Out (CC 63) returns to its parent device" in hardware,"Hardware documentation must define hierarchy navigation."),
-  ('requireAction ("device.selectSlotChain:Chain 1"' in runtime and 'requireAction ("cursorDevice.selectParent"' in runtime and '"cursorDevice.selectNext"' in runtime and '"cursorDevice.selectPrevious"' in runtime,"Runtime test must verify hierarchy entry/exit and nested ROW1 device selection."),
-  ("contentTypeIndex () == inOutContentBefore + 1" in runtime and "contentTypeIndex () == inOutContentBefore" in runtime,"Runtime test must retain Browser content-type direction."),
+  ("In (CC 62) selects the next device" in hardware and "Out (CC 63) selects the previous" in hardware,"Hardware documentation must define the In/Out direction."),
+  ('requireAction ("device.selectNextItem", "In (CC 62)' in runtime and 'requireAction ("device.selectPreviousItem", "Out (CC 63)' in runtime,"Runtime test must verify each physical button independently."),
+  ('parameterBank.selectNextPage' in runtime and 'parameterBank.selectPreviousPage' in runtime and 'contentTypeIndex () == inOutContentBefore + 1' in runtime and 'contentTypeIndex () == inOutContentBefore' in runtime,"Runtime test must verify parameter-page and Browser direction independently."),
  ]
  for ok,message in checks:
   if not ok: errors.append(message)
  return errors
+
 
 def validate_unique_types(files):
  owners={}; errors=[]
@@ -181,19 +176,10 @@ def main():
     errors.append(f"Override changes upstream type identity: {rel}")
   except ValueError as e: errors.append(str(e))
  prepare=(ROOT/"scripts/prepare_push1.py").read_text(encoding="utf-8")
- patch_directory=ROOT/"scripts/push1_build/patches"
- patch_files=sorted(patch_directory.glob("*.py"))
- patch_sources=[p.read_text(encoding="utf-8") for p in patch_files]
- if len(patch_files)!=7:
-  errors.append(f"Expected seven ordered source patch batches, found {len(patch_files)}.")
- targets=set()
- for source in patch_sources:
-  targets.update(patch_targets(source))
+ targets=patch_targets(prepare)
  if targets!=PATCH_TARGET_ALLOWLIST:
   errors.append(f"Upstream patch inventory changed. Unreviewed={sorted(targets-PATCH_TARGET_ALLOWLIST)}; stale={sorted(PATCH_TARGET_ALLOWLIST-targets)}")
  errors += validate_forbidden_navigation(prepare)
- for source in patch_sources:
-  errors += validate_forbidden_navigation(source)
  if not ASSEMBLED.exists(): errors.append("Assembled Java tree missing; run scripts/prepare_push1.py first.")
  else:
   errors += validate_unique_types(list(ASSEMBLED.rglob("*.java")))

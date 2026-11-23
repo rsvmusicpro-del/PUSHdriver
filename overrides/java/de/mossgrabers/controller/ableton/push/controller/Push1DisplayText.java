@@ -25,21 +25,8 @@ public final class Push1DisplayText
      */
     public static String fitAscii (final String value, final int width)
     {
-        final StringBuilder ascii = new StringBuilder ();
-        if (value != null)
-        {
-            value.codePoints ().forEach (codePoint -> {
-                if (codePoint == 0x2026)
-                    ascii.append ((char) ELLIPSIS_CHARACTER_CODE);
-                else if (codePoint <= 0x7F)
-                    ascii.append ((char) codePoint);
-                else if (codePoint <= Character.MAX_VALUE && !Character.isSurrogate ((char) codePoint))
-                    ascii.append (StringUtils.fixASCII (Character.toString ((char) codePoint)));
-                else
-                    ascii.append ('?');
-            });
-        }
-        return fit (ascii.toString (), width);
+        final String normalized = value == null ? "" : value.replace ('…', (char) ELLIPSIS_CHARACTER_CODE);
+        return fit (StringUtils.fixASCII (normalized), width);
     }
 
     /**
@@ -91,6 +78,32 @@ public final class Push1DisplayText
         if (result.length () > width)
             result.setLength (width);
         return result.toString ();
+    }
+
+    /**
+     * Preserve the left side of an LCD row and place a short notification in
+     * its rightmost 17-character block.
+     *
+     * @param line the current 68-character row
+     * @param value the notification (or empty text to clear the block)
+     * @return one exact 68-character, seven-bit-safe row
+     */
+    public static String overlayRightBlock (final String line, final String value)
+    {
+        final int prefixWidth = Push1DisplayLayout.COLUMNS - Push1DisplayLayout.BLOCK_WIDTH;
+        final StringBuilder prefix = new StringBuilder (prefixWidth);
+        if (line != null)
+        {
+            line.codePoints ().limit (prefixWidth).forEach (codePoint -> {
+                if (codePoint == '\n' || codePoint == '\r' || codePoint == '\t')
+                    prefix.append (' ');
+                else
+                    prefix.append (codePoint <= 0x7F ? (char) codePoint : '?');
+            });
+        }
+        while (prefix.length () < prefixWidth)
+            prefix.append (' ');
+        return prefix + Push1DisplayLayout.fitBlock (value);
     }
 
 

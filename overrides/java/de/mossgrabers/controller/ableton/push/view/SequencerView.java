@@ -36,19 +36,13 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     private final ClassicSequencerEngine engine = new ClassicSequencerEngine ();
 
 
-    /** The engine follows the ViewManager lifecycle, not clip availability. */
-    @Override
-    public void onActivate ()
+    /** Synchronize engine ownership with DrivenByMoss' active-view lifecycle. */
+    private void synchronizeEngineLifecycle ()
     {
-        super.onActivate ();
-        this.engine.activate ();
-    }
-
-    @Override
-    public void onDeactivate ()
-    {
-        this.engine.deactivate ();
-        super.onDeactivate ();
+        if (this.isActive ())
+            this.engine.activate ();
+        else
+            this.engine.deactivate ();
     }
 
 
@@ -72,6 +66,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void drawGrid ()
     {
+        this.synchronizeEngineLifecycle ();
         if (this.engine.shouldFollowPlayhead () && this.model.getTransport ().isPlaying ())
         {
             final INoteClip clip = this.getClip ();
@@ -83,8 +78,8 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
                 final int currentStep = clip.getCurrentStep ();
                 if (stepsPerPage > 0 && currentStep >= 0)
                 {
-                    final int playheadPage = ClassicSequencerEngine.pageForStep (currentStep, stepsPerPage);
-                    if (playheadPage >= 0 && playheadPage != clip.getEditPage ())
+                    final int playheadPage = currentStep / stepsPerPage;
+                    if (playheadPage != clip.getEditPage ())
                         clip.scrollToPage (playheadPage);
                 }
             }
@@ -100,11 +95,9 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             return;
 
         final INoteClip clip = this.getClip ();
-        if (!clip.doesExist ())
-            return;
         final int stepsPerPage = this.numDisplayCols;
         final int currentStep = clip.getCurrentStep ();
-        if (stepsPerPage <= 0 || currentStep < 0)
+        if (!clip.doesExist () || stepsPerPage <= 0 || currentStep < 0)
             return;
 
         final int playheadColumn = currentStep - clip.getEditPage () * stepsPerPage;
@@ -120,7 +113,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             final int mappedNote = this.keyManager.map (row);
             notePosition.setNote (mappedNote);
             final IStepInfo stepInfo = mappedNote < 0 ? null : clip.getStep (notePosition);
-            final boolean isSelected = mappedNote >= 0 && this.isEditOrContinuation (channel, playheadColumn, mappedNote, editNotes, stepInfo);
+            final boolean isSelected = mappedNote >= 0 && this.isEditOrContinuation (channel, playheadColumn, mappedNote, editNotes);
             final String color;
             if (isSelected)
                 color = AbstractSequencerView.COLOR_STEP_SELECTED;
@@ -167,6 +160,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     protected void handleLoopArea (final int pad, final int velocity)
     {
+        this.synchronizeEngineLifecycle ();
         if (!this.engine.isActive ())
             return;
 
@@ -175,9 +169,8 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
 
         // The engine owns page-lock policy; the view supplies current host state.
         final INoteClip clip = this.getClip ();
-        final boolean clipExists = clip.doesExist ();
-        this.engine.onPageGesture (pressedPage, pad, velocity, clipExists,
-                this.numDisplayCols, clipExists ? clip.getCurrentStep () : -1);
+        this.engine.onPageGesture (pressedPage, pad, velocity, clip.doesExist (),
+                this.numDisplayCols, clip.getCurrentStep ());
     }
 
 
@@ -185,6 +178,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void onLeft (final ButtonEvent event)
     {
+        this.synchronizeEngineLifecycle ();
         this.engine.onManualPageNavigation ();
         super.onLeft (event);
     }
@@ -194,6 +188,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void onRight (final ButtonEvent event)
     {
+        this.synchronizeEngineLifecycle ();
         this.engine.onManualPageNavigation ();
         super.onRight (event);
     }
@@ -203,6 +198,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     public void onGridNoteLongPress (final int note)
     {
+        this.synchronizeEngineLifecycle ();
         final int index = Push1PadGrid.indexForNote (note);
         if (!this.engine.isActive () || index < 0)
             return;
@@ -212,14 +208,12 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
             return;
         padButton.setConsumed ();
 
-        final int sequencerRow = Push1PadGrid.sequencerRowForIndex (index);
-        if (sequencerRow < 0 || sequencerRow >= this.numSequencerRows)
+        final int y = Push1PadGrid.rowForIndex (index);
+        if (y >= this.numSequencerRows)
             return;
 
-        final NotePosition notePosition = new NotePosition (this.configuration.getMidiEditChannel (), Push1PadGrid.columnForIndex (index), this.keyManager.map (sequencerRow));
-        final INoteClip clip = this.getClip ();
-        if (clip.doesExist ())
-            this.editNote (clip, notePosition, false);
+        final NotePosition notePosition = new NotePosition (this.configuration.getMidiEditChannel (), Push1PadGrid.columnForIndex (index), this.keyManager.map (y));
+        this.editNote (this.getClip (), notePosition, false);
     }
 
 
@@ -227,6 +221,7 @@ public class SequencerView extends AbstractNoteSequencerView<PushControlSurface,
     @Override
     protected boolean handleSequencerAreaButtonCombinations (final INoteClip clip, final NotePosition notePosition, final int row, final int velocity)
     {
+        this.synchronizeEngineLifecycle ();
         if (!this.engine.isActive ())
             return true;
 
