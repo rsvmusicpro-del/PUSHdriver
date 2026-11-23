@@ -476,19 +476,21 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         mode.setShowDevices (false);
         cursor.selectChannel ();
 
-        // IN received while the parent command was in flight belongs to the
-        // newly published parent, not to the child cursor being left.
-        if (!hasLayers && modeManager.isActive (Modes.DEVICE_PARAMS))
+        // Explicit gestures received during the parent request belong to
+        // the newly published parent, even if it also exposes device layers.
+        if (chainToEnter != null || enterFirstChain || queuedRow1Target >= 0)
         {
+            modeManager.setActive (Modes.DEVICE_PARAMS);
+            mode.setShowDevices (true);
             if (chainToEnter != null)
                 selectSpecificChain (mode, model, surface, chainToEnter);
             else if (enterFirstChain)
                 selectFirstAvailableChain (mode, model, surface);
-            else if (queuedRow1Target >= 0)
+            else
                 mode.onFirstRow (queuedRow1Target, ButtonEvent.UP);
-            else if (queuedUpCount > 0)
-                replayQueuedOut (model, surface, queuedUpCount);
         }
+        else if (queuedUpCount > 0)
+            replayQueuedOut (model, surface, queuedUpCount);
         return true;
     }
 
