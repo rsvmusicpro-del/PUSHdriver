@@ -50,7 +50,8 @@ replace_once(setup,
             if (modeManager.isActive (Modes.DEVICE_PARAMS))
             {
                 final var cursorDevice = this.model.getCursorDevice ();
-                return cursorDevice.doesExist () && cursorDevice.isNested ();
+                // OUT is actionable at root too: native moveUp reveals devices or returns to Track.
+                return cursorDevice.doesExist ();
             }
             if (Modes.isDeviceMode (modeManager.getActiveID ()) && activeMode != null)
                 return activeMode.hasPreviousItemPage ();
@@ -372,3 +373,15 @@ replace_once(setup,
     "Push 1 New command binding")
 
 
+
+
+# Device Layer entry is another asynchronous cursor transition. Capture the
+# parent before layer.enter() so an immediate OUT/ROW2-UP waits for publication.
+device_layer_mode = root / "src/main/java/de/mossgrabers/controller/ableton/push/mode/device/DeviceLayerMode.java"
+replace_once(device_layer_mode,
+    "            layer.enter ();",
+    """            final DeviceParamsMode deviceParamsMode = (DeviceParamsMode) this.surface.getModeManager ().get (Modes.DEVICE_PARAMS);
+            de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.prepareLayerEntry (
+                deviceParamsMode, this.model, this.surface);
+            layer.enter ();""",
+    "Track asynchronous Device Layer entry")
