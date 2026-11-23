@@ -257,28 +257,12 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 
         final var bank = cursor.getDeviceBank ();
         final StringBuilder fingerprint = new StringBuilder (256);
-        // Mutable labels and bank scrolling are not cursor identity. Excluding
-        // them prevents rename/scroll events from finalizing against a stale cursor.
+        // Cursor position/index and nesting are the only exposed structural
+        // identity signals here. Names, capabilities and bank contents can
+        // mutate while the same cursor remains selected.
         fingerprint.append (cursor.isNested ()).append ('|')
             .append (cursor.getPosition ()).append ('|')
-            .append (cursor.getIndex ()).append ('|')
-            .append (cursor.hasLayers ()).append ('|')
-            .append (cursor.hasSlots ()).append ('|')
-            .append (cursor.hasDrumPads ()).append ("|bank:")
-            .append (bank.getItemCount ()).append ('|')
-            .append (bank.getPositionOfLastItem ());
-        for (int i = 0; i < bank.getPageSize (); i++)
-        {
-            final var device = bank.getItem (i);
-            fingerprint.append ('|').append (i).append (':');
-            if (device == null)
-            {
-                fingerprint.append ("<null>");
-                continue;
-            }
-            fingerprint.append (device.doesExist ()).append (':')
-                .append (device.getPosition ());
-        }
+            .append (cursor.getIndex ());
         return fingerprint.toString ();
     }
 
@@ -293,12 +277,17 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         model.getCursorDevice ().addNameObserver (name -> {
             final IModel observedModel = modelReference.get ();
             if (observedModel != null)
-                onCursorNameChanged (observedModel);
+                onCursorIdentityChanged (observedModel);
+        });
+        model.getCursorDevice ().addPositionObserver (position -> {
+            final IModel observedModel = modelReference.get ();
+            if (observedModel != null)
+                onCursorIdentityChanged (observedModel);
         });
     }
 
 
-    private static void onCursorNameChanged (final IModel model)
+    private static void onCursorIdentityChanged (final IModel model)
     {
         // There is one latest-wins pending intent for the shared Bitwig model.
         final PendingRow1Selection pending = PENDING_ROW1.get (model);
@@ -395,11 +384,11 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
             && currentId != null && !currentId.isEmpty () && !pending.childId.equals (currentId);
         final boolean returnedToRoot = pending.childWasNested && !cursor.isNested ();
         final String currentFingerprint = cursorFingerprint (model);
-        final boolean bankChanged = currentFingerprint != null
+        final boolean identityChanged = currentFingerprint != null
             && !currentFingerprint.equals (pending.childFingerprint);
         // A name observer can also report a rename of the still-selected child.
-        // Only stable cursor structure may complete a parent-return intent.
-        if (!cursor.doesExist () || !(idChanged || returnedToRoot || bankChanged))
+        // Only cursor ID, nesting or position/index changes can complete this intent.
+        if (!cursor.doesExist () || !(idChanged || returnedToRoot || identityChanged))
             return false;
         return finalizeParentReturn (model, pending, mode, surface, cursor);
     }
