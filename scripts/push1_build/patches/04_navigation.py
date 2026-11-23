@@ -385,3 +385,41 @@ replace_once(device_layer_mode,
                 deviceParamsMode, this.model, this.surface);
             layer.enter ();""",
     "Track asynchronous Device Layer entry")
+
+
+# Bitwig exposes an observer for device position in chain. Surface it through
+# the framework item contract so navigation can react to cursor publication
+# without polling for ordinary position changes.
+item_interface = root / "src/main/java/de/mossgrabers/framework/daw/data/IItem.java"
+replace_once(item_interface,
+    "    void addNameObserver (final IValueObserver<String> observer);",
+    """    void addNameObserver (final IValueObserver<String> observer);
+
+
+    /** Add an observer for the item's position in its bank/chain. */
+    default void addPositionObserver (final IValueObserver<Integer> observer)
+    {
+        // Optional for item implementations without a live position source.
+    }""",
+    "Expose optional item position observer")
+device_impl = root / "src/main/java/de/mossgrabers/bitwig/framework/daw/data/DeviceImpl.java"
+replace_once(device_impl,
+    """    @Override
+    public void addNameObserver (final IValueObserver<String> observer)
+    {
+        this.device.name ().addValueObserver (observer::update);
+    }""",
+    """    @Override
+    public void addNameObserver (final IValueObserver<String> observer)
+    {
+        this.device.name ().addValueObserver (observer::update);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void addPositionObserver (final IValueObserver<Integer> observer)
+    {
+        this.device.position ().addValueObserver (observer::update);
+    }""",
+    "Bridge Bitwig device position observer")
