@@ -27,6 +27,9 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
 {
     private static final int CHAIN_CURSOR_POLL_MS = 8;
     private static final int CHAIN_CURSOR_MAX_POLLS = 75;
+    // A chain-entry marker is valid only briefly; an abandoned entry must not
+    // capture an unrelated ROW1/OUT gesture minutes later.
+    private static final int CHAIN_CURSOR_PENDING_TTL_MS = 2000;
     private static final Map<DeviceParamsMode, PendingRow1Selection> PENDING_ROW1 = new WeakHashMap<> ();
     private static final Map<PushControlSurface, Long> MODE_GENERATIONS = new WeakHashMap<> ();
 
@@ -107,7 +110,15 @@ public class PageLeftCommand extends AbstractTriggerCommand<PushControlSurface, 
         final ICursorDevice cursor = model.getCursorDevice ();
         if (!cursor.doesExist ())
             return;
-        PENDING_ROW1.put (mode, new PendingRow1Selection (cursor));
+        final PendingRow1Selection pending = new PendingRow1Selection (cursor);
+        PENDING_ROW1.put (mode, pending);
+        // Expire even when the user never presses ROW1 or OUT. Without this
+        // one-shot cleanup, a failed chain entry can leave a stale intent alive
+        // indefinitely and intercept a later, unrelated hierarchy gesture.
+        model.getHost ().scheduleTask ( () -> {
+            if (PENDING_ROW1.get (mode) == pending)
+                PENDING_ROW1.remove (mode);
+        }, CHAIN_CURSOR_PENDING_TTL_MS);
     }
 
 
