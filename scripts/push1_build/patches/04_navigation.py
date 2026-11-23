@@ -256,13 +256,13 @@ replace_once(device_params_mode,
     """            final long navigationGeneration = de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.getModeGeneration (this.surface);
             cd.selectParent ();
             this.model.getHost ().scheduleTask ( () -> {
-                // Finish the host-side cursor return regardless of focus, but
-                // only restore Device UI state if no newer mode activation has
-                // occurred. Checking DEVICE_PARAMS alone is insufficient:
-                // Volume -> Device can make a stale callback look current.
-                if (modeManager.isActive (Modes.DEVICE_PARAMS)
-                        && de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.isModeGenerationCurrent (
-                            this.surface, navigationGeneration))
+                // A different active mode cancels this native completion. If
+                // Device was explicitly re-entered, finish the host cursor
+                // return but preserve the new Device activation's UI state.
+                if (!modeManager.isActive (Modes.DEVICE_PARAMS))
+                    return;
+                if (de.mossgrabers.controller.ableton.push.command.trigger.PageLeftCommand.isModeGenerationCurrent (
+                        this.surface, navigationGeneration))
                 {
                     if (cd.hasLayers ())
                         modeManager.setActive (this.surface.getConfiguration ().getCurrentLayerMixMode ());
